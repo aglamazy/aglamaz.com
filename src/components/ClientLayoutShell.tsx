@@ -7,6 +7,7 @@ import { Home, BookOpen, Link as LinkIcon, Images, Users, LogOut } from "lucide-
 import { Button } from "./ui/button";
 import { User } from "../entities/User";
 import { useSiteStore } from '../store/SiteStore';
+import { useRouter } from "next/navigation";
 
 // Sidebar stubs
 const Sidebar = ({ children, className }) => <aside className={className}>{children}</aside>;
@@ -52,6 +53,7 @@ export default function ClientLayoutShell({ children }) {
   const setSiteInfo = useSiteStore((state) => state.setSiteInfo);
   const siteInfo = useSiteStore((state) => state.siteInfo);
   const familyName = siteInfo?.name || 'Family';
+  const router = useRouter();
 
   useEffect(() => {
     checkAuth();
@@ -79,8 +81,9 @@ export default function ClientLayoutShell({ children }) {
   };
 
   const handleLogout = async () => {
-    // Simulate logout
+    document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
     setUser(null);
+    router.push('/login');
   };
 
   if (loading) {
