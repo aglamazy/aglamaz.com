@@ -61,15 +61,15 @@ export default function Home() {
 
   if (!user) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4">
+      <div className="min-h-screen flex items-center justify-center">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
           className="max-w-md w-full"
         >
-          <Card className="border-0 shadow-2xl bg-white/95 backdrop-blur-sm">
-            <CardContent className="p-12 text-center">
+          <Card className="border-0 shadow-xl bg-white/95 backdrop-blur-sm p-8">
+            <CardContent className="text-center">
               <motion.div
                 initial={{ scale: 0.8 }}
                 animate={{ scale: 1 }}
@@ -78,29 +78,24 @@ export default function Home() {
               >
                 <Users className="w-10 h-10 text-white" />
               </motion.div>
-              
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.4, duration: 0.6 }}
               >
-                <h1 className="text-4xl font-bold text-charcoal mb-3">
-                  {familyName}
-                </h1>
-                <p className="text-lg text-sage-600 mb-8 leading-relaxed">
+                <h1 className="text-4xl font-extrabold text-charcoal mb-3">{familyName}</h1>
+                <p className="text-lg text-sage-700 mb-8 leading-relaxed">
                   Welcome to our family portal where memories are shared and connections are cherished.
                 </p>
-                
                 <Button
                   onClick={handleLogin}
-                  className="bg-sage-600 hover:bg-sage-700 text-white px-8 py-3 rounded-lg font-semibold flex items-center justify-center gap-2 transition"
+                  className="bg-sage-700 mx-auto hover:bg-sage-800 text-white px-6 py-2 rounded-lg font-semibold flex items-center justify-center gap-2 shadow transition"
                 >
                   <LogIn className="w-5 h-5" />
-                  Enter Family Portal
+                  <span>Enter Family Portal</span>
                   <ArrowRight className="w-5 h-5" />
                 </Button>
               </motion.div>
-              
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
