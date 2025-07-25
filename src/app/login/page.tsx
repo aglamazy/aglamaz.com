@@ -1,10 +1,28 @@
 "use client";
 import React, { useState } from "react";
 import { FcGoogle } from "react-icons/fc";
+import { useRouter } from "next/navigation";
+import { initFirebase, auth, googleProvider } from "../../firebase/client";
+import { signInWithPopup, getIdToken } from "firebase/auth";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const router = useRouter();
+
+  const handleGoogleLogin = async () => {
+    try {
+      initFirebase();
+      if (auth && googleProvider) {
+        const result = await signInWithPopup(auth(), googleProvider);
+        const token = await getIdToken(result.user);
+        document.cookie = `token=${token}; path=/`;
+        router.push("/");
+      }
+    } catch (error) {
+      alert("Google login failed. Please try again.");
+    }
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -19,7 +37,10 @@ export default function LoginPage() {
           <p className="text-gray-500 mt-2 text-center">Sign in to continue</p>
         </div>
         {/* Google Login */}
-        <button className="w-full flex items-center justify-center gap-2 border border-gray-200 rounded-lg py-2 mb-4 font-medium text-gray-700 hover:bg-gray-100 transition">
+        <button
+          className="w-full flex items-center justify-center gap-2 border border-gray-200 rounded-lg py-2 mb-4 font-medium text-gray-700 hover:bg-gray-100 transition"
+          onClick={handleGoogleLogin}
+        >
           <FcGoogle className="text-xl" />
           Continue with Google
         </button>
