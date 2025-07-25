@@ -10,7 +10,7 @@ import WelcomeHero from "../components/home/WelcomeHero";
 import FamilyOverview from "../components/FamilyOverview";
 import { useSiteStore } from "../store/SiteStore";
 import { useRouter } from "next/navigation";
-import { auth, googleProvider } from "../firebase/client";
+import { initFirebase, auth, googleProvider } from "../firebase/client";
 import { signInWithPopup, getIdToken } from "firebase/auth";
 
 export default function Home() {
@@ -36,17 +36,19 @@ export default function Home() {
 
   const handleLogin = async () => {
     try {
-      // Try real Google login if Firebase is set up
+      initFirebase(); // Ensure Firebase is initialized
       if (auth && googleProvider) {
         const result = await signInWithPopup(auth(), googleProvider);
         const token = await getIdToken(result.user);
         document.cookie = `token=${token}; path=/`;
         router.push('/private');
       } else {
+        console.log('No auth or google provider');
         // Fallback: just navigate
         router.push('/private');
       }
     } catch (error) {
+      console.error(error);
       alert('Login failed. Please try again.');
     }
   };
