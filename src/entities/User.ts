@@ -1,11 +1,19 @@
+import { decodeAndValidateToken } from "../utils/token";
+
+
 export class User {
   static async me() {
-    // No user is authenticated by default
-    return null;
+    const match = document.cookie.match(/(?:^|; )token=([^;]*)/);
+    if (!match) return null;
+    try {
+      const decoded = decodeAndValidateToken(match[1]);
+      return decoded;
+    } catch (err) {
+      return null;
+    }
   }
 
   static async loginWithRedirect(_redirectUrl: string) {
-    // Simulate login by reloading the page
     window.location.reload();
   }
 } 
