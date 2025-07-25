@@ -1,15 +1,23 @@
 import './globals.css';
-import { ReactNode } from 'react';
+import ClientLayoutShell from '../components/ClientLayoutShell';
+import { fetchSiteInfo } from '../firebase/admin';
 
-export const metadata = {
-  title: 'Aglamaz App',
-  description: 'Demo app with Firebase auth',
-};
+export default async function RootLayout({ children }) {
+  const siteInfo = await fetchSiteInfo();
 
-export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        {/* Inject siteInfo as a global variable for client-side hydration */}
+        <script
+          id="__SITE_INFO__"
+          type="application/json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(siteInfo || {}) }}
+        />
+        <ClientLayoutShell>
+          {children}
+        </ClientLayoutShell>
+      </body>
     </html>
   );
 }

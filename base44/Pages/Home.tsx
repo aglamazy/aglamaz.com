@@ -1,24 +1,15 @@
-'use client';
-
 import React, { useState, useEffect } from "react";
-import { User } from "../entities/User";
-import { Button } from "../components/ui/button";
-import { Card, CardContent } from "../components/ui/card";
+import { User } from "@/entities/User";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Users, Heart, LogIn, ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
 import WelcomeHero from "../components/home/WelcomeHero";
-import FamilyOverview from "../components/FamilyOverview";
-import { useSiteStore } from "../store/SiteStore";
-import { useRouter } from "next/navigation";
-import { auth, googleProvider } from "../firebase/client";
-import { signInWithPopup, getIdToken } from "firebase/auth";
+import FamilyOverview from "../components/home/FamilyOverview";
 
 export default function Home() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const siteInfo = useSiteStore((state) => state.siteInfo);
-  const familyName = siteInfo?.name || 'Family';
-  const router = useRouter();
 
   useEffect(() => {
     checkAuth();
@@ -35,20 +26,7 @@ export default function Home() {
   };
 
   const handleLogin = async () => {
-    try {
-      // Try real Google login if Firebase is set up
-      if (auth && googleProvider) {
-        const result = await signInWithPopup(auth(), googleProvider);
-        const token = await getIdToken(result.user);
-        document.cookie = `token=${token}; path=/`;
-        router.push('/private');
-      } else {
-        // Fallback: just navigate
-        router.push('/private');
-      }
-    } catch (error) {
-      alert('Login failed. Please try again.');
-    }
+    await User.loginWithRedirect(window.location.href);
   };
 
   if (loading) {
@@ -85,7 +63,7 @@ export default function Home() {
                 transition={{ delay: 0.4, duration: 0.6 }}
               >
                 <h1 className="text-4xl font-bold text-charcoal mb-3">
-                  {familyName}
+                  The Johnsons
                 </h1>
                 <p className="text-lg text-sage-600 mb-8 leading-relaxed">
                   Welcome to our family portal where memories are shared and connections are cherished.
@@ -93,11 +71,12 @@ export default function Home() {
                 
                 <Button
                   onClick={handleLogin}
-                  className="bg-sage-600 hover:bg-sage-700 text-white px-8 py-3 rounded-lg font-semibold flex items-center justify-center gap-2 transition"
+                  size="lg"
+                  className="bg-sage-600 hover:bg-sage-700 text-white px-8 py-4 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 hover:shadow-lg group"
                 >
-                  <LogIn className="w-5 h-5" />
+                  <LogIn className="w-5 h-5 mr-2" />
                   Enter Family Portal
-                  <ArrowRight className="w-5 h-5" />
+                  <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform duration-200" />
                 </Button>
               </motion.div>
               

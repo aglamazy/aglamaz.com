@@ -1,18 +1,30 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { initAdmin, adminAuth } from './src/firebase/admin';
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 
-export async function middleware(req: NextRequest) {
-  if (!req.nextUrl.pathname.startsWith('/private')) return NextResponse.next();
-  initAdmin();
-  const token = req.cookies.get('token')?.value;
-  if (!token) {
-    return NextResponse.redirect(new URL('/', req.url));
-  }
-  try {
-    await adminAuth().verifyIdToken(token);
+export function middleware(request: NextRequest) {
+  const token = request.cookies.get('token')?.value;
+
+  // Allow access to /login and static files
+  if (
+    request.nextUrl.pathname.startsWith('/login') ||
+    request.nextUrl.pathname.startsWith('/_next') ||
+    request.nextUrl.pathname.startsWith('/api') ||
+    request.nextUrl.pathname.startsWith('/favicon.ico')
+  ) {
     return NextResponse.next();
-  } catch {
-    return NextResponse.redirect(new URL('/', req.url));
   }
+
+  // If not logged in, redirect to /login
+  if (!token) {
+    return NextResponse.redirect(new URL('/login', request.url));
+  }
+
+  // Otherwise, allow access
+  return NextResponse.next();
 }
-export const config = { matcher: ["/private/:path*"] };
+
+export const config = {
+  matcher: [
+    '/((?!login|_next/static|_next/image|favicon.ico|api).*)',
+  ],
+};

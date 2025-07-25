@@ -1,5 +1,6 @@
 import { initializeApp, cert, getApps } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
+import { getFirestore } from 'firebase-admin/firestore';
 
 export function initAdmin() {
   if (!getApps().length) {
@@ -7,10 +8,17 @@ export function initAdmin() {
       credential: cert({
         projectId: process.env.FIREBASE_PROJECT_ID,
         clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+        privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\n/g, '\n'),
       }),
     });
   }
 }
 
 export const adminAuth = () => getAuth();
+
+export async function fetchSiteInfo() {
+  initAdmin();
+  const db = getFirestore();
+  const doc = await db.collection('site').doc('info').get();
+  return doc.exists ? doc.data() : null;
+}
