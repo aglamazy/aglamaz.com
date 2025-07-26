@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { initFirebase, auth, googleProvider } from "../../firebase/client";
 import { signInWithPopup, getIdToken, signInWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth";
 import { useSiteStore } from "../../store/SiteStore";
+import { useUserStore } from "../../store/UserStore";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -13,6 +14,7 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const router = useRouter();
   const { siteInfo } = useSiteStore();
+  const { setUser } = useUserStore();
 
   const handleGoogleLogin = async () => {
     try {
@@ -23,6 +25,15 @@ export default function LoginPage() {
         const result = await signInWithPopup(auth(), googleProvider);
         const token = await getIdToken(result.user);
         document.cookie = `token=${token}; path=/`;
+        
+        // Update user state immediately after login
+        setUser({
+          name: result.user.displayName,
+          email: result.user.email,
+          photoURL: result.user.photoURL,
+          uid: result.user.uid
+        });
+        
         router.push("/");
       }
     } catch (error) {
@@ -46,6 +57,15 @@ export default function LoginPage() {
         const result = await signInWithEmailAndPassword(auth(), email, password);
         const token = await getIdToken(result.user);
         document.cookie = `token=${token}; path=/`;
+        
+        // Update user state immediately after login
+        setUser({
+          name: result.user.displayName || result.user.email,
+          email: result.user.email,
+          photoURL: result.user.photoURL,
+          uid: result.user.uid
+        });
+        
         router.push("/");
       }
     } catch (error: any) {

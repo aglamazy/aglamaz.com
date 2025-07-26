@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect } from "react";
-import { User } from "../entities/User";
 import { Button } from "../components/ui/button";
 import { Card, CardContent } from "../components/ui/card";
 import { Users, Heart, LogIn, ArrowRight } from "lucide-react";
@@ -9,30 +8,20 @@ import { motion } from "framer-motion";
 import WelcomeHero from "../components/home/WelcomeHero";
 import FamilyOverview from "../components/FamilyOverview";
 import { useSiteStore } from "../store/SiteStore";
+import { useUserStore } from "../store/UserStore";
 import { useRouter } from "next/navigation";
 import { initFirebase, auth, googleProvider } from "../firebase/client";
 import { signInWithPopup, getIdToken } from "firebase/auth";
 
 export default function Home() {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const { user, loading, checkAuth, setUser } = useUserStore();
   const siteInfo = useSiteStore((state) => state.siteInfo);
   const familyName = siteInfo?.name || 'Family';
   const router = useRouter();
 
   useEffect(() => {
     checkAuth();
-  }, []);
-
-  const checkAuth = async () => {
-    try {
-      const userData = await User.me();
-      setUser(userData);
-    } catch (error) {
-      setUser(null);
-    }
-    setLoading(false);
-  };
+  }, [checkAuth]);
 
   const handleLogin = async () => {
     initFirebase();
@@ -40,6 +29,15 @@ export default function Home() {
       const result = await signInWithPopup(auth(), googleProvider);
       const token = await getIdToken(result.user);
       document.cookie = `token=${token}; path=/`;
+      
+      // Update user state immediately after login
+      setUser({
+        name: result.user.displayName,
+        email: result.user.email,
+        photoURL: result.user.photoURL,
+        uid: result.user.uid
+      });
+      
       router.push('/');
     } else {
       router.push('/login');
