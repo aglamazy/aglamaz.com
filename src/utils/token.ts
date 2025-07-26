@@ -13,7 +13,8 @@ type DecodedToken = {
       const [, payloadBase64] = token.split('.')
       if (!payloadBase64) return null
   
-      const json = Buffer.from(payloadBase64, 'base64').toString('utf8')
+      // Use browser's atob() instead of Node.js Buffer
+      const json = atob(payloadBase64.replace(/-/g, '+').replace(/_/g, '/'))
       const payload: DecodedToken = JSON.parse(json)
   
       const now = Math.floor(Date.now() / 1000)

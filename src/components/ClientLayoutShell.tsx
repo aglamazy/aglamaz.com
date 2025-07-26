@@ -61,12 +61,15 @@ export default function ClientLayoutShell({ children }) {
 
   React.useEffect(() => {
     // Hydrate Zustand store with site info from server
-    const script = document.getElementById('__SITE_INFO__');
-    if (script) {
-      try {
+    try {
+      const script = document.getElementById('__SITE_INFO__');
+      if (script) {
         const info = JSON.parse(script.textContent || '{}');
         setSiteInfo(info);
-      } catch {}
+      }
+    } catch (error) {
+      console.error('Failed to parse site info:', error);
+      setSiteInfo({ name: 'Family' }); // fallback
     }
   }, [setSiteInfo]);
 

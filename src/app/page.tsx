@@ -1,7 +1,5 @@
 'use client';
 
-import { redirect } from 'next/navigation';
-
 import React, { useState, useEffect } from "react";
 import { User } from "../entities/User";
 import { Button } from "../components/ui/button";
@@ -44,7 +42,7 @@ export default function Home() {
       document.cookie = `token=${token}; path=/`;
       router.push('/');
     } else {
-      router.push('/');
+      router.push('/login');
     }
   };
 
@@ -57,7 +55,8 @@ export default function Home() {
   }
 
   if (!user) {
-    redirect('/login');
+    router.push('/login');
+    return null;
   }
 
   return (

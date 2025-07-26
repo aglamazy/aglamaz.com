@@ -1,17 +1,23 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { FcGoogle } from "react-icons/fc";
 import { useRouter } from "next/navigation";
 import { initFirebase, auth, googleProvider } from "../../firebase/client";
-import { signInWithPopup, getIdToken } from "firebase/auth";
+import { signInWithPopup, getIdToken, signInWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth";
+import { useSiteStore } from "../../store/SiteStore";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
   const router = useRouter();
+  const { siteInfo } = useSiteStore();
 
   const handleGoogleLogin = async () => {
     try {
+      setIsLoading(true);
+      setError("");
       initFirebase();
       if (auth && googleProvider) {
         const result = await signInWithPopup(auth(), googleProvider);
@@ -20,7 +26,63 @@ export default function LoginPage() {
         router.push("/");
       }
     } catch (error) {
-      alert("Google login failed. Please try again.");
+      setError("Google login failed. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleEmailLogin = async () => {
+    if (!email || !password) {
+      setError("Please enter both email and password");
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      setError("");
+      initFirebase();
+      if (auth) {
+        const result = await signInWithEmailAndPassword(auth(), email, password);
+        const token = await getIdToken(result.user);
+        document.cookie = `token=${token}; path=/`;
+        router.push("/");
+      }
+    } catch (error: any) {
+      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+        setError("Invalid email or password");
+      } else if (error.code === 'auth/too-many-requests') {
+        setError("Too many failed attempts. Please try again later.");
+      } else {
+        setError("Login failed. Please try again.");
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!email) {
+      setError("Please enter your email address first");
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      setError("");
+      initFirebase();
+      if (auth) {
+        await sendPasswordResetEmail(auth(), email);
+        alert("Password reset email sent! Check your inbox.");
+      }
+    } catch (error: any) {
+      if (error.code === 'auth/user-not-found') {
+        setError("No account found with this email address");
+      } else {
+        setError("Failed to send reset email. Please try again.");
+      }
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -33,16 +95,24 @@ export default function LoginPage() {
             {/* Placeholder for logo */}
             <span className="text-4xl">🌳</span>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 text-center">Welcome to FamilyCircle <span className="block">(Copy)</span></h1>
+          <h1 className="text-2xl font-bold text-gray-900 text-center">Welcome to {siteInfo?.name || 'FamilyCircle'}</h1>
           <p className="text-gray-500 mt-2 text-center">Sign in to continue</p>
         </div>
+        {/* Error Message */}
+        {error && (
+          <div className="w-full mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+            {error}
+          </div>
+        )}
+
         {/* Google Login */}
         <button
-          className="w-full flex items-center justify-center gap-2 border border-gray-200 rounded-lg py-2 mb-4 font-medium text-gray-700 hover:bg-gray-100 transition"
+          className="w-full flex items-center justify-center gap-2 border border-gray-200 rounded-lg py-2 mb-4 font-medium text-gray-700 hover:bg-gray-100 transition disabled:opacity-50 disabled:cursor-not-allowed"
           onClick={handleGoogleLogin}
+          disabled={isLoading}
         >
           <FcGoogle className="text-xl" />
-          Continue with Google
+          {isLoading ? "Signing in..." : "Continue with Google"}
         </button>
         <div className="flex items-center w-full my-4">
           <div className="flex-1 h-px bg-gray-200" />
@@ -84,11 +154,22 @@ export default function LoginPage() {
           </div>
         </div>
         {/* Sign In Button */}
-        <button className="w-full bg-gray-900 text-white py-2 rounded-lg font-semibold hover:bg-gray-800 transition mb-4">Sign in</button>
+        <button 
+          className="w-full bg-gray-900 text-white py-2 rounded-lg font-semibold hover:bg-gray-800 transition mb-4 disabled:opacity-50 disabled:cursor-not-allowed"
+          onClick={handleEmailLogin}
+          disabled={isLoading}
+        >
+          {isLoading ? "Signing in..." : "Sign in"}
+        </button>
         {/* Links */}
-        <div className="flex justify-between w-full text-sm text-gray-500">
-          <a href="#" className="hover:underline">Forgot password?</a>
-          <a href="#" className="hover:underline">Need an account? <span className="font-semibold">Sign up</span></a>
+        <div className="flex justify-center w-full text-sm text-gray-500">
+          <button 
+            onClick={handleForgotPassword}
+            className="hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={isLoading}
+          >
+            Forgot password?
+          </button>
         </div>
       </div>
     </div>

@@ -1,9 +1,17 @@
 import './globals.css';
 import ClientLayoutShell from '../components/ClientLayoutShell';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 import { fetchSiteInfo } from '../firebase/admin';
 
 export default async function RootLayout({ children }) {
-  const siteInfo = await fetchSiteInfo();
+  let siteInfo = null;
+  
+  try {
+    siteInfo = await fetchSiteInfo();
+  } catch (error) {
+    console.error('Failed to fetch site info:', error);
+    siteInfo = { name: 'Family' }; // fallback
+  }
 
   return (
     <html lang="en">
@@ -14,9 +22,11 @@ export default async function RootLayout({ children }) {
           type="application/json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(siteInfo || {}) }}
         />
-        <ClientLayoutShell>
-          {children}
-        </ClientLayoutShell>
+        <ErrorBoundary>
+          <ClientLayoutShell>
+            {children}
+          </ClientLayoutShell>
+        </ErrorBoundary>
       </body>
     </html>
   );
