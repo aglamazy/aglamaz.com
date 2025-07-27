@@ -23,6 +23,31 @@ export default function Home() {
     checkAuth();
   }, [checkAuth]);
 
+  useEffect(() => {
+    if (user && !loading) {
+      checkMemberStatus();
+    }
+  }, [user, loading]);
+
+  const checkMemberStatus = async () => {
+    try {
+      const response = await fetch(`/api/user/${user.uid}/members/default-site`, {
+        headers: {
+          'Authorization': `Bearer ${document.cookie.match(/token=([^;]*)/)?.[1] || ''}`
+        }
+      });
+
+      if (!response.ok) {
+        // User is not a member, redirect to pending approval
+        router.push('/pending-approval');
+      }
+    } catch (error) {
+      console.error('Failed to check member status:', error);
+      // On error, redirect to pending approval as fallback
+      router.push('/pending-approval');
+    }
+  };
+
   const handleLogin = async () => {
     initFirebase();
     if (auth && googleProvider) {

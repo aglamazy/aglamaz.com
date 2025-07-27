@@ -6,12 +6,14 @@ import { initFirebase, auth, googleProvider } from "../../firebase/client";
 import { signInWithPopup, getIdToken, signInWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth";
 import { useSiteStore } from "../../store/SiteStore";
 import { useUserStore } from "../../store/UserStore";
+import SignupForm from "../../components/SignupForm";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showSignup, setShowSignup] = useState(false);
   const router = useRouter();
   const { siteInfo } = useSiteStore();
   const { setUser } = useUserStore();
@@ -106,6 +108,17 @@ export default function LoginPage() {
     }
   };
 
+  if (showSignup) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+        <SignupForm
+          onSuccess={() => router.push('/pending-approval')}
+          onCancel={() => setShowSignup(false)}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8 flex flex-col items-center">
@@ -182,13 +195,20 @@ export default function LoginPage() {
           {isLoading ? "Signing in..." : "Sign in"}
         </button>
         {/* Links */}
-        <div className="flex justify-center w-full text-sm text-gray-500">
+        <div className="flex justify-between w-full text-sm text-gray-500">
           <button 
             onClick={handleForgotPassword}
             className="hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
             disabled={isLoading}
           >
             Forgot password?
+          </button>
+          <button 
+            onClick={() => setShowSignup(true)}
+            className="hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={isLoading}
+          >
+            Sign up
           </button>
         </div>
       </div>
