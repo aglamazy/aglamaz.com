@@ -1,9 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Button } from './ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { User, Mail, Loader2, CheckCircle } from 'lucide-react';
+import { Loader2, CheckCircle } from 'lucide-react';
 import { useUserStore } from '../store/UserStore';
 import { initFirebase, auth, googleProvider } from '../firebase/client';
 import { signInWithPopup, getIdToken } from 'firebase/auth';
@@ -94,103 +92,108 @@ export default function SignupForm({ onSuccess, onCancel }: SignupFormProps) {
 
   if (isSubmitted) {
     return (
-      <Card className="w-full max-w-md mx-auto">
-        <CardContent className="pt-6">
-          <div className="text-center">
-            <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              בקשה נשלחה בהצלחה
-            </h3>
-            <p className="text-gray-600">
-              ממתין לאישור מהמנהל
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8 flex flex-col items-center">
+        <div className="text-center">
+          <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+            בקשה נשלחה בהצלחה
+          </h3>
+          <p className="text-gray-600">
+            ממתין לאישור מהמנהל
+          </p>
+        </div>
+      </div>
     );
   }
 
   return (
-    <Card className="w-full max-w-md mx-auto">
-      <CardHeader>
-        <CardTitle className="text-center text-xl font-bold text-gray-900">
-          הרשמה למערכת
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Debug info - remove this later */}
-          <div className="text-xs text-gray-500">
-            Debug: firstName="{firstName}", email="{email}", isLoading={isLoading.toString()}
-          </div>
-          {error && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
-              {error}
-            </div>
-          )}
+    <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8 flex flex-col items-center">
+      {/* Logo */}
+      <div className="flex flex-col items-center mb-6">
+        <div className="w-20 h-20 rounded-full bg-yellow-100 flex items-center justify-center mb-4 shadow">
+          {/* Placeholder for logo */}
+          <span className="text-4xl">🌳</span>
+        </div>
+        <h1 className="text-2xl font-bold text-gray-900 text-center">הרשמה למערכת</h1>
+        <p className="text-gray-500 mt-2 text-center">Sign up to continue</p>
+      </div>
 
-          <div>
-            <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">
-              שם פרטי
-            </label>
-            <div className="relative">
-              <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <input
-                id="firstName"
-                type="text"
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-                className="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200"
-                placeholder="הכנס את שמך הפרטי"
-                disabled={isLoading}
-              />
-            </div>
-          </div>
 
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-              כתובת אימייל
-            </label>
-            <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200"
-                placeholder="your@email.com"
-                disabled={isLoading}
-              />
-            </div>
-          </div>
 
-          <div className="flex gap-3 pt-2">
-            <Button
-              type="button"
-              onClick={onCancel}
+      {/* Error Message */}
+      {error && (
+        <div className="w-full mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+          {error}
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="w-full space-y-4">
+        {/* First Name Input */}
+        <div className="w-full">
+          <label className="block text-gray-700 text-sm mb-1" htmlFor="firstName">שם פרטי</label>
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+              <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            </span>
+            <input
+              id="firstName"
+              type="text"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              className="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200"
+              placeholder="הכנס את שמך הפרטי"
               disabled={isLoading}
-              className="flex-1 border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
-            >
-              ביטול
-            </Button>
-            <Button
-              type="submit"
-              disabled={false}
-              className="flex-1 bg-blue-600 text-white hover:bg-blue-700"
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  שולח...
-                </>
-              ) : (
-                'שלח בקשה'
-              )}
-            </Button>
+            />
           </div>
-        </form>
-      </CardContent>
-    </Card>
+        </div>
+
+        {/* Email Input */}
+        <div className="w-full">
+          <label className="block text-gray-700 text-sm mb-1" htmlFor="email">כתובת אימייל</label>
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+              <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M21 7.5V16.5C21 18.1569 19.6569 19.5 18 19.5H6C4.34315 19.5 3 18.1569 3 16.5V7.5M21 7.5C21 5.84315 19.6569 4.5 18 4.5H6C4.34315 4.5 3 5.84315 3 7.5M21 7.5L12 13.5L3 7.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            </span>
+            <input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200"
+              placeholder="your@email.com"
+              disabled={isLoading}
+            />
+          </div>
+        </div>
+
+        {/* Submit Button */}
+        <button 
+          type="submit"
+          className="w-full bg-gray-900 text-white py-2 rounded-lg font-semibold hover:bg-gray-800 transition mb-4 disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin inline" />
+              שולח...
+            </>
+          ) : (
+            'שלח בקשה'
+          )}
+        </button>
+
+        {/* Cancel Link */}
+        <div className="flex justify-center w-full text-sm text-gray-500">
+          <button 
+            type="button"
+            onClick={onCancel}
+            className="hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={isLoading}
+          >
+            ביטול
+          </button>
+        </div>
+      </form>
+    </div>
   );
 } 

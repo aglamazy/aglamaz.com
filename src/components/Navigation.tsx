@@ -41,6 +41,11 @@ export default function Navigation({ user, onLogout }: NavigationProps) {
     { name: 'Settings', href: '/settings', icon: Settings },
   ];
 
+  // Add admin link if user is admin
+  const adminItems = [
+    { name: 'Pending Members', href: '/admin/pending-members', icon: Users },
+  ];
+
   const handleLogout = () => {
     setIsUserMenuOpen(false);
     onLogout();
@@ -77,6 +82,21 @@ export default function Navigation({ user, onLogout }: NavigationProps) {
                     key={item.name}
                     onClick={() => router.push(item.href)}
                     className="text-sage-600 hover:text-sage-700 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 flex items-center gap-2"
+                  >
+                    <Icon size={16} />
+                    {item.name}
+                  </button>
+                );
+              })}
+              
+              {/* Admin links */}
+              {user?.isAdmin && adminItems.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <button
+                    key={item.name}
+                    onClick={() => router.push(item.href)}
+                    className="text-red-600 hover:text-red-700 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 flex items-center gap-2"
                   >
                     <Icon size={16} />
                     {item.name}
@@ -148,6 +168,24 @@ export default function Navigation({ user, onLogout }: NavigationProps) {
                     setIsMobileMenuOpen(false);
                   }}
                   className="text-sage-600 hover:text-sage-700 hover:bg-sage-50 block px-3 py-2 rounded-md text-base font-medium transition-colors duration-200 flex items-center gap-3 w-full text-left"
+                >
+                  <Icon size={20} />
+                  {item.name}
+                </button>
+              );
+            })}
+            
+            {/* Admin links */}
+            {user?.isAdmin && adminItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <button
+                  key={item.name}
+                  onClick={() => {
+                    router.push(item.href);
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className="text-red-600 hover:text-red-700 hover:bg-red-50 block px-3 py-2 rounded-md text-base font-medium transition-colors duration-200 flex items-center gap-3 w-full text-left"
                 >
                   <Icon size={20} />
                   {item.name}
