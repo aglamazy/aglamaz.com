@@ -2,10 +2,6 @@
 
 import React, { useState } from 'react';
 import { Loader2, CheckCircle } from 'lucide-react';
-import { useUserStore } from '../store/UserStore';
-import { initFirebase, auth, googleProvider } from '../firebase/client';
-import { signInWithPopup, getIdToken } from 'firebase/auth';
-import { useRouter } from 'next/navigation';
 
 interface SignupFormProps {
   onSuccess: () => void;
@@ -18,13 +14,9 @@ export default function SignupForm({ onSuccess, onCancel }: SignupFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
-  const { user, setUser } = useUserStore();
-  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    console.log('Form submitted:', { firstName, email, isLoading });
     
     if (!firstName.trim() || !email.trim()) {
       setError('Please fill in all fields');
@@ -33,33 +25,10 @@ export default function SignupForm({ onSuccess, onCancel }: SignupFormProps) {
 
     setIsLoading(true);
     setError('');
-    console.log('Set loading to true');
 
     try {
-      // Step 1: Authenticate with Firebase first
-      initFirebase();
-      if (!auth || !googleProvider) {
-        throw new Error('Firebase not initialized');
-      }
-
-      const result = await signInWithPopup(auth(), googleProvider);
-      const token = await getIdToken(result.user);
-      
-      // Set the token in cookie
-      document.cookie = `token=${token}; path=/`;
-      
-      // Update user state
-      const userData = {
-        name: result.user.displayName,
-        email: result.user.email,
-        photoURL: result.user.photoURL,
-        uid: result.user.uid
-      };
-      setUser(userData);
-
-      // Step 2: Create pending member document
-      const siteId = 'default-site';
-      const response = await fetch(`/api/user/${result.user.uid}/request-signup`, {
+      // Step 1: Send email verification request (no Firebase auth yet)
+      const response = await fetch('/api/signup/request-verification', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -67,7 +36,7 @@ export default function SignupForm({ onSuccess, onCancel }: SignupFormProps) {
         body: JSON.stringify({
           firstName: firstName.trim(),
           email: email.trim(),
-          siteId
+          siteId: 'default-site'
         })
       });
 
@@ -75,18 +44,14 @@ export default function SignupForm({ onSuccess, onCancel }: SignupFormProps) {
 
       if (response.ok) {
         setIsSubmitted(true);
-        setTimeout(() => {
-          onSuccess();
-        }, 2000);
       } else {
-        setError(data.error || 'Failed to submit signup request');
+        setError(data.error || 'Failed to send verification email');
       }
     } catch (error) {
       console.error('Signup error:', error);
-      setError('Authentication failed. Please try again.');
+      setError('Failed to send verification email. Please try again.');
     } finally {
       setIsLoading(false);
-      console.log('Set loading to false');
     }
   };
 
@@ -96,10 +61,13 @@ export default function SignupForm({ onSuccess, onCancel }: SignupFormProps) {
         <div className="text-center">
           <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-gray-900 mb-2">
-            בקשה נשלחה בהצלחה
+            אימייל אימות נשלח
           </h3>
-          <p className="text-gray-600">
-            ממתין לאישור מהמנהל
+          <p className="text-gray-600 mb-4">
+            בדוק את תיבת הדואר שלך וצור קשר עם המנהל
+          </p>
+          <p className="text-sm text-gray-500">
+            {email}
           </p>
         </div>
       </div>
