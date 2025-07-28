@@ -15,7 +15,24 @@ export default function SignupForm({ onSuccess, onCancel }: SignupFormProps) {
   const [error, setError] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
-  const [verificationUrl, setVerificationUrl] = useState('');
+
+  // Get site info from the global variable injected by the server
+  const getSiteInfo = () => {
+    try {
+      const scriptElement = document.getElementById('__SITE_INFO__');
+      if (scriptElement) {
+        return JSON.parse(scriptElement.textContent || '{}');
+      }
+    } catch (error) {
+      console.error('Failed to parse site info:', error);
+    }
+    return null;
+  };
+
+  const getSiteId = () => {
+    const siteInfo = getSiteInfo();
+    return siteInfo?.id || process.env.NEXT_SITE_ID || 'default';
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,7 +55,7 @@ export default function SignupForm({ onSuccess, onCancel }: SignupFormProps) {
         body: JSON.stringify({
           firstName: firstName.trim(),
           email: email.trim(),
-          siteId: 'default-site'
+          siteId: getSiteId()
         })
       });
 
@@ -80,14 +97,6 @@ export default function SignupForm({ onSuccess, onCancel }: SignupFormProps) {
               <p className="text-gray-600 mb-4">
                 הבקשה נשלחה אך לא הצלחנו לשלוח אימייל אימות
               </p>
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
-                <p className="text-sm text-yellow-800 mb-2">
-                  <strong>חשוב:</strong> אנא העתק את הקישור הבא וצור קשר עם המנהל:
-                </p>
-                <div className="bg-white p-2 rounded border text-xs break-all">
-                  {verificationUrl}
-                </div>
-              </div>
               <p className="text-sm text-gray-500">
                 {email}
               </p>

@@ -35,6 +35,15 @@ export async function POST(request: NextRequest) {
     try {
       const gmailService = new GmailService();
       await gmailService.sendVerificationEmail(email, firstName, verificationUrl);
+      
+      // Update the document to mark email as verified
+      const emailKey = email.toLowerCase().trim();
+      const documentKey = `${emailKey}_${siteId}`;
+      const crypto = require('crypto');
+      const documentId = crypto.createHash('sha256').update(documentKey).digest('hex');
+      
+      await familyRepository.updateSignupRequestEmailVerified(documentId);
+      
     } catch (emailError) {
       console.error('Failed to send email:', emailError);
       return NextResponse.json(

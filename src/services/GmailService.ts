@@ -141,4 +141,10 @@ export class GmailService {
       text
     });
   }
+
+  // Method to simulate email failure for testing
+  async sendVerificationEmailWithFailure(to: string, firstName: string, verificationUrl: string): Promise<void> {
+    // Simulate email failure by throwing an error
+    throw new Error('Gmail service not configured - simulating email failure');
+  }
 } 

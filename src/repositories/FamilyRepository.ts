@@ -37,10 +37,12 @@ export interface SignupRequest {
   firstName: string;
   email: string;
   siteId: string;
+  site_id?: string; // Alternative field name for compatibility
   userId?: string; // Optional until verified
   status: 'pending_verification' | 'pending' | 'approved' | 'rejected';
   verificationToken?: string;
   expiresAt?: Date;
+  email_verified?: boolean; // Track if email was successfully sent
   createdAt: Timestamp;
   updatedAt: Timestamp;
   verifiedAt?: Timestamp;
@@ -59,6 +61,10 @@ export class FamilyRepository {
   private getDb() {
     initAdmin();
     return getFirestore();
+  }
+
+  getTimestamp() {
+    return Timestamp.now();
   }
 
   // Site Management
@@ -218,15 +224,29 @@ export class FamilyRepository {
     try {
       const db = this.getDb();
       const now = Timestamp.now();
-      const requestRef = await db.collection(this.signupRequestsCollection).add({
+      
+      // Create deterministic document ID based on email + siteId
+      const emailKey = requestData.email.toLowerCase().trim();
+      const documentKey = `${emailKey}_${requestData.siteId}`;
+      
+      // Hash the key to create a safe document ID
+      const crypto = require('crypto');
+      const documentId = crypto.createHash('sha256').update(documentKey).digest('hex');
+      
+      // Use setDoc with merge to ensure idempotency
+      const requestRef = db.collection(this.signupRequestsCollection).doc(documentId);
+      await requestRef.set({
         ...requestData,
+        email: emailKey, // Store normalized email
+        email_verified: false, // Default to false, will be updated if email succeeds
         createdAt: now,
         updatedAt: now
-      });
+      }, { merge: true });
 
       return {
-        id: requestRef.id,
+        id: documentId,
         ...requestData,
+        email: emailKey,
         createdAt: now,
         updatedAt: now
       };
@@ -388,6 +408,45 @@ export class FamilyRepository {
     } catch (error) {
       console.error('Error checking if user is pending:', error);
       return false;
+    }
+  }
+
+  async getSignupRequestByEmail(email: string, siteId: string): Promise<SignupRequest | null> {
+    try {
+      const db = this.getDb();
+      
+      // Create the same deterministic document ID
+      const emailKey = email.toLowerCase().trim();
+      const documentKey = `${emailKey}_${siteId}`;
+      const crypto = require('crypto');
+      const documentId = crypto.createHash('sha256').update(documentKey).digest('hex');
+      
+      const requestDoc = await db.collection(this.signupRequestsCollection).doc(documentId).get();
+      
+      if (!requestDoc.exists) {
+        return null;
+      }
+
+      return {
+        id: requestDoc.id,
+        ...requestDoc.data()
+      } as SignupRequest;
+    } catch (error) {
+      console.error('Error getting signup request by email:', error);
+      throw new Error('Failed to get signup request by email');
+    }
+  }
+
+  async updateSignupRequestEmailVerified(documentId: string): Promise<void> {
+    try {
+      const db = this.getDb();
+      await db.collection(this.signupRequestsCollection).doc(documentId).update({
+        email_verified: true,
+        updatedAt: this.getTimestamp()
+      });
+    } catch (error) {
+      console.error('Error updating signup request email verified:', error);
+      throw new Error('Failed to update signup request email verified');
     }
   }
 }

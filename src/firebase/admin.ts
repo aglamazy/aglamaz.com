@@ -19,7 +19,10 @@ export const adminAuth = () => getAuth();
 export async function fetchSiteInfo() {
   initAdmin();
   const db = getFirestore();
-  const siteId = process.env.NEXT_SITE_ID || 'default';
+  if (!process.env.NEXT_SITE_ID) {
+    throw new Error('NEXT_SITE_ID is not set');
+  }
+  const siteId = process.env.NEXT_SITE_ID;
   const doc = await db.collection('sites').doc(siteId).get();
-  return doc.exists ? doc.data() : null;
+  return doc.exists ? { id: doc.id, ...doc.data() } : null;
 }
