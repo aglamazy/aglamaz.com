@@ -37,8 +37,10 @@ export async function POST(request: NextRequest) {
       await gmailService.sendVerificationEmail(email, firstName, verificationUrl);
     } catch (emailError) {
       console.error('Failed to send email:', emailError);
-      // Don't fail the request if email fails, just log it
-      // In production, you might want to queue the email for retry
+      return NextResponse.json(
+        { error: 'Failed to send verification email' },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json({

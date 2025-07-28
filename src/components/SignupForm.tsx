@@ -14,6 +14,8 @@ export default function SignupForm({ onSuccess, onCancel }: SignupFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
+  const [verificationUrl, setVerificationUrl] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,7 +47,7 @@ export default function SignupForm({ onSuccess, onCancel }: SignupFormProps) {
       if (response.ok) {
         setIsSubmitted(true);
       } else {
-        setError(data.error || 'Failed to send verification email');
+        setError('לא ניתן להירשם כרגע. נסה שוב מאוחר יותר.');
       }
     } catch (error) {
       console.error('Signup error:', error);
@@ -61,14 +63,36 @@ export default function SignupForm({ onSuccess, onCancel }: SignupFormProps) {
         <div className="text-center">
           <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-gray-900 mb-2">
-            אימייל אימות נשלח
+            {emailSent ? 'אימייל אימות נשלח' : 'בקשה נשלחה בהצלחה'}
           </h3>
-          <p className="text-gray-600 mb-4">
-            בדוק את תיבת הדואר שלך וצור קשר עם המנהל
-          </p>
-          <p className="text-sm text-gray-500">
-            {email}
-          </p>
+          
+          {emailSent ? (
+            <>
+              <p className="text-gray-600 mb-4">
+                בדוק את תיבת הדואר שלך וצור קשר עם המנהל
+              </p>
+              <p className="text-sm text-gray-500">
+                {email}
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-gray-600 mb-4">
+                הבקשה נשלחה אך לא הצלחנו לשלוח אימייל אימות
+              </p>
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                <p className="text-sm text-yellow-800 mb-2">
+                  <strong>חשוב:</strong> אנא העתק את הקישור הבא וצור קשר עם המנהל:
+                </p>
+                <div className="bg-white p-2 rounded border text-xs break-all">
+                  {verificationUrl}
+                </div>
+              </div>
+              <p className="text-sm text-gray-500">
+                {email}
+              </p>
+            </>
+          )}
         </div>
       </div>
     );
