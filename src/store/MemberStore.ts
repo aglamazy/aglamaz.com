@@ -28,7 +28,6 @@ export const useMemberStore = create<MemberState>((set, get) => ({
   fetchMember: async (userId: string, siteId: string) => {
     try {
       set({ loading: true, error: null });
-      console.log('fetchMember called with:', userId, siteId);
       
       const response = await fetch(`/api/user/${userId}/member-info?siteId=${encodeURIComponent(siteId)}`);
 
@@ -37,7 +36,6 @@ export const useMemberStore = create<MemberState>((set, get) => ({
       }
 
       const data = await response.json();
-      console.log('Member:', data.member);
       set({ member: data.member, loading: false });
     } catch (error) {
       set({ 

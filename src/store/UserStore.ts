@@ -17,11 +17,11 @@ export const useUserStore = create<UserState>((set, get) => ({
   loading: true,
   setUser: (user) => {
     set({ user });
-    if (user && user.uid) {
+    if (user && user.user_id) {
       const siteId = useSiteStore.getState().siteInfo.id;
   
         const memberStore = useMemberStore.getState();
-        memberStore.fetchMember(user.uid, siteId);
+        memberStore.fetchMember(user.user_id, siteId);
       
     }
   },
@@ -30,11 +30,10 @@ export const useUserStore = create<UserState>((set, get) => ({
     try {
       const userData = await User.me();
       set({ user: userData, loading: false });
-      if (userData?.uid) {
+      if (userData?.user_id) {
         const siteId = useSiteStore.getState().siteInfo.id;
-        
-          const memberStore = useMemberStore.getState();
-          await memberStore.fetchMember(userData.uid, siteId);
+        const memberStore = useMemberStore.getState();
+        await memberStore.fetchMember(userData.user_id, siteId);
         
       }
     } catch (error) {
