@@ -1,10 +1,13 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card';
-import { Button } from '../../../components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Users, CheckCircle, XCircle, Loader2, AlertCircle } from 'lucide-react';
-import { useUserStore } from '../../../store/UserStore';
+import { useUserStore } from '@/store/UserStore';
+import { useSiteStore } from '@/store/SiteStore';
+import type { IUser } from '@/entities/User';
+import type { ISite } from '@/entities/Site';
 
 interface PendingMember {
   id: string;
@@ -21,7 +24,8 @@ export default function PendingMembersPage() {
   const [error, setError] = useState('');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const { user } = useUserStore();
+  const user = useUserStore((state) => state.user) as IUser | null;
+  const site = useSiteStore((state) => state.siteInfo) as ISite | null;
 
   useEffect(() => {
     fetchPendingMembers();
@@ -30,7 +34,7 @@ export default function PendingMembersPage() {
   const fetchPendingMembers = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/user/${user?.uid}/pending-members/default-site`, {
+      const response = await fetch(`/api/user/${user?.user_id}/pending-members/${site?.id}`, {
         headers: {
           'Authorization': `Bearer ${document.cookie.match(/token=([^;]*)/)?.[1] || ''}`
         }
@@ -62,7 +66,7 @@ export default function PendingMembersPage() {
       setActionLoading(memberId);
       setMessage(null);
 
-      const response = await fetch(`/api/user/${user?.uid}/${action}-member`, {
+      const response = await fetch(`/api/user/${user?.user_id}/${action}-member`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
