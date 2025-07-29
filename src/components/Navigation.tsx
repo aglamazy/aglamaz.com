@@ -123,19 +123,23 @@ export default function Navigation({ user, onLogout }: NavigationProps) {
                 {isUserMenuOpen && (
                   <div className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-50">
                     <div className="py-1">
-                      {/* Admin menu item if member is admin */}
-                      {member?.role === 'admin' && (
-                        <button
-                          onClick={() => {
-                            setIsUserMenuOpen(false);
-                            router.push('/admin');
-                          }}
-                          className="flex items-center w-full px-4 py-2 text-sm text-green-700 hover:bg-green-50 transition-colors duration-200"
-                        >
-                          <Users size={16} className="mr-3" />
-                          Admin
-                        </button>
-                      )}
+                      {/* Admin menu items if member is admin */}
+                      {member?.role === 'admin' && adminItems.map((item) => {
+                        const Icon = item.icon;
+                        return (
+                          <button
+                            key={item.name}
+                            onClick={() => {
+                              setIsUserMenuOpen(false);
+                              router.push(item.href);
+                            }}
+                            className="flex items-center w-full px-4 py-2 text-sm text-green-700 hover:bg-green-50 transition-colors duration-200"
+                          >
+                            <Icon size={16} className="mr-3" />
+                            {item.name}
+                          </button>
+                        );
+                      })}
                       <button
                         onClick={handleLogout}
                         className="flex items-center w-full px-4 py-2 text-sm text-sage-700 hover:bg-sage-50 transition-colors duration-200"

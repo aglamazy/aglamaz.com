@@ -91,11 +91,13 @@ export class FamilyRepository {
   async getMemberByUserId(userId: string, siteId: string): Promise<FamilyMember | null> {
     try {
       const db = this.getDb();
+      
       const querySnapshot = await db.collection(this.membersCollection)
-        .where('userId', '==', userId)
+        .where('uid', '==', userId)
         .where('siteId', '==', siteId)
         .get();
       
+        console.log(querySnapshot.docs);
       if (querySnapshot.empty) {
         return null;
       }
