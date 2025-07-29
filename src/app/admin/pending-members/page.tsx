@@ -66,16 +66,17 @@ export default function PendingMembersPage() {
       setActionLoading(memberId);
       setMessage(null);
 
+      const body = action === 'approve'
+        ? { signupRequestId: memberId }
+        : { memberId, siteId: 'default-site' };
+
       const response = await fetch(`/api/user/${user?.user_id}/${action}-member`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${document.cookie.match(/token=([^;]*)/)?.[1] || ''}`
         },
-        body: JSON.stringify({
-          memberId,
-          siteId: 'default-site'
-        })
+        body: JSON.stringify(body)
       });
 
       const data = await response.json();

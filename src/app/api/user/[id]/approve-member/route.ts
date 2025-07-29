@@ -1,49 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { FamilyRepository } from '@/repositories/FamilyRepository';
+import type { IMember } from '@/entities/Member';
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const body = await request.json();
-    const { memberId, siteId } = body;
-
-    if (!memberId || !siteId) {
-      return NextResponse.json(
-        { error: 'Missing required fields: memberId, siteId' },
-        { status: 400 }
-      );
+    const { id } = params;
+    const { signupRequestId } = await request.json();
+    if (!signupRequestId) {
+      return NextResponse.json({ error: 'Missing signupRequestId' }, { status: 400 });
     }
-
-    // Call our server's approveMember function
-    // This would typically update the database to approve the member
-    
-    // TODO: Replace with actual server-side approval logic
-    // This could involve:
-    // 1. Updating member status in database
-    // 2. Sending notification to approved member
-    // 3. Logging the approval action
-    
-    const result = {
-      success: true,
-      memberId,
-      siteId,
-      approvedBy: params.id,
-      approvedAt: new Date().toISOString(),
-      status: 'approved'
+    const familyRepository = new FamilyRepository();
+    // Fetch the signup request
+    const signupRequest = await familyRepository.getSignupRequestById(signupRequestId);
+    if (!signupRequest) {
+      return NextResponse.json({ error: 'Signup request not found' }, { status: 404 });
+    }
+    // Create the member object
+    const member: Partial<IMember> = {
+      uid: signupRequest.userId || '',
+      siteId: signupRequest.siteId,
+      role: 'member',
+      displayName: signupRequest.firstName || '',
+      firstName: signupRequest.firstName || '',
+      email: signupRequest.email,
     };
-
-    return NextResponse.json({
-      success: true,
-      message: 'Member approved successfully',
-      data: result
-    });
-
+    // Save the member
+    const created = await familyRepository.createMember(member);
+    // Mark the signup request as approved
+    await familyRepository.markSignupRequestApproved(signupRequestId);
+    return NextResponse.json({ member: created });
   } catch (error) {
-    console.error('Approve member error:', error);
-    return NextResponse.json(
-      { error: 'Failed to approve member' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to approve member' }, { status: 500 });
   }
 } 

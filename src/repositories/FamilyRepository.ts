@@ -1,5 +1,6 @@
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { initAdmin } from '../firebase/admin';
+import type { IMember } from '@/entities/Member';
 
 export interface FamilyMember {
   id: string;
@@ -97,7 +98,6 @@ export class FamilyRepository {
         .where('siteId', '==', siteId)
         .get();
       
-        console.log(querySnapshot.docs);
       if (querySnapshot.empty) {
         return null;
       }
@@ -151,22 +151,17 @@ export class FamilyRepository {
     }
   }
 
-  async createMember(memberData: Omit<FamilyMember, 'id' | 'createdAt' | 'updatedAt'>): Promise<FamilyMember> {
+  async createMember(memberData: Partial<IMember>): Promise<IMember> {
     try {
       const db = this.getDb();
       const now = Timestamp.now();
-      const memberRef = await db.collection(this.membersCollection).add({
+      const ref = await db.collection(this.membersCollection).add({
         ...memberData,
         createdAt: now,
-        updatedAt: now
+        updatedAt: now,
       });
-
-      return {
-        id: memberRef.id,
-        ...memberData,
-        createdAt: now,
-        updatedAt: now
-      };
+      const doc = await ref.get();
+      return { id: doc.id, ...doc.data() } as IMember;
     } catch (error) {
       console.error('Error creating member:', error);
       throw new Error('Failed to create member');
@@ -325,6 +320,23 @@ export class FamilyRepository {
       console.error('Error verifying signup request:', error);
       throw new Error('Failed to verify signup request');
     }
+  }
+
+  async getSignupRequestById(id: string): Promise<SignupRequest | null> {
+    const db = this.getDb();
+    const doc = await db.collection(this.signupRequestsCollection).doc(id).get();
+    if (!doc.exists) return null;
+    return { id: doc.id, ...doc.data() } as SignupRequest;
+  }
+
+  async markSignupRequestApproved(id: string): Promise<void> {
+    const db = this.getDb();
+    await db.collection(this.signupRequestsCollection).doc(id).update({
+      status: 'approved',
+      verificationToken: null,
+      expiresAt: null,
+      updatedAt: Timestamp.now(),
+    });
   }
 
   // Batch Operations
