@@ -8,6 +8,7 @@ import Navigation from "./Navigation";
 export default function ClientLayoutShell({ children }) {
   const { user, loading, checkAuth, logout } = useUserStore();
   const setSiteInfo = useSiteStore((state) => state.setSiteInfo);
+  const siteInfo = useSiteStore((state) => state.siteInfo);
   const router = useRouter();
 
   useEffect(() => {
@@ -27,6 +28,7 @@ export default function ClientLayoutShell({ children }) {
       setSiteInfo({ name: 'Family' }); // fallback
     }
   }, [setSiteInfo]);
+
 
   const handleLogout = async () => {
     logout();
@@ -75,6 +77,17 @@ export default function ClientLayoutShell({ children }) {
           .hover\:border-sage-300:hover { border-color: var(--sage-300); }
         `}</style>
         {children}
+      </div>
+    );
+  }
+
+  // Strict guard: if siteInfo or siteInfo.id is missing, show fatal error
+  if (!siteInfo || !siteInfo.id) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-red-50">
+        <div className="text-red-700 font-bold text-xl">
+          Site information is missing. Please reload or contact support.
+        </div>
       </div>
     );
   }

@@ -3,8 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Menu, X, User, LogOut, Home, Users, Heart, Settings } from 'lucide-react';
-import { Button } from './ui/button';
-import { Card } from './ui/card';
+import { useMemberStore } from '@/store/MemberStore';
 
 interface NavigationProps {
   user: any;
@@ -16,6 +15,7 @@ export default function Navigation({ user, onLogout }: NavigationProps) {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const router = useRouter();
   const userMenuRef = useRef<HTMLDivElement>(null);
+  const member = useMemberStore((state) => state.member);
 
   // Close user menu when clicking outside
   useEffect(() => {
@@ -123,6 +123,19 @@ export default function Navigation({ user, onLogout }: NavigationProps) {
                 {isUserMenuOpen && (
                   <div className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-50">
                     <div className="py-1">
+                      {/* Admin menu item if member is admin */}
+                      {member?.role === 'admin' && (
+                        <button
+                          onClick={() => {
+                            setIsUserMenuOpen(false);
+                            router.push('/admin');
+                          }}
+                          className="flex items-center w-full px-4 py-2 text-sm text-green-700 hover:bg-green-50 transition-colors duration-200"
+                        >
+                          <Users size={16} className="mr-3" />
+                          Admin
+                        </button>
+                      )}
                       <button
                         onClick={handleLogout}
                         className="flex items-center w-full px-4 py-2 text-sm text-sage-700 hover:bg-sage-50 transition-colors duration-200"
@@ -176,7 +189,7 @@ export default function Navigation({ user, onLogout }: NavigationProps) {
             })}
             
             {/* Admin links */}
-            {user?.isAdmin && adminItems.map((item) => {
+            { adminItems.map((item) => {
               const Icon = item.icon;
               return (
                 <button
