@@ -66,9 +66,11 @@ export default function PendingMembersPage() {
       setActionLoading(memberId);
       setMessage(null);
 
+      const siteId = site?.id;
+
       const body = action === 'approve'
         ? { signupRequestId: memberId }
-        : { memberId, siteId: 'default-site' };
+        : { memberId, siteId };
 
       const response = await fetch(`/api/user/${user?.user_id}/${action}-member`, {
         method: 'POST',
