@@ -339,6 +339,16 @@ export class FamilyRepository {
     });
   }
 
+  async markSignupRequestRejected(id: string): Promise<void> {
+    const db = this.getDb();
+    await db.collection(this.signupRequestsCollection).doc(id).update({
+      status: 'rejected',
+      verificationToken: null,
+      expiresAt: null,
+      updatedAt: this.getTimestamp(),
+    });
+  }
+
   // Batch Operations
   async processSignupRequest(requestId: string, approvedBy: string, approve: boolean, reason?: string, rejectedBy?: string): Promise<void> {
     try {

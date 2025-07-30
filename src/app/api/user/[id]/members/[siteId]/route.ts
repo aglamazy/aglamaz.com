@@ -1,49 +1,18 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { withAdminGuard } from '@/lib/withAdminGuard';
+import { FamilyRepository } from '@/repositories/FamilyRepository';
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string; siteId: string } }
-) {
+const handler = async (request: Request, context: any, user: any, member: any) => {
   try {
-    // Verify member permissions
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
+    const { siteId } = context.params;
+    if (!siteId) {
+      return Response.json({ error: 'Missing siteId' }, { status: 400 });
     }
-
-    // Call our server's function to get site members
-    // This would typically query the database for approved members
-    
-    // TODO: Replace with actual database query
-    // This could involve:
-    // 1. Querying the database for approved members
-    // 2. Checking member permissions
-    // 3. Filtering by siteId
-    
-    // Mock data for demonstration - this should check if the user is actually a member
-    const members = [
-      {
-        id: params.id,
-        firstName: 'משתמש',
-        email: 'user@example.com',
-        status: 'approved',
-        joinedAt: '2024-01-10T09:00:00Z'
-      }
-    ];
-
-    return NextResponse.json({
-      success: true,
-      data: members
-    });
-
+    const familyRepository = new FamilyRepository();
+    const members = await familyRepository.getSiteMembers(siteId);
+    return Response.json({ members });
   } catch (error) {
-    console.error('Get members error:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch members' },
-      { status: 500 }
-    );
+    return Response.json({ error: 'Failed to fetch site members' }, { status: 500 });
   }
-} 
+};
+
+export const GET = withAdminGuard(handler); 

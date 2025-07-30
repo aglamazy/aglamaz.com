@@ -1,22 +1,12 @@
 import { create } from 'zustand';
-
-interface Member {
-  id: string;
-  userId: string;
-  siteId: string;
-  role: 'admin' | 'member';
-  firstName: string;
-  email: string;
-  createdAt: any;
-  updatedAt: any;
-}
+import type { IMember } from '@/entities/Member';
 
 interface MemberState {
-  member: Member | null;
+  member: IMember | null;
   loading: boolean;
   error: string | null;
   fetchMember: (userId: string, siteId: string) => Promise<void>;
-  setMember: (member: Member | null) => void;
+  setMember: (member: IMember | null) => void;
   clearMember: () => void;
 }
 

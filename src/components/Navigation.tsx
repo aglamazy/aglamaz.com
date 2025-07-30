@@ -44,6 +44,7 @@ export default function Navigation({ user, onLogout }: NavigationProps) {
   // Add admin link if user is admin
   const adminItems = [
     { name: 'Pending Members', href: '/admin/pending-members', icon: Users },
+    { name: 'Site Members', href: '/admin/site-members', icon: Users },
   ];
 
   const handleLogout = () => {
