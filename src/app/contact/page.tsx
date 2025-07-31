@@ -1,6 +1,7 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Loader2, CheckCircle } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 export default function ContactPage() {
   const [name, setName] = useState('');
@@ -9,6 +10,8 @@ export default function ContactPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
+  const [countdown, setCountdown] = useState(10);
+  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,12 +43,29 @@ export default function ContactPage() {
     }
   };
 
+  useEffect(() => {
+    if (success) {
+      setCountdown(10);
+      const interval = setInterval(() => {
+        setCountdown((c) => c - 1);
+      }, 1000);
+      const timeout = setTimeout(() => {
+        router.push('/');
+      }, 10000);
+      return () => {
+        clearInterval(interval);
+        clearTimeout(timeout);
+      };
+    }
+  }, [success, router]);
+
   if (success) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
         <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8 text-center">
           <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold mb-2">Message sent successfully</h3>
+          <h3 className="text-lg font-semibold mb-2">Thank you for contacting us! We will get back to you shortly.</h3>
+          <div className="text-gray-500 mt-2">Redirecting in {countdown} second{countdown !== 1 ? 's' : ''}…</div>
           <button className="mt-4 underline" onClick={() => setSuccess(false)}>Send another</button>
         </div>
       </div>

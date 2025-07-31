@@ -3,12 +3,14 @@ import type { NextRequest } from 'next/server';
 
 export function middleware(request: NextRequest) {
   const token = request.cookies.get('token')?.value;
+  const path = request.nextUrl.pathname;
 
-  // Allow access to /login and static files
+  // Allow access to /login, /contact, and static files
   if (
-    request.nextUrl.pathname.startsWith('/login') ||
-    request.nextUrl.pathname.startsWith('/_next') ||
-    request.nextUrl.pathname.startsWith('/favicon.ico')
+    path.startsWith('/login') ||
+    path.startsWith('/contact') ||
+    path.startsWith('/_next') ||
+    path.startsWith('/favicon.ico')
   ) {
     return NextResponse.next();
   }
@@ -24,6 +26,6 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!login|_next/static|_next/image|favicon.ico).*)',
+    '/((?!login|contact|_next/static|_next/image|favicon.ico).*)',
   ],
 };

@@ -2,6 +2,8 @@
 import React, { useState, useEffect } from "react";
 import { FcGoogle } from "react-icons/fc";
 import { useRouter } from "next/navigation";
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
 import { initFirebase, auth, googleProvider } from "../../firebase/client";
 import { signInWithPopup, getIdToken, signInWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth";
 import { useSiteStore } from "../../store/SiteStore";
@@ -120,7 +122,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
       <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8 flex flex-col items-center">
         {/* Logo */}
         <div className="flex flex-col items-center mb-6">
@@ -203,6 +205,9 @@ export default function LoginPage() {
           >
             Forgot password?
           </button>
+          <Link href="/contact" className="hover:underline disabled:opacity-50 disabled:cursor-not-allowed">
+            Contact Us
+          </Link>
           <button 
             onClick={() => setShowSignup(true)}
             className="hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
