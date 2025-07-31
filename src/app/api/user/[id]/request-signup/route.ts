@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { FamilyRepository } from '@/repositories/FamilyRepository';
 
 export async function POST(
   request: NextRequest,
@@ -15,21 +16,20 @@ export async function POST(
       );
     }
 
-    // Create signup request (mock implementation for now)
-    const result = {
-      success: true,
-      userId: params.id,
+    const familyRepository = new FamilyRepository();
+
+    const signupRequest = await familyRepository.createSignupRequest({
       firstName,
       email,
       siteId,
-      status: 'pending',
-      createdAt: new Date().toISOString()
-    };
+      userId: params.id,
+      status: 'pending'
+    });
 
     return NextResponse.json({
       success: true,
       message: 'Signup request submitted successfully',
-      data: result
+      data: signupRequest
     });
 
   } catch (error) {
