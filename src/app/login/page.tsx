@@ -27,7 +27,7 @@ export default function LoginPage() {
         const result = await signInWithPopup(auth(), googleProvider);
         const token = await getIdToken(result.user);
         document.cookie = `token=${token}; path=/`;
-        
+
         // Update user state immediately after login
         setUser({
           name: result.user.displayName,
@@ -35,7 +35,22 @@ export default function LoginPage() {
           photoURL: result.user.photoURL,
           uid: result.user.uid
         });
-        
+
+        try {
+          const firstName = result.user.displayName?.split(' ')[0] || '';
+          await fetch(`/api/user/${result.user.uid}/request-signup`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              firstName,
+              email: result.user.email,
+              siteId: siteInfo?.id
+            })
+          });
+        } catch (err) {
+          console.error('Failed to submit signup request', err);
+        }
+
         router.push("/");
       }
     } catch (error) {
