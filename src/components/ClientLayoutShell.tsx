@@ -4,11 +4,13 @@ import { useSiteStore } from '../store/SiteStore';
 import { useUserStore } from '../store/UserStore';
 import { useRouter } from "next/navigation";
 import Navigation from "./Navigation";
+import { useMemberStore } from '../store/MemberStore';
 
 export default function ClientLayoutShell({ children }) {
   const { user, loading, checkAuth, logout } = useUserStore();
   const setSiteInfo = useSiteStore((state) => state.setSiteInfo);
   const siteInfo = useSiteStore((state) => state.siteInfo);
+  const member = useMemberStore((state) => state.member);
   const router = useRouter();
 
   useEffect(() => {
@@ -124,8 +126,10 @@ export default function ClientLayoutShell({ children }) {
         .hover\\:bg-sage-700:hover { background-color: var(--sage-700); }
         .hover\\:border-sage-300:hover { border-color: var(--sage-300); }
       `}</style>
-      <Navigation user={user} onLogout={handleLogout} />
+      {member && (member as any).role !== 'pending' && (
+        <Navigation user={user} onLogout={handleLogout} />
+      )}
       {children}
     </div>
   );
-} 
+}
