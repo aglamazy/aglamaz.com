@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Menu, X, User, LogOut, Home, Users, Heart, Settings } from 'lucide-react';
+import { Menu, X, User, LogOut, Home, Users, Heart, Settings, MessageCircle } from 'lucide-react';
 import { useMemberStore } from '@/store/MemberStore';
 
 interface NavigationProps {
@@ -45,6 +45,7 @@ export default function Navigation({ user, onLogout }: NavigationProps) {
   const adminItems = [
     { name: 'Pending Members', href: '/admin/pending-members', icon: Users },
     { name: 'Site Members', href: '/admin/site-members', icon: Users },
+    { name: 'Contact Messages', href: '/admin/contact-messages', icon: MessageCircle },
   ];
 
   const handleLogout = () => {
