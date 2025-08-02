@@ -2,10 +2,20 @@
 
 import React from 'react';
 import { Clock, CheckCircle, AlertCircle } from 'lucide-react';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { useRouter } from 'next/navigation';
 
 export default function PendingApprovalPage() {
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    await fetch('/api/logout', { method: 'POST' });
+    router.push('/login');
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50" dir="rtl" lang="he">
       <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8 text-center space-y-4">
         <div className="mx-auto mb-4">
           <Clock className="w-16 h-16 text-yellow-500" />
@@ -26,6 +36,13 @@ export default function PendingApprovalPage() {
             <AlertCircle className="w-5 h-5" />
             <span className="text-sm font-medium">ממתין לאישור מהמנהל</span>
           </div>
+        </div>
+
+        <div className="flex flex-col gap-3 mt-8">
+          <Link href="/contact" passHref legacyBehavior>
+            <Button className="w-full bg-black text-white rounded hover:bg-gray-800">צור קשר</Button>
+          </Link>
+          <Button className="w-full bg-gray-200 text-gray-800 rounded hover:bg-gray-300" onClick={handleLogout} type="button">התנתק</Button>
         </div>
       </div>
     </div>
