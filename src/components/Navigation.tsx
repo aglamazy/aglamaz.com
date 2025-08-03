@@ -67,12 +67,6 @@ export default function Navigation({ user, onLogout }: NavigationProps) {
     <nav className="bg-white shadow-sm border-b border-sage-200 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
-          {/* Logo/Brand */}
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <h1 className="text-xl font-semibold text-sage-700">Family App</h1>
-            </div>
-          </div>
 
           {/* Desktop Navigation */}
           <div className="hidden md:block">
