@@ -8,10 +8,11 @@ import { useMemberStore } from '@/store/MemberStore';
 interface NavigationProps {
   user: any;
   onLogout: () => void;
+  setMobileMenuOpen?: (open: boolean) => void;
 }
 
-export default function Navigation({ user, onLogout }: NavigationProps) {
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+export default function Navigation({ user, onLogout, setMobileMenuOpen }: NavigationProps) {
+  const [isMobileMenuOpen, setIsMobileMenuOpenState] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const router = useRouter();
   const userMenuRef = useRef<HTMLDivElement>(null);
@@ -33,6 +34,11 @@ export default function Navigation({ user, onLogout }: NavigationProps) {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [isUserMenuOpen]);
+
+  // When mobile menu state changes, notify parent
+  useEffect(() => {
+    if (setMobileMenuOpen) setMobileMenuOpen(isMobileMenuOpen);
+  }, [isMobileMenuOpen, setMobileMenuOpen]);
 
   const navigationItems = [
     { name: 'Home', href: '/', icon: Home },
@@ -64,7 +70,7 @@ export default function Navigation({ user, onLogout }: NavigationProps) {
   };
 
   return (
-    <nav className="bg-white shadow-sm border-b border-sage-200 sticky top-0 z-50">
+    <nav className="bg-white shadow-sm  sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
 
@@ -153,7 +159,7 @@ export default function Navigation({ user, onLogout }: NavigationProps) {
           {/* Mobile menu button */}
           <div className="md:hidden">
             <button
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              onClick={() => setIsMobileMenuOpenState(!isMobileMenuOpen)}
               className="inline-flex items-center justify-center p-2 rounded-md text-sage-600 hover:text-sage-700 hover:bg-sage-50 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-sage-500"
             >
               <span className="sr-only">Open main menu</span>
@@ -178,7 +184,7 @@ export default function Navigation({ user, onLogout }: NavigationProps) {
                   key={item.name}
                   onClick={() => {
                     router.push(item.href);
-                    setIsMobileMenuOpen(false);
+                    setIsMobileMenuOpenState(false);
                   }}
                   className="text-sage-600 hover:text-sage-700 hover:bg-sage-50 block px-3 py-2 rounded-md text-base font-medium transition-colors duration-200 flex items-center gap-3 w-full text-left"
                 >
@@ -196,7 +202,7 @@ export default function Navigation({ user, onLogout }: NavigationProps) {
                   key={item.name}
                   onClick={() => {
                     router.push(item.href);
-                    setIsMobileMenuOpen(false);
+                    setIsMobileMenuOpenState(false);
                   }}
                   className="text-red-600 hover:text-red-700 hover:bg-red-50 block px-3 py-2 rounded-md text-base font-medium transition-colors duration-200 flex items-center gap-3 w-full text-left"
                 >
