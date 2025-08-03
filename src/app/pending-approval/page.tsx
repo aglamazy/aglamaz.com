@@ -5,8 +5,10 @@ import { Clock, CheckCircle, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
+import { useTranslation } from 'react-i18next';
 
 export default function PendingApprovalPage() {
+  const { t } = useTranslation();
   const router = useRouter();
 
   const handleLogout = async () => {
@@ -20,9 +22,9 @@ export default function PendingApprovalPage() {
         <div className="mx-auto mb-4">
           <Clock className="w-16 h-16 text-yellow-500" />
         </div>
-        <h2 className="text-xl font-bold text-gray-900">ממתין לאישור</h2>
-        <p className="text-gray-600">בקשה שלך נשלחה בהצלחה למנהל המערכת.</p>
-        <p className="text-gray-600">תקבל הודעה כאשר הבקשה תאושר.</p>
+        <h2 className="text-xl font-bold text-gray-900">{t('pendingApprovalTitle')}</h2>
+        <p className="text-gray-600">{t('pendingApprovalMessage')}</p>
+        <p className="text-gray-600">{t('pendingApprovalNotify')}</p>
 
         <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
           <div className="flex items-center gap-2 text-blue-800">

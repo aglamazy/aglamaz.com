@@ -12,11 +12,13 @@ import { useUserStore } from "../store/UserStore";
 import { useRouter } from "next/navigation";
 import { initFirebase, auth, googleProvider } from "../firebase/client";
 import { signInWithPopup, getIdToken } from "firebase/auth";
+import { useTranslation } from 'react-i18next';
 
 export default function Home() {
+  const { t } = useTranslation();
   const { user, loading, checkAuth, setUser } = useUserStore();
   const siteInfo = useSiteStore((state) => state.siteInfo);
-  const familyName = siteInfo?.name || 'Family';
+  const familyName = siteInfo?.name || t('familyMember');
   const router = useRouter();
 
   useEffect(() => {
@@ -85,7 +87,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen">
-      <WelcomeHero user={user} />
+      <WelcomeHero user={user} title={t('welcomeToFamilyCircle')} subtitle={t('stayConnected')} />
       <FamilyOverview />
     </div>
   );

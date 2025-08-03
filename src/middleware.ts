@@ -7,7 +7,8 @@ const PUBLIC_PATHS = [
   '/contact',
   '/favicon.ico',
   '/_next', // covers static and image assets
-  '/pending-approval'
+  '/pending-approval',
+  '/locales'
 ];
 
 export async function middleware(request: NextRequest) {

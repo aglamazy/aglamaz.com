@@ -116,10 +116,6 @@ export default function Navigation({ user, onLogout, setMobileMenuOpen }: Naviga
                   onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
                   className="flex items-center space-x-3 text-sage-600 hover:text-sage-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sage-500 rounded-full transition-colors duration-200"
                 >
-                  <div className="h-8 w-8 rounded-full bg-sage-600 flex items-center justify-center text-white text-sm font-medium">
-                    {getUserInitials(user)}
-                  </div>
-                  <span className="text-sm font-medium">{user?.name || 'User'}</span>
                 </button>
 
                 {isUserMenuOpen && (

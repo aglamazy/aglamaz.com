@@ -14,7 +14,7 @@ if (!i18n.isInitialized) {
       fallbackLng: nextI18NextConfig.i18n.defaultLocale,
       debug: process.env.NODE_ENV === 'development',
       backend: {
-        loadPath: '/locales/{{lng}}/{{ns}}.json',
+        loadPath: '/locales/{{lng}}/{{ns}}.json'
       },
       interpolation: {
         escapeValue: false,
