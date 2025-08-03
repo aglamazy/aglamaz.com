@@ -6,7 +6,13 @@ import Link from "next/link";
 import { createPageUrl } from "../../utils/createPageUrl";
 import { BookOpen, Images, Link as LinkIcon, ArrowRight } from "lucide-react";
 
-export default function WelcomeHero({ user }) {
+interface WelcomeHeroProps {
+  user: any;
+  title?: string;
+  subtitle?: string;
+}
+
+export default function WelcomeHero({ user, title, subtitle }: WelcomeHeroProps) {
   const quickActions = [
     {
       title: "Read Family Blog",
@@ -41,10 +47,10 @@ export default function WelcomeHero({ user }) {
           className="text-center mb-12"
         >
           <h1 className="text-5xl font-bold text-charcoal mb-4">
-            Welcome back, {user?.full_name?.split(' ')[0] || 'Family Member'}!
+            {title || `Welcome back, ${user?.full_name?.split(' ')[0] || 'Family Member'}!`}
           </h1>
           <p className="text-xl text-sage-600 max-w-2xl mx-auto leading-relaxed">
-            Stay connected with your family through shared memories, important links, and beautiful photo albums.
+            {subtitle || 'Stay connected with your family through shared memories, important links, and beautiful photo albums.'}
           </p>
         </motion.div>
 

@@ -20,7 +20,7 @@ export default function ClientLayoutShell({ children }) {
     checkAuth();
   }, [checkAuth]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     // Hydrate Zustand store with site info from server
     try {
       const script = document.getElementById('__SITE_INFO__');
@@ -33,6 +33,17 @@ export default function ClientLayoutShell({ children }) {
       setSiteInfo({ name: 'Family' }); // fallback
     }
   }, [setSiteInfo]);
+
+  useEffect(() => {
+    const htmlElement = document.documentElement;
+    if (i18n.language === 'he') {
+      htmlElement.dir = 'rtl';
+      htmlElement.lang = 'he';
+    } else {
+      htmlElement.dir = 'ltr';
+      htmlElement.lang = i18n.language;
+    }
+  }, [i18n.language]);
 
 
   const handleLogout = async () => {
@@ -96,17 +107,6 @@ export default function ClientLayoutShell({ children }) {
       </div>
     );
   }
-
-  useEffect(() => {
-    const htmlElement = document.documentElement;
-    if (i18n.language === 'he') {
-      htmlElement.dir = 'rtl';
-      htmlElement.lang = 'he';
-    } else {
-      htmlElement.dir = 'ltr';
-      htmlElement.lang = i18n.language;
-    }
-  }, [i18n.language]);
 
   return (
     <I18nProvider>
