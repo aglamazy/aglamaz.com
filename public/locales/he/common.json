@@ -38,5 +38,17 @@
   "explore": "לחקור",
   "pendingMembers": "חברים ממתינים",
   "siteMembers": "חברי האתר",
-  "contactMessages": "הודעות ליצירת קשר"
+  "contactMessages": "הודעות ליצירת קשר",
+  "anniversaries": "אירועים משפחתיים",
+  "noEventsThisMonth": "אין אירועים החודש.",
+  "name": "שם",
+  "description": "תיאור",
+  "date": "תאריך",
+  "type": "סוג",
+  "birthday": "יום הולדת",
+  "death": "פטירה",
+  "wedding": "חתונה",
+  "annualEvent": "אירוע שנתי",
+  "saving": "שומר...",
+  "addEvent": "הוסף אירוע"
 }

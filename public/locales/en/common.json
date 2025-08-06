@@ -38,5 +38,17 @@
   "explore": "Explore",
   "pendingMembers": "Pending Members",
   "siteMembers": "Site Members",
-  "contactMessages": "Contact Messages"
+  "contactMessages": "Contact Messages",
+  "anniversaries": "Family Dates",
+  "noEventsThisMonth": "No events this month.",
+  "name": "Name",
+  "description": "Description",
+  "date": "Date",
+  "type": "Type",
+  "birthday": "Birthday",
+  "death": "Death",
+  "wedding": "Wedding",
+  "annualEvent": "Annual event",
+  "saving": "Saving...",
+  "addEvent": "Add Event"
 }
