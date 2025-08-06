@@ -3,11 +3,11 @@ import React, { useState, useEffect } from "react";
 import { useSiteStore } from '../store/SiteStore';
 import { useUserStore } from '../store/UserStore';
 import { useRouter } from "next/navigation";
-import Navigation from "./Navigation";
 import { useMemberStore } from '../store/MemberStore';
 import Header from "./Header";
 import I18nProvider from './I18nProvider';
 import i18n from '../i18n';
+import { useTranslation } from 'react-i18next';
 
 export default function ClientLayoutShell({ children }) {
   const { user, loading, checkAuth, logout } = useUserStore();
@@ -15,6 +15,7 @@ export default function ClientLayoutShell({ children }) {
   const siteInfo = useSiteStore((state) => state.siteInfo);
   const member = useMemberStore((state) => state.member);
   const router = useRouter();
+  const { t, i18n } = useTranslation();
 
   useEffect(() => {
     checkAuth();
@@ -35,6 +36,7 @@ export default function ClientLayoutShell({ children }) {
   }, [setSiteInfo]);
 
   useEffect(() => {
+    console.log("LANG changed", i18n.language)
     const htmlElement = document.documentElement;
     if (i18n.language === 'he') {
       htmlElement.dir = 'rtl';

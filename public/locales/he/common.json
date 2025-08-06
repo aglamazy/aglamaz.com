@@ -35,5 +35,8 @@
   "welcomeBack": "ברוך הבא, {{name}}!",
   "familyMember": "בן משפחה",
   "stayConnected": "הישאר מחובר למשפחה שלך דרך זכרונות משותפים, קישורים חשובים ואלבומי תמונות יפים.",
-  "explore": "לחקור"
+  "explore": "לחקור",
+  "pendingMembers": "חברים ממתינים",
+  "siteMembers": "חברי האתר",
+  "contactMessages": "הודעות ליצירת קשר"
 }

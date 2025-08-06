@@ -24,7 +24,7 @@ export default function Header({ user, member, onLogout, siteInfo }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isLangMenuOpen, setIsLangMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  const { i18n } = useTranslation();
+  const { i18n, t } = useTranslation();
   const userMenuRef = useRef(null);
   const router = useRouter();
 
@@ -48,6 +48,8 @@ export default function Header({ user, member, onLogout, siteInfo }) {
     }
     setIsLangMenuOpen(false);
   };
+
+  const menuPosition = i18n.language === 'he' ? 'left-0' : 'right-0';
 
   return (
     <header className="w-full flex items-center justify-between px-4 py-2 bg-white shadow-sm sticky top-0 z-50">
@@ -100,7 +102,7 @@ export default function Header({ user, member, onLogout, siteInfo }) {
               {getUserInitials(user)}
             </button>
             {isUserMenuOpen && (
-              <div className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-50">
+              <div className={`origin-top-right absolute ${menuPosition} mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-50`}>
                 <div className="py-1">
                   {/* Admin menu items if member is admin */}
                   {member?.role === 'admin' && (
@@ -110,21 +112,21 @@ export default function Header({ user, member, onLogout, siteInfo }) {
                         className="flex items-center w-full px-4 py-2 text-sm text-green-700 hover:bg-green-50 transition-colors duration-200"
                       >
                         <Users size={16} className="mr-3" />
-                        Pending Members
+                        {t('pendingMembers')}
                       </button>
                       <button
                         onClick={() => { setIsUserMenuOpen(false); router.push('/admin/site-members'); }}
                         className="flex items-center w-full px-4 py-2 text-sm text-green-700 hover:bg-green-50 transition-colors duration-200"
                       >
                         <Users size={16} className="mr-3" />
-                        Site Members
+                        {t('siteMembers')}
                       </button>
                       <button
                         onClick={() => { setIsUserMenuOpen(false); router.push('/admin/contact-messages'); }}
                         className="flex items-center w-full px-4 py-2 text-sm text-green-700 hover:bg-green-50 transition-colors duration-200"
                       >
                         <MessageCircle size={16} className="mr-3" />
-                        Contact Messages
+                        {t('contactMessages')}
                       </button>
                     </>
                   )}
@@ -133,7 +135,7 @@ export default function Header({ user, member, onLogout, siteInfo }) {
                     className="flex items-center w-full px-4 py-2 text-sm text-sage-700 hover:bg-sage-50 transition-colors duration-200"
                   >
                     <LogOut size={16} className="mr-3" />
-                    Logout
+                    {t('logout')}
                   </button>
                 </div>
               </div>
