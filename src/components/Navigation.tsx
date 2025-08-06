@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Menu, X, User, LogOut, Home, Users, Heart, Settings, MessageCircle } from 'lucide-react';
+import { Menu, X, User, LogOut, Home, Users, Heart, Settings, MessageCircle, Calendar } from 'lucide-react';
 import { useMemberStore } from '@/store/MemberStore';
 
 interface NavigationProps {
@@ -44,6 +44,7 @@ export default function Navigation({ user, onLogout, setMobileMenuOpen }: Naviga
     { name: 'Home', href: '/', icon: Home },
     { name: 'Family', href: '/family', icon: Users },
     { name: 'Activities', href: '/activities', icon: Heart },
+    { name: 'Anniversaries', href: '/anniversaries', icon: Calendar },
     { name: 'Settings', href: '/settings', icon: Settings },
   ];
 
