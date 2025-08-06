@@ -50,5 +50,10 @@
   "wedding": "Wedding",
   "annualEvent": "Annual event",
   "saving": "Saving...",
-  "addEvent": "Add Event"
+  "addEvent": "Add Event",
+  "home": "Home",
+  "family": "Family",
+  "activities": "Activities",
+  "anniversaries": "Anniversaries",
+  "settings": "Settings"
 }
