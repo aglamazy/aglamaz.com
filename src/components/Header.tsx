@@ -75,13 +75,13 @@ export default function Header({ user, member, onLogout, siteInfo }) {
             {LANGS.find(l => l.code === i18n.language)?.flag || '🌐'}
           </button>
           {isLangMenuOpen && (
-            <div className="absolute right-0 mt-2 w-24 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-50">
+            <div className={`language-menu ${menuPosition}`}>
               <div className="py-1 flex flex-col">
                 {LANGS.map(({ code, label, flag }) => (
                   <button
                     key={code}
                     onClick={() => handleLangChange(code)}
-                    className={`flex items-center gap-2 px-4 py-2 text-sm hover:bg-gray-100 ${i18n.language === code ? 'font-bold' : ''}`}
+                    className={`language-menu-item ${i18n.language === code ? 'font-bold' : ''}`}
                   >
                     <span>{flag}</span>
                     <span>{label}</span>
