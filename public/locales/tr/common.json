@@ -27,6 +27,7 @@
   "password": "Şifre",
   "passwordPlaceholder": "********",
   "signIn": "Giriş yap",
+  "passwordResetEmailSent": "Şifre sıfırlama e-postası gönderildi! Gelen kutunuzu kontrol edin.",
   "forgotPassword": "Şifrenizi mi unuttunuz?",
   "signUp": "Kayıt ol",
   "readFamilyBlog": "Aile Blogunu Oku",

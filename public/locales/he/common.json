@@ -24,6 +24,7 @@
   "password": "סיסמה",
   "passwordPlaceholder": "********",
   "signIn": "התחבר",
+  "passwordResetEmailSent": "איפוס סיסמה נשלח! בדוק את תיבת הדואר הנכנס שלך.",
   "forgotPassword": "שכחת סיסמה?",
   "signUp": "הרשמה",
   "readFamilyBlog": "בלוג המשפחה",

@@ -24,6 +24,7 @@
   "password": "Password",
   "passwordPlaceholder": "********",
   "signIn": "Sign in",
+  "passwordResetEmailSent": "Password reset email sent! Check your inbox.",
   "forgotPassword": "Forgot password?",
   "signUp": "Sign up",
   "readFamilyBlog": "Read Family Blog",
