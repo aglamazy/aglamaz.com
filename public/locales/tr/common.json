@@ -38,5 +38,22 @@
   "welcomeBack": "Tekrar hoş geldiniz, {{name}}!",
   "familyMember": "Aile Üyesi",
   "stayConnected": "Paylaşılan anılar, önemli bağlantılar ve güzel fotoğraf albümleriyle ailenizle bağlantıda kalın.",
-  "explore": "Keşfet"
+  "explore": "Keşfet",
+  "anniversaries": "Aile Tarihleri",
+  "noEventsThisMonth": "Bu ay etkinlik yok.",
+  "name": "İsim",
+  "description": "Açıklama",
+  "date": "Tarih",
+  "type": "Tür",
+  "birthday": "Doğum günü",
+  "death": "Ölüm",
+  "wedding": "Düğün",
+  "annualEvent": "Yıllık etkinlik",
+  "saving": "Kaydediliyor...",
+  "addEvent": "Etkinlik Ekle",
+  "home": "Ana Sayfa",
+  "family": "Aile",
+  "activities": "Aktiviteler",
+  "anniversaries": "Yıldönümleri",
+  "settings": "Ayarlar"
 }
