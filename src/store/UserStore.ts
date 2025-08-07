@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import { User } from '../entities/User';
 import { useMemberStore } from './MemberStore';
 import { useSiteStore } from './SiteStore';
+import { signOut } from 'firebase/auth';
+import { initFirebase, auth } from '../firebase/client';
 
 interface UserState {
   user: any;
@@ -9,7 +11,7 @@ interface UserState {
   setUser: (user: any) => void;
   setLoading: (loading: boolean) => void;
   checkAuth: () => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
 }
 
 export const useUserStore = create<UserState>((set, get) => ({
@@ -40,10 +42,16 @@ export const useUserStore = create<UserState>((set, get) => ({
       set({ user: null, loading: false });
     }
   },
-  logout: () => {
+  logout: async () => {
+    initFirebase();
+    try {
+      await signOut(auth());
+    } catch (error) {
+      console.error('Failed to sign out:', error);
+    }
     document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
     set({ user: null });
     const memberStore = useMemberStore.getState();
     memberStore.clearMember();
   },
-})); 
+}));
