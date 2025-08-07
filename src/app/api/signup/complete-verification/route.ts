@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { FamilyRepository } from '../../../../repositories/FamilyRepository';
+import { FamilyRepository } from '@/repositories/FamilyRepository';
+import { adminNotificationService } from '@/services/AdminNotificationService';
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,7 +16,14 @@ export async function POST(request: NextRequest) {
 
     // Complete the verification with user ID
     const familyRepository = new FamilyRepository();
-    await familyRepository.verifySignupRequest(token, userId);
+    const signupRequest = await familyRepository.verifySignupRequest(token, userId);
+
+    await adminNotificationService.notify('pending_member', {
+      userId,
+      siteId: signupRequest.siteId,
+      firstName: signupRequest.firstName,
+      email: signupRequest.email,
+    });
 
     return NextResponse.json({
       success: true,

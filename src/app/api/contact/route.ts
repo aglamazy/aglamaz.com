@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { contactRepository } from '@/repositories/ContactRepository';
+import { adminNotificationService } from '@/services/AdminNotificationService';
 
 export async function POST(req: NextRequest) {
   try {
@@ -8,6 +9,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
     }
     const saved = await contactRepository.addContactMessage({ name, email, message });
+    await adminNotificationService.notify('contact_form', { name, email, message });
     return NextResponse.json({ success: true, data: saved });
   } catch (err) {
     console.error('Contact form error:', err);
