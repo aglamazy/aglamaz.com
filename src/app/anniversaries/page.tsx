@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Modal from '@/components/ui/Modal';
 import { useTranslation } from 'react-i18next';
+import { Calendar as CalendarIcon } from 'lucide-react';
 
 interface AnniversaryEvent {
   id: string;
@@ -74,22 +75,39 @@ export default function AnniversariesPage() {
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const eventsThisMonth = events.filter((ev) => ev.month === month);
+  const today = new Date();
 
   const dayCells = [];
   for (let i = 0; i < firstDay; i++) {
-    dayCells.push(<div key={`empty-${i}`} className="border p-2 h-24" />);
+    dayCells.push(<div key={`empty-${i}`} className="border p-2 h-24 rounded-xl shadow-md" />);
   }
   for (let day = 1; day <= daysInMonth; day++) {
     const dayEvents = eventsThisMonth.filter((ev) => ev.day === day);
+    const isToday =
+      day === today.getDate() &&
+      month === today.getMonth() &&
+      year === today.getFullYear();
     dayCells.push(
-      <div key={day} className="border p-2 h-24">
-        <div className="text-xs font-bold">{day}</div>
+      <div
+        key={day}
+        className="border p-2 h-24 rounded-xl shadow-md hover:bg-emerald-50 transition-colors"
+      >
+        <div
+          className={`font-bold w-6 h-6 flex items-center justify-center mx-auto mb-1 ${
+            isToday
+              ? 'bg-emerald-200 text-emerald-900 rounded-full text-base'
+              : 'text-sm'
+          }`}
+        >
+          {day}
+        </div>
         {dayEvents.map((ev) => (
           <div
             key={ev.id}
             onClick={() => setSelectedEvent(ev)}
-            className="text-xs cursor-pointer hover:underline"
+            className="mt-1 flex items-center gap-1 bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs cursor-pointer"
           >
+            <CalendarIcon className="w-3 h-3" />
             {ev.name}
           </div>
         ))}
@@ -118,9 +136,9 @@ export default function AnniversariesPage() {
           {eventsThisMonth.length === 0 && (
             <div className="mb-2">{t('noEventsThisMonth')}</div>
           )}
-          <div className="grid grid-cols-7 gap-2 mb-8 text-center">
+          <div className="grid grid-cols-7 gap-2 mb-8 text-center p-4 rounded-lg bg-gradient-to-b from-slate-50 to-slate-200">
             {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => (
-              <div key={d} className="font-semibold">
+              <div key={d} className="font-semibold text-lg">
                 {d}
               </div>
             ))}
