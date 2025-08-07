@@ -12,6 +12,7 @@ const getHandler = async (request: Request, context: any, user: any, member: any
     const events = await repo.getEventsForMonth(member.siteId, month, year);
     return Response.json({ events });
   } catch (error) {
+    console.error(error);
     return Response.json({ error: 'Failed to fetch events' }, { status: 500 });
   }
 };
@@ -35,6 +36,7 @@ const postHandler = async (request: Request, context: any, user: any, member: an
     });
     return Response.json({ event }, { status: 201 });
   } catch (error) {
+    console.error(error);
     return Response.json({ error: 'Failed to create event' }, { status: 500 });
   }
 };
