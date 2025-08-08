@@ -18,6 +18,7 @@ export class AnniversaryRepository {
     date: Date;
     isAnnual: boolean;
     createdBy: string;
+    imageUrl?: string;
   }): Promise<AnniversaryEvent> {
     const db = this.getDb();
     const now = Timestamp.now();
@@ -34,6 +35,7 @@ export class AnniversaryRepository {
       isAnnual: eventData.isAnnual,
       createdBy: eventData.createdBy,
       createdAt: now,
+      imageUrl: eventData.imageUrl || '',
     });
     const doc = await ref.get();
     return { id: doc.id, ...doc.data() } as AnniversaryEvent;

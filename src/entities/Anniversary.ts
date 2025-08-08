@@ -11,4 +11,5 @@ export interface AnniversaryEvent {
   isAnnual: boolean;
   createdBy: string;
   createdAt: any;
+  imageUrl?: string;
 }
