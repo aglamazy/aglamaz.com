@@ -1,6 +1,7 @@
 export interface AnniversaryEvent {
   id: string;
   siteId: string;
+  ownerId: string;
   name: string;
   description?: string;
   type: 'birthday' | 'death' | 'wedding';
@@ -9,6 +10,6 @@ export interface AnniversaryEvent {
   day: number;
   year: number;
   isAnnual: boolean;
-  createdBy: string;
+  imageUrl?: string;
   createdAt: any;
 }
