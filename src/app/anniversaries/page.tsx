@@ -74,23 +74,33 @@ export default function AnniversariesPage() {
   const month = selectedDate.getMonth();
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const prevMonth = month === 0 ? 11 : month - 1;
+  const nextMonth = (month + 1) % 12;
+  const daysInPrevMonth = new Date(year, month, 0).getDate();
+  const eventsPrevMonth = events.filter((ev) => ev.month === prevMonth);
   const eventsThisMonth = events.filter((ev) => ev.month === month);
+  const eventsNextMonth = events.filter((ev) => ev.month === nextMonth);
   const today = new Date();
 
-  const dayCells = [];
-  for (let i = 0; i < firstDay; i++) {
-    dayCells.push(<div key={`empty-${i}`} className="border p-2 h-24 rounded-xl shadow-md" />);
-  }
-  for (let day = 1; day <= daysInMonth; day++) {
-    const dayEvents = eventsThisMonth.filter((ev) => ev.day === day);
+  const renderDayCell = (
+    day: number,
+    dayEvents: AnniversaryEvent[],
+    key: string,
+    isOutsideMonth = false
+  ) => {
     const isToday =
+      !isOutsideMonth &&
       day === today.getDate() &&
       month === today.getMonth() &&
       year === today.getFullYear();
-    dayCells.push(
+    return (
       <div
-        key={day}
-        className="border p-2 h-24 rounded-xl shadow-md hover:bg-emerald-50 transition-colors"
+        key={key}
+        className={`border p-2 h-24 rounded-xl shadow-md ${
+          isOutsideMonth
+            ? 'bg-gray-100 text-gray-400'
+            : 'hover:bg-emerald-50 transition-colors'
+        }`}
       >
         <div
           className={`font-bold w-6 h-6 flex items-center justify-center mx-auto mb-1 ${
@@ -105,7 +115,11 @@ export default function AnniversariesPage() {
           <div
             key={ev.id}
             onClick={() => setSelectedEvent(ev)}
-            className="mt-1 flex items-center gap-1 bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs cursor-pointer"
+            className={`mt-1 flex items-center gap-1 px-2 py-1 rounded-full text-xs cursor-pointer ${
+              isOutsideMonth
+                ? 'bg-gray-200 text-gray-500'
+                : 'bg-blue-100 text-blue-800'
+            }`}
           >
             <CalendarIcon className="w-3 h-3" />
             {ev.name}
@@ -113,6 +127,23 @@ export default function AnniversariesPage() {
         ))}
       </div>
     );
+  };
+
+  const dayCells: JSX.Element[] = [];
+  for (let i = firstDay - 1; i >= 0; i--) {
+    const day = daysInPrevMonth - i;
+    const dayEvents = eventsPrevMonth.filter((ev) => ev.day === day);
+    dayCells.push(renderDayCell(day, dayEvents, `prev-${day}`, true));
+  }
+  for (let day = 1; day <= daysInMonth; day++) {
+    const dayEvents = eventsThisMonth.filter((ev) => ev.day === day);
+    dayCells.push(renderDayCell(day, dayEvents, `curr-${day}`));
+  }
+  const totalCells = firstDay + daysInMonth;
+  const trailingCells = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
+  for (let i = 1; i <= trailingCells; i++) {
+    const dayEvents = eventsNextMonth.filter((ev) => ev.day === i);
+    dayCells.push(renderDayCell(i, dayEvents, `next-${i}`, true));
   }
 
   return (
