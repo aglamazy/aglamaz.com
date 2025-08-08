@@ -71,6 +71,7 @@ export default function AnniversariesPage() {
   const onFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setImageFile(file);
     const reader = new FileReader();
     reader.onload = () => setImageSrc(reader.result as string);
     reader.readAsDataURL(file);
@@ -108,6 +109,12 @@ export default function AnniversariesPage() {
       canvas.height
     );
     const dataUrl = canvas.toDataURL('image/jpeg');
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      const fileName = imageFile?.name || 'cropped.jpg';
+      const croppedFile = new File([blob], fileName, { type: 'image/jpeg' });
+      setImageFile(croppedFile);
+    }, 'image/jpeg');
     setForm((prev) => ({ ...prev, imageUrl: dataUrl }));
   };
 
@@ -143,11 +150,10 @@ export default function AnniversariesPage() {
         });
       }
       if (res.ok) {
-        setForm({ name: '', description: '', date: '', type: 'birthday', isAnnual: true });
+        setForm({ name: '', description: '', date: '', type: 'birthday', isAnnual: true, imageUrl: '' });
         setImageFile(null);
         setEditEvent(null);
         setIsModalOpen(false);
-        setForm({ name: '', description: '', date: '', type: 'birthday', isAnnual: true, imageUrl: '' });
         setImageSrc('');
         fetchEvents();
       } else {
@@ -248,9 +254,10 @@ export default function AnniversariesPage() {
 
       <button
         onClick={() => {
-          setForm({ name: '', description: '', date: '', type: 'birthday', isAnnual: true });
+          setForm({ name: '', description: '', date: '', type: 'birthday', isAnnual: true, imageUrl: '' });
           setEditEvent(null);
           setImageFile(null);
+          setImageSrc('');
           setIsModalOpen(true);
         }}
         className="fixed bottom-4 right-1/2 transform translate-x-1/2 bg-primary text-white p-3 rounded-full shadow-lg hover:bg-secondary"
@@ -302,17 +309,9 @@ export default function AnniversariesPage() {
           </div>
           <div>
             <label className="block mb-1 text-sm text-text">{t('image')}</label>
-            {editEvent?.imageUrl && !imageFile && (
+            {editEvent?.imageUrl && !imageSrc && (
               <img src={editEvent.imageUrl} alt="" className="mb-2 max-h-40" />
             )}
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(e) => setImageFile(e.target.files?.[0] || null)}
-            />
-          </div>
-          <div>
-            <label className="block mb-1 text-sm text-text">{t('image')}</label>
             <input type="file" accept="image/*" onChange={onFileChange} />
             {imageSrc && (
               <div className="mt-2">
@@ -407,9 +406,11 @@ export default function AnniversariesPage() {
                       date: `${selectedEvent.year}-${String(selectedEvent.month + 1).padStart(2, '0')}-${String(selectedEvent.day).padStart(2, '0')}`,
                       type: selectedEvent.type,
                       isAnnual: selectedEvent.isAnnual,
+                      imageUrl: '',
                     });
                     setEditEvent(selectedEvent);
                     setImageFile(null);
+                    setImageSrc('');
                     setSelectedEvent(null);
                     setIsModalOpen(true);
                   }}
