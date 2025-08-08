@@ -116,6 +116,7 @@ export default function AnniversariesPage() {
       setImageFile(croppedFile);
     }, 'image/jpeg');
     setForm((prev) => ({ ...prev, imageUrl: dataUrl }));
+    setImageSrc(''); // Hide the original image
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
