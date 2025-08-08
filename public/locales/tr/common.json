@@ -6,6 +6,17 @@
   "pendingMembers": "Bekleyen Üyeler",
   "siteMembers": "Site Üyeleri",
   "contactMessages": "İletişim Mesajları",
+  "loadingPendingMembers": "Bekleyen üyeler yükleniyor...",
+  "failedToLoadPendingMembers": "Bekleyen üyeler yüklenemedi",
+  "memberApproved": "Üye başarıyla onaylandı",
+  "memberRejected": "Üye başarıyla reddedildi",
+  "failedToApproveMember": "Üye onaylanamadı",
+  "failedToRejectMember": "Üye reddedilemedi",
+  "noPendingMembers": "Bekleyen üye yok",
+  "requested": "İstek tarihi",
+  "awaitingEmailVerification": "E-posta doğrulaması bekleniyor",
+  "pendingApprovalStatus": "Onay Bekliyor",
+  "verified": "Doğrulandı",
   "logout": "Çıkış Yap",
   "pendingApprovalRequestSent": "Talep başarıyla gönderildi",
   "pendingApprovalWaitingAdmin": "Yönetici onayı bekleniyor",
@@ -57,3 +68,4 @@
   "activities": "Aktiviteler",
   "settings": "Ayarlar"
 }
+
