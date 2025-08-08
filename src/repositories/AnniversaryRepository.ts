@@ -18,6 +18,7 @@ export class AnniversaryRepository {
     type: 'birthday' | 'death' | 'wedding';
     date: Date;
     isAnnual: boolean;
+    createdBy: string;
     imageUrl?: string;
   }): Promise<AnniversaryEvent> {
     const db = this.getDb();
@@ -36,6 +37,7 @@ export class AnniversaryRepository {
       isAnnual: eventData.isAnnual,
       imageUrl: eventData.imageUrl || '',
       createdAt: now,
+      imageUrl: eventData.imageUrl || '',
     });
     const doc = await ref.get();
     return { id: doc.id, ...doc.data() } as AnniversaryEvent;

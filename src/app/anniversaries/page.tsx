@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState, ChangeEvent } from 'react';
 import Modal from '@/components/ui/Modal';
 import { useTranslation } from 'react-i18next';
 import { Calendar as CalendarIcon } from 'lucide-react';
@@ -31,6 +31,7 @@ export default function AnniversariesPage() {
     date: '',
     type: 'birthday',
     isAnnual: true,
+    imageUrl: '',
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -42,6 +43,12 @@ export default function AnniversariesPage() {
   const user = useUserStore((s) => s.user);
   const member = useMemberStore((state) => state.member);
   const { t } = useTranslation();
+
+  const [imageSrc, setImageSrc] = useState('');
+  const [offsetY, setOffsetY] = useState(0);
+  const [maxOffsetY, setMaxOffsetY] = useState(0);
+  const imgRef = useRef<HTMLImageElement | null>(null);
+  const cropRef = useRef<HTMLDivElement | null>(null);
 
   const fetchEvents = async () => {
     setLoading(true);
@@ -60,6 +67,49 @@ export default function AnniversariesPage() {
     initFirebase();
     fetchEvents();
   }, []);
+
+  const onFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setImageSrc(reader.result as string);
+    reader.readAsDataURL(file);
+  };
+
+  const onImageLoad = () => {
+    const img = imgRef.current;
+    const container = cropRef.current;
+    if (!img || !container) return;
+    const scaledHeight = (img.naturalHeight * container.offsetWidth) / img.naturalWidth;
+    const excess = Math.max(0, scaledHeight - container.offsetHeight);
+    setMaxOffsetY(excess);
+    setOffsetY(excess / 2);
+  };
+
+  const handleCrop = () => {
+    const img = imgRef.current;
+    const container = cropRef.current;
+    if (!img || !container) return;
+    const scale = img.naturalWidth / container.offsetWidth;
+    const canvas = document.createElement('canvas');
+    canvas.width = container.offsetWidth;
+    canvas.height = container.offsetHeight;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.drawImage(
+      img,
+      0,
+      offsetY * scale,
+      container.offsetWidth * scale,
+      container.offsetHeight * scale,
+      0,
+      0,
+      canvas.width,
+      canvas.height
+    );
+    const dataUrl = canvas.toDataURL('image/jpeg');
+    setForm((prev) => ({ ...prev, imageUrl: dataUrl }));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -97,6 +147,8 @@ export default function AnniversariesPage() {
         setImageFile(null);
         setEditEvent(null);
         setIsModalOpen(false);
+        setForm({ name: '', description: '', date: '', type: 'birthday', isAnnual: true, imageUrl: '' });
+        setImageSrc('');
         fetchEvents();
       } else {
         const data = await res.json();
@@ -258,6 +310,46 @@ export default function AnniversariesPage() {
               accept="image/*"
               onChange={(e) => setImageFile(e.target.files?.[0] || null)}
             />
+          </div>
+          <div>
+            <label className="block mb-1 text-sm text-text">{t('image')}</label>
+            <input type="file" accept="image/*" onChange={onFileChange} />
+            {imageSrc && (
+              <div className="mt-2">
+                <div
+                  ref={cropRef}
+                  className="relative w-full aspect-[16/9] overflow-hidden bg-gray-200"
+                >
+                  <img
+                    ref={imgRef}
+                    src={imageSrc}
+                    onLoad={onImageLoad}
+                    style={{ width: '100%', transform: `translateY(-${offsetY}px)` }}
+                    alt="crop source"
+                  />
+                </div>
+                {maxOffsetY > 0 && (
+                  <input
+                    type="range"
+                    min={0}
+                    max={maxOffsetY}
+                    value={offsetY}
+                    onChange={(e) => setOffsetY(Number(e.target.value))}
+                    className="w-full mt-2"
+                  />
+                )}
+                <button
+                  type="button"
+                  onClick={handleCrop}
+                  className="mt-2 bg-primary text-white px-4 py-2 rounded"
+                >
+                  {t('cropImage')}
+                </button>
+                {form.imageUrl && (
+                  <img src={form.imageUrl} alt="preview" className="w-full mt-2 rounded" />
+                )}
+              </div>
+            )}
           </div>
           <div className="flex items-center">
             <input

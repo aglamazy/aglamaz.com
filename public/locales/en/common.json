@@ -60,6 +60,8 @@
   "birthday": "Birthday",
   "death": "Death",
   "wedding": "Wedding",
+  "image": "Image",
+  "cropImage": "Crop Image",
   "annualEvent": "Annual event",
   "saving": "Saving...",
   "addEvent": "Add Event",

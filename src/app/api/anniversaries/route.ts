@@ -33,6 +33,7 @@ const postHandler = async (request: Request, context: any, user: any, member: an
       type,
       date: new Date(date),
       isAnnual: Boolean(isAnnual),
+      createdBy: user.uid,
       imageUrl,
     });
     return Response.json({ event }, { status: 201 });

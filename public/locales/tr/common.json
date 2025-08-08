@@ -60,6 +60,8 @@
   "birthday": "Doğum günü",
   "death": "Ölüm",
   "wedding": "Düğün",
+  "image": "Resim",
+  "cropImage": "Resmi Kırp",
   "annualEvent": "Yıllık etkinlik",
   "saving": "Kaydediliyor...",
   "addEvent": "Etkinlik Ekle",
