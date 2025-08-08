@@ -1,5 +1,6 @@
 import { GmailService } from './GmailService';
 import { notificationRepository, AdminNotification } from '../repositories/NotificationRepository';
+import { fetchSiteInfo, adminAuth } from '../firebase/admin';
 
 export type NotificationEventType = 'contact_form' | 'pending_member';
 
@@ -10,10 +11,26 @@ export class AdminNotificationService {
     return notificationRepository.addNotification({ eventType, payload });
   }
 
+  private async getAdminEmail(): Promise<string | null> {
+    const siteInfo = await fetchSiteInfo();
+    const ownerUid = (siteInfo as any)?.ownerUid;
+    if (!ownerUid) {
+      console.warn('Site owner UID not found, skipping email');
+      return null;
+    }
+    try {
+      const userRecord = await adminAuth().getUser(ownerUid);
+      return userRecord.email || null;
+    } catch (error) {
+      console.error('Failed to fetch admin user:', error);
+      return null;
+    }
+  }
+
   private async sendImmediate(notification: AdminNotification) {
-    const adminEmail = process.env.ADMIN_EMAIL;
+    const adminEmail = await this.getAdminEmail();
     if (!adminEmail) {
-      console.warn('ADMIN_EMAIL not configured, skipping email');
+      console.warn('Admin email not found, skipping email');
       return;
     }
 
