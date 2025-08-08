@@ -4,6 +4,9 @@ import { useEffect, useState } from 'react';
 import Modal from '@/components/ui/Modal';
 import { useTranslation } from 'react-i18next';
 import { Calendar as CalendarIcon } from 'lucide-react';
+import { initFirebase } from '@/firebase/client';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { useUserStore } from '@/store/UserStore';
 
 interface AnniversaryEvent {
   id: string;
@@ -12,6 +15,10 @@ interface AnniversaryEvent {
   type: string;
   day: number;
   month: number;
+  year: number;
+  isAnnual: boolean;
+  ownerId: string;
+  imageUrl?: string;
 }
 
 export default function AnniversariesPage() {
@@ -29,6 +36,9 @@ export default function AnniversariesPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedEvent, setSelectedEvent] = useState<AnniversaryEvent | null>(null);
+  const [editEvent, setEditEvent] = useState<AnniversaryEvent | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const user = useUserStore((s) => s.user);
   const { t } = useTranslation();
 
   const fetchEvents = async () => {
@@ -45,6 +55,7 @@ export default function AnniversariesPage() {
   };
 
   useEffect(() => {
+    initFirebase();
     fetchEvents();
   }, []);
 
@@ -53,13 +64,37 @@ export default function AnniversariesPage() {
     setSaving(true);
     setError('');
     try {
-      const res = await fetch('/api/anniversaries', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
-      });
+      let imageUrl = editEvent?.imageUrl || '';
+      if (imageFile && user?.user_id) {
+        const storage = getStorage();
+        const storageRef = ref(
+          storage,
+          `anniversaries/${user.user_id}/${Date.now()}_${imageFile.name}`
+        );
+        await uploadBytes(storageRef, imageFile);
+        imageUrl = await getDownloadURL(storageRef);
+      }
+
+      const payload = { ...form, imageUrl };
+      let res: Response;
+      if (editEvent) {
+        res = await fetch(`/api/anniversaries/${editEvent.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+      } else {
+        res = await fetch('/api/anniversaries', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+      }
       if (res.ok) {
         setForm({ name: '', description: '', date: '', type: 'birthday', isAnnual: true });
+        setImageFile(null);
+        setEditEvent(null);
+        setIsModalOpen(false);
         fetchEvents();
       } else {
         const data = await res.json();
@@ -67,6 +102,17 @@ export default function AnniversariesPage() {
       }
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      if (!confirm('Are you sure?')) return;
+      await fetch(`/api/anniversaries/${id}`, { method: 'DELETE' });
+      setSelectedEvent(null);
+      fetchEvents();
+    } catch (err) {
+      console.error(err);
     }
   };
 
@@ -148,7 +194,12 @@ export default function AnniversariesPage() {
       )}
 
       <button
-        onClick={() => setIsModalOpen(true)}
+        onClick={() => {
+          setForm({ name: '', description: '', date: '', type: 'birthday', isAnnual: true });
+          setEditEvent(null);
+          setImageFile(null);
+          setIsModalOpen(true);
+        }}
         className="fixed bottom-4 right-1/2 transform translate-x-1/2 bg-primary text-white p-3 rounded-full shadow-lg hover:bg-secondary"
       >
         +
@@ -196,6 +247,17 @@ export default function AnniversariesPage() {
               <option value="wedding">{t('wedding')}</option>
             </select>
           </div>
+          <div>
+            <label className="block mb-1 text-sm text-text">{t('image')}</label>
+            {editEvent?.imageUrl && !imageFile && (
+              <img src={editEvent.imageUrl} alt="" className="mb-2 max-h-40" />
+            )}
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => setImageFile(e.target.files?.[0] || null)}
+            />
+          </div>
           <div className="flex items-center">
             <input
               id="isAnnual"
@@ -211,7 +273,11 @@ export default function AnniversariesPage() {
             disabled={saving}
             className="bg-primary text-white px-4 py-2 rounded hover:bg-secondary disabled:opacity-50"
           >
-            {saving ? t('saving') : t('addEvent')}
+            {saving
+              ? t('saving')
+              : editEvent
+              ? t('updateEvent')
+              : t('addEvent')}
           </button>
         </form>
       </Modal>
@@ -220,6 +286,13 @@ export default function AnniversariesPage() {
         {selectedEvent && (
           <div className="space-y-2">
             <h2 className="text-xl font-semibold">{selectedEvent.name}</h2>
+            {selectedEvent.imageUrl && (
+              <img
+                src={selectedEvent.imageUrl}
+                alt=""
+                className="mb-2 max-h-60 w-full object-cover"
+              />
+            )}
             <div>
               {t('date')}: {selectedEvent.day}/{selectedEvent.month + 1}
             </div>
@@ -229,6 +302,34 @@ export default function AnniversariesPage() {
             {selectedEvent.description && (
               <div>
                 {t('description')}: {selectedEvent.description}
+              </div>
+            )}
+            {user?.user_id === selectedEvent.ownerId && (
+              <div className="flex gap-2 pt-2">
+                <button
+                  onClick={() => {
+                    setForm({
+                      name: selectedEvent.name,
+                      description: selectedEvent.description || '',
+                      date: `${selectedEvent.year}-${String(selectedEvent.month + 1).padStart(2, '0')}-${String(selectedEvent.day).padStart(2, '0')}`,
+                      type: selectedEvent.type,
+                      isAnnual: selectedEvent.isAnnual,
+                    });
+                    setEditEvent(selectedEvent);
+                    setImageFile(null);
+                    setSelectedEvent(null);
+                    setIsModalOpen(true);
+                  }}
+                  className="px-3 py-1 bg-primary text-white rounded"
+                >
+                  {t('edit')}
+                </button>
+                <button
+                  onClick={() => handleDelete(selectedEvent.id)}
+                  className="px-3 py-1 bg-red-500 text-white rounded"
+                >
+                  {t('delete')}
+                </button>
               </div>
             )}
           </div>
