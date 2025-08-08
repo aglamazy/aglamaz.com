@@ -8,6 +8,7 @@ import Header from "./Header";
 import I18nProvider from './I18nProvider';
 import i18n from '../i18n';
 import { useTranslation } from 'react-i18next';
+import { useIdTokenRefresh } from '../hooks/useIdTokenRefresh';
 
 export default function ClientLayoutShell({ children }) {
   const { user, loading, checkAuth, logout } = useUserStore();
@@ -16,6 +17,8 @@ export default function ClientLayoutShell({ children }) {
   const member = useMemberStore((state) => state.member);
   const router = useRouter();
   const { t, i18n } = useTranslation();
+
+  useIdTokenRefresh();
 
   useEffect(() => {
     checkAuth();
@@ -49,7 +52,7 @@ export default function ClientLayoutShell({ children }) {
 
 
   const handleLogout = async () => {
-    logout();
+    await logout();
     router.push('/login');
   };
 
