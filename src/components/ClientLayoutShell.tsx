@@ -39,7 +39,6 @@ export default function ClientLayoutShell({ children }) {
   }, [setSiteInfo]);
 
   useEffect(() => {
-    console.log("LANG changed", i18n.language)
     const htmlElement = document.documentElement;
     if (i18n.language === 'he') {
       htmlElement.dir = 'rtl';

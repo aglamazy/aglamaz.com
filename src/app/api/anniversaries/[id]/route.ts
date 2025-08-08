@@ -8,7 +8,7 @@ const putHandler = async (request: Request, { params }: any, user: any, member: 
     if (!existing || existing.siteId !== member.siteId) {
       return Response.json({ error: 'Event not found' }, { status: 404 });
     }
-    if (existing.ownerId !== user.uid) {
+    if (existing.ownerId !== user.uid && member.role !== 'admin') {
       return Response.json({ error: 'Forbidden' }, { status: 403 });
     }
     const body = await request.json();

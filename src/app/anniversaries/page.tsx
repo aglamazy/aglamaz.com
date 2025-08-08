@@ -7,6 +7,7 @@ import { Calendar as CalendarIcon } from 'lucide-react';
 import { initFirebase } from '@/firebase/client';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useUserStore } from '@/store/UserStore';
+import { useMemberStore } from '@/store/MemberStore';
 
 interface AnniversaryEvent {
   id: string;
@@ -39,6 +40,7 @@ export default function AnniversariesPage() {
   const [editEvent, setEditEvent] = useState<AnniversaryEvent | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const user = useUserStore((s) => s.user);
+  const member = useMemberStore((state) => state.member);
   const { t } = useTranslation();
 
   const fetchEvents = async () => {
@@ -136,25 +138,24 @@ export default function AnniversariesPage() {
     dayCells.push(
       <div
         key={day}
-        className="border p-2 h-24 rounded-xl shadow-md hover:bg-emerald-50 transition-colors"
+        className="border p-2 h-32 rounded-xl shadow-md hover:bg-emerald-50 transition-colors relative overflow-hidden"
+        dir={document.documentElement.dir}
       >
-        <div
-          className={`font-bold w-6 h-6 flex items-center justify-center mx-auto mb-1 ${
-            isToday
-              ? 'bg-emerald-200 text-emerald-900 rounded-full text-base'
-              : 'text-sm'
-          }`}
-        >
-          {day}
+        <div className={`absolute top-1 ${document.documentElement.dir === 'rtl' ? 'right-1' : 'left-1'} flex items-center`}>
+          <span className="font-bold text-sm">{day}</span>
+          {dayEvents.length > 0 && (
+            <span className="ml-3 text-xs">{dayEvents[0].name}</span>
+          )}
         </div>
         {dayEvents.map((ev) => (
           <div
             key={ev.id}
             onClick={() => setSelectedEvent(ev)}
-            className="mt-1 flex items-center gap-1 bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs cursor-pointer"
+            className="mt-6 flex flex-col items-center gap-1 bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs cursor-pointer"
           >
-            <CalendarIcon className="w-3 h-3" />
-            {ev.name}
+            {ev.imageUrl && (
+              <img src={ev.imageUrl} alt="" className="w-full h-20 object-cover mt-1 rounded" />
+            )}
           </div>
         ))}
       </div>
@@ -304,7 +305,7 @@ export default function AnniversariesPage() {
                 {t('description')}: {selectedEvent.description}
               </div>
             )}
-            {user?.user_id === selectedEvent.ownerId && (
+            {(user?.user_id === selectedEvent.ownerId || member?.role === 'admin') && (
               <div className="flex gap-2 pt-2">
                 <button
                   onClick={() => {
