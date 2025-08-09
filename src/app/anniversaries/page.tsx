@@ -193,7 +193,7 @@ export default function AnniversariesPage() {
   const nextYear = nextMonthDate.getFullYear();
   const totalCells = Math.ceil((firstDay + daysInMonth) / 7) * 7;
 
-  const dayCells: JSX.Element[] = [];
+  const dayCells = [];
   for (let i = 0; i < totalCells; i++) {
     let cellDay;
     let cellMonth = month;

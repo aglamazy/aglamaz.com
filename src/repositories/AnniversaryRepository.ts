@@ -36,8 +36,7 @@ export class AnniversaryRepository {
       year: eventData.date.getFullYear(),
       isAnnual: eventData.isAnnual,
       imageUrl: eventData.imageUrl || '',
-      createdAt: now,
-      imageUrl: eventData.imageUrl || '',
+      createdAt: now
     });
     const doc = await ref.get();
     return { id: doc.id, ...doc.data() } as AnniversaryEvent;
