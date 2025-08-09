@@ -4,13 +4,9 @@ import { ErrorBoundary } from '../components/ErrorBoundary';
 import { fetchSiteInfo } from '../firebase/admin';
 
 export default async function RootLayout({ children }) {
-  let siteInfo = null;
-  
-  try {
-    siteInfo = await fetchSiteInfo();
-  } catch (error) {
-    console.error('Failed to fetch site info:', error);
-    siteInfo = { name: 'Family' }; // fallback
+  let siteInfo: any = await fetchSiteInfo();
+  if (!siteInfo) {
+    siteInfo = { name: 'Family' };
   }
 
   return (
