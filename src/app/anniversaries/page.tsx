@@ -184,24 +184,58 @@ export default function AnniversariesPage() {
   const eventsThisMonth = events.filter((ev) => ev.month === month);
   const today = new Date();
 
-  const dayCells = [];
-  for (let i = 0; i < firstDay; i++) {
-    dayCells.push(<div key={`empty-${i}`} className="border p-2 h-24 rounded-xl shadow-md" />);
-  }
-  for (let day = 1; day <= daysInMonth; day++) {
-    const dayEvents = eventsThisMonth.filter((ev) => ev.day === day);
+  const prevMonthDate = new Date(year, month, 0);
+  const daysInPrevMonth = prevMonthDate.getDate();
+  const prevMonth = prevMonthDate.getMonth();
+  const prevYear = prevMonthDate.getFullYear();
+  const nextMonthDate = new Date(year, month + 1, 1);
+  const nextMonth = nextMonthDate.getMonth();
+  const nextYear = nextMonthDate.getFullYear();
+  const totalCells = Math.ceil((firstDay + daysInMonth) / 7) * 7;
+
+  const dayCells: JSX.Element[] = [];
+  for (let i = 0; i < totalCells; i++) {
+    let cellDay;
+    let cellMonth = month;
+    let cellYear = year;
+    let isCurrentMonth = true;
+
+    if (i < firstDay) {
+      cellDay = daysInPrevMonth - firstDay + i + 1;
+      cellMonth = prevMonth;
+      cellYear = prevYear;
+      isCurrentMonth = false;
+    } else if (i >= firstDay + daysInMonth) {
+      cellDay = i - (firstDay + daysInMonth) + 1;
+      cellMonth = nextMonth;
+      cellYear = nextYear;
+      isCurrentMonth = false;
+    } else {
+      cellDay = i - firstDay + 1;
+    }
+
+    const dayEvents = events.filter(
+      (ev) => ev.month === cellMonth && ev.day === cellDay
+    );
     const isToday =
-      day === today.getDate() &&
-      month === today.getMonth() &&
-      year === today.getFullYear();
+      cellDay === today.getDate() &&
+      cellMonth === today.getMonth() &&
+      cellYear === today.getFullYear();
+
     dayCells.push(
       <div
-        key={day}
-        className="border p-2 h-32 rounded-xl shadow-md hover:bg-emerald-50 transition-colors relative overflow-hidden"
+        key={`${cellYear}-${cellMonth}-${cellDay}`}
+        className={`border p-2 h-32 rounded-xl shadow-md transition-colors relative overflow-hidden ${
+          isCurrentMonth ? 'hover:bg-emerald-50' : 'text-gray-400 bg-gray-50'
+        }`}
         dir={document.documentElement.dir}
       >
-        <div className={`absolute top-1 ${document.documentElement.dir === 'rtl' ? 'right-1' : 'left-1'} flex items-center`}>
-          <span className="font-bold text-sm">{day}</span>
+        <div
+          className={`absolute top-1 ${
+            document.documentElement.dir === 'rtl' ? 'right-1' : 'left-1'
+          } flex items-center`}
+        >
+          <span className="font-bold text-sm">{cellDay}</span>
           {dayEvents.length > 0 && (
             <span className="ml-3 text-xs">{dayEvents[0].name}</span>
           )}
@@ -210,10 +244,16 @@ export default function AnniversariesPage() {
           <div
             key={ev.id}
             onClick={() => setSelectedEvent(ev)}
-            className="mt-6 flex flex-col items-center gap-1 bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs cursor-pointer"
+            className={`mt-6 flex flex-col items-center gap-1 bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs cursor-pointer ${
+              isCurrentMonth ? '' : 'opacity-50'
+            }`}
           >
             {ev.imageUrl && (
-              <img src={ev.imageUrl} alt="" className="w-full h-20 object-cover mt-1 rounded" />
+              <img
+                src={ev.imageUrl}
+                alt=""
+                className="w-full h-20 object-cover mt-1 rounded"
+              />
             )}
           </div>
         ))}
