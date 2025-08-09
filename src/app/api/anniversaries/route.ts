@@ -20,19 +20,21 @@ const getHandler = async (request: Request, context: any, user: any, member: any
 const postHandler = async (request: Request, context: any, user: any, member: any) => {
   try {
     const body = await request.json();
-    const { name, description, type, date, isAnnual } = body;
+    const { name, description, type, date, isAnnual, imageUrl } = body;
     if (!name || !date || !type) {
       return Response.json({ error: 'Missing fields' }, { status: 400 });
     }
     const repo = new AnniversaryRepository();
     const event = await repo.create({
       siteId: member.siteId,
+      ownerId: user.uid,
       name,
       description,
       type,
       date: new Date(date),
       isAnnual: Boolean(isAnnual),
       createdBy: user.uid,
+      imageUrl,
     });
     return Response.json({ event }, { status: 201 });
   } catch (error) {

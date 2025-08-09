@@ -1,10 +1,14 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState, ChangeEvent } from 'react';
 import type { JSX } from 'react';
 import Modal from '@/components/ui/Modal';
 import { useTranslation } from 'react-i18next';
 import { Calendar as CalendarIcon } from 'lucide-react';
+import { initFirebase } from '@/firebase/client';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { useUserStore } from '@/store/UserStore';
+import { useMemberStore } from '@/store/MemberStore';
 
 interface AnniversaryEvent {
   id: string;
@@ -13,6 +17,10 @@ interface AnniversaryEvent {
   type: string;
   day: number;
   month: number;
+  year: number;
+  isAnnual: boolean;
+  ownerId: string;
+  imageUrl?: string;
 }
 
 export default function AnniversariesPage() {
@@ -24,13 +32,24 @@ export default function AnniversariesPage() {
     date: '',
     type: 'birthday',
     isAnnual: true,
+    imageUrl: '',
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedEvent, setSelectedEvent] = useState<AnniversaryEvent | null>(null);
+  const [editEvent, setEditEvent] = useState<AnniversaryEvent | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const user = useUserStore((s) => s.user);
+  const member = useMemberStore((state) => state.member);
   const { t } = useTranslation();
+
+  const [imageSrc, setImageSrc] = useState('');
+  const [offsetY, setOffsetY] = useState(0);
+  const [maxOffsetY, setMaxOffsetY] = useState(0);
+  const imgRef = useRef<HTMLImageElement | null>(null);
+  const cropRef = useRef<HTMLDivElement | null>(null);
 
   const fetchEvents = async () => {
     setLoading(true);
@@ -46,21 +65,98 @@ export default function AnniversariesPage() {
   };
 
   useEffect(() => {
+    initFirebase();
     fetchEvents();
   }, []);
+
+  const onFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImageFile(file);
+    const reader = new FileReader();
+    reader.onload = () => setImageSrc(reader.result as string);
+    reader.readAsDataURL(file);
+  };
+
+  const onImageLoad = () => {
+    const img = imgRef.current;
+    const container = cropRef.current;
+    if (!img || !container) return;
+    const scaledHeight = (img.naturalHeight * container.offsetWidth) / img.naturalWidth;
+    const excess = Math.max(0, scaledHeight - container.offsetHeight);
+    setMaxOffsetY(excess);
+    setOffsetY(excess / 2);
+  };
+
+  const handleCrop = () => {
+    const img = imgRef.current;
+    const container = cropRef.current;
+    if (!img || !container) return;
+    const scale = img.naturalWidth / container.offsetWidth;
+    const canvas = document.createElement('canvas');
+    canvas.width = container.offsetWidth;
+    canvas.height = container.offsetHeight;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.drawImage(
+      img,
+      0,
+      offsetY * scale,
+      container.offsetWidth * scale,
+      container.offsetHeight * scale,
+      0,
+      0,
+      canvas.width,
+      canvas.height
+    );
+    const dataUrl = canvas.toDataURL('image/jpeg');
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      const fileName = imageFile?.name || 'cropped.jpg';
+      const croppedFile = new File([blob], fileName, { type: 'image/jpeg' });
+      setImageFile(croppedFile);
+    }, 'image/jpeg');
+    setForm((prev) => ({ ...prev, imageUrl: dataUrl }));
+    setImageSrc(''); // Hide the original image
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     setError('');
     try {
-      const res = await fetch('/api/anniversaries', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
-      });
+      let imageUrl = editEvent?.imageUrl || '';
+      if (imageFile && user?.user_id) {
+        const storage = getStorage();
+        const storageRef = ref(
+          storage,
+          `anniversaries/${user.user_id}/${Date.now()}_${imageFile.name}`
+        );
+        await uploadBytes(storageRef, imageFile);
+        imageUrl = await getDownloadURL(storageRef);
+      }
+
+      const payload = { ...form, imageUrl };
+      let res: Response;
+      if (editEvent) {
+        res = await fetch(`/api/anniversaries/${editEvent.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+      } else {
+        res = await fetch('/api/anniversaries', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+      }
       if (res.ok) {
-        setForm({ name: '', description: '', date: '', type: 'birthday', isAnnual: true });
+        setForm({ name: '', description: '', date: '', type: 'birthday', isAnnual: true, imageUrl: '' });
+        setImageFile(null);
+        setEditEvent(null);
+        setIsModalOpen(false);
+        setImageSrc('');
         fetchEvents();
       } else {
         const data = await res.json();
@@ -68,6 +164,17 @@ export default function AnniversariesPage() {
       }
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      if (!confirm('Are you sure?')) return;
+      await fetch(`/api/anniversaries/${id}`, { method: 'DELETE' });
+      setSelectedEvent(null);
+      fetchEvents();
+    } catch (err) {
+      console.error(err);
     }
   };
 
@@ -102,15 +209,13 @@ export default function AnniversariesPage() {
             ? 'bg-gray-100 text-gray-400'
             : 'hover:bg-emerald-50 transition-colors'
         }`}
+        dir={document.documentElement.dir}
       >
-        <div
-          className={`font-bold w-6 h-6 flex items-center justify-center mx-auto mb-1 ${
-            isToday
-              ? 'bg-emerald-200 text-emerald-900 rounded-full text-base'
-              : 'text-sm'
-          }`}
-        >
-          {day}
+        <div className={`absolute top-1 ${document.documentElement.dir === 'rtl' ? 'right-1' : 'left-1'} flex items-center`}>
+          <span className="font-bold text-sm">{day}</span>
+          {dayEvents.length > 0 && (
+            <span className="ml-3 text-xs">{dayEvents[0].name}</span>
+          )}
         </div>
         {dayEvents.map((ev) => (
           <div
@@ -122,8 +227,9 @@ export default function AnniversariesPage() {
                 : 'bg-blue-100 text-blue-800'
             }`}
           >
-            <CalendarIcon className="w-3 h-3" />
-            {ev.name}
+            {ev.imageUrl && (
+              <img src={ev.imageUrl} alt="" className="w-full h-20 object-cover mt-1 rounded" />
+            )}
           </div>
         ))}
       </div>
@@ -180,7 +286,13 @@ export default function AnniversariesPage() {
       )}
 
       <button
-        onClick={() => setIsModalOpen(true)}
+        onClick={() => {
+          setForm({ name: '', description: '', date: '', type: 'birthday', isAnnual: true, imageUrl: '' });
+          setEditEvent(null);
+          setImageFile(null);
+          setImageSrc('');
+          setIsModalOpen(true);
+        }}
         className="fixed bottom-4 right-1/2 transform translate-x-1/2 bg-primary text-white p-3 rounded-full shadow-lg hover:bg-secondary"
       >
         +
@@ -228,6 +340,49 @@ export default function AnniversariesPage() {
               <option value="wedding">{t('wedding')}</option>
             </select>
           </div>
+          <div>
+            <label className="block mb-1 text-sm text-text">{t('image')}</label>
+            {editEvent?.imageUrl && !imageSrc && (
+              <img src={editEvent.imageUrl} alt="" className="mb-2 max-h-40" />
+            )}
+            <input type="file" accept="image/*" onChange={onFileChange} />
+            {imageSrc && (
+              <div className="mt-2">
+                <div
+                  ref={cropRef}
+                  className="relative w-full aspect-[16/9] overflow-hidden bg-gray-200"
+                >
+                  <img
+                    ref={imgRef}
+                    src={imageSrc}
+                    onLoad={onImageLoad}
+                    style={{ width: '100%', transform: `translateY(-${offsetY}px)` }}
+                    alt="crop source"
+                  />
+                </div>
+                {maxOffsetY > 0 && (
+                  <input
+                    type="range"
+                    min={0}
+                    max={maxOffsetY}
+                    value={offsetY}
+                    onChange={(e) => setOffsetY(Number(e.target.value))}
+                    className="w-full mt-2"
+                  />
+                )}
+                <button
+                  type="button"
+                  onClick={handleCrop}
+                  className="mt-2 bg-primary text-white px-4 py-2 rounded"
+                >
+                  {t('cropImage')}
+                </button>
+                {form.imageUrl && (
+                  <img src={form.imageUrl} alt="preview" className="w-full mt-2 rounded" />
+                )}
+              </div>
+            )}
+          </div>
           <div className="flex items-center">
             <input
               id="isAnnual"
@@ -243,7 +398,11 @@ export default function AnniversariesPage() {
             disabled={saving}
             className="bg-primary text-white px-4 py-2 rounded hover:bg-secondary disabled:opacity-50"
           >
-            {saving ? t('saving') : t('addEvent')}
+            {saving
+              ? t('saving')
+              : editEvent
+              ? t('updateEvent')
+              : t('addEvent')}
           </button>
         </form>
       </Modal>
@@ -252,6 +411,13 @@ export default function AnniversariesPage() {
         {selectedEvent && (
           <div className="space-y-2">
             <h2 className="text-xl font-semibold">{selectedEvent.name}</h2>
+            {selectedEvent.imageUrl && (
+              <img
+                src={selectedEvent.imageUrl}
+                alt=""
+                className="mb-2 max-h-60 w-full object-cover"
+              />
+            )}
             <div>
               {t('date')}: {selectedEvent.day}/{selectedEvent.month + 1}
             </div>
@@ -261,6 +427,36 @@ export default function AnniversariesPage() {
             {selectedEvent.description && (
               <div>
                 {t('description')}: {selectedEvent.description}
+              </div>
+            )}
+            {(user?.user_id === selectedEvent.ownerId || member?.role === 'admin') && (
+              <div className="flex gap-2 pt-2">
+                <button
+                  onClick={() => {
+                    setForm({
+                      name: selectedEvent.name,
+                      description: selectedEvent.description || '',
+                      date: `${selectedEvent.year}-${String(selectedEvent.month + 1).padStart(2, '0')}-${String(selectedEvent.day).padStart(2, '0')}`,
+                      type: selectedEvent.type,
+                      isAnnual: selectedEvent.isAnnual,
+                      imageUrl: '',
+                    });
+                    setEditEvent(selectedEvent);
+                    setImageFile(null);
+                    setImageSrc('');
+                    setSelectedEvent(null);
+                    setIsModalOpen(true);
+                  }}
+                  className="px-3 py-1 bg-primary text-white rounded"
+                >
+                  {t('edit')}
+                </button>
+                <button
+                  onClick={() => handleDelete(selectedEvent.id)}
+                  className="px-3 py-1 bg-red-500 text-white rounded"
+                >
+                  {t('delete')}
+                </button>
               </div>
             )}
           </div>

@@ -44,6 +44,10 @@ export function withMemberGuard(handler: Function) {
       }
 
       const member = memberSnap.docs[0].data();
+      if (member.role === 'admin') {
+        return handler(request, context, decodedToken, member);
+      }
+
       return handler(request, context, decodedToken, member);
     } catch (error) {
       return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401 });
