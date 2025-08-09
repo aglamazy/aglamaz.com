@@ -3,12 +3,13 @@ import { initAdmin } from '@/firebase/admin';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
 
-initAdmin();
-const db = getFirestore();
-
 export function withAdminGuard(handler: Function) {
   return async (request: Request, context: any) => {
     try {
+      if (!initAdmin()) {
+        return NextResponse.json({ error: 'Server misconfigured' }, { status: 500 });
+      }
+      const db = getFirestore();
       // Extract token from Authorization header or cookies
       const authHeader = request.headers.get('authorization');
       let token = authHeader?.replace('Bearer ', '');
