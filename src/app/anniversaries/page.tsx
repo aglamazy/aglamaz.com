@@ -346,6 +346,7 @@ export default function AnniversariesPage() {
               <option value="birthday">{t('birthday')}</option>
               <option value="death">{t('death')}</option>
               <option value="wedding">{t('wedding')}</option>
+              <option value="death_anniversary">{t('death_anniversary')}</option>
             </select>
           </div>
           <div>
