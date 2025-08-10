@@ -9,7 +9,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
     }
     const saved = await contactRepository.addContactMessage({ name, email, message });
-    await adminNotificationService.notify('contact_form', { name, email, message });
+    const origin = new URL(req.url).origin;
+    await adminNotificationService.notify('contact_form', { name, email, message }, origin);
     return NextResponse.json({ success: true, data: saved });
   } catch (err) {
     console.error('Contact form error:', err);

@@ -17,6 +17,7 @@ export async function POST(
     }
 
     const familyRepository = new FamilyRepository();
+    const origin = new URL(request.url).origin;
 
     const signupRequest = await familyRepository.createSignupRequest({
       firstName,
@@ -24,7 +25,7 @@ export async function POST(
       siteId,
       userId: params.id,
       status: 'pending'
-    });
+    }, origin);
 
     return NextResponse.json({
       success: true,

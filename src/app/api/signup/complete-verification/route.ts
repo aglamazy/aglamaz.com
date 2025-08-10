@@ -18,12 +18,13 @@ export async function POST(request: NextRequest) {
     const familyRepository = new FamilyRepository();
     const signupRequest = await familyRepository.verifySignupRequest(token, userId);
 
+    const origin = new URL(request.url).origin;
     await adminNotificationService.notify('pending_member', {
       userId,
       siteId: signupRequest.siteId,
       firstName: signupRequest.firstName,
       email: signupRequest.email,
-    });
+    }, origin);
 
     return NextResponse.json({
       success: true,

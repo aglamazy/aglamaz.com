@@ -7,8 +7,9 @@ import pug from 'pug';
 export type NotificationEventType = 'contact_form' | 'pending_member';
 
 export class AdminNotificationService {
-  private async queueNotification(eventType: NotificationEventType, payload: any) {
-    return notificationRepository.addNotification({ eventType, payload });
+  private async queueNotification(eventType: NotificationEventType, payload: any, siteUrl?: string) {
+    const payloadWithUrl = siteUrl ? { ...payload, siteUrl } : payload;
+    return notificationRepository.addNotification({ eventType, payload: payloadWithUrl });
   }
 
   private async getAdminEmail(): Promise<string | null> {
@@ -49,14 +50,17 @@ export class AdminNotificationService {
   private renderTemplate(notification: AdminNotification) {
     const templateDir = path.join(process.cwd(), 'src', 'templates', 'admin-notifications');
     const file = path.join(templateDir, `${notification.eventType}.pug`);
-    const data = { ...notification.payload } as any;
+    const payloadUrl = (notification.payload as any)?.siteUrl;
+    const fallbackEnvUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.SITE_URL || 'http://localhost:3000';
+    const siteUrl = payloadUrl || fallbackEnvUrl;
+    const data = { ...notification.payload, siteUrl } as any;
     delete data.siteId;
     delete data.userId;
     return pug.renderFile(file, data);
   }
 
-  async notify(eventType: NotificationEventType, payload: any) {
-    const notification = await this.queueNotification(eventType, payload);
+  async notify(eventType: NotificationEventType, payload: any, siteUrl?: string) {
+    const notification = await this.queueNotification(eventType, payload, siteUrl);
     await this.sendImmediate(notification);
     return notification;
   }

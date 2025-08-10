@@ -20,6 +20,7 @@ export async function POST(request: NextRequest) {
 
     // Store the verification request in Firestore
     const familyRepository = new FamilyRepository();
+    const origin = new URL(request.url).origin;
     await familyRepository.createSignupRequest({
       firstName,
       email,
@@ -27,10 +28,10 @@ export async function POST(request: NextRequest) {
       verificationToken,
       expiresAt,
       status: 'pending_verification'
-    });
+    }, origin);
 
     // Send verification email
-    const verificationUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/signup/verify?token=${verificationToken}`;
+    const verificationUrl = `${process.env.NEXT_PUBLIC_APP_URL || origin}/signup/verify?token=${verificationToken}`;
     
     try {
       const gmailService = await GmailService.init();
