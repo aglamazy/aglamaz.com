@@ -33,7 +33,20 @@ export class AdminNotificationService {
     }
 
     const subject = `New ${notification.eventType.replace('_', ' ')}`;
-    const html = `<p>A new ${notification.eventType.replace('_', ' ')} event occurred.</p><pre>${JSON.stringify(notification.payload, null, 2)}</pre>`;
+    let html: string;
+
+    if (notification.eventType === 'pending_member') {
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+      const reviewUrl = `${baseUrl}/admin/pending-members`;
+      html = `
+        <p>A new member signup request is pending approval.</p>
+        <p><a href="${reviewUrl}">Review the request</a></p>
+        <pre>${JSON.stringify(notification.payload, null, 2)}</pre>
+      `;
+    } else {
+      html = `<p>A new ${notification.eventType.replace('_', ' ')} event occurred.</p><pre>${JSON.stringify(notification.payload, null, 2)}</pre>`;
+    }
+
     const gmail = await GmailService.init();
     await gmail.sendEmail({ to: adminEmail, subject, html });
   }
