@@ -236,27 +236,41 @@ export default function AnniversariesPage() {
           } flex items-center`}
         >
           <span className="font-bold text-sm">{cellDay}</span>
-          {dayEvents.length > 0 && (
+          {dayEvents.length === 1 && (
             <span className="ml-3 text-xs">{dayEvents[0].name}</span>
           )}
         </div>
-        {dayEvents.map((ev) => (
-          <div
-            key={ev.id}
-            onClick={() => setSelectedEvent(ev)}
-            className={`mt-6 flex flex-col items-center gap-1 bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs cursor-pointer ${
-              isCurrentMonth ? '' : 'opacity-50'
-            }`}
-          >
-            {ev.imageUrl && (
-              <img
-                src={ev.imageUrl}
-                alt=""
-                className="w-full h-20 object-cover mt-1 rounded"
-              />
-            )}
+        {dayEvents.length > 1 ? (
+          <div className={`mt-6 flex flex-col gap-1 ${isCurrentMonth ? '' : 'opacity-50'}`}>
+            {dayEvents.map((ev) => (
+              <div
+                key={ev.id}
+                onClick={() => setSelectedEvent(ev)}
+                className="bg-blue-100 text-blue-800 px-2 py-1 rounded cursor-pointer text-xs"
+              >
+                {ev.name}
+              </div>
+            ))}
           </div>
-        ))}
+        ) : (
+          dayEvents.map((ev) => (
+            <div
+              key={ev.id}
+              onClick={() => setSelectedEvent(ev)}
+              className={`mt-6 flex flex-col items-center gap-1 bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs cursor-pointer ${
+                isCurrentMonth ? '' : 'opacity-50'
+              }`}
+            >
+              {ev.imageUrl && (
+                <img
+                  src={ev.imageUrl}
+                  alt=""
+                  className="w-full h-20 object-cover mt-1 rounded"
+                />
+              )}
+            </div>
+          ))
+        )}
       </div>
     );
   }
