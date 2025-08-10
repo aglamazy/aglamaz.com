@@ -1,6 +1,7 @@
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { initAdmin } from '../firebase/admin';
 import type { IMember } from '@/entities/Member';
+import {adminNotificationService} from "@/services/AdminNotificationService";
 
 export interface FamilyMember {
   id: string;
@@ -239,6 +240,7 @@ export class FamilyRepository {
         createdAt: now,
         updatedAt: now
       }, { merge: true });
+      await adminNotificationService.notify('pending_member', requestData);
 
       return {
         id: documentId,

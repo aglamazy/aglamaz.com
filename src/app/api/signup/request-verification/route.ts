@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     const verificationUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/signup/verify?token=${verificationToken}`;
     
     try {
-      const gmailService = new GmailService();
+      const gmailService = await GmailService.init();
       await gmailService.sendVerificationEmail(email, firstName, verificationUrl);
       
       // Update the document to mark email as verified

@@ -10,7 +10,10 @@ export interface EmailData {
 export class GmailService {
   private gmail: any;
 
-  constructor() {
+  private constructor(gmail: any) {
+    this.gmail = gmail;
+  }
+  static async init(): Promise<GmailService> {
     const oauth2Client = new google.auth.OAuth2(
       process.env.GMAIL_CLIENT_ID,
       process.env.GMAIL_CLIENT_SECRET,
@@ -20,8 +23,11 @@ export class GmailService {
     oauth2Client.setCredentials({
       refresh_token: process.env.GMAIL_REFRESH_TOKEN,
     });
-
-    this.gmail = google.gmail({ version: 'v1', auth: oauth2Client });
+    oauth2Client.getAccessToken().catch((e) => {
+      console.error('Access token probe failed:', e?.response?.data || e);
+    });
+    const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
+    return new GmailService(gmail);
   }
 
   async sendEmail(emailData: EmailData): Promise<void> {
