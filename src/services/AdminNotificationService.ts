@@ -1,6 +1,8 @@
 import { GmailService } from './GmailService';
 import { notificationRepository, AdminNotification } from '../repositories/NotificationRepository';
 import { fetchSiteInfo, adminAuth } from '../firebase/admin';
+import path from 'path';
+import pug from 'pug';
 
 export type NotificationEventType = 'contact_form' | 'pending_member';
 
@@ -33,9 +35,24 @@ export class AdminNotificationService {
     }
 
     const subject = `New ${notification.eventType.replace('_', ' ')}`;
-    const html = `<p>A new ${notification.eventType.replace('_', ' ')} event occurred.</p><pre>${JSON.stringify(notification.payload, null, 2)}</pre>`;
+    let html: string;
+    try {
+      html = this.renderTemplate(notification);
+    } catch (error) {
+      console.error('Failed to render template:', error);
+      html = `<p>A new ${notification.eventType.replace('_', ' ')} event occurred.</p><pre>${JSON.stringify(notification.payload, null, 2)}</pre>`;
+    }
     const gmail = await GmailService.init();
     await gmail.sendEmail({ to: adminEmail, subject, html });
+  }
+
+  private renderTemplate(notification: AdminNotification) {
+    const templateDir = path.join(process.cwd(), 'src', 'templates', 'admin-notifications');
+    const file = path.join(templateDir, `${notification.eventType}.pug`);
+    const data = { ...notification.payload } as any;
+    delete data.siteId;
+    delete data.userId;
+    return pug.renderFile(file, data);
   }
 
   async notify(eventType: NotificationEventType, payload: any) {
@@ -44,5 +61,4 @@ export class AdminNotificationService {
     return notification;
   }
 }
-
 export const adminNotificationService = new AdminNotificationService();
