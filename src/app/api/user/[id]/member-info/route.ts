@@ -1,5 +1,5 @@
-import { withAdminGuard } from '@/lib/withAdminGuard';
 import { FamilyRepository } from '@/repositories/FamilyRepository';
+import {withMemberGuard} from "@/lib/withMemberGuard";
 
 const handler = async (request: Request, context: any, user: any, member: any) => {
   try {
@@ -20,4 +20,4 @@ const handler = async (request: Request, context: any, user: any, member: any) =
   }
 };
 
-export const GET = withAdminGuard(handler); 
+export const GET = withMemberGuard(handler);
