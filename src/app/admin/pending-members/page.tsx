@@ -8,16 +8,20 @@ import { useUserStore } from '@/store/UserStore';
 import { useSiteStore } from '@/store/SiteStore';
 import type { IUser } from '@/entities/User';
 import type { ISite } from '@/entities/Site';
-import ClientLayoutShell from '@/components/ClientLayoutShell';
 import { useTranslation } from 'react-i18next';
+
+interface FirestoreTimestamp {
+  seconds?: number;
+  _seconds?: number;
+}
 
 interface PendingMember {
   id: string;
   firstName: string;
   email: string;
   status: 'pending_verification' | 'pending';
-  requestedAt: string;
-  verifiedAt?: string;
+  createdAt?: FirestoreTimestamp | string;
+  verifiedAt?: FirestoreTimestamp | string;
 }
 
 export default function PendingMembersPage() {
@@ -68,20 +72,13 @@ export default function PendingMembersPage() {
     try {
       setActionLoading(memberId);
       setMessage(null);
-
-      const siteId = site?.id;
-
-      const body = action === 'approve'
-        ? { signupRequestId: memberId }
-        : { memberId, siteId };
-
-      const response = await fetch(`/api/user/${user?.user_id}/${action}-member`, {
+      const response = await fetch(`/api/user/${user?.user_id}/${action}-member?siteId=${site?.id}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${document.cookie.match(/token=([^;]*)/)?.[1] || ''}`
         },
-        body: JSON.stringify(body)
+        body: JSON.stringify({ signupRequestId: memberId })
       });
 
       const data = await response.json();
@@ -109,6 +106,19 @@ export default function PendingMembersPage() {
     }
   };
 
+  const formatDate = (timestamp?: FirestoreTimestamp | string) => {
+    if (!timestamp) return '';
+    if (typeof timestamp === 'string') {
+      const date = new Date(timestamp);
+      return isNaN(date.getTime()) ? '' : date.toLocaleDateString();
+    }
+    const seconds = timestamp.seconds ?? timestamp._seconds;
+    if (seconds) {
+      return new Date(seconds * 1000).toLocaleDateString();
+    }
+    return '';
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-cream-50 to-sage-50 flex items-center justify-center" dir={i18n.dir()}>
@@ -121,8 +131,7 @@ export default function PendingMembersPage() {
   }
 
   return (
-    <ClientLayoutShell>
-      <div className={`min-h-screen bg-gradient-to-br from-cream-50 to-sage-50 p-4 ${i18n.dir() === 'rtl' ? 'text-right' : 'text-left'}`} dir={i18n.dir()}>
+    <div className={`min-h-screen bg-gradient-to-br from-cream-50 to-sage-50 p-4 ${i18n.dir() === 'rtl' ? 'text-right' : 'text-left'}`} dir={i18n.dir()}>
         <div className="max-w-4xl mx-auto">
           <div className={`flex items-center gap-3 mb-8 ${i18n.dir() === 'rtl' ? 'flex-row-reverse' : ''}`}>
             <Users size={32} className="text-sage-600" />
@@ -174,7 +183,7 @@ export default function PendingMembersPage() {
                         <h3 className="font-semibold text-gray-900">{member.firstName}</h3>
                         <p className="text-gray-600">{member.email}</p>
                         <div className={`flex items-center gap-4 text-sm text-gray-500 ${i18n.dir() === 'rtl' ? 'flex-row-reverse justify-end' : ''}`}>
-                          <span>{t('requested')}: {new Date(member.requestedAt).toLocaleDateString()}</span>
+                          <span>{t('requested')}: {formatDate(member.createdAt)}</span>
                           <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                             member.status === 'pending_verification'
                               ? 'bg-yellow-100 text-yellow-800'
@@ -184,7 +193,7 @@ export default function PendingMembersPage() {
                           </span>
                           {member.verifiedAt && (
                             <span className="text-green-600">
-                              ✓ {t('verified')}: {new Date(member.verifiedAt).toLocaleDateString()}
+                              ✓ {t('verified')}: {formatDate(member.verifiedAt)}
                             </span>
                           )}
                         </div>
@@ -221,6 +230,5 @@ export default function PendingMembersPage() {
           )}
         </div>
       </div>
-    </ClientLayoutShell>
   );
 }
