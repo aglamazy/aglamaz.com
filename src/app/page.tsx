@@ -34,7 +34,7 @@ export default function Home() {
   const checkMemberStatus = async () => {
     try {
       const site_id = siteInfo?.id;
-      const response = await fetch(`/api/user/${user.uid}/members/${site_id}`, {
+      const response = await fetch(`/api/user/${user.user_id}/members/${site_id}`, {
         headers: {
           'Authorization': `Bearer ${document.cookie.match(/token=([^;]*)/)?.[1] || ''}`
         }

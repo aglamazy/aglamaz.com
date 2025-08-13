@@ -1,12 +1,12 @@
 import { create } from 'zustand';
-import { User } from '../entities/User';
+import {IUser, User} from '../entities/User';
 import { useMemberStore } from './MemberStore';
 import { useSiteStore } from './SiteStore';
 import { signOut } from 'firebase/auth';
 import { initFirebase, auth } from '../firebase/client';
 
 interface UserState {
-  user: any;
+  user: IUser;
   loading: boolean;
   setUser: (user: any) => void;
   setLoading: (loading: boolean) => void;
