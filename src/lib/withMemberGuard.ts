@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { initAdmin } from '@/firebase/admin';
-import { getAuth } from 'firebase-admin/auth';
+import { initAdmin, adminAuth } from '@/firebase/admin';
 import { getFirestore } from 'firebase-admin/firestore';
 
 initAdmin();
@@ -9,16 +8,16 @@ const db = getFirestore();
 export function withMemberGuard(handler: Function) {
   return async (request: Request, context: any) => {
     try {
-      const authHeader = request.headers.get('authorization');
-      let token = authHeader?.replace('Bearer ', '');
-      if (!token && 'cookies' in request) {
-        // @ts-ignore
-        token = request.cookies.get('token')?.value;
-      }
-      if (!token) {
+      const cookieHeader = request.headers.get('cookie');
+      const session = cookieHeader
+        ?.split(';')
+        .map(c => c.trim())
+        .find(c => c.startsWith('session='))
+        ?.split('=')[1];
+      if (!session) {
         return NextResponse.json({ error: 'No authentication token provided' }, { status: 401 });
       }
-      const decodedToken = await getAuth().verifyIdToken(token);
+      const decodedToken = await adminAuth().verifySessionCookie(session, true);
       const uid = decodedToken.uid;
 
       let siteId = '';

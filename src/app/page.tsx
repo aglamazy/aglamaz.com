@@ -34,11 +34,7 @@ export default function Home() {
   const checkMemberStatus = async () => {
     try {
       const site_id = siteInfo?.id;
-      const response = await fetch(`/api/user/${user.uid}/members/${site_id}`, {
-        headers: {
-          'Authorization': `Bearer ${document.cookie.match(/token=([^;]*)/)?.[1] || ''}`
-        }
-      });
+      const response = await fetch(`/api/user/${user.uid}/members/${site_id}`);
 
       if (!response.ok) {
         // User is not a member, redirect to pending approval
@@ -56,7 +52,11 @@ export default function Home() {
     if (auth && googleProvider) {
       const result = await signInWithPopup(auth(), googleProvider);
       const token = await getIdToken(result.user);
-      document.cookie = `token=${token}; path=/`;
+      await fetch('/api/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken: token }),
+      });
       
       // Update user state immediately after login
       setUser({

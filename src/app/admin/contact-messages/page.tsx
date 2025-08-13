@@ -26,11 +26,7 @@ export default function ContactMessagesPage() {
 
   useEffect(() => {
     const load = async () => {
-      const res = await fetch(`/api/admin/contact?siteId=${site?.id}`, {
-        headers: {
-          'Authorization': `Bearer ${document.cookie.match(/token=([^;]*)/)?.[1] || ''}`
-        }
-      });
+      const res = await fetch(`/api/admin/contact?siteId=${site?.id}`);
       if (res.ok) {
         const data = await res.json();
         setMessages(data.messages || []);

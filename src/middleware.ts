@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import {jwtDecode} from "jwt-decode";
+import { initAdmin, adminAuth } from '@/firebase/admin';
+
+initAdmin();
 
 const PUBLIC_PATHS = [
   '/login',
@@ -19,23 +21,19 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // 2) Check if token is not expired
-  const token = request.cookies.get('token')?.value;
+  // 2) Verify session cookie
+  const session = request.cookies.get('session')?.value;
 
-  // 3) If not logged in, redirect to /login (avoid loop)
-  if (!token) {
+  if (!session) {
     if (path !== '/login') {
       return NextResponse.redirect(new URL('/login', request.url));
     }
     return NextResponse.next();
   }
 
-  // 4) check that the token wasn't expired
-  const decoded = jwtDecode<{ exp: number }>(token);
-  const currentTime = Math.floor(Date.now() / 1000);
-
-  if (decoded.exp < currentTime) {
-    // Token expired
+  try {
+    await adminAuth().verifySessionCookie(session, true);
+  } catch (error) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
@@ -48,7 +46,6 @@ export async function middleware(request: NextRequest) {
   const siteId = process.env.NEXT_SITE_ID;
   const memberRes = await fetch(`${request.nextUrl.origin}/api/user/member-info?siteId=${siteId}`, {
     headers: {
-      'Authorization': `Bearer ${token}`,
       'Cookie': request.headers.get('cookie') || ''
     }
   });

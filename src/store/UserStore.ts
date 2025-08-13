@@ -49,7 +49,11 @@ export const useUserStore = create<UserState>((set, get) => ({
     } catch (error) {
       console.error('Failed to sign out:', error);
     }
-    document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+    try {
+      await fetch('/api/logout', { method: 'POST' });
+    } catch (e) {
+      // ignore
+    }
     set({ user: null });
     const memberStore = useMemberStore.getState();
     memberStore.clearMember();

@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { initAdmin } from '@/firebase/admin';
-import { getAuth } from 'firebase-admin/auth';
+import { initAdmin, adminAuth } from '@/firebase/admin';
 import { getFirestore } from 'firebase-admin/firestore';
 
 initAdmin();
@@ -9,18 +8,18 @@ const db = getFirestore();
 export function withAdminGuard(handler: Function) {
   return async (request: Request, context: any) => {
     try {
-      // Extract token from Authorization header or cookies
-      const authHeader = request.headers.get('authorization');
-      let token = authHeader?.replace('Bearer ', '');
-      if (!token && 'cookies' in request) {
-        // @ts-ignore
-        token = request.cookies.get('token')?.value;
-      }
-      if (!token) {
+      // Extract session cookie
+      const cookieHeader = request.headers.get('cookie');
+      const session = cookieHeader
+        ?.split(';')
+        .map(c => c.trim())
+        .find(c => c.startsWith('session='))
+        ?.split('=')[1];
+      if (!session) {
         return NextResponse.json({ error: 'No authentication token provided' }, { status: 401 });
       }
-      // Verify token
-      const decodedToken = await getAuth().verifyIdToken(token);
+      // Verify session cookie
+      const decodedToken = await adminAuth().verifySessionCookie(session, true);
       const uid = decodedToken.uid;
       // Try to get siteId from query or context
       let siteId = '';

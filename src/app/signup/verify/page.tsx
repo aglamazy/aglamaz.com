@@ -47,9 +47,13 @@ export default function VerifySignupPage() {
 
         const result = await signInWithPopup(auth(), googleProvider);
         const firebaseToken = await getIdToken(result.user);
-        
-        // Set the token in cookie
-        document.cookie = `token=${firebaseToken}; path=/`;
+
+        // Create session cookie on server
+        await fetch('/api/session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ idToken: firebaseToken }),
+        });
         
         // Update user state
         const userData = {
@@ -64,8 +68,7 @@ export default function VerifySignupPage() {
         const completeResponse = await fetch('/api/signup/complete-verification', {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${firebaseToken}`
+            'Content-Type': 'application/json'
           },
           body: JSON.stringify({ 
             token,

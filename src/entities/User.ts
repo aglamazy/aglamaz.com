@@ -1,6 +1,3 @@
-import { decodeAndValidateToken } from "../utils/token";
-
-
 export interface IUser {
   aud: string;
   auth_time: number;
@@ -18,11 +15,11 @@ export interface IUser {
 
 export class User {
   static async me(): Promise<IUser | null> {
-    const match = document.cookie.match(/(?:^|; )token=([^;]*)/);
-    if (!match) return null;
     try {
-      const decoded = decodeAndValidateToken(match[1]);
-      return decoded as IUser;
+      const res = await fetch('/api/session');
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data.user || null;
     } catch (err) {
       return null;
     }

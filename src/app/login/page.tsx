@@ -31,7 +31,11 @@ export default function LoginPage() {
       if (auth && googleProvider) {
         const result = await signInWithPopup(auth(), googleProvider);
         const token = await getIdToken(result.user);
-        document.cookie = `token=${token}; path=/`;
+        await fetch('/api/session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ idToken: token }),
+        });
 
         // Update user state immediately after login
         setUser({
@@ -78,7 +82,11 @@ export default function LoginPage() {
       if (auth) {
         const result = await signInWithEmailAndPassword(auth(), email, password);
         const token = await getIdToken(result.user);
-        document.cookie = `token=${token}; path=/`;
+        await fetch('/api/session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ idToken: token }),
+        });
         
         // Update user state immediately after login
         setUser({
