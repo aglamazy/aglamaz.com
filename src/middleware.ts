@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import {jwtDecode} from "jwt-decode";
+import { verifyAccessToken } from '@/lib/auth';
 
 const PUBLIC_PATHS = [
   '/login',
   '/contact',
   '/favicon.ico',
-  '/_next', // covers static and image assets
+  '/_next',
   '/pending-approval',
   '/locales'
 ];
@@ -14,53 +14,34 @@ const PUBLIC_PATHS = [
 export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
 
-  // 1) Allow all public paths
-  if (PUBLIC_PATHS.some(publicPath => path === publicPath || path.startsWith(publicPath + '/'))) {
+  if (PUBLIC_PATHS.some(p => path === p || path.startsWith(p + '/'))) {
     return NextResponse.next();
   }
 
-  // 2) Check if token is not expired
-  const token = request.cookies.get('token')?.value;
+  const token = request.cookies.get('access_token')?.value;
+  const payload = token && verifyAccessToken(token);
 
-  // 3) If not logged in, redirect to /login (avoid loop)
-  if (!token) {
+  if (!payload) {
     if (path !== '/login') {
       return NextResponse.redirect(new URL('/login', request.url));
     }
     return NextResponse.next();
   }
 
-  // 4) check that the token wasn't expired
-  const decoded = jwtDecode<{ exp: number }>(token);
-  const currentTime = Math.floor(Date.now() / 1000);
-
-  if (decoded.exp < currentTime) {
-    // Token expired
-    return NextResponse.redirect(new URL('/login', request.url));
-  }
-
-  // 4) If already on /pending-approval, don't check again to avoid loop
-  if (path === '/pending-approval') {
-    return NextResponse.next();
-  }
-
-  // 5) Check membership
-  const siteId = process.env.NEXT_SITE_ID;
-  const memberRes = await fetch(`${request.nextUrl.origin}/api/user/member-info?siteId=${siteId}`, {
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Cookie': request.headers.get('cookie') || ''
-    }
-  });
-  if (!memberRes.ok) {
-    // Not a member, redirect to /pending-approval (avoid loop)
-    if (path !== '/pending-approval') {
+  // Optional membership check
+  if (path !== '/pending-approval') {
+    const siteId = process.env.NEXT_SITE_ID;
+    const memberRes = await fetch(`${request.nextUrl.origin}/api/user/member-info?siteId=${siteId}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Cookie': request.headers.get('cookie') || ''
+      }
+    });
+    if (!memberRes.ok) {
       return NextResponse.redirect(new URL('/pending-approval', request.url));
     }
-    return NextResponse.next();
   }
 
-  // Otherwise, allow access
   return NextResponse.next();
 }
 
