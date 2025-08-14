@@ -18,7 +18,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const token = request.cookies.get('access_token')?.value;
+  const token = request.cookies.get('token')?.value;
   const payload = token && verifyAccessToken(token);
 
   if (!payload) {
