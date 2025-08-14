@@ -1,6 +1,7 @@
 import { withAdminGuard } from '@/lib/withAdminGuard';
 import { FamilyRepository } from '@/repositories/FamilyRepository';
 import type { IMember } from '@/entities/Member';
+import { userNotificationService } from '@/services/UserNotificationService';
 
 const handler = async (request: Request, context: any, user: any, member: any) => {
   try {
@@ -28,6 +29,11 @@ const handler = async (request: Request, context: any, user: any, member: any) =
     const created = await familyRepository.createMember(newMember);
     // Mark the signup request as approved
     await familyRepository.markSignupRequestApproved(signupRequestId);
+    // Send welcome email to the new member
+    await userNotificationService.sendWelcomeEmail({
+      firstName: created.firstName,
+      email: created.email,
+    });
     return Response.json({ member: created });
   } catch (error) {
     return Response.json({ error: 'Failed to approve member' }, { status: 500 });
