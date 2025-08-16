@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { useSiteStore } from '@/store/SiteStore';
 import { MessageCircle } from 'lucide-react';
+import { apiFetch } from '@/utils/apiFetch';
 
 interface ContactMessage {
   id: string;
@@ -26,7 +27,7 @@ export default function ContactMessagesPage() {
 
   useEffect(() => {
     const load = async () => {
-      const res = await fetch(`/api/admin/contact?siteId=${site?.id}`, {
+      const res = await apiFetch(`/api/admin/contact?siteId=${site?.id}`, {
         headers: {
           'Authorization': `Bearer ${document.cookie.match(/token=([^;]*)/)?.[1] || ''}`
         }

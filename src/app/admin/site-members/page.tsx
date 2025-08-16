@@ -5,6 +5,7 @@ import { Users } from 'lucide-react';
 import { useSiteStore } from '@/store/SiteStore';
 import type { ISite } from '@/entities/Site';
 import type { IMember } from '@/entities/Member';
+import { apiFetch } from '@/utils/apiFetch';
 
 function formatDate(ts: any) {
   if (!ts) return '';
@@ -25,7 +26,7 @@ export default function SiteMembersPage() {
 
   useEffect(() => {
     if (!site?.id) return;
-    fetch(`/api/site/${site.id}/members`)
+    apiFetch(`/api/site/${site.id}/members`)
       .then(res => res.json())
       .then(data => setMembers(data.members || []));
   }, [site?.id]);

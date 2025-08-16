@@ -6,13 +6,14 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
+import { apiFetch } from '@/utils/apiFetch';
 
 export default function PendingApprovalPage() {
   const { t, i18n } = useTranslation();
   const router = useRouter();
 
   const handleLogout = async () => {
-    await fetch('/api/logout', { method: 'POST' });
+    await apiFetch('/api/logout', { method: 'POST' });
     router.push('/login');
   };
 

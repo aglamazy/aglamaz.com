@@ -6,6 +6,7 @@ import { Loader2, CheckCircle, XCircle } from 'lucide-react';
 import { initFirebase, auth, googleProvider } from '../../../firebase/client';
 import { signInWithPopup, getIdToken } from 'firebase/auth';
 import { useUserStore } from '../../../store/UserStore';
+import { apiFetch } from '@/utils/apiFetch';
 
 export default function VerifySignupPage() {
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
@@ -26,7 +27,7 @@ export default function VerifySignupPage() {
 
       try {
         // Step 1: Verify the token with the server
-        const verifyResponse = await fetch('/api/signup/verify', {
+        const verifyResponse = await apiFetch('/api/signup/verify', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -61,7 +62,7 @@ export default function VerifySignupPage() {
         setUser(userData);
 
         // Step 3: Complete the verification with user ID
-        const completeResponse = await fetch('/api/signup/complete-verification', {
+        const completeResponse = await apiFetch('/api/signup/complete-verification', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

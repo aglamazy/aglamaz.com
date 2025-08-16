@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { Loader2, CheckCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { apiFetch } from '@/utils/apiFetch';
 
 export default function ContactPage() {
   const [name, setName] = useState('');
@@ -22,7 +23,7 @@ export default function ContactPage() {
     setIsLoading(true);
     setError('');
     try {
-      const res = await fetch('/api/contact', {
+      const res = await apiFetch('/api/contact', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: name.trim(), email: email.trim(), message: message.trim() })

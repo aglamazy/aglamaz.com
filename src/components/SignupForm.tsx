@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { Loader2, CheckCircle } from 'lucide-react';
+import { apiFetch } from '@/utils/apiFetch';
 
 interface SignupFormProps {
   onSuccess: () => void;
@@ -47,7 +48,7 @@ export default function SignupForm({ onSuccess, onCancel }: SignupFormProps) {
 
     try {
       // Step 1: Send email verification request (no Firebase auth yet)
-      const response = await fetch('/api/signup/request-verification', {
+      const response = await apiFetch('/api/signup/request-verification', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

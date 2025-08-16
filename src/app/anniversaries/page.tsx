@@ -8,6 +8,7 @@ import { initFirebase } from '@/firebase/client';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useUserStore } from '@/store/UserStore';
 import { useMemberStore } from '@/store/MemberStore';
+import { apiFetch } from '@/utils/apiFetch';
 
 interface AnniversaryEvent {
   id: string;
@@ -53,7 +54,7 @@ export default function AnniversariesPage() {
   const fetchEvents = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/anniversaries');
+      const res = await apiFetch('/api/anniversaries');
       if (res.ok) {
         const data = await res.json();
         setEvents(data.events || []);
@@ -138,13 +139,13 @@ export default function AnniversariesPage() {
       const payload = { ...form, imageUrl };
       let res: Response;
       if (editEvent) {
-        res = await fetch(`/api/anniversaries/${editEvent.id}`, {
+        res = await apiFetch(`/api/anniversaries/${editEvent.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         });
       } else {
-        res = await fetch('/api/anniversaries', {
+        res = await apiFetch('/api/anniversaries', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
@@ -169,7 +170,7 @@ export default function AnniversariesPage() {
   const handleDelete = async (id: string) => {
     try {
       if (!confirm('Are you sure?')) return;
-      await fetch(`/api/anniversaries/${id}`, { method: 'DELETE' });
+      await apiFetch(`/api/anniversaries/${id}`, { method: 'DELETE' });
       setSelectedEvent(null);
       fetchEvents();
     } catch (err) {

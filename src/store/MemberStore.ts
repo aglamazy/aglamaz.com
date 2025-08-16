@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { IMember } from '@/entities/Member';
+import { apiFetch } from '@/utils/apiFetch';
 
 interface MemberState {
   member: IMember | null;
@@ -19,7 +20,7 @@ export const useMemberStore = create<MemberState>((set, get) => ({
     try {
       set({ loading: true, error: null });
       
-      const response = await fetch(`/api/user/${userId}/member-info?siteId=${encodeURIComponent(siteId)}`);
+      const response = await apiFetch(`/api/user/${userId}/member-info?siteId=${encodeURIComponent(siteId)}`);
 
       if (!response.ok) {
         throw new Error('Failed to fetch member info');

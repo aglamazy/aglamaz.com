@@ -9,6 +9,7 @@ import { useSiteStore } from '@/store/SiteStore';
 import type { IUser } from '@/entities/User';
 import type { ISite } from '@/entities/Site';
 import { useTranslation } from 'react-i18next';
+import { apiFetch } from '@/utils/apiFetch';
 
 interface FirestoreTimestamp {
   seconds?: number;
@@ -41,7 +42,7 @@ export default function PendingMembersPage() {
   const fetchPendingMembers = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/user/${user?.user_id}/pending-members/${site?.id}`, {
+      const response = await apiFetch(`/api/user/${user?.user_id}/pending-members/${site?.id}`, {
         headers: {
           'Authorization': `Bearer ${document.cookie.match(/token=([^;]*)/)?.[1] || ''}`
         }
@@ -72,7 +73,7 @@ export default function PendingMembersPage() {
     try {
       setActionLoading(memberId);
       setMessage(null);
-      const response = await fetch(`/api/user/${user?.user_id}/${action}-member?siteId=${site?.id}`, {
+      const response = await apiFetch(`/api/user/${user?.user_id}/${action}-member?siteId=${site?.id}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
