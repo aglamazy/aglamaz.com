@@ -38,11 +38,7 @@ export default function Home() {
     const checkMemberStatus = async () => {
         try {
             const site_id = siteInfo?.id;
-            const response = await apiFetch(`/api/user/${user.user_id}/members/${site_id}`, {
-                headers: {
-                    'Authorization': `Bearer ${document.cookie.match(/token=([^;]*)/)?.[1] || ''}`
-                }
-            });
+            const response = await apiFetch(`/api/user/${user.user_id}/members/${site_id}`);
 
             if (!response.ok) {
                 // User is not a member, redirect to pending approval
@@ -52,26 +48,6 @@ export default function Home() {
             console.error('Failed to check member status:', error);
             // On error, redirect to pending approval as fallback
             router.push('/pending-approval');
-        }
-    };
-
-    const handleLogin = async () => {
-        initFirebase();
-        if (auth && googleProvider) {
-            const result = await signInWithPopup(auth(), googleProvider);
-            const token = await getIdToken(result.user);
-            document.cookie = `token=${token}; path=/`;
-
-            // Update user state immediately after login
-            setUser({
-                name: result.user.displayName,
-                email: result.user.email,
-                user_id: result.user.uid
-            });
-
-            router.push('/');
-        } else {
-            router.push('/login');
         }
     };
 

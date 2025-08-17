@@ -33,12 +33,8 @@ export default function LoginPage() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ idToken }),
-          credentials: 'include',
         });
         if (!sessionRes.ok) throw new Error('Session creation failed');
-        const { token } = await sessionRes.json();
-        const secureFlag = process.env.NODE_ENV === 'production' ? '; Secure' : '';
-        document.cookie = `token=${token}; path=/` + secureFlag;
 
         // Update user state immediately after login
         setUser({
@@ -68,8 +64,6 @@ export default function LoginPage() {
       initFirebase();
       if (auth) {
         const result = await signInWithEmailAndPassword(auth(), email, password);
-        const token = await getIdToken(result.user);
-        document.cookie = `token=${token}; path=/`;
 
         // Update user state immediately after login
         setUser({

@@ -42,11 +42,7 @@ export default function PendingMembersPage() {
   const fetchPendingMembers = async () => {
     try {
       setLoading(true);
-      const response = await apiFetch(`/api/user/${user?.user_id}/pending-members/${site?.id}`, {
-        headers: {
-          'Authorization': `Bearer ${document.cookie.match(/token=([^;]*)/)?.[1] || ''}`
-        }
-      });
+      const response = await apiFetch(`/api/user/${user?.user_id}/pending-members/${site?.id}`);
 
       if (!response.ok) {
         throw new Error('Failed to fetch pending members');
@@ -76,8 +72,7 @@ export default function PendingMembersPage() {
       const response = await apiFetch(`/api/user/${user?.user_id}/${action}-member?siteId=${site?.id}`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${document.cookie.match(/token=([^;]*)/)?.[1] || ''}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({ signupRequestId: memberId })
       });

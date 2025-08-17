@@ -48,10 +48,7 @@ export default function VerifySignupPage() {
 
         const result = await signInWithPopup(auth(), googleProvider);
         const firebaseToken = await getIdToken(result.user);
-        
-        // Set the token in cookie
-        document.cookie = `token=${firebaseToken}; path=/`;
-        
+
         // Update user state
         const userData = {
           name: result.user.displayName,

@@ -9,7 +9,11 @@ const refreshStore = new Map<string, string>();
 const refreshRateLimit = new Map<string, number>();
 
 function base64url(input: Buffer | string) {
-  return Buffer.from(input).toString('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+  const buffer = Buffer.isBuffer(input) ? input : Buffer.from(input, 'utf8');
+  return buffer.toString('base64')
+    .replace(/=/g, '')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_');
 }
 
 function signJwt(payload: object, expiresInSec: number): string {

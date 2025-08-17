@@ -14,10 +14,10 @@ export function withAdminGuard(handler: Function) {
       let token = authHeader?.replace('Bearer ', '');
       if (!token && 'cookies' in request) {
         // @ts-ignore
-        token = request.cookies.get('token')?.value;
+        token = request.cookies.get(ACCESS_TOKEN)?.value;
       }
       if (!token) {
-        return NextResponse.json({ error: 'No authentication token provided' }, { status: 401 });
+        return NextResponse.json({ error: 'No authentication admin token provided' }, { status: 401 });
       }
       // Verify token
       const decodedToken = await getAuth().verifyIdToken(token);
