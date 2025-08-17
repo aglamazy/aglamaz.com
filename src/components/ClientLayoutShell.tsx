@@ -2,13 +2,12 @@
 import React, { useState, useEffect } from "react";
 import { useSiteStore } from '../store/SiteStore';
 import { useUserStore } from '../store/UserStore';
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useMemberStore } from '../store/MemberStore';
 import Header from "./Header";
 import I18nProvider from './I18nProvider';
-import i18n from '../i18n';
 import { useTranslation } from 'react-i18next';
-import { useIdTokenRefresh } from '../hooks/useIdTokenRefresh';
+import { Loader } from "../components/ui/Loader";
 
 export default function ClientLayoutShell({ children }) {
   const { user, loading, checkAuth, logout } = useUserStore();
@@ -17,12 +16,28 @@ export default function ClientLayoutShell({ children }) {
   const member = useMemberStore((state) => state.member);
   const router = useRouter();
   const { t, i18n } = useTranslation();
-
-  useIdTokenRefresh();
+  const pathname = usePathname();
+  const publicRoutes = ['/login'];
+  const isPublic = publicRoutes.includes(pathname);
+  const isAuthRoute = pathname === "/login" || pathname.startsWith("/auth");
 
   useEffect(() => {
+    // Wait until auth check finished
+    if (loading) return;
+
+    // Gate protected routes
+    if (!user) {
+      router.replace(`/login?next=${encodeURIComponent(pathname)}`);
+    }
+  }, [isAuthRoute, loading, user, pathname, router]);
+
+  useEffect(() => {
+    // don’t check auth on public routes
+    const publicRoutes = ['/login'];
+    if (isPublic) return;
+
     checkAuth();
-  }, [checkAuth]);
+  }, [pathname, checkAuth]);
 
   useEffect(() => {
     // Hydrate Zustand store with site info from server
@@ -57,10 +72,8 @@ export default function ClientLayoutShell({ children }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-cream-50 to-sage-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-sage-600"></div>
-      </div>
-    );
+      <Loader size={24} thickness={3} text="Loading" />
+  );
   }
 
   // Strict guard: if siteInfo or siteInfo.id is missing, show fatal error
@@ -73,6 +86,8 @@ export default function ClientLayoutShell({ children }) {
       </div>
     );
   }
+  console.log(`user: ${user}`);
+  if (!isPublic && !user) return null;
 
   return (
     <I18nProvider>

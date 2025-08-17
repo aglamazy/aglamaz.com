@@ -12,21 +12,20 @@ export async function POST(req: NextRequest) {
 
     initAdmin();
     const decoded = await adminAuth().verifyIdToken(idToken);
-    const access = signAccessToken({ sub: decoded.uid });
-    const refresh = signRefreshToken({ sub: decoded.uid });
+    const accessMin = 10;
+    const refreshDays = 30;
+    const access = signAccessToken({ sub: decoded.uid }, accessMin);
+    const refresh = signRefreshToken({ sub: decoded.uid }, refreshDays);
 
     const secure = process.env.NODE_ENV === 'production';
     const res = NextResponse.json({ token: access });
-
-    res.cookies.set(ACCESS_TOKEN,  '', { path: '/',                     maxAge: 0 });
-    res.cookies.set(REFRESH_TOKEN, '', { path: '/api/auth/refresh',     maxAge: 0 });
 
     res.cookies.set(ACCESS_TOKEN, access, {
       httpOnly: true,
       secure,
       sameSite: 'lax',
       path: '/',
-      maxAge: 60 * 10,                 // 10 minutes
+      maxAge: 60 * accessMin,
     });
 
     res.cookies.set(REFRESH_TOKEN, refresh, {
@@ -34,7 +33,7 @@ export async function POST(req: NextRequest) {
       secure,
       sameSite: 'lax',
       path: '/api/auth/refresh',
-      maxAge: 60 * 60 * 24 * 14,       // 14 days
+      maxAge: 60 * 60 * 24 * refreshDays,       // 14 days
     });
 
     return res;

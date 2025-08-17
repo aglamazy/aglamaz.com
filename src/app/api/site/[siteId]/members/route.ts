@@ -2,7 +2,7 @@ import { withAdminGuard } from '@/lib/withAdminGuard';
 import { FamilyRepository } from '@/repositories/FamilyRepository';
 import type { IMember } from '@/entities/Member';
 
-const handler = async (request: Request, context: any, user: any, member: any) => {
+const handler = async (request: Request, context: any) => {
   try {
     const { siteId } = context.params;
     if (!siteId) {

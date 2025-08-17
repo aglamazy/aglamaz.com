@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server';
-import { initAdmin } from '@/firebase/admin';
-import { getAuth } from 'firebase-admin/auth';
-import { getFirestore } from 'firebase-admin/firestore';
+import { ACCESS_TOKEN } from '@/constants';
+import { cookies } from "next/headers";
+import { importSPKI, jwtVerify } from "jose";
+import { IToken } from "../entities/Token"
+import { initAdmin } from "@/firebase/admin";
+import { getFirestore } from "firebase-admin/firestore";
 
 initAdmin();
 const db = getFirestore();
@@ -9,47 +12,42 @@ const db = getFirestore();
 export function withMemberGuard(handler: Function) {
   return async (request: Request, context: any) => {
     try {
-      const authHeader = request.headers.get('authorization');
-      let token = authHeader?.replace('Bearer ', '');
-      if (!token && 'cookies' in request) {
-        // @ts-ignore
-        token = request.cookies.get('token')?.value;
+      const spki = process.env.JWT_PUBLIC_KEY!.replace(/\\n/g, '\n');
+      const publicKey = await importSPKI(spki, 'RS256');
+      const cookieStore = cookies();
+      const token = cookieStore.get(ACCESS_TOKEN)?.value;
+      const { payload } = await jwtVerify<IToken>(token, publicKey, {
+        algorithms: ['RS256'],
+        // optionally lock these if you set them when signing:
+        // issuer: 'your-app',
+        // audience: 'your-app-web',
+        clockTolerance: '5s',
+      });
+      if (!payload) {
+        return NextResponse.json({ error: 'No authentication member token provided' }, { status: 401 });
       }
-      if (!token) {
-        return NextResponse.json({ error: 'No authentication token provided' }, { status: 401 });
-      }
-      const decodedToken = await getAuth().verifyIdToken(token);
-      const uid = decodedToken.uid;
-
-      let siteId = '';
-      if (context?.params?.siteId) siteId = context.params.siteId;
-      else if (request.url) {
-        const url = new URL(request.url);
-        siteId = url.searchParams.get('siteId') || process.env.NEXT_SITE_ID || '';
-      }
-      if (!siteId) {
-        return NextResponse.json({ error: 'Missing siteId' }, { status: 400 });
+      const uid = payload.sub;
+      if (!uid) {
+        return NextResponse.json({ error: 'Members only area' }, { status: 401 });
       }
 
+      context.decoded_payload = payload;
+      const siteId = context.params?.siteId || process.env.NEXT_SITE_ID!;
       const memberSnap = await db
         .collection('members')
         .where('uid', '==', uid)
         .where('siteId', '==', siteId)
         .limit(1)
         .get();
-
       if (memberSnap.empty) {
         return NextResponse.json({ error: 'Member not found' }, { status: 404 });
       }
-
-      const member = memberSnap.docs[0].data();
-      if (member.role === 'admin') {
-        return handler(request, context, decodedToken, member);
-      }
-
-      return handler(request, context, decodedToken, member);
+      const doc = memberSnap.docs[0];
+      context.member = doc.data();
+      return handler(request, context);
     } catch (error) {
-      return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401 });
+      console.error(error);
+      return NextResponse.json({ error: 'Invalid or expired member token!!' }, { status: 401 });
     }
   };
 }

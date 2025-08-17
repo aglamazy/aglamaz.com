@@ -1,6 +1,8 @@
 import { createHash, randomBytes, createSign, createVerify } from 'crypto';
 import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
+import { apiFetch } from "@/utils/apiFetch";
+import { ACCESS_TOKEN, REFRESH_TOKEN } from "@/constants";
 
 export type JwtPayload = { sub: string; roles?: string[]; siteId?: string; exp: number; jti?: string };
 
@@ -51,13 +53,13 @@ function verifyJwt(token: string): JwtPayload | null {
   }
 }
 
-export function signAccessToken(user: { sub: string; roles?: string[]; siteId?: string }) {
-  return signJwt(user, 60 * 5); // 5 minutes
+export function signAccessToken(user: { sub: string; roles?: string[]; siteId?: string }, min : number = 5) {
+  return signJwt(user, 60 * min);
 }
 
-export function signRefreshToken(user: { sub: string }) {
+export function signRefreshToken(user: { sub: string }, days: number = 30) {
   const jti = randomBytes(16).toString('hex');
-  const token = signJwt({ sub: user.sub, jti }, 60 * 60 * 24 * 7); // 7 days
+  const token = signJwt({ sub: user.sub, jti }, 60 * 60 * 24 * days);
   refreshStore.set(user.sub, hashToken(token));
   return token;
 }
@@ -109,8 +111,8 @@ export function setAuthCookies(res: NextResponse, access: string, refresh?: stri
 }
 
 export function clearAuthCookies(res: NextResponse) {
-  res.cookies.set('access_token', '', { path: '/', maxAge: 0 });
-  res.cookies.set('refresh_token', '', { path: '/', maxAge: 0 });
+  res.cookies.set(ACCESS_TOKEN, '', { path: '/', maxAge: 0 });
+  res.cookies.set(REFRESH_TOKEN, '', { path: '/', maxAge: 0 });
 }
 
 export async function getServerAuth() {

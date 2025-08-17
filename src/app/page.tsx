@@ -6,8 +6,6 @@ import FamilyOverview from "../components/FamilyOverview";
 import {useSiteStore} from "../store/SiteStore";
 import {useUserStore} from "../store/UserStore";
 import {useRouter} from "next/navigation";
-import {initFirebase, auth, googleProvider} from "../firebase/client";
-import {signInWithPopup, getIdToken} from "firebase/auth";
 import {useTranslation} from 'react-i18next';
 import { apiFetch } from '../utils/apiFetch';
 
@@ -38,7 +36,7 @@ export default function Home() {
     const checkMemberStatus = async () => {
         try {
             const site_id = siteInfo?.id;
-            const response = await apiFetch(`/api/user/${user.user_id}/members/${site_id}`);
+            const response = await apiFetch(`/api/user/${user.user_id}/member-info?siteId=${site_id}`);
 
             if (!response.ok) {
                 // User is not a member, redirect to pending approval
