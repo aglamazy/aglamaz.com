@@ -1,8 +1,8 @@
 import { createHash, randomBytes, createSign, createVerify } from 'crypto';
 import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
-import { apiFetch } from "@/utils/apiFetch";
-import { ACCESS_TOKEN, REFRESH_TOKEN } from "@/constants";
+import { apiFetch } from "../utils/apiFetch";
+import { ACCESS_TOKEN, REFRESH_TOKEN } from "../constants";
 
 export type JwtPayload = { sub: string; roles?: string[]; siteId?: string; exp: number; jti?: string };
 
@@ -111,8 +111,9 @@ export function setAuthCookies(res: NextResponse, access: string, refresh?: stri
 }
 
 export function clearAuthCookies(res: NextResponse) {
-  res.cookies.set(ACCESS_TOKEN, '', { path: '/', maxAge: 0 });
-  res.cookies.set(REFRESH_TOKEN, '', { path: '/', maxAge: 0 });
+  const opts = { path: '/', maxAge: 0 };
+  res.cookies.set(ACCESS_TOKEN, '', opts);
+  res.cookies.set(REFRESH_TOKEN, '', opts);
 }
 
 export async function getServerAuth() {
