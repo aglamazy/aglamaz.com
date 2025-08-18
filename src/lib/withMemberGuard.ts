@@ -16,22 +16,23 @@ export function withMemberGuard(handler: Function) {
       const publicKey = await importSPKI(spki, 'RS256');
       const cookieStore = cookies();
       const token = cookieStore.get(ACCESS_TOKEN)?.value;
-      const { payload } = await jwtVerify<IToken>(token, publicKey, {
+      const { payload } = await jwtVerify(token, publicKey, {
         algorithms: ['RS256'],
         // optionally lock these if you set them when signing:
         // issuer: 'your-app',
         // audience: 'your-app-web',
         clockTolerance: '5s',
       });
-      if (!payload) {
-        return NextResponse.json({ error: 'No authentication member token provided' }, { status: 401 });
+      const typedPayload = payload as IToken | undefined;
+      if (!typedPayload) {
+        return NextResponse.redirect(new URL('/login', request.url));
       }
-      const uid = payload.sub;
+      const uid = typedPayload.sub;
       if (!uid) {
-        return NextResponse.json({ error: 'Members only area' }, { status: 401 });
+        return NextResponse.redirect(new URL('/login', request.url));
       }
 
-      context.decoded_payload = payload;
+      context.decoded_payload = typedPayload;
       const siteId = context.params?.siteId || process.env.NEXT_SITE_ID!;
       const memberSnap = await db
         .collection('members')
@@ -40,14 +41,14 @@ export function withMemberGuard(handler: Function) {
         .limit(1)
         .get();
       if (memberSnap.empty) {
-        return NextResponse.json({ error: 'Member not found' }, { status: 404 });
+        return NextResponse.redirect(new URL('/pending-member', request.url));
       }
       const doc = memberSnap.docs[0];
       context.member = doc.data();
       return handler(request, context);
     } catch (error) {
       console.error(error);
-      return NextResponse.json({ error: 'Invalid or expired member token!!' }, { status: 401 });
+      return NextResponse.redirect(new URL('/login', request.url));
     }
   };
 }

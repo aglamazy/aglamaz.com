@@ -8,7 +8,7 @@ import { useRouter } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
 import { apiFetch } from '@/utils/apiFetch';
 
-export default function PendingApprovalPage() {
+export default function PendingMemberPage() {
   const { t, i18n } = useTranslation();
   const router = useRouter();
 

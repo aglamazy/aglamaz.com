@@ -78,9 +78,9 @@ export default function VerifySignupPage() {
         setStatus('success');
         setMessage('Email verified successfully! Your request is now pending admin approval.');
 
-        // Redirect to pending approval page after 3 seconds
+        // Redirect to pending member page after 3 seconds
         setTimeout(() => {
-          router.push('/pending-approval');
+          router.push('/pending-member');
         }, 3000);
 
       } catch (error) {
