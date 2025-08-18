@@ -1,6 +1,8 @@
 import { withAdminGuard } from '@/lib/withAdminGuard';
 import { FamilyRepository } from '@/repositories/FamilyRepository';
 
+export const dynamic = 'force-dynamic';
+
 const handler = async (request: Request, context: any, user: any, member: any) => {
   try {
     const { id } = context.params;

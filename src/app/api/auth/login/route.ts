@@ -3,6 +3,8 @@ import { initAdmin, adminAuth } from '@/firebase/admin';
 import { signAccessToken, signRefreshToken } from '@/lib/auth';
 import { ACCESS_TOKEN, REFRESH_TOKEN } from "@/constants";
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: NextRequest) {
   try {
     const { idToken } = await req.json();

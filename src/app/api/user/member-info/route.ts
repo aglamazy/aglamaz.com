@@ -1,5 +1,7 @@
 import {withMemberGuard} from "@/lib/withMemberGuard";
 
+export const dynamic = 'force-dynamic';
+
 const handler = async (request: Request, context: any, user: any, member: any) => {
   try {
     if (!member) {

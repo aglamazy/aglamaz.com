@@ -1,6 +1,8 @@
 import { contactRepository } from '@/repositories/ContactRepository';
 import {withMemberGuard} from "@/lib/withMemberGuard";
 
+export const dynamic = 'force-dynamic';
+
 const handler = async (_req: Request, _ctx: any) => {
   try {
     const messages = await contactRepository.getAllMessages();

@@ -3,6 +3,8 @@ import { FamilyRepository } from '@/repositories/FamilyRepository';
 import type { IMember } from '@/entities/Member';
 import { userNotificationService } from '@/services/UserNotificationService';
 
+export const dynamic = 'force-dynamic';
+
 const handler = async (request: Request, context: any, user: any, member: any) => {
   try {
     const { id } = context.params;

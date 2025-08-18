@@ -1,6 +1,8 @@
 import { withMemberGuard } from '@/lib/withMemberGuard';
 import { AnniversaryRepository } from '@/repositories/AnniversaryRepository';
 
+export const dynamic = 'force-dynamic';
+
 const putHandler = async (request: Request, { params }: any, user: any, member: any) => {
   try {
     const repo = new AnniversaryRepository();
