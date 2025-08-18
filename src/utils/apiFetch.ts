@@ -9,5 +9,9 @@ export async function apiFetch(input: RequestInfo | URL, init: RequestInit = {})
       throw new Error('Unauthorized');
     }
   }
+  if (res.status === 403) {
+    window.location.href = '/pending-member';
+    throw new Error('Pending member');
+  }
   return res;
 }

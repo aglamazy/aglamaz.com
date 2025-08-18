@@ -64,7 +64,6 @@ export class GmailService {
         },
       });
 
-      console.log(`Email sent successfully to ${to}`);
     } catch (error) {
       console.error('Error sending email:', error);
       throw new Error('Failed to send email');

@@ -1,14 +1,13 @@
 'use client';
-import React, { useState, useEffect } from "react";
+import React, { useEffect } from "react";
 import { useSiteStore } from '../store/SiteStore';
 import { useUserStore } from '../store/UserStore';
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useMemberStore } from '../store/MemberStore';
 import Header from "./Header";
 import I18nProvider from './I18nProvider';
 import { useTranslation } from 'react-i18next';
 import { Loader } from "../components/ui/Loader";
-import { useSearchParams } from "next/navigation";
 
 export default function ClientLayoutShell({ children }) {
   const { user, loading, logout } = useUserStore();
@@ -16,30 +15,7 @@ export default function ClientLayoutShell({ children }) {
   const siteInfo = useSiteStore((state) => state.siteInfo);
   const member = useMemberStore((state) => state.member);
   const router = useRouter();
-  const { t, i18n } = useTranslation();
-  const pathname = usePathname();
-  const publicRoutes = ['/login'];
-  const isPublic = publicRoutes.includes(pathname);
-  const isAuthRoute = pathname === "/login" || pathname.startsWith("/auth");
-  const searchParams = useSearchParams();
-
-  // // 1) Redirect unauthenticated ONLY from protected routes
-  // useEffect(() => {
-  //   if (loading) return;
-  //   if (!user && !isAuthRoute) {
-  //     router.replace(`/login?next=${encodeURIComponent(pathname)}`);
-  //   }
-  // }, [loading, user, isAuthRoute, pathname, router]);
-  //
-  // // 2) After login, leave /login (or /auth/*) to the intended page
-  // useEffect(() => {
-  //   if (loading) return;
-  //   if (user && isAuthRoute) {
-  //     const next = searchParams.get("next") || "/";
-  //     const target = next === "/login" || next.startsWith("/auth") ? "/" : next;
-  //     router.replace(target);
-  //   }
-  // }, [loading, user, isAuthRoute, searchParams, router]);
+  const { i18n } = useTranslation();
 
   useEffect(() => {
     // Hydrate Zustand store with site info from server
@@ -87,8 +63,6 @@ export default function ClientLayoutShell({ children }) {
       </div>
     );
   }
-  if (!isPublic && !user) return null;
-
   return (
     <I18nProvider>
       <div className="min-h-screen bg-gradient-to-br from-cream-50 to-sage-50">

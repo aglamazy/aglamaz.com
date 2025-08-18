@@ -53,7 +53,6 @@ export async function apiFetchFromMiddleware(
     },
   };
 
-  console.log(`target: ${targetUrl}`)
   const res = await fetch(targetUrl, withCookies);
   if (res.status !== 401) return res;
 

@@ -80,7 +80,7 @@ export default function VerifySignupPage() {
 
         // Redirect to pending approval page after 3 seconds
         setTimeout(() => {
-          router.push('/pending-approval');
+          router.push('/pending-member');
         }, 3000);
 
       } catch (error) {

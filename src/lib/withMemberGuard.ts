@@ -40,7 +40,7 @@ export function withMemberGuard(handler: Function) {
         .limit(1)
         .get();
       if (memberSnap.empty) {
-        return NextResponse.json({ error: 'Member not found' }, { status: 404 });
+        return NextResponse.json({ error: 'Member not found' }, { status: 403 });
       }
       const doc = memberSnap.docs[0];
       context.member = doc.data();
