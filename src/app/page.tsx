@@ -11,43 +11,9 @@ import { apiFetch } from '../utils/apiFetch';
 
 export default function Home() {
     const {t} = useTranslation();
-    const {user, loading, checkAuth, setUser} = useUserStore();
+    const {user, loading,setUser} = useUserStore();
     const siteInfo = useSiteStore((state) => state.siteInfo);
-    const familyName = siteInfo?.name || t('familyMember');
     const router = useRouter();
-    const fetchedUserSiteRef = useRef<string | null>(null);
-
-    useEffect(() => {
-        checkAuth();
-    }, [checkAuth]);
-
-    useEffect(() => {
-        const userId = user?.user_id;
-        const siteId = siteInfo?.id;
-        if (!userId || !siteId || loading) return; // מחכים לכל הנתונים
-
-        const key = `${userId}|${siteId}`;
-        if (fetchedUserSiteRef.current === key) return; // כבר רץ עבור אותו זוג
-
-        fetchedUserSiteRef.current = key; // מסמנים שרץ
-        void checkMemberStatus();
-    }, [user?.user_id, siteInfo?.id, loading]);
-
-    const checkMemberStatus = async () => {
-        try {
-            const site_id = siteInfo?.id;
-            const response = await apiFetch(`/api/user/${user.user_id}/member-info?siteId=${site_id}`);
-
-            if (!response.ok) {
-                // User is not a member, redirect to pending approval
-                router.push('/pending-approval');
-            }
-        } catch (error) {
-            console.error('Failed to check member status:', error);
-            // On error, redirect to pending approval as fallback
-            router.push('/pending-approval');
-        }
-    };
 
     if (loading) {
         return (

@@ -8,9 +8,10 @@ import Header from "./Header";
 import I18nProvider from './I18nProvider';
 import { useTranslation } from 'react-i18next';
 import { Loader } from "../components/ui/Loader";
+import { useSearchParams } from "next/navigation";
 
 export default function ClientLayoutShell({ children }) {
-  const { user, loading, checkAuth, logout } = useUserStore();
+  const { user, loading, logout } = useUserStore();
   const setSiteInfo = useSiteStore((state) => state.setSiteInfo);
   const siteInfo = useSiteStore((state) => state.siteInfo);
   const member = useMemberStore((state) => state.member);
@@ -20,24 +21,25 @@ export default function ClientLayoutShell({ children }) {
   const publicRoutes = ['/login'];
   const isPublic = publicRoutes.includes(pathname);
   const isAuthRoute = pathname === "/login" || pathname.startsWith("/auth");
+  const searchParams = useSearchParams();
 
-  useEffect(() => {
-    // Wait until auth check finished
-    if (loading) return;
-
-    // Gate protected routes
-    if (!user) {
-      router.replace(`/login?next=${encodeURIComponent(pathname)}`);
-    }
-  }, [isAuthRoute, loading, user, pathname, router]);
-
-  useEffect(() => {
-    // don’t check auth on public routes
-    const publicRoutes = ['/login'];
-    if (isPublic) return;
-
-    checkAuth();
-  }, [pathname, checkAuth]);
+  // // 1) Redirect unauthenticated ONLY from protected routes
+  // useEffect(() => {
+  //   if (loading) return;
+  //   if (!user && !isAuthRoute) {
+  //     router.replace(`/login?next=${encodeURIComponent(pathname)}`);
+  //   }
+  // }, [loading, user, isAuthRoute, pathname, router]);
+  //
+  // // 2) After login, leave /login (or /auth/*) to the intended page
+  // useEffect(() => {
+  //   if (loading) return;
+  //   if (user && isAuthRoute) {
+  //     const next = searchParams.get("next") || "/";
+  //     const target = next === "/login" || next.startsWith("/auth") ? "/" : next;
+  //     router.replace(target);
+  //   }
+  // }, [loading, user, isAuthRoute, searchParams, router]);
 
   useEffect(() => {
     // Hydrate Zustand store with site info from server
@@ -49,7 +51,7 @@ export default function ClientLayoutShell({ children }) {
       }
     } catch (error) {
       console.error('Failed to parse site info:', error);
-      setSiteInfo({ name: 'Family' }); // fallback
+      throw error;
     }
   }, [setSiteInfo]);
 
@@ -64,7 +66,6 @@ export default function ClientLayoutShell({ children }) {
     }
   }, [i18n.language]);
 
-
   const handleLogout = async () => {
     await logout();
     router.push('/login');
@@ -72,8 +73,8 @@ export default function ClientLayoutShell({ children }) {
 
   if (loading) {
     return (
-      <Loader size={24} thickness={3} text="Loading" />
-  );
+      <Loader size={24} thickness={3} text="Loading"/>
+    );
   }
 
   // Strict guard: if siteInfo or siteInfo.id is missing, show fatal error
@@ -86,7 +87,6 @@ export default function ClientLayoutShell({ children }) {
       </div>
     );
   }
-  console.log(`user: ${user}`);
   if (!isPublic && !user) return null;
 
   return (
@@ -122,7 +122,7 @@ export default function ClientLayoutShell({ children }) {
           .hover\\:bg-sage-700:hover { background-color: var(--sage-700); }
           .hover\\:border-sage-300:hover { border-color: var(--sage-300); }
         `}</style>
-        <Header user={user} member={member} onLogout={handleLogout} siteInfo={siteInfo} />
+        <Header user={user} member={member} onLogout={handleLogout} siteInfo={siteInfo}/>
         {children}
       </div>
     </I18nProvider>

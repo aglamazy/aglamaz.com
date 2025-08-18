@@ -1,5 +1,6 @@
 // utils/auth/verifyAccessToken.ts
 import { jwtVerify, importSPKI } from 'jose'
+import { NextRequest, NextResponse } from 'next/server';
 
 const ALG = 'RS256'
 
@@ -34,4 +35,39 @@ export async function verifyJwt<T extends object = Record<string, unknown>>(toke
 
 export function verifyAccessToken<T extends object = Record<string, unknown>>(token: string) {
   return verifyJwt<T>(token)
+}
+
+export async function apiFetchFromMiddleware(
+  req: NextRequest,
+  input: string | URL,
+  init: RequestInit = {}
+): Promise<Response | NextResponse> {
+  const origin = req.nextUrl.origin;
+  const targetUrl = new URL(typeof input === 'string' ? input : input.toString(), origin);
+
+  const withCookies = {
+    ...init,
+    headers: {
+      ...(init.headers as Record<string, string> | undefined),
+      cookie: req.headers.get('cookie') ?? '',
+    },
+  };
+
+  console.log(`target: ${targetUrl}`)
+  const res = await fetch(targetUrl, withCookies);
+  if (res.status !== 401) return res;
+
+  // Try refresh with FULL URL and forwarded cookies
+  const refreshUrl = new URL('/api/auth/refresh', origin);
+  const refresh = await fetch(refreshUrl, {
+    method: 'POST',
+    headers: { cookie: req.headers.get('cookie') ?? '' },
+  });
+
+  if (refresh.ok) {
+    return fetch(targetUrl, withCookies);
+  }
+
+  // Redirect to login in middleware-land
+  return NextResponse.redirect(new URL('/login', origin));
 }

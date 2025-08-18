@@ -1,15 +1,13 @@
 import { create } from 'zustand';
+import { ISite } from "@/entities/Site";
 
-interface SiteInfo {
-  [key: string]: any;
-}
 
 interface SiteStore {
-  siteInfo: SiteInfo | null;
-  setSiteInfo: (info: SiteInfo) => void;
+  siteInfo: ISite | null;
+  setSiteInfo: (info: ISite) => void;
 }
 
 export const useSiteStore = create<SiteStore>((set) => ({
   siteInfo: null,
-  setSiteInfo: (info) => set({ siteInfo: info }),
+  setSiteInfo: (info: ISite) => set({ siteInfo: info }),
 })); 

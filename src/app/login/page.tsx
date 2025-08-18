@@ -37,13 +37,13 @@ export default function LoginPage() {
         if (!sessionRes.ok) throw new Error('Session creation failed');
 
         // Update user state immediately after login
+        console.log("login: setting user")
         setUser({
           name: result.user.displayName,
           email: result.user.email,
           user_id: result.user.uid
         });
-
-        router.push("/");
+        console.log("login: after setting user")
       }
     } catch (error) {
       setError(t('googleLoginFailed'));
@@ -113,6 +113,7 @@ export default function LoginPage() {
   };
 
   if (showSignup) {
+    console.log("signup -> pending-approval")
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
         <SignupForm

@@ -1,7 +1,7 @@
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
-import { verifyAccessToken } from "@/lib/edgeAuth";
+import { apiFetch } from "@/utils/apiFetch";
 import { ACCESS_TOKEN } from "@/constants";
+import { apiFetchFromMiddleware, verifyAccessToken } from 'src/lib/edgeAuth'
+import { NextRequest, NextResponse } from 'next/server';
 
 const PUBLIC_PATHS = [
   '/login',
@@ -29,15 +29,11 @@ export async function middleware(request: NextRequest) {
       return NextResponse.next();
     }
 
-    // Optional membership check
     if (path !== '/pending-approval') {
+      console.log("check membership")
       const siteId = process.env.NEXT_SITE_ID;
-      const memberRes = await fetch(`${request.nextUrl.origin}/api/user/member-info?siteId=${siteId}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Cookie': request.headers.get('cookie') || ''
-        }
-      });
+      const memberRes = await apiFetchFromMiddleware(request, `/api/user/member-info?siteId=${siteId}`);
+      console.log(memberRes);
       if (!memberRes.ok) {
         return NextResponse.redirect(new URL('/pending-approval', request.url));
       }

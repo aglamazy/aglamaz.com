@@ -27,6 +27,7 @@ export const useMemberStore = create<MemberState>((set, get) => ({
       }
 
       const data = await response.json();
+      console.log("fetchMember", data);
       set({ member: data.member, loading: false });
     } catch (error) {
       set({ 

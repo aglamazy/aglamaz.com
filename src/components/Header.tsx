@@ -3,6 +3,9 @@ import Navigation from "@/components/Navigation";
 import { useTranslation } from 'react-i18next';
 import { LogOut, Users, MessageCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { IUser } from "@/entities/User";
+import { IMember } from "@/entities/Member";
+import { ISite } from "@/entities/Site";
 
 const LANGS = [
   { code: 'he', label: 'עברית', flag: '🇮🇱' },
@@ -10,7 +13,7 @@ const LANGS = [
   { code: 'tr', label: 'Türkçe', flag: '🇹🇷' },
 ];
 
-function getUserInitials(user) {
+function getUserInitials(user: IUser) {
   if (!user?.name) return 'U';
   return user.name
     .split(' ')
@@ -20,7 +23,7 @@ function getUserInitials(user) {
     .slice(0, 2);
 }
 
-export default function Header({ user, member, onLogout, siteInfo }) {
+export default function Header({ user, member, onLogout, siteInfo }: { user: IUser, member: IMember, onLogout: any, siteInfo :ISite}) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isLangMenuOpen, setIsLangMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
