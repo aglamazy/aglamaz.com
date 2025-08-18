@@ -20,14 +20,7 @@ export const useMemberStore = create<MemberState>((set, get) => ({
     try {
       set({ loading: true, error: null });
       
-      const response = await apiFetch(`/api/user/${userId}/member-info?siteId=${encodeURIComponent(siteId)}`);
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch member info');
-      }
-
-      const data = await response.json();
-      console.log("fetchMember", data);
+      const data = await apiFetch<{ member: IMember }>(`/api/user/${userId}/member-info?siteId=${siteId}`);
       set({ member: data.member, loading: false });
     } catch (error) {
       set({ 
