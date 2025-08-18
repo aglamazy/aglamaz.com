@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { withMemberGuard } from '@/lib/withMemberGuard';
 import { AnniversaryRepository } from '@/repositories/AnniversaryRepository';
 

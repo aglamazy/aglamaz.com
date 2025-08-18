@@ -5,12 +5,14 @@ import { importSPKI, jwtVerify } from "jose";
 import { IToken } from "../entities/Token"
 import { initAdmin } from "@/firebase/admin";
 import { getFirestore } from "firebase-admin/firestore";
+import { RouteHandler, GuardContext } from "../app/api/types"
+import { memberConverter } from "../entities/firebase/MemberDoc"
 
 initAdmin();
 const db = getFirestore();
 
-export function withMemberGuard(handler: Function) {
-  return async (request: Request, context: any) => {
+export function withMemberGuard(handler: Function) : RouteHandler {
+  return async (request: Request, context: GuardContext) => {
     try {
       const spki = process.env.JWT_PUBLIC_KEY!.replace(/\\n/g, '\n');
       const publicKey = await importSPKI(spki, 'RS256');
@@ -18,9 +20,6 @@ export function withMemberGuard(handler: Function) {
       const token = cookieStore.get(ACCESS_TOKEN)?.value;
       const { payload } = await jwtVerify(token, publicKey, {
         algorithms: ['RS256'],
-        // optionally lock these if you set them when signing:
-        // issuer: 'your-app',
-        // audience: 'your-app-web',
         clockTolerance: '5s',
       });
       const typedPayload = payload as IToken | undefined;
@@ -34,12 +33,14 @@ export function withMemberGuard(handler: Function) {
 
       context.decoded_payload = typedPayload;
       const siteId = context.params?.siteId || process.env.NEXT_SITE_ID!;
-      const memberSnap = await db
-        .collection('members')
+      const members = db.collection('members').withConverter(memberConverter);
+
+      const memberSnap = await members
         .where('uid', '==', uid)
         .where('siteId', '==', siteId)
         .limit(1)
         .get();
+
       if (memberSnap.empty) {
         return NextResponse.redirect(new URL('/pending-member', request.url));
       }
