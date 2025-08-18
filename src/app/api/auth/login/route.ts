@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
       httpOnly: true,
       secure,
       sameSite: 'lax',
-      path: '/api/auth/refresh',
+      path: '/',
       maxAge: 60 * 60 * 24 * refreshDays,       // 14 days
     });
 
