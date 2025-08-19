@@ -2,13 +2,13 @@
 import React, { useState, useEffect } from "react";
 import { useSiteStore } from '../store/SiteStore';
 import { useUserStore } from '../store/UserStore';
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useMemberStore } from '../store/MemberStore';
 import Header from "./Header";
 import I18nProvider from './I18nProvider';
 import { useTranslation } from 'react-i18next';
 import { Loader } from "../components/ui/Loader";
-import { useSearchParams } from "next/navigation";
+import I18nGate from "@/components/I18nGate";
 
 export default function ClientLayoutShell({ children }) {
   const { user, loading, logout } = useUserStore();
@@ -17,43 +17,11 @@ export default function ClientLayoutShell({ children }) {
   const member = useMemberStore((state) => state.member);
   const router = useRouter();
   const { t, i18n } = useTranslation();
-  const pathname = usePathname();
-  const publicRoutes = ['/login'];
-  const isPublic = publicRoutes.includes(pathname);
-  const isAuthRoute = pathname === "/login" || pathname.startsWith("/auth");
-  const searchParams = useSearchParams();
 
-  // // 1) Redirect unauthenticated ONLY from protected routes
-  // useEffect(() => {
-  //   if (loading) return;
-  //   if (!user && !isAuthRoute) {
-  //     router.replace(`/login?next=${encodeURIComponent(pathname)}`);
-  //   }
-  // }, [loading, user, isAuthRoute, pathname, router]);
-  //
-  // // 2) After login, leave /login (or /auth/*) to the intended page
-  // useEffect(() => {
-  //   if (loading) return;
-  //   if (user && isAuthRoute) {
-  //     const next = searchParams.get("next") || "/";
-  //     const target = next === "/login" || next.startsWith("/auth") ? "/" : next;
-  //     router.replace(target);
-  //   }
-  // }, [loading, user, isAuthRoute, searchParams, router]);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
-  useEffect(() => {
-    // Hydrate Zustand store with site info from server
-    try {
-      const script = document.getElementById('__SITE_INFO__');
-      if (script) {
-        const info = JSON.parse(script.textContent || '{}');
-        setSiteInfo(info);
-      }
-    } catch (error) {
-      console.error('Failed to parse site info:', error);
-      throw error;
-    }
-  }, [setSiteInfo]);
+  const headerReady = mounted && !!siteInfo?.name;
 
   useEffect(() => {
     const htmlElement = document.documentElement;
@@ -77,21 +45,10 @@ export default function ClientLayoutShell({ children }) {
     );
   }
 
-  // Strict guard: if siteInfo or siteInfo.id is missing, show fatal error
-  if (!siteInfo || !siteInfo.id) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-red-50">
-        <div className="text-red-700 font-bold text-xl">
-          Site information is missing. Please reload or contact support.
-        </div>
-      </div>
-    );
-  }
-  if (!isPublic && !user) return null;
-
   return (
     <I18nProvider>
-      <div className="min-h-screen bg-gradient-to-br from-cream-50 to-sage-50">
+      <I18nGate>
+        <div className="min-h-screen bg-gradient-to-br from-cream-50 to-sage-50">
         <style>{`
           :root {
             --cream-50: #FEFCF8;
@@ -122,9 +79,17 @@ export default function ClientLayoutShell({ children }) {
           .hover\\:bg-sage-700:hover { background-color: var(--sage-700); }
           .hover\\:border-sage-300:hover { border-color: var(--sage-300); }
         `}</style>
-        <Header user={user} member={member} onLogout={handleLogout} siteInfo={siteInfo}/>
+        {headerReady ? (
+          <Header
+            user={user}
+            member={member}
+            onLogout={handleLogout}
+            siteInfo={siteInfo}
+          />
+        ) : null}
         {children}
       </div>
+      </I18nGate>
     </I18nProvider>
   );
 }

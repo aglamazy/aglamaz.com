@@ -58,7 +58,7 @@ export default function Header({ user, member, onLogout, siteInfo }: { user: IUs
     <header className="w-full flex items-center justify-between px-4 py-2 bg-white shadow-sm sticky top-0 z-50">
       {/* Left: Site title */}
       <div className="text-xl font-semibold text-sage-700">
-        {siteInfo?.name || 'Family App'}
+        {siteInfo.name}
       </div>
       {/* Center: Navigation */}
       <div className="flex flex-row items-center">

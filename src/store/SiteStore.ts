@@ -1,13 +1,27 @@
+'use client';
 import { create } from 'zustand';
 import { ISite } from "@/entities/Site";
 
-
-interface SiteStore {
+export interface SiteStore {
   siteInfo: ISite | null;
   setSiteInfo: (info: ISite) => void;
 }
 
-export const useSiteStore = create<SiteStore>((set) => ({
-  siteInfo: null,
-  setSiteInfo: (info: ISite) => set({ siteInfo: info }),
-})); 
+const readBootstrapSiteInfo = (): ISite | null => {
+  if (typeof window === 'undefined') return null; // SSR guard
+  const w = window as any;
+  console.log("bootstrapSiteInfo", w.__SITE_INFO__);
+  if (w.__SITE_INFO__) return w.__SITE_INFO__ as ISite;
+
+  return null;
+};
+
+type State = {
+  siteInfo: ISite | null;
+  setSiteInfo: (info: ISite | null) => void;
+};
+
+export const useSiteStore = create<State>((set) => ({
+  siteInfo: readBootstrapSiteInfo(),   // ✅ set once, synchronously
+  setSiteInfo: (info) => set({ siteInfo: info }),
+}));

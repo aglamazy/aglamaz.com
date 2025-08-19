@@ -5,7 +5,7 @@ import { fetchSiteInfo } from '../firebase/admin';
 
 export default async function RootLayout({ children }) {
   let siteInfo = null;
-  
+
   try {
     siteInfo = await fetchSiteInfo();
   } catch (error) {
@@ -19,8 +19,9 @@ export default async function RootLayout({ children }) {
         {/* Inject siteInfo as a global variable for client-side hydration */}
         <script
           id="__SITE_INFO__"
-          type="application/json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(siteInfo || {}) }}
+          dangerouslySetInnerHTML={{
+            __html: `window.__SITE_INFO__=${JSON.stringify(siteInfo || {})};`,
+          }}
         />
         <ErrorBoundary>
           <ClientLayoutShell>
