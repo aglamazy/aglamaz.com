@@ -1,5 +1,4 @@
-import { decodeAndValidateToken } from "../utils/token";
-import { ACCESS_TOKEN } from "@/constants";
+import { apiFetch } from "@/utils/apiFetch";
 
 export interface IUser {
   email: string;
@@ -11,14 +10,11 @@ export interface IUser {
 
 export class User {
   static async me(): Promise<IUser | null> {
-    const match = document.cookie.match(
-      new RegExp(`(?:^|; )${ACCESS_TOKEN}=([^;]*)`)
-    );
-    if (!match) return null;
     try {
-      const decoded = decodeAndValidateToken(match[1]);
-      return decoded as IUser;
-    } catch (err) {
+      const res = await apiFetch('/api/auth/me');
+
+      return res as IUser;
+    } catch {
       return null;
     }
   }

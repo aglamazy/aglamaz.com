@@ -9,6 +9,7 @@ interface UserState {
   loading: boolean;
   setUser: (user: Partial<IUser> | null) => void;
   setLoading: (loading: boolean) => void;
+  checkAuth: () => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -31,6 +32,14 @@ export const useUserStore = create<UserState>((set, get) => ({
     memberStore.fetchMember(userId, siteId);
   },
   setLoading: (loading) => set({ loading }),
+  checkAuth: async () => {
+    try {
+      const userData = await User.me();
+      set({ user: userData, loading: false });
+    } catch (error) {
+      set({ user: null, loading: false });
+    }
+  },
   logout: async () => {
     await apiFetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
     set({ user: null });

@@ -19,7 +19,7 @@ export const useMemberStore = create<MemberState>((set, get) => ({
   fetchMember: async (userId: string, siteId: string) => {
     try {
       set({ loading: true, error: null });
-      
+
       const data = await apiFetch<{ member: IMember }>(`/api/user/${userId}/member-info?siteId=${siteId}`);
       set({ member: data.member, loading: false });
     } catch (error) {

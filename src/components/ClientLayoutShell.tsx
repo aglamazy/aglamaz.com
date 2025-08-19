@@ -11,12 +11,24 @@ import { Loader } from "../components/ui/Loader";
 import I18nGate from "@/components/I18nGate";
 
 export default function ClientLayoutShell({ children }) {
-  const { user, loading, logout } = useUserStore();
+  const { user, loading, logout, checkAuth } = useUserStore();
   const setSiteInfo = useSiteStore((state) => state.setSiteInfo);
   const siteInfo = useSiteStore((state) => state.siteInfo);
   const member = useMemberStore((state) => state.member);
   const router = useRouter();
   const { t, i18n } = useTranslation();
+
+  const { fetchMember } = useMemberStore();
+
+  useEffect(() => {
+    checkAuth();
+  }, [checkAuth])
+
+  useEffect(() => {
+    if (user?.user_id && siteInfo?.id) {
+      fetchMember(user.user_id, siteInfo.id);
+    }
+  }, [user?.user_id, siteInfo?.id, fetchMember]);
 
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);

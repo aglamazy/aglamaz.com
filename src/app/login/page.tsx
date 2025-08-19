@@ -26,24 +26,28 @@ export default function LoginPage() {
       setIsLoading(true);
       setError("");
       initFirebase();
+
       if (auth && googleProvider) {
         const result = await signInWithPopup(auth(), googleProvider);
         const idToken = await getIdToken(result.user);
+
         const sessionRes = await fetch('/api/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ idToken }),
+          credentials: 'include',       // ✅ חשוב כדי שהדפדפן ישמור את ה-cookie
         });
         if (!sessionRes.ok) throw new Error('Session creation failed');
 
-        // Update user state immediately after login
         setUser({
-          name: result.user.displayName,
+          name: result.user.displayName || result.user.email,
           email: result.user.email,
-          user_id: result.user.uid
+          user_id: result.user.uid,
         });
+
+        await router.replace('/');
       }
-    } catch (error) {
+    } catch (e) {
       setError(t('googleLoginFailed'));
     } finally {
       setIsLoading(false);

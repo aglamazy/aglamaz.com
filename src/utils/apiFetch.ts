@@ -1,32 +1,53 @@
-export async function apiFetch<T = any>(input: RequestInfo | URL, init: RequestInit = {}): Promise<T> {
-  const doFetch = async (): Promise<Response> => {
-    return fetch(input, { ...init, credentials: 'include' });
-  };
+let refreshPromise: Promise<Response> | null = null;
 
-  let res = await doFetch();
+function refreshOnce() {
+  return (refreshPromise ??= fetch('/api/auth/refresh', {
+    method: 'POST',
+    credentials: 'include',
+  }).finally(() => {
+    refreshPromise = null;
+  }));
+}
+
+const AUTH_RE = /^\/api\/auth\/(refresh|login|logout|me)(?:$|\?)/;
+
+export async function apiFetch<T = unknown>(
+  input: RequestInfo | URL,
+  init: RequestInit = {}
+): Promise<T> {
+  const url = typeof input === 'string' ? input : (input as URL).toString();
+  const req = () => fetch(input, { ...init, credentials: 'include' });
+
+  // 1) Never run refresh logic on auth endpoints themselves
+  if (AUTH_RE.test(url)) {
+    const r = await req();
+    if (!r.ok) throw new Error(`HTTP ${r.status} ${r.statusText}`);
+    const ct = r.headers.get('content-type') || '';
+    return ct.includes('application/json')
+      ? (r.json() as Promise<T>)
+      : ((await r.text()) as unknown as T);
+  }
+
+  // 2) Normal requests
+  let res = await req();
 
   if (res.status === 401) {
-    // try refresh
-    const refresh = await fetch('/api/auth/refresh', { method: 'POST', credentials: 'include' });
-    if (refresh.ok) {
-      res = await doFetch();
-    } else {
-      if (typeof window !== 'undefined') {
-        window.location.href = '/login';
-      }
-      throw new Error('Unauthorized');
-    }
+    const rr = await refreshOnce();
+    if (rr.ok) res = await req();
   }
 
-  if (!res.ok) {
-    throw new Error(`Request failed: ${res.status} ${res.statusText}`);
+  // 3) Still unauthorized -> stop (no loops)
+  if (res.status === 401) {
+    if (typeof window !== 'undefined' && location.pathname !== '/login') {
+      location.assign('/login');
+    }
+    throw new Error('Unauthorized');
   }
+
+  if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
 
   const ct = res.headers.get('content-type') || '';
-  if (ct.includes('application/json')) {
-    return res.json() as Promise<T>;
-  }
-
-  // fallback: return raw text
-  return (await res.text()) as unknown as T;
+  return ct.includes('application/json')
+    ? (res.json() as Promise<T>)
+    : ((await res.text()) as unknown as T);
 }

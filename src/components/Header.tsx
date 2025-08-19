@@ -23,7 +23,12 @@ function getUserInitials(user: IUser) {
     .slice(0, 2);
 }
 
-export default function Header({ user, member, onLogout, siteInfo }: { user: IUser, member: IMember, onLogout: any, siteInfo :ISite}) {
+export default function Header({ user, member, onLogout, siteInfo }: {
+  user: IUser,
+  member: IMember,
+  onLogout: any,
+  siteInfo: ISite
+}) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isLangMenuOpen, setIsLangMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
@@ -37,6 +42,7 @@ export default function Header({ user, member, onLogout, siteInfo }: { user: IUs
         setIsUserMenuOpen(false);
       }
     }
+
     if (isUserMenuOpen) {
       document.addEventListener('mousedown', handleClickOutside);
     }
@@ -53,7 +59,6 @@ export default function Header({ user, member, onLogout, siteInfo }: { user: IUs
   };
 
   const menuPosition = i18n.language === 'he' ? 'left-0' : 'right-0';
-
   return (
     <header className="w-full flex items-center justify-between px-4 py-2 bg-white shadow-sm sticky top-0 z-50">
       {/* Left: Site title */}
@@ -63,7 +68,7 @@ export default function Header({ user, member, onLogout, siteInfo }: { user: IUs
       {/* Center: Navigation */}
       <div className="flex flex-row items-center">
         {member && (member as any).role !== 'pending' && (
-          <Navigation user={user} onLogout={onLogout} setMobileMenuOpen={setMobileMenuOpen} />
+          <Navigation user={user} onLogout={onLogout} setMobileMenuOpen={setMobileMenuOpen}/>
         )}
       </div>
       {/* Right: Flags + Avatar */}
@@ -105,39 +110,52 @@ export default function Header({ user, member, onLogout, siteInfo }: { user: IUs
               {getUserInitials(user)}
             </button>
             {isUserMenuOpen && (
-              <div className={`origin-top-right absolute ${menuPosition} mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-50`}>
+              <div
+                className={`origin-top-right absolute ${menuPosition} mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-50`}>
                 <div className="py-1">
                   {/* Admin menu items if member is admin */}
                   {member?.role === 'admin' && (
                     <>
                       <button
-                        onClick={() => { setIsUserMenuOpen(false); router.push('/admin/pending-members'); }}
+                        onClick={() => {
+                          setIsUserMenuOpen(false);
+                          router.push('/admin/pending-members');
+                        }}
                         className="flex items-center w-full px-4 py-2 text-sm text-green-700 hover:bg-green-50 transition-colors duration-200"
                       >
-                        <Users size={16} className="mr-3" />
+                        <Users size={16} className="mr-3"/>
                         {t('pendingMembers')}
                       </button>
                       <button
-                        onClick={() => { setIsUserMenuOpen(false); router.push('/admin/site-members'); }}
+                        onClick={() => {
+                          setIsUserMenuOpen(false);
+                          router.push('/admin/site-members');
+                        }}
                         className="flex items-center w-full px-4 py-2 text-sm text-green-700 hover:bg-green-50 transition-colors duration-200"
                       >
-                        <Users size={16} className="mr-3" />
+                        <Users size={16} className="mr-3"/>
                         {t('siteMembers')}
                       </button>
                       <button
-                        onClick={() => { setIsUserMenuOpen(false); router.push('/admin/contact-messages'); }}
+                        onClick={() => {
+                          setIsUserMenuOpen(false);
+                          router.push('/admin/contact-messages');
+                        }}
                         className="flex items-center w-full px-4 py-2 text-sm text-green-700 hover:bg-green-50 transition-colors duration-200"
                       >
-                        <MessageCircle size={16} className="mr-3" />
+                        <MessageCircle size={16} className="mr-3"/>
                         {t('contactMessages')}
                       </button>
                     </>
                   )}
                   <button
-                    onClick={() => { setIsUserMenuOpen(false); onLogout(); }}
+                    onClick={() => {
+                      setIsUserMenuOpen(false);
+                      onLogout();
+                    }}
                     className="flex items-center w-full px-4 py-2 text-sm text-sage-700 hover:bg-sage-50 transition-colors duration-200"
                   >
-                    <LogOut size={16} className="mr-3" />
+                    <LogOut size={16} className="mr-3"/>
                     {t('logout')}
                   </button>
                 </div>
