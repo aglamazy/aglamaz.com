@@ -1,5 +1,3 @@
-export const dynamic = 'force-dynamic';
-
 import { contactRepository } from '@/repositories/ContactRepository';
 import {withMemberGuard} from "@/lib/withMemberGuard";
 
