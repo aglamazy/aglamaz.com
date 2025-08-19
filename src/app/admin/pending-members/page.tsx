@@ -42,14 +42,9 @@ export default function PendingMembersPage() {
   const fetchPendingMembers = async () => {
     try {
       setLoading(true);
-      const response = await apiFetch(`/api/user/${user?.user_id}/pending-members/${site?.id}`);
+      const data = await apiFetch(`/api/user/${user?.user_id}/pending-members/${site?.id}`);
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch pending members');
-      }
-
-      const data = await response.json();
-      setPendingMembers(data.data || []);
+      setPendingMembers(data || []);
     } catch (error) {
       setError(t('failedToLoadPendingMembers'));
     } finally {

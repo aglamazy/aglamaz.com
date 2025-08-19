@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { signAccessToken, signRefreshToken, setAuthCookies } from '@/lib/auth';
+import { FamilyRepository } from "@/repositories/FamilyRepository";
 
 export const dynamic = 'force-dynamic';
 
@@ -34,10 +35,19 @@ export async function GET(req: NextRequest) {
     }
 
     const tokenJson = await tokenRes.json();
+    const familyRepository = new FamilyRepository();
     const userId = tokenJson.user_id || tokenJson.sub || 'user';
+    const memberDetails = await familyRepository.getMemberByUserId(userId, process.env.familyRepository);
 
-    const access = signAccessToken({ sub: userId });
-    const refresh = signRefreshToken({ sub: userId });
+    const tokenDetails = {
+      userId,
+      siteId: process.env.NEXT_SITE_ID,
+      role: memberDetails.role,
+      firstName: memberDetails.firstName,
+      lastName: memberDetails.lastName
+    }
+    const access = signAccessToken(tokenDetails);
+    const refresh = signRefreshToken(tokenDetails);
 
     const res = NextResponse.redirect(new URL('/', process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'));
     setAuthCookies(res, access, refresh);

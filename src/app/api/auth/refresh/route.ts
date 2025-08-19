@@ -24,8 +24,8 @@ export async function POST(req: NextRequest) {
   }
   refreshRateLimit.set(payload.sub, now);
 
-  const access = signAccessToken({ sub: payload.sub });
-  const newRefresh = rotateRefreshToken(payload.sub);
+  const access = signAccessToken(payload);
+  const newRefresh = rotateRefreshToken(payload);
 
   const res = NextResponse.json({ ok: true });
   setAuthCookies(res, access, newRefresh);

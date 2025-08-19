@@ -1,10 +1,9 @@
+// src/lib/auth.ts
 import { createHash, randomBytes, createSign, createVerify } from 'crypto';
-import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
-import { apiFetch } from "../utils/apiFetch";
 import { ACCESS_TOKEN, REFRESH_TOKEN } from "../constants";
+import { IToken } from "@/entities/Token";
 
-export type JwtPayload = { sub: string; roles?: string[]; siteId?: string; exp: number; jti?: string };
 
 // In-memory store for hashed refresh tokens and last refresh timestamps
 const refreshStore = new Map<string, string>();
@@ -18,7 +17,7 @@ function base64url(input: Buffer | string) {
     .replace(/\//g, '_');
 }
 
-function signJwt(payload: object, expiresInSec: number): string {
+function signJwt(payload: IToken, expiresInSec: number): string {
   const privateKey = process.env.JWT_PRIVATE_KEY;
   if (!privateKey) throw new Error('JWT_PRIVATE_KEY not set');
   const header = { alg: 'RS256', typ: 'JWT' };
@@ -34,7 +33,7 @@ function signJwt(payload: object, expiresInSec: number): string {
   return `${unsigned}.${signatureEncoded}`;
 }
 
-function verifyJwt(token: string): JwtPayload | null {
+function verifyJwt(token: string): IToken | null {
   try {
     const publicKey = process.env.JWT_PUBLIC_KEY;
     if (!publicKey) throw new Error('JWT_PUBLIC_KEY not set');
@@ -43,8 +42,8 @@ function verifyJwt(token: string): JwtPayload | null {
     verify.update(`${h}.${p}`);
     const signature = Buffer.from(s, 'base64');
     if (!verify.verify(publicKey, signature)) return null;
-    const payload: JwtPayload = JSON.parse(Buffer.from(p, 'base64').toString());
-    const skew = 5; // seconds of allowed clock skew
+    const payload: IToken = JSON.parse(Buffer.from(p, 'base64').toString());
+    const skew = 5;
     if (payload.exp < Math.floor(Date.now() / 1000) - skew) return null;
     return payload;
   } catch (err) {
@@ -53,14 +52,14 @@ function verifyJwt(token: string): JwtPayload | null {
   }
 }
 
-export function signAccessToken(user: { sub: string; roles?: string[]; siteId?: string }, min : number = 5) {
-  return signJwt(user, 60 * min);
+export function signAccessToken(tokenDetails: IToken, min : number = 5) {
+  return signJwt(tokenDetails, 60 * min);
 }
 
-export function signRefreshToken(user: { sub: string }, days: number = 30) {
+export function signRefreshToken(tokenPayload: IToken, days: number = 30) {
   const jti = randomBytes(16).toString('hex');
-  const token = signJwt({ sub: user.sub, jti }, 60 * 60 * 24 * days);
-  refreshStore.set(user.sub, hashToken(token));
+  const token = signJwt({ ...tokenPayload, jti }, 60 * 60 * 24 * days);
+  refreshStore.set(tokenPayload.userId, hashToken(token));
   return token;
 }
 
@@ -81,8 +80,8 @@ export function verifyRefreshToken(token: string) {
   return payload;
 }
 
-export function rotateRefreshToken(userId: string) {
-  return signRefreshToken({ sub: userId });
+export function rotateRefreshToken(tokenPayload: IToken) {
+  return signRefreshToken(tokenPayload);
 }
 
 export function revokeRefreshToken(userId: string) {
@@ -94,14 +93,14 @@ export function hashToken(token: string) {
 }
 
 export function setAuthCookies(res: NextResponse, access: string, refresh?: string) {
-  res.cookies.set('access_token', access, {
+  res.cookies.set(ACCESS_TOKEN, access, {
     httpOnly: true,
     secure: true,
     path: '/',
     sameSite: 'lax',
   });
   if (refresh) {
-    res.cookies.set('refresh_token', refresh, {
+    res.cookies.set(REFRESH_TOKEN, refresh, {
       httpOnly: true,
       secure: true,
       path: '/',
@@ -114,32 +113,6 @@ export function clearAuthCookies(res: NextResponse) {
   const opts = { path: '/', maxAge: 0 };
   res.cookies.set(ACCESS_TOKEN, '', opts);
   res.cookies.set(REFRESH_TOKEN, '', opts);
-}
-
-export async function getServerAuth() {
-  const cookieStore = cookies();
-  const token = cookieStore.get('access_token')?.value;
-  if (!token) return null;
-  return verifyAccessToken(token);
-}
-
-export function withAuth(
-  handler: (req: NextRequest, auth: JwtPayload) => Promise<NextResponse> | NextResponse,
-  options?: { role?: string; siteId?: string }
-) {
-  return async (req: NextRequest) => {
-    const token = req.cookies.get('access_token')?.value;
-    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    const payload = verifyAccessToken(token);
-    if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    if (options?.role && !payload.roles?.includes(options.role)) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-    if (options?.siteId && payload.siteId !== options.siteId) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-    return handler(req, payload);
-  };
 }
 
 export { refreshRateLimit };

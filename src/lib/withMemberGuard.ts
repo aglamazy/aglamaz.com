@@ -18,7 +18,7 @@ export function withMemberGuard(handler: Function) : RouteHandler {
       const publicKey = await importSPKI(spki, 'RS256');
       const cookieStore = cookies();
       const token = cookieStore.get(ACCESS_TOKEN)?.value;
-      const { payload } = await jwtVerify(token, publicKey, {
+      const { payload } = await jwtVerify<IToken>(token, publicKey, {
         algorithms: ['RS256'],
         clockTolerance: '5s',
       });

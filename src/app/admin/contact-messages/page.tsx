@@ -27,11 +27,8 @@ export default function ContactMessagesPage() {
 
   useEffect(() => {
     const load = async () => {
-      const res = await apiFetch(`/api/admin/contact?siteId=${site?.id}`);
-      if (res.ok) {
-        const data = await res.json();
-        setMessages(data.messages || []);
-      }
+      const data = await apiFetch<{messages: ContactMessage[]}>(`/api/admin/contact?siteId=${site?.id}`);
+      setMessages(data.messages || []);
     };
     if (site?.id) load();
   }, [site?.id]);
@@ -40,7 +37,7 @@ export default function ContactMessagesPage() {
     <div className="min-h-screen bg-gradient-to-br from-cream-50 to-sage-50 p-4">
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center gap-3 mb-8">
-          <MessageCircle size={32} className="text-sage-600" />
+          <MessageCircle size={32} className="text-sage-600"/>
           <h1 className="text-3xl font-bold text-sage-700">Contact Messages</h1>
         </div>
         {messages.length === 0 ? (
