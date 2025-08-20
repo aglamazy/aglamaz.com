@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { initAdmin, adminAuth } from '@/firebase/admin';
-import { signAccessToken, signRefreshToken } from '@/lib/auth';
-import { ACCESS_TOKEN, REFRESH_TOKEN } from "@/constants";
+import { signAccessToken, signRefreshToken } from '@/auth/service';
+import { setAuthCookies } from '@/auth/cookies';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,30 +14,20 @@ export async function POST(req: NextRequest) {
 
     initAdmin();
     const decoded = await adminAuth().verifyIdToken(idToken);
+    const appClaims = {
+      userId: decoded.uid,
+      siteId: process.env.NEXT_SITE_ID || '',
+      role: (decoded as any).role || 'member',
+      firstName: (decoded as any).name || '',
+      lastName: '',
+    };
     const accessMin = 10;
     const refreshDays = 30;
-    const access = signAccessToken({ sub: decoded.uid }, accessMin);
-    const refresh = signRefreshToken({ sub: decoded.uid }, refreshDays);
+    const access = signAccessToken(appClaims, accessMin);
+    const refresh = signRefreshToken(appClaims, refreshDays);
 
-    const secure = process.env.NODE_ENV === 'production';
     const res = NextResponse.json({ token: access });
-
-    res.cookies.set(ACCESS_TOKEN, access, {
-      httpOnly: true,
-      secure,
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 60 * accessMin,
-    });
-
-    res.cookies.set(REFRESH_TOKEN, refresh, {
-      httpOnly: true,
-      secure,
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 60 * 60 * 24 * refreshDays,       // 14 days
-    });
-
+    setAuthCookies(res, access, refresh);
     return res;
   } catch (error) {
     console.error('Session creation failed', error);

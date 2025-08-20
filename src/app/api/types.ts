@@ -1,4 +1,4 @@
-import { IToken } from "src/entities/Token";
+import { TokenClaims } from '@/auth/tokens';
 export interface RouteParams {
   siteId?: string;
 }
@@ -12,7 +12,7 @@ export interface MemberDoc {
 
 export interface GuardContext {
   params?: RouteParams;
-  decoded_payload?: IToken;
+  decoded_payload?: TokenClaims;
   member?: MemberDoc;
 }
 

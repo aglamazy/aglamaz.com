@@ -1,5 +1,5 @@
-import { ACCESS_TOKEN } from "@/constants";
-import { apiFetchFromMiddlewareJSON, verifyAccessToken } from 'src/lib/edgeAuth'
+import { ACCESS_TOKEN } from '@/auth/cookies';
+import { apiFetchFromMiddlewareJSON, verifyAccessToken } from 'src/lib/edgeAuth';
 import { NextRequest, NextResponse } from 'next/server';
 
 const PUBLIC_PATHS = [

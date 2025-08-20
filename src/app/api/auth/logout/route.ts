@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { clearAuthCookies } from '@/lib/auth';
+import { clearAuthCookies } from '@/auth/cookies';
 
 export const dynamic = 'force-dynamic';
 

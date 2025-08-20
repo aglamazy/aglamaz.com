@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { signAccessToken, signRefreshToken, setAuthCookies } from '@/lib/auth';
+import { signAccessToken, signRefreshToken } from '@/auth/service';
+import { setAuthCookies } from '@/auth/cookies';
 import { FamilyRepository } from "@/repositories/FamilyRepository";
 
 export const dynamic = 'force-dynamic';
@@ -44,8 +45,8 @@ export async function GET(req: NextRequest) {
       siteId: process.env.NEXT_SITE_ID,
       role: memberDetails.role,
       firstName: memberDetails.firstName,
-      lastName: memberDetails.lastName
-    }
+      lastName: memberDetails.lastName,
+    };
     const access = signAccessToken(tokenDetails);
     const refresh = signRefreshToken(tokenDetails);
 

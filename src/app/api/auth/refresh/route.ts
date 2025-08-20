@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyRefreshToken, signAccessToken, rotateRefreshToken, setAuthCookies, refreshRateLimit } from '@/lib/auth';
-import { REFRESH_TOKEN } from "@/constants";
+import { verifyRefreshToken, signAccessToken, rotateRefreshToken } from '@/auth/service';
+import { setAuthCookies, REFRESH_TOKEN } from '@/auth/cookies';
+import { refreshRateLimit } from '@/auth/refresh-store';
 
 export const dynamic = 'force-dynamic';
 

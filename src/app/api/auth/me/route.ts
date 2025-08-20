@@ -1,7 +1,7 @@
 // src/app/api/auth/me/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAccessToken } from '@/lib/auth';
-import { ACCESS_TOKEN } from "@/constants";
+import { verifyAccessToken } from '@/auth/service';
+import { ACCESS_TOKEN } from '@/auth/cookies';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     user_id: payload.sub,
-    roles: payload.roles ?? [],
-    siteId: payload.siteId ?? null,
+    roles: (payload as any).roles ?? [],
+    siteId: (payload as any).siteId ?? null,
   });
 }

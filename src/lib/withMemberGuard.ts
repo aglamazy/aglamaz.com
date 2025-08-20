@@ -1,37 +1,30 @@
 import { NextResponse } from 'next/server';
-import { ACCESS_TOKEN } from '@/constants';
-import { cookies } from "next/headers";
-import { importSPKI, jwtVerify } from "jose";
-import { IToken } from "../entities/Token"
-import { initAdmin } from "@/firebase/admin";
-import { getFirestore } from "firebase-admin/firestore";
-import { RouteHandler, GuardContext } from "../app/api/types"
-import { memberConverter } from "../entities/firebase/MemberDoc"
+import { ACCESS_TOKEN } from '@/auth/cookies';
+import { cookies } from 'next/headers';
+import { verifyAccessToken } from '@/auth/service';
+import { initAdmin } from '@/firebase/admin';
+import { getFirestore } from 'firebase-admin/firestore';
+import { RouteHandler, GuardContext } from '../app/api/types';
+import { memberConverter } from '../entities/firebase/MemberDoc';
 
 initAdmin();
 const db = getFirestore();
 
-export function withMemberGuard(handler: Function) : RouteHandler {
+export function withMemberGuard(handler: Function): RouteHandler {
   return async (request: Request, context: GuardContext) => {
     try {
-      const spki = process.env.JWT_PUBLIC_KEY!.replace(/\\n/g, '\n');
-      const publicKey = await importSPKI(spki, 'RS256');
       const cookieStore = cookies();
       const token = cookieStore.get(ACCESS_TOKEN)?.value;
-      const { payload } = await jwtVerify<IToken>(token, publicKey, {
-        algorithms: ['RS256'],
-        clockTolerance: '5s',
-      });
-      const typedPayload = payload as IToken | undefined;
-      if (!typedPayload) {
+      const payload = token && verifyAccessToken(token);
+      if (!payload) {
         return NextResponse.redirect(new URL('/login', request.url));
       }
-      const uid = typedPayload.sub;
+      const uid = payload.sub;
       if (!uid) {
         return NextResponse.redirect(new URL('/login', request.url));
       }
 
-      context.decoded_payload = typedPayload;
+      context.decoded_payload = payload;
       const siteId = context.params?.siteId || process.env.NEXT_SITE_ID!;
       const members = db.collection('members').withConverter(memberConverter);
 
