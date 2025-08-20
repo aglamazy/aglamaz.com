@@ -13,9 +13,9 @@ const LANGS = [
   { code: 'tr', label: 'Türkçe', flag: '🇹🇷' },
 ];
 
-function getUserInitials(user: IUser) {
-  if (!user?.name) return 'U';
-  return user.name
+function getUserInitials(member: IMember) {
+  if (!member?.displayName) return 'U';
+  return member.displayName
     .split(' ')
     .map((n) => n[0])
     .join('')
@@ -107,7 +107,7 @@ export default function Header({ user, member, onLogout, siteInfo }: {
               className="h-8 w-8 rounded-full bg-sage-600 flex items-center justify-center text-white text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sage-500 transition-colors duration-200"
               aria-label="User menu"
             >
-              {getUserInitials(user)}
+              {getUserInitials(member)}
             </button>
             {isUserMenuOpen && (
               <div
