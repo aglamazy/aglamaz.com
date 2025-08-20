@@ -26,8 +26,7 @@ export default function SiteMembersPage() {
 
   useEffect(() => {
     if (!site?.id) return;
-    apiFetch(`/api/site/${site.id}/members`)
-      .then(res => res.json())
+    apiFetch<{ members: IMember[] }>(`/api/site/${site.id}/members`)
       .then(data => setMembers(data.members || []));
   }, [site?.id]);
 

@@ -11,11 +11,10 @@ export interface IUser {
 export class User {
   static async me(): Promise<IUser | null> {
     try {
-      const res = await apiFetch('/api/auth/me');
-
-      return res as IUser;
+      const res = await apiFetch<IUser>('/api/auth/me');
+      return res;
     } catch {
       return null;
     }
   }
-} 
+}

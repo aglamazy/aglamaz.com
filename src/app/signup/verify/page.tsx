@@ -27,18 +27,13 @@ export default function VerifySignupPage() {
 
       try {
         // Step 1: Verify the token with the server
-        const verifyResponse = await apiFetch('/api/signup/verify', {
+        await apiFetch<void>('/api/signup/verify', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({ token })
         });
-
-        if (!verifyResponse.ok) {
-          const errorData = await verifyResponse.json();
-          throw new Error(errorData.error || 'Verification failed');
-        }
 
         // Step 2: Authenticate with Firebase
         initFirebase();
@@ -59,21 +54,17 @@ export default function VerifySignupPage() {
         setUser(userData);
 
         // Step 3: Complete the verification with user ID
-        const completeResponse = await apiFetch('/api/signup/complete-verification', {
+        await apiFetch<void>('/api/signup/complete-verification', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${firebaseToken}`
           },
-          body: JSON.stringify({ 
+          body: JSON.stringify({
             token,
-            userId: result.user.uid 
+            userId: result.user.uid
           })
         });
-
-        if (!completeResponse.ok) {
-          throw new Error('Failed to complete verification');
-        }
 
         setStatus('success');
         setMessage('Email verified successfully! Your request is now pending admin approval.');

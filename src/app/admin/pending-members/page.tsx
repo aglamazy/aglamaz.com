@@ -42,8 +42,9 @@ export default function PendingMembersPage() {
   const fetchPendingMembers = async () => {
     try {
       setLoading(true);
-      const data = await apiFetch(`/api/user/${user?.user_id}/pending-members/${site?.id}`);
-
+      const data = await apiFetch<PendingMember[]>(
+        `/api/user/${user?.user_id}/pending-members/${site?.id}`,
+      );
       setPendingMembers(data || []);
     } catch (error) {
       setError(t('failedToLoadPendingMembers'));
@@ -64,33 +65,24 @@ export default function PendingMembersPage() {
     try {
       setActionLoading(memberId);
       setMessage(null);
-      const response = await apiFetch(`/api/user/${user?.user_id}/${action}-member?siteId=${site?.id}`, {
+      await apiFetch<void>(`/api/user/${user?.user_id}/${action}-member?siteId=${site?.id}`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ signupRequestId: memberId })
+        body: JSON.stringify({ signupRequestId: memberId }),
       });
 
-      const data = await response.json();
-
-      if (response.ok) {
-        setMessage({
-          type: 'success',
-          text: action === 'approve' ? t('memberApproved') : t('memberRejected')
-        });
-        // Remove the member from the list
-        setPendingMembers(prev => prev.filter(member => member.id !== memberId));
-      } else {
-        setMessage({
-          type: 'error',
-          text: data.error || t(action === 'approve' ? 'failedToApproveMember' : 'failedToRejectMember')
-        });
-      }
+      setMessage({
+        type: 'success',
+        text: action === 'approve' ? t('memberApproved') : t('memberRejected'),
+      });
+      // Remove the member from the list
+      setPendingMembers(prev => prev.filter(member => member.id !== memberId));
     } catch (error) {
       setMessage({
         type: 'error',
-        text: t(action === 'approve' ? 'failedToApproveMember' : 'failedToRejectMember')
+        text: t(action === 'approve' ? 'failedToApproveMember' : 'failedToRejectMember'),
       });
     } finally {
       setActionLoading(null);

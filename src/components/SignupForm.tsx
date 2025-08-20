@@ -48,25 +48,23 @@ export default function SignupForm({ onSuccess, onCancel }: SignupFormProps) {
 
     try {
       // Step 1: Send email verification request (no Firebase auth yet)
-      const response = await apiFetch('/api/signup/request-verification', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+      const data = await apiFetch<{ emailSent: boolean }>(
+        '/api/signup/request-verification',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            firstName: firstName.trim(),
+            email: email.trim(),
+            siteId: getSiteId(),
+          }),
         },
-        body: JSON.stringify({
-          firstName: firstName.trim(),
-          email: email.trim(),
-          siteId: getSiteId()
-        })
-      });
+      );
 
-      const data = await response.json();
-
-      if (response.ok) {
-        setIsSubmitted(true);
-      } else {
-        setError('לא ניתן להירשם כרגע. נסה שוב מאוחר יותר.');
-      }
+      setIsSubmitted(true);
+      setEmailSent(data.emailSent ?? false);
     } catch (error) {
       console.error('Signup error:', error);
       setError('Failed to send verification email. Please try again.');

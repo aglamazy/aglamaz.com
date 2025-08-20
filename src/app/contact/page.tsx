@@ -23,22 +23,17 @@ export default function ContactPage() {
     setIsLoading(true);
     setError('');
     try {
-      const res = await apiFetch('/api/contact', {
+      await apiFetch<void>('/api/contact', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: name.trim(), email: email.trim(), message: message.trim() })
       });
-      if (res.ok) {
-        setSuccess(true);
-        setName('');
-        setEmail('');
-        setMessage('');
-      } else {
-        const data = await res.json();
-        setError(data.error || 'Failed to submit');
-      }
+      setSuccess(true);
+      setName('');
+      setEmail('');
+      setMessage('');
     } catch (err) {
-      setError('Failed to submit');
+      setError(err instanceof Error ? err.message : 'Failed to submit');
     } finally {
       setIsLoading(false);
     }

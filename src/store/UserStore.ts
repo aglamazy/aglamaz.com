@@ -41,7 +41,7 @@ export const useUserStore = create<UserState>((set, get) => ({
     }
   },
   logout: async () => {
-    await apiFetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+    await apiFetch<void>('/api/auth/logout', { method: 'POST', credentials: 'include' });
     set({ user: null });
     const memberStore = useMemberStore.getState();
     memberStore.clearMember();

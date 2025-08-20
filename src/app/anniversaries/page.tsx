@@ -54,11 +54,8 @@ export default function AnniversariesPage() {
   const fetchEvents = async () => {
     setLoading(true);
     try {
-      const res = await apiFetch('/api/anniversaries');
-      if (res.ok) {
-        const data = await res.json();
-        setEvents(data.events || []);
-      }
+      const data = await apiFetch<{ events: AnniversaryEvent[] }>('/api/anniversaries');
+      setEvents(data.events || []);
     } finally {
       setLoading(false);
     }
@@ -137,31 +134,27 @@ export default function AnniversariesPage() {
       }
 
       const payload = { ...form, imageUrl };
-      let res: Response;
       if (editEvent) {
-        res = await apiFetch(`/api/anniversaries/${editEvent.id}`, {
+        await apiFetch<void>(`/api/anniversaries/${editEvent.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         });
       } else {
-        res = await apiFetch('/api/anniversaries', {
+        await apiFetch<void>('/api/anniversaries', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         });
       }
-      if (res.ok) {
-        setForm({ name: '', description: '', date: '', type: 'birthday', isAnnual: true, imageUrl: '' });
-        setImageFile(null);
-        setEditEvent(null);
-        setIsModalOpen(false);
-        setImageSrc('');
-        fetchEvents();
-      } else {
-        const data = await res.json();
-        setError(data.error || 'Failed to save');
-      }
+      setForm({ name: '', description: '', date: '', type: 'birthday', isAnnual: true, imageUrl: '' });
+      setImageFile(null);
+      setEditEvent(null);
+      setIsModalOpen(false);
+      setImageSrc('');
+      fetchEvents();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save');
     } finally {
       setSaving(false);
     }
@@ -170,7 +163,7 @@ export default function AnniversariesPage() {
   const handleDelete = async (id: string) => {
     try {
       if (!confirm('Are you sure?')) return;
-      await apiFetch(`/api/anniversaries/${id}`, { method: 'DELETE' });
+      await apiFetch<void>(`/api/anniversaries/${id}`, { method: 'DELETE' });
       setSelectedEvent(null);
       fetchEvents();
     } catch (err) {
