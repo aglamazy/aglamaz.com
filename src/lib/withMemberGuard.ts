@@ -8,20 +8,29 @@ import { RouteHandler, GuardContext } from '../app/api/types';
 import { memberConverter } from '../entities/firebase/MemberDoc';
 
 initAdmin();
-const db = getFirestore();
+let db = getFirestore();
+let getCookies = cookies;
+
+export function __setMockCookies(fn: typeof cookies) {
+  getCookies = fn;
+}
+
+export function __setMockDb(mockDb: any) {
+  db = mockDb;
+}
 
 export function withMemberGuard(handler: Function): RouteHandler {
   return async (request: Request, context: GuardContext) => {
     try {
-      const cookieStore = cookies();
+      const cookieStore = getCookies();
       const token = cookieStore.get(ACCESS_TOKEN)?.value;
       const payload = token && verifyAccessToken(token);
       if (!payload) {
-        return NextResponse.redirect(new URL('/login', request.url));
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
       }
       const uid = payload.sub;
       if (!uid) {
-        return NextResponse.redirect(new URL('/login', request.url));
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
       }
 
       context.decoded_payload = payload;
@@ -42,7 +51,7 @@ export function withMemberGuard(handler: Function): RouteHandler {
       return handler(request, context);
     } catch (error) {
       console.error(error);
-      return NextResponse.redirect(new URL('/login', request.url));
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
   };
 }
