@@ -18,15 +18,13 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  const token = request.cookies.get(ACCESS_TOKEN)?.value;
+  if (!token) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
-    const token = request.cookies.get(ACCESS_TOKEN)?.value;
-    const payload = token && verifyAccessToken(token);
-    if (!payload) {
-      if (path !== '/login') {
-        return NextResponse.redirect(new URL('/login', request.url));
-      }
-      return NextResponse.next();
-    }
+    await verifyAccessToken(token);
 
     if (path !== '/pending-member') {
       const siteId = process.env.NEXT_SITE_ID;
@@ -36,7 +34,7 @@ export async function middleware(request: NextRequest) {
       }
     }
   } catch (error) {
-    return NextResponse.redirect(new URL('/login', request.url));
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   return NextResponse.next();
 }
