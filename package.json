@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "tsx tests/auth.test.ts"
+    "test": "tsx tests/auth.test.ts && tsx tests/middleware.test.ts"
   },
   "dependencies": {
     "dotenv": "^17.2.1",
