@@ -9,6 +9,7 @@ import I18nProvider from './I18nProvider';
 import { useTranslation } from 'react-i18next';
 import { Loader } from "../components/ui/Loader";
 import I18nGate from "@/components/I18nGate";
+import { landingPage } from "@/app/settings";
 
 export default function ClientLayoutShell({ children }) {
   const { user, loading, logout, checkAuth } = useUserStore();
@@ -48,7 +49,7 @@ export default function ClientLayoutShell({ children }) {
 
   const handleLogout = async () => {
     await logout();
-    router.push('/login');
+    router.push(landingPage);
   };
 
   if (loading) {

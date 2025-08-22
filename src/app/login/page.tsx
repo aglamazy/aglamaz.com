@@ -35,7 +35,7 @@ export default function LoginPage() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ idToken }),
-          credentials: 'include',       // ✅ חשוב כדי שהדפדפן ישמור את ה-cookie
+          credentials: 'include',
         });
         if (!sessionRes.ok) throw new Error('Session creation failed');
 

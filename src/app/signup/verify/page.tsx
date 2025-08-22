@@ -7,6 +7,7 @@ import { initFirebase, auth, googleProvider } from '../../../firebase/client';
 import { signInWithPopup, getIdToken } from 'firebase/auth';
 import { useUserStore } from '../../../store/UserStore';
 import { apiFetch } from '@/utils/apiFetch';
+import { landingPage } from "@/app/settings";
 
 export default function VerifySignupPage() {
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
@@ -112,7 +113,7 @@ export default function VerifySignupPage() {
             {message}
           </p>
           <button
-            onClick={() => router.push('/login')}
+            onClick={() => router.push(landingPage)}
             className="w-full bg-gray-900 text-white py-2 rounded-lg font-semibold hover:bg-gray-800 transition"
           >
             חזור לדף הכניסה

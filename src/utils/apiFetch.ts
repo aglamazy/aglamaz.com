@@ -1,3 +1,5 @@
+import { landingPage } from "@/app/settings";
+
 let refreshPromise: Promise<Response> | null = null;
 
 function refreshOnce() {
@@ -38,8 +40,8 @@ export async function apiFetch<T = unknown>(
 
   // 3) Still unauthorized -> stop (no loops)
   if (res.status === 401) {
-    if (typeof window !== 'undefined' && location.pathname !== '/login') {
-      location.assign('/login');
+    if (typeof window !== 'undefined' && location.pathname !== landingPage) {
+      location.assign(landingPage);
     }
     throw new Error('Unauthorized (apiFetch)');
   }

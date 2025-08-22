@@ -1,6 +1,7 @@
 // utils/auth/verifyAccessToken.ts
 import { jwtVerify, importSPKI } from 'jose'
 import { NextRequest, NextResponse } from 'next/server';
+import { landingPage } from "@/app/settings";
 
 const ALG = 'RS256'
 
@@ -90,14 +91,14 @@ export async function apiFetchFromMiddleware(
 
   if (!refreshRes.ok) {
     // refresh failed → redirect to login
-    return NextResponse.redirect(new URL('/login', origin));
+    return NextResponse.redirect(new URL(landingPage, origin));
   }
 
   // 3) capture new cookies and retry original request WITH the refreshed cookies
   const setCookieHeader = refreshRes.headers.get('set-cookie') ?? '';
   if (!setCookieHeader) {
     // no cookies set by refresh → treat as failure
-    return NextResponse.redirect(new URL('/login', origin));
+    return NextResponse.redirect(new URL(landingPage, origin));
   }
 
   const refreshedCookie = extractCookieHeader(setCookieHeader);

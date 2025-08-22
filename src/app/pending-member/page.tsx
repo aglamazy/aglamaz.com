@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
 import { apiFetch } from '@/utils/apiFetch';
+import { landingPage } from "@/app/settings";
 
 export default function PendingMemberPage() {
   const { t, i18n } = useTranslation();
@@ -14,7 +15,7 @@ export default function PendingMemberPage() {
 
   const handleLogout = async () => {
     await apiFetch<void>('/api/logout', { method: 'POST' });
-    router.push('/login');
+    router.push(landingPage);
   };
 
   return (

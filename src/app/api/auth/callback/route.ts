@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { signAccessToken, signRefreshToken } from '@/auth/service';
 import { setAuthCookies } from '@/auth/cookies';
 import { FamilyRepository } from "@/repositories/FamilyRepository";
+import { landingPage } from "@/app/settings";
 
 export const dynamic = 'force-dynamic';
 
@@ -15,7 +16,7 @@ export async function GET(req: NextRequest) {
 
     if (!code || !state || state !== storedState || !codeVerifier) {
       console.error('OAuth callback state mismatch');
-      return NextResponse.redirect(new URL('/login', process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'));
+      return NextResponse.redirect(new URL(landingPage, process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'));
     }
 
     const tokenRes = await fetch(process.env.OAUTH_TOKEN_URL || '', {
@@ -32,7 +33,7 @@ export async function GET(req: NextRequest) {
 
     if (!tokenRes.ok) {
       console.error('Token exchange failed');
-      return NextResponse.redirect(new URL('/login', process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'));
+      return NextResponse.redirect(new URL(landingPage, process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'));
     }
 
     const tokenJson = await tokenRes.json();
@@ -57,6 +58,6 @@ export async function GET(req: NextRequest) {
     return res;
   } catch (err) {
     console.error('OAuth callback error', err);
-    return NextResponse.redirect(new URL('/login', process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'));
+    return NextResponse.redirect(new URL(landingPage, process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'));
   }
 }

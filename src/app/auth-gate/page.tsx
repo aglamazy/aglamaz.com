@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useSiteStore } from "@/store/SiteStore";
 import { useMemberStore } from "@/store/MemberStore";
 import { useUserStore } from "@/store/UserStore";
+import { landingPage } from "@/app/settings";
 
 export default function AuthGate() {
   const router = useRouter();
@@ -29,10 +30,10 @@ export default function AuthGate() {
           if (u?.user_id && siteId) await fetchMember(u.user_id, siteId);
           router.replace(originalUrl);
         } else {
-          router.replace('/login');
+          router.replace(landingPage);
         }
       } catch {
-        router.replace('/login');
+        router.replace(landingPage);
       }
     })();
   }, [router]);
