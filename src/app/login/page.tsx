@@ -45,7 +45,7 @@ export default function LoginPage() {
           user_id: result.user.uid,
         });
 
-        await router.replace('/');
+        await router.replace('/home');
       }
     } catch (e) {
       setError(t('googleLoginFailed'));
@@ -74,7 +74,7 @@ export default function LoginPage() {
           user_id: result.user.uid
         });
 
-        router.push("/");
+        router.push('/home');
       }
     } catch (error: any) {
       if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
