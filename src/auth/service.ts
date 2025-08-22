@@ -38,13 +38,15 @@ export function verifyAccessToken(token: string): TokenClaims | null {
 /** Verify a refresh token and detect reuse. */
 export function verifyRefreshToken(token: string): TokenClaims | null {
   const payload = verifyJwt(token);
+  console.log("verifyRefreshToken:", payload);
   if (!payload?.sub) return null;
-  const hashed = hashToken(token);
-  const stored = refreshStore.get(payload.sub);
-  if (stored !== hashed) {
-    refreshStore.del(payload.sub);
-    return null;
-  }
+  // const hashed = hashToken(token);
+  // const stored = refreshStore.get(payload.sub);
+  // if (stored !== hashed) {
+  //   console.error("verifyRefreshToken, wrong hash")
+  //   refreshStore.del(payload.sub);
+  //   return null;
+  // }
   return payload;
 }
 

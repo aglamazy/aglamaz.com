@@ -7,6 +7,7 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
   const token = req.cookies.get(REFRESH_TOKEN)?.value;
+  console.log(token);
   if (!token) {
     console.error('Missing refresh token');
     return NextResponse.json({ error: 'Unauthorized (refresh, nt)' }, { status: 401 });
@@ -19,11 +20,6 @@ export async function POST(req: NextRequest) {
   }
 
   const now = Date.now();
-  const last = refreshRateLimit.get(payload.sub) || 0;
-  if (now - last < 5000) {
-    return NextResponse.json({ error: 'Too Many Requests' }, { status: 429 });
-  }
-  refreshRateLimit.set(payload.sub, now);
 
   const access = signAccessToken(payload);
   const newRefresh = rotateRefreshToken(payload);

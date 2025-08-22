@@ -3,6 +3,8 @@ const isProd = process.env.NODE_ENV === 'production';
 
 export const ACCESS_TOKEN = 'access_token';
 export const REFRESH_TOKEN = 'refresh_token';
+const AccessMinutes = 1;
+const RefreshDays = 30;
 
 /** Set auth cookies for access and optional refresh tokens. */
 export function setAuthCookies(res: NextResponse, access: string, refresh?: string) {
@@ -11,6 +13,7 @@ export function setAuthCookies(res: NextResponse, access: string, refresh?: stri
     secure: isProd,
     path: '/',
     sameSite: 'lax',
+    maxAge: 60 * AccessMinutes
   });
   if (refresh) {
     res.cookies.set(REFRESH_TOKEN, refresh, {
@@ -18,6 +21,7 @@ export function setAuthCookies(res: NextResponse, access: string, refresh?: stri
       secure: isProd,
       path: '/api/auth/refresh',
       sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * RefreshDays
     });
   }
 }

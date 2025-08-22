@@ -10,7 +10,6 @@ export interface SiteStore {
 const readBootstrapSiteInfo = (): ISite | null => {
   if (typeof window === 'undefined') return null; // SSR guard
   const w = window as any;
-  console.log("bootstrapSiteInfo", w.__SITE_INFO__);
   if (w.__SITE_INFO__) return w.__SITE_INFO__ as ISite;
 
   return null;
