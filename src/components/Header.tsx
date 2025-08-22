@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { IUser } from "@/entities/User";
 import { IMember } from "@/entities/Member";
 import { ISite } from "@/entities/Site";
+import { useLoginModalStore } from '@/store/LoginModalStore';
 
 const LANGS = [
   { code: 'he', label: 'עברית', flag: '🇮🇱' },
@@ -35,6 +36,7 @@ export default function Header({ user, member, onLogout, siteInfo }: {
   const { i18n, t } = useTranslation();
   const userMenuRef = useRef(null);
   const router = useRouter();
+  const openLogin = useLoginModalStore((s) => s.open);
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -100,7 +102,7 @@ export default function Header({ user, member, onLogout, siteInfo }: {
           )}
         </div>
         {/* Avatar + User Menu */}
-        {user && (
+        {user ? (
           <div className="hidden md:block relative" ref={userMenuRef}>
             <button
               onClick={() => setIsUserMenuOpen((v) => !v)}
@@ -162,6 +164,13 @@ export default function Header({ user, member, onLogout, siteInfo }: {
               </div>
             )}
           </div>
+        ) : (
+          <button
+            onClick={openLogin}
+            className="h-8 px-3 rounded-full bg-sage-600 text-white text-sm"
+          >
+            {t('signIn')}
+          </button>
         )}
       </div>
     </header>

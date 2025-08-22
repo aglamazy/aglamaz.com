@@ -10,6 +10,9 @@ import { useTranslation } from 'react-i18next';
 import { Loader } from "../components/ui/Loader";
 import I18nGate from "@/components/I18nGate";
 import { landingPage } from "@/app/settings";
+import Modal from '@/components/ui/Modal';
+import LoginPage from '@/components/LoginPage';
+import { useLoginModalStore } from '@/store/LoginModalStore';
 
 export default function ClientLayoutShell({ children }) {
   const { user, loading, logout, checkAuth } = useUserStore();
@@ -18,6 +21,7 @@ export default function ClientLayoutShell({ children }) {
   const member = useMemberStore((state) => state.member);
   const router = useRouter();
   const { t, i18n } = useTranslation();
+  const { isOpen: isLoginOpen, close: closeLogin } = useLoginModalStore();
 
   const { fetchMember } = useMemberStore();
 
@@ -101,6 +105,9 @@ export default function ClientLayoutShell({ children }) {
           />
         ) : null}
         {children}
+        <Modal isOpen={isLoginOpen} onClose={closeLogin}>
+          <LoginPage />
+        </Modal>
       </div>
       </I18nGate>
     </I18nProvider>
