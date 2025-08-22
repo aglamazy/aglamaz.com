@@ -2,9 +2,16 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSiteStore } from "@/store/SiteStore";
+import { useMemberStore } from "@/store/MemberStore";
+import { useUserStore } from "@/store/UserStore";
 
 export default function AuthGate() {
   const router = useRouter();
+
+  const { checkAuth } = useUserStore();
+  const { fetchMember } = useMemberStore();
+  const siteId = useSiteStore(s => s.siteInfo?.id);
 
   useEffect(() => {
     const originalUrl = typeof window !== 'undefined' ? window.location.pathname + window.location.search : '/';
@@ -17,6 +24,9 @@ export default function AuthGate() {
           headers: { 'Content-Type': 'application/json' },
         });
         if (res.ok) {
+          await checkAuth();
+          const u = useUserStore.getState().user;
+          if (u?.user_id && siteId) await fetchMember(u.user_id, siteId);
           router.replace(originalUrl);
         } else {
           router.replace('/login');
