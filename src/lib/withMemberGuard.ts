@@ -26,11 +26,11 @@ export function withMemberGuard(handler: Function): RouteHandler {
       const token = cookieStore.get(ACCESS_TOKEN)?.value;
       const payload = token && verifyAccessToken(token);
       if (!payload) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        return NextResponse.json({ error: 'Unauthorized (withMG, np)' }, { status: 401 });
       }
       const uid = payload.sub;
       if (!uid) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        return NextResponse.json({ error: 'Unauthorized (withMG)' }, { status: 401 });
       }
 
       context.decoded_payload = payload;
@@ -51,7 +51,7 @@ export function withMemberGuard(handler: Function): RouteHandler {
       return handler(request, context);
     } catch (error) {
       console.error(error);
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: 'Unauthorized (withMG, error)' }, { status: 401 });
     }
   };
 }

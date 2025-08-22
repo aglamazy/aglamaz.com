@@ -2,12 +2,15 @@ import './globals.css';
 import ClientLayoutShell from '../components/ClientLayoutShell';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { fetchSiteInfo } from '../firebase/admin';
+import { headers } from 'next/headers';
 
 export default async function RootLayout({ children }) {
   let siteInfo = null;
+  const h = headers();
+  const isAuthGate = h.get('x-auth-gate') === '1';
 
   try {
-    siteInfo = await fetchSiteInfo();
+    if (!isAuthGate) siteInfo = await fetchSiteInfo();
   } catch (error) {
     console.error('Failed to fetch site info:', error);
     siteInfo = { name: 'Family' }; // fallback
@@ -23,10 +26,12 @@ export default async function RootLayout({ children }) {
             __html: `window.__SITE_INFO__=${JSON.stringify(siteInfo || {})};`,
           }}
         />
-        <ErrorBoundary>
+        <ErrorBoundary>{
+          isAuthGate ? <>{children}</> :
           <ClientLayoutShell>
             {children}
           </ClientLayoutShell>
+        }
         </ErrorBoundary>
       </body>
     </html>

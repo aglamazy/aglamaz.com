@@ -9,22 +9,24 @@ const PUBLIC_PATHS = [
   '/_next',
   '/pending-member',
   '/locales',
-  '/_auth-gate',
+  '/auth-gate',
 ];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isPublic = PUBLIC_PATHS.some(p => pathname === p || pathname.startsWith(p + '/'));
-  if (isPublic) return NextResponse.next();
+  if (isPublic) {
+    return NextResponse.next();
+  }
 
   const isApi = pathname.startsWith('/api');
 
   const token = request.cookies.get(ACCESS_TOKEN)?.value;
   if (!token) {
     if (isApi) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: 'Unauthorized (middleware)' }, { status: 401 });
     }
-    return NextResponse.rewrite(new URL('/_auth-gate', request.url));
+    return NextResponse.rewrite(new URL('/auth-gate', request.url));
   }
 
   try {
@@ -42,9 +44,16 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   } catch {
     if (isApi) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: 'Unauthorized (api)' }, { status: 401 });
     }
-    return NextResponse.rewrite(new URL('/_auth-gate', request.url));
+
+    const url = request.nextUrl.clone();
+    url.pathname = '/auth-gate';
+
+    const headers = new Headers(request.headers);
+    headers.set('x-auth-gate', '1');
+
+    return NextResponse.rewrite(url, { request: { headers } });
   }
 }
 
