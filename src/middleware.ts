@@ -8,35 +8,44 @@ const PUBLIC_PATHS = [
   '/favicon.ico',
   '/_next',
   '/pending-member',
-  '/locales'
+  '/locales',
+  '/_auth-gate',
 ];
 
 export async function middleware(request: NextRequest) {
-  const path = request.nextUrl.pathname;
+  const { pathname } = request.nextUrl;
+  const isPublic = PUBLIC_PATHS.some(p => pathname === p || pathname.startsWith(p + '/'));
+  if (isPublic) return NextResponse.next();
 
-  if (PUBLIC_PATHS.some(p => path === p || path.startsWith(p + '/'))) {
-    return NextResponse.next();
-  }
+  const isApi = pathname.startsWith('/api');
 
   const token = request.cookies.get(ACCESS_TOKEN)?.value;
   if (!token) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (isApi) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    return NextResponse.rewrite(new URL('/_auth-gate', request.url));
   }
 
   try {
     await verifyAccessToken(token);
 
-    if (path !== '/pending-member') {
-      const siteId = process.env.NEXT_SITE_ID;
+    if (pathname !== '/pending-member') {
+      const siteId = process.env.NEXT_SITE_ID!;
       const memberRes = await apiFetchFromMiddlewareJSON(request, `/api/user/member-info?siteId=${siteId}`);
-      if (!(memberRes.success && memberRes.member && ['member', 'admin'].includes(memberRes.member.role))) {
+      const ok = memberRes?.success && memberRes?.member && ['member', 'admin'].includes(memberRes.member.role);
+      if (!ok) {
         return NextResponse.redirect(new URL('/pending-member', request.url));
       }
     }
-  } catch (error) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    return NextResponse.next();
+  } catch {
+    if (isApi) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    return NextResponse.rewrite(new URL('/_auth-gate', request.url));
   }
-  return NextResponse.next();
 }
 
 export const config = {

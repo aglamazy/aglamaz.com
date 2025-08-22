@@ -17,9 +17,20 @@ const claims = {
   lastName: 'User',
 };
 
-async function testExpiredToken() {
+async function testExpiredTokenPageRewrite() {
   const expired = signAccessToken(claims, -1);
   const req = new NextRequest('https://example.com/protected', {
+    headers: { cookie: `${ACCESS_TOKEN}=${expired}` }
+  });
+  const { middleware } = await import('../src/middleware');
+  const res = await middleware(req);
+  assert.equal(res.headers.get('x-middleware-rewrite'), 'https://example.com/_auth-gate');
+  console.log('expired token page rewrite test passed');
+}
+
+async function testExpiredTokenApiUnauthorized() {
+  const expired = signAccessToken(claims, -1);
+  const req = new NextRequest('https://example.com/api/data', {
     headers: { cookie: `${ACCESS_TOKEN}=${expired}` }
   });
   const { middleware } = await import('../src/middleware');
@@ -27,11 +38,12 @@ async function testExpiredToken() {
   assert.equal(res.status, 401);
   const data = await res.json();
   assert.deepEqual(data, { error: 'Unauthorized' });
-  console.log('expired token test passed');
+  console.log('expired token api test passed');
 }
 
 async function run() {
-  await testExpiredToken();
+  await testExpiredTokenPageRewrite();
+  await testExpiredTokenApiUnauthorized();
 }
 
 run();
