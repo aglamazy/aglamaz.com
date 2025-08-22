@@ -7,7 +7,6 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
   const token = req.cookies.get(REFRESH_TOKEN)?.value;
-  console.log(token);
   if (!token) {
     console.error('Missing refresh token');
     return NextResponse.json({ error: 'Unauthorized (refresh, nt)' }, { status: 401 });
