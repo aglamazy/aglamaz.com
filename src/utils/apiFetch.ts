@@ -41,7 +41,7 @@ export async function apiFetch<T = unknown>(
     if (typeof window !== 'undefined' && location.pathname !== '/login') {
       location.assign('/login');
     }
-    throw new Error('Unauthorized');
+    throw new Error('Unauthorized (apiFetch)');
   }
 
   if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
