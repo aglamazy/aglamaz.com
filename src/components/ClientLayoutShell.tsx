@@ -21,13 +21,20 @@ export default function ClientLayoutShell({ children }) {
   const member = useMemberStore((state) => state.member);
   const router = useRouter();
   const { t, i18n } = useTranslation();
-  const { isOpen: isLoginOpen, close: closeLogin } = useLoginModalStore();
+  const { isOpen: isLoginOpen, close: closeLogin, open: openLogin } = useLoginModalStore();
 
   const { fetchMember } = useMemberStore();
 
   useEffect(() => {
-    checkAuth();
-  }, [checkAuth])
+    checkAuth()
+      .then(() => {
+        if (!useUserStore.getState().user) openLogin();
+      })
+      .catch((err) => {
+        openLogin();
+        throw err;
+      });
+  }, [checkAuth, openLogin]);
 
   useEffect(() => {
     if (!user?.user_id || !siteInfo?.id) return;

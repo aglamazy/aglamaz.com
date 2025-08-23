@@ -1,6 +1,7 @@
 'use client';
 
-import React from "react";
+import React, { useEffect } from "react";
+import { useSearchParams } from 'next/navigation';
 import WelcomeHero from "./WelcomeHero";
 import FamilyOverview from "../FamilyOverview";
 import { useUserStore } from "@/store/UserStore";
@@ -11,6 +12,13 @@ export default function Home() {
     const { t } = useTranslation();
     const { user, loading } = useUserStore();
     const openLogin = useLoginModalStore((s) => s.open);
+    const searchParams = useSearchParams();
+
+    useEffect(() => {
+        if (searchParams.get('login') === '1') {
+            openLogin();
+        }
+    }, [searchParams, openLogin]);
 
     if (loading) {
         return (
