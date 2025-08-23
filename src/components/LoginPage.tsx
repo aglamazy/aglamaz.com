@@ -8,6 +8,7 @@ import { initFirebase, auth, googleProvider } from '@/firebase/client';
 import { signInWithPopup, getIdToken, signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { useSiteStore } from '@/store/SiteStore';
 import { useUserStore } from '@/store/UserStore';
+import { useLoginModalStore } from '@/store/LoginModalStore';
 import SignupForm from '@/components/SignupForm';
 import { useTranslation } from 'react-i18next';
 
@@ -21,6 +22,7 @@ export default function LoginPage() {
   const { siteInfo } = useSiteStore();
   const { setUser } = useUserStore();
   const { t } = useTranslation();
+  const { close: closeLogin } = useLoginModalStore();
 
   const handleGoogleLogin = async () => {
     try {
@@ -47,6 +49,7 @@ export default function LoginPage() {
         });
 
         await router.replace('/');
+        closeLogin();
       }
     } catch (e) {
       setError(t('googleLoginFailed'));
@@ -76,6 +79,7 @@ export default function LoginPage() {
         });
 
         router.push('/');
+        closeLogin();
       }
     } catch (error: any) {
       if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
