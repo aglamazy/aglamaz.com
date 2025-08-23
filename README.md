@@ -15,3 +15,4 @@ This is a minimal Next.js 14 application demonstrating Firebase Authentication w
 - Google and Facebook sign-in using Firebase Authentication
 - Middleware protection for routes under `/private`
 - Server-side token verification using Firebase Admin SDK
+- Public routes allow anonymous access, but if a request includes an access token the middleware validates and refreshes it to keep the session alive

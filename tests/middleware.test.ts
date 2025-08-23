@@ -4,6 +4,7 @@ import { NextRequest } from 'next/server.js';
 
 import { ACCESS_TOKEN } from '../src/auth/cookies';
 import { signAccessToken } from '../src/auth/service';
+import { landingPage } from '../src/app/settings';
 
 const { privateKey, publicKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
 process.env.JWT_PRIVATE_KEY = privateKey.export({ type: 'pkcs1', format: 'pem' }).toString();
@@ -28,6 +29,17 @@ async function testExpiredTokenPageRewrite() {
   console.log('expired token page rewrite test passed');
 }
 
+async function testLandingPageExpiredTokenRefresh() {
+  const expired = signAccessToken(claims, -1);
+  const req = new NextRequest(`https://example.com${landingPage}`, {
+    headers: { cookie: `${ACCESS_TOKEN}=${expired}` }
+  });
+  const { middleware } = await import('../src/middleware');
+  const res = await middleware(req);
+  assert.equal(res.headers.get('x-middleware-rewrite'), 'https://example.com/auth-gate');
+  console.log('landing page expired token refresh test passed');
+}
+
 async function testExpiredTokenApiUnauthorized() {
   const expired = signAccessToken(claims, -1);
   const req = new NextRequest('https://example.com/api/data', {
@@ -42,6 +54,7 @@ async function testExpiredTokenApiUnauthorized() {
 }
 
 async function run() {
+  await testLandingPageExpiredTokenRefresh();
   await testExpiredTokenPageRewrite();
   await testExpiredTokenApiUnauthorized();
 }

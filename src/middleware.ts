@@ -16,14 +16,16 @@ const PUBLIC_PATHS = [
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const token = request.cookies.get(ACCESS_TOKEN)?.value;
   const isPublic = PUBLIC_PATHS.some(p => pathname === p || pathname.startsWith(p + '/'));
-  if (isPublic) {
+
+  // Only skip auth for public paths when no token is present
+  if (!token && isPublic) {
     return NextResponse.next();
   }
 
   const isApi = pathname.startsWith('/api');
 
-  const token = request.cookies.get(ACCESS_TOKEN)?.value;
   if (!token) {
     if (isApi) {
       return NextResponse.json({ error: 'Unauthorized (middleware)' }, { status: 401 });
@@ -34,7 +36,7 @@ export async function middleware(request: NextRequest) {
   try {
     await verifyAccessToken(token);
 
-    if (pathname !== '/pending-member') {
+    if (!isPublic && pathname !== '/pending-member') {
       const siteId = process.env.NEXT_SITE_ID!;
       const memberRes = await apiFetchFromMiddlewareJSON(request, `/api/user/member-info?siteId=${siteId}`);
       const ok = memberRes?.success && memberRes?.member && ['member', 'admin'].includes(memberRes.member.role);
