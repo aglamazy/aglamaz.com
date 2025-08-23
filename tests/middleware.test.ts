@@ -24,7 +24,7 @@ async function testExpiredTokenPageRewrite() {
   });
   const { middleware } = await import('../src/middleware');
   const res = await middleware(req);
-  assert.equal(res.headers.get('x-middleware-rewrite'), 'https://example.com/_auth-gate');
+  assert.equal(res.headers.get('x-middleware-rewrite'), 'https://example.com/auth-gate');
   console.log('expired token page rewrite test passed');
 }
 
@@ -37,7 +37,7 @@ async function testExpiredTokenApiUnauthorized() {
   const res = await middleware(req);
   assert.equal(res.status, 401);
   const data = await res.json();
-  assert.deepEqual(data, { error: 'Unauthorized' });
+  assert.deepEqual(data, { error: 'Unauthorized (api)' });
   console.log('expired token api test passed');
 }
 
