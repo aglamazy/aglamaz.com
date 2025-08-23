@@ -1,10 +1,9 @@
 import { ACCESS_TOKEN } from '@/auth/cookies';
 import { apiFetchFromMiddlewareJSON, verifyAccessToken } from 'src/lib/edgeAuth';
 import { NextRequest, NextResponse } from 'next/server';
-import { landingPage } from "@/app/settings";
 
 const PUBLIC_PATHS = [
-  landingPage,
+  '/',
   '/login',
   '/contact',
   '/favicon.ico',
