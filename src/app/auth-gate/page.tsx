@@ -12,6 +12,7 @@ export default function AuthGate() {
   const { checkAuth } = useUserStore();
   const { fetchMember } = useMemberStore();
   const siteId = useSiteStore(s => s.siteInfo?.id);
+  const loginUrl = '/app?login=1';
 
   useEffect(() => {
     const originalUrl = typeof window !== 'undefined' ? window.location.pathname + window.location.search : '/';
@@ -29,10 +30,10 @@ export default function AuthGate() {
           if (u?.user_id && siteId) await fetchMember(u.user_id, siteId);
           router.replace(originalUrl);
         } else {
-          router.replace('/app?login=1');
+          router.replace(loginUrl);
         }
       } catch (err) {
-        router.replace('/app?login=1');
+        router.replace(loginUrl);
         throw err;
       }
     })();
