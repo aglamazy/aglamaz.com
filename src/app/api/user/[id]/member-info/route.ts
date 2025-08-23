@@ -1,5 +1,5 @@
 import { FamilyRepository } from '@/repositories/FamilyRepository';
-import { withMemberGuard } from "@/lib/withMemberGuard";
+import { withUserGuard } from "@/lib/withUserGuard";
 import { GuardContext } from '@/app/api/types';
 
 export const dynamic = 'force-dynamic';
@@ -23,4 +23,4 @@ const handler = async (request: Request, context: GuardContext) => {
   }
 };
 
-export const GET = withMemberGuard(handler);
+export const GET = withUserGuard(handler);

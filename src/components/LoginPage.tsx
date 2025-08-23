@@ -48,7 +48,7 @@ export default function LoginPage() {
           user_id: result.user.uid,
         });
 
-        await router.replace('/');
+        await router.replace('/app');
         closeLogin();
       }
     } catch (e) {
