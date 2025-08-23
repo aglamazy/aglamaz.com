@@ -9,7 +9,6 @@ const PUBLIC_PATHS = [
   '/contact',
   '/favicon.ico',
   '/_next',
-  '/pending-member',
   '/locales',
   '/auth-gate',
 ];
