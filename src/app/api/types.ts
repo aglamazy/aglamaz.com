@@ -1,6 +1,7 @@
 import { TokenClaims } from '@/auth/tokens';
 export interface RouteParams {
   siteId?: string;
+  id?: string;
 }
 
 export interface MemberDoc {
@@ -12,7 +13,7 @@ export interface MemberDoc {
 
 export interface GuardContext {
   params?: RouteParams;
-  decoded_payload?: TokenClaims;
+  user?: TokenClaims;
   member?: MemberDoc;
 }
 

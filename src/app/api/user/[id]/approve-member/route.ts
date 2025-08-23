@@ -2,10 +2,11 @@ import { withAdminGuard } from '@/lib/withAdminGuard';
 import { FamilyRepository } from '@/repositories/FamilyRepository';
 import type { IMember } from '@/entities/Member';
 import { userNotificationService } from '@/services/UserNotificationService';
+import { GuardContext } from '@/app/api/types';
 
 export const dynamic = 'force-dynamic';
 
-const handler = async (request: Request, context: any, user: any, member: any) => {
+const handler = async (request: Request, context: GuardContext) => {
   try {
     const { id } = context.params;
     const { signupRequestId } = await request.json();

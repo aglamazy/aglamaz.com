@@ -19,7 +19,7 @@ export function __setMockDb(mockDb: any) {
   db = mockDb;
 }
 
-export function withMemberGuard(handler: Function): RouteHandler {
+export function withMemberGuard(handler: RouteHandler): RouteHandler {
   return async (request: Request, context: GuardContext) => {
     try {
       const cookieStore = getCookies();
@@ -33,7 +33,7 @@ export function withMemberGuard(handler: Function): RouteHandler {
         return NextResponse.json({ error: 'Unauthorized (withMG)' }, { status: 401 });
       }
 
-      context.decoded_payload = payload;
+      context.user = payload;
       const siteId = context.params?.siteId || process.env.NEXT_SITE_ID!;
       const members = db.collection('members').withConverter(memberConverter);
 

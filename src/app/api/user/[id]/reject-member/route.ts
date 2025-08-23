@@ -1,17 +1,17 @@
 import { withAdminGuard } from '@/lib/withAdminGuard';
 import { FamilyRepository } from '@/repositories/FamilyRepository';
+import { GuardContext } from '@/app/api/types';
 
 export const dynamic = 'force-dynamic';
 
-const handler = async (request: Request, context: any, user: any, member: any) => {
+const handler = async (request: Request, context: GuardContext) => {
   try {
-    const { id } = context.params;
+    const { id } = context.params!;
     const { signupRequestId } = await request.json();
     if (!signupRequestId) {
       return Response.json({ error: 'Missing signupRequestId' }, { status: 400 });
     }
     const familyRepository = new FamilyRepository();
-    // Mark the signup request as rejected
     await familyRepository.markSignupRequestRejected(signupRequestId);
     return Response.json({ success: true });
   } catch (error) {
@@ -19,4 +19,4 @@ const handler = async (request: Request, context: any, user: any, member: any) =
   }
 };
 
-export const POST = withAdminGuard(handler); 
+export const POST = withAdminGuard(handler);

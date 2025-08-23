@@ -33,7 +33,7 @@ async function testExpiredToken() {
   const res = await guarded(new Request('https://example.com'), {} as any);
   assert.equal(res.status, 401);
   const data = await res.json();
-  assert.equal(data.error, 'Unauthorized');
+  assert.equal(data.error, 'Unauthorized (withMG, np)');
   assert.equal(called, false);
   console.log('expired token test passed');
 }
@@ -53,13 +53,22 @@ async function testValidToken() {
   };
   __setMockDb({ collection: () => members });
   let called = false;
-  const handler = () => { called = true; return NextResponse.json({ ok: true }); };
+  let capturedUser: any;
+  let capturedMember: any;
+  const handler = (_req: Request, ctx: any) => {
+    called = true;
+    capturedUser = ctx.user;
+    capturedMember = ctx.member;
+    return NextResponse.json({ ok: true });
+  };
   const guarded = withMemberGuard(handler);
   const res = await guarded(new Request('https://example.com'), {} as any);
   assert.equal(res.status, 200);
   const data = await res.json();
   assert.equal(data.ok, true);
   assert.equal(called, true);
+  assert.equal(capturedUser.userId, 'user1');
+  assert.equal(capturedMember.uid, 'user1');
   console.log('valid token test passed');
 }
 

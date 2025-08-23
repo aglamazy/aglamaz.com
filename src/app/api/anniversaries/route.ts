@@ -1,10 +1,12 @@
 import { withMemberGuard } from '@/lib/withMemberGuard';
 import { AnniversaryRepository } from '@/repositories/AnniversaryRepository';
+import { GuardContext } from '@/app/api/types';
 
 export const dynamic = 'force-dynamic';
 
-const getHandler = async (request: Request, context: any, user: any, member: any) => {
+const getHandler = async (request: Request, context: GuardContext) => {
   try {
+    const member = context.member!;
     const url = new URL(request.url);
     const monthParam = url.searchParams.get('month');
     const now = new Date();
@@ -19,8 +21,10 @@ const getHandler = async (request: Request, context: any, user: any, member: any
   }
 };
 
-const postHandler = async (request: Request, context: any, user: any, member: any) => {
+const postHandler = async (request: Request, context: GuardContext) => {
   try {
+    const user = context.user!;
+    const member = context.member!;
     const body = await request.json();
     const { name, description, type, date, isAnnual, imageUrl } = body;
     if (!name || !date || !type) {
@@ -29,13 +33,13 @@ const postHandler = async (request: Request, context: any, user: any, member: an
     const repo = new AnniversaryRepository();
     const event = await repo.create({
       siteId: member.siteId,
-      ownerId: user.uid,
+      ownerId: user.userId,
       name,
       description,
       type,
       date: new Date(date),
       isAnnual: Boolean(isAnnual),
-      createdBy: user.uid,
+      createdBy: user.userId,
       imageUrl,
     });
     return Response.json({ event }, { status: 201 });

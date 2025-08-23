@@ -1,11 +1,12 @@
 import { FamilyRepository } from '@/repositories/FamilyRepository';
-import {withMemberGuard} from "@/lib/withMemberGuard";
+import { withMemberGuard } from "@/lib/withMemberGuard";
+import { GuardContext } from '@/app/api/types';
 
 export const dynamic = 'force-dynamic';
 
-const handler = async (request: Request, context: any, user: any, member: any) => {
+const handler = async (request: Request, context: GuardContext) => {
   try {
-    const { id } = context.params;
+    const { id } = context.params!;
     const url = new URL(request.url);
     const siteId = url.searchParams.get('siteId');
     if (!siteId) {
