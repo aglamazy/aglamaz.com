@@ -1,5 +1,5 @@
 import { ACCESS_TOKEN } from '@/auth/cookies';
-import { apiFetchFromMiddlewareJSON, verifyAccessToken } from 'src/lib/edgeAuth';
+import { apiFetchFromMiddleware, verifyAccessToken } from 'src/lib/edgeAuth';
 import { NextRequest, NextResponse } from 'next/server';
 import { landingPage } from "@/app/settings";
 
@@ -36,7 +36,21 @@ export async function middleware(request: NextRequest) {
 
     if (pathname !== '/pending-member') {
       const siteId = process.env.NEXT_SITE_ID!;
-      const memberRes = await apiFetchFromMiddlewareJSON(request, `/api/user/member-info?siteId=${siteId}`);
+      const res = await apiFetchFromMiddleware(request, `/api/user/member-info?siteId=${siteId}`);
+
+      if (res instanceof NextResponse) {
+        return res;
+      }
+
+      if (res.status === 404) {
+        return NextResponse.redirect(new URL('/pending-member', request.url));
+      }
+
+      if (!res.ok) {
+        throw new Error(`Request failed ${res.status} ${res.statusText}`);
+      }
+
+      const memberRes = await res.json();
       const ok = memberRes?.success && memberRes?.member && ['member', 'admin'].includes(memberRes.member.role);
       if (!ok) {
         return NextResponse.redirect(new URL('/pending-member', request.url));
