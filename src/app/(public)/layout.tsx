@@ -1,7 +1,7 @@
 import '../globals.css';
 import I18nProvider from '../../components/I18nProvider';
 import I18nGate from '../../components/I18nGate';
-import PublicHeader from '../../components/PublicHeader';
+import Header from '../../components/Header';
 import { fetchSiteInfo } from '../../firebase/admin';
 
 export default async function PublicLayout({ children }: { children: React.ReactNode }) {
@@ -47,7 +47,7 @@ export default async function PublicLayout({ children }: { children: React.React
             .hover\\:bg-sage-700:hover { background-color: var(--sage-700); }
             .hover\\:border-sage-300:hover { border-color: var(--sage-300); }
           `}</style>
-          <PublicHeader siteInfo={siteInfo} />
+          <Header siteInfo={siteInfo} />
           {children}
         </div>
       </I18nGate>

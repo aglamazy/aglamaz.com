@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useRef, useEffect } from "react";
 import Navigation from "@/components/Navigation";
 import { useTranslation } from 'react-i18next';
@@ -14,7 +16,7 @@ const LANGS = [
   { code: 'tr', label: 'Türkçe', flag: '🇹🇷' },
 ];
 
-function getUserInitials(member: IMember) {
+function getUserInitials(member?: IMember) {
   if (!member?.displayName) return 'U';
   return member.displayName
     .split(' ')
@@ -24,12 +26,14 @@ function getUserInitials(member: IMember) {
     .slice(0, 2);
 }
 
-export default function Header({ user, member, onLogout, siteInfo }: {
-  user: IUser,
-  member: IMember,
-  onLogout: any,
-  siteInfo: ISite
-}) {
+interface HeaderProps {
+  user?: IUser;
+  member?: IMember;
+  onLogout?: () => void;
+  siteInfo: ISite;
+}
+
+export default function Header({ user, member, onLogout, siteInfo }: HeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isLangMenuOpen, setIsLangMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
@@ -69,7 +73,7 @@ export default function Header({ user, member, onLogout, siteInfo }: {
       </div>
       {/* Center: Navigation */}
       <div className="flex flex-row items-center">
-        {member && (member as any).role !== 'pending' && (
+        {user && member && onLogout && member.role !== 'pending' && (
           <Navigation user={user} onLogout={onLogout} setMobileMenuOpen={setMobileMenuOpen}/>
         )}
       </div>
@@ -102,7 +106,7 @@ export default function Header({ user, member, onLogout, siteInfo }: {
           )}
         </div>
         {/* Avatar + User Menu */}
-        {user ? (
+        {user && member && onLogout ? (
           <div className="hidden md:block relative" ref={userMenuRef}>
             <button
               onClick={() => setIsUserMenuOpen((v) => !v)}
@@ -153,7 +157,7 @@ export default function Header({ user, member, onLogout, siteInfo }: {
                   <button
                     onClick={() => {
                       setIsUserMenuOpen(false);
-                      onLogout();
+                      onLogout?.();
                     }}
                     className="flex items-center w-full px-4 py-2 text-sm text-sage-700 hover:bg-sage-50 transition-colors duration-200"
                   >

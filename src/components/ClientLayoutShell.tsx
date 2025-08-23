@@ -4,7 +4,7 @@ import { useSiteStore } from '../store/SiteStore';
 import { useUserStore } from '../store/UserStore';
 import { useRouter } from "next/navigation";
 import { useMemberStore } from '../store/MemberStore';
-import Header from "./Header";
+import Header from "@/components/Header";
 import I18nProvider from './I18nProvider';
 import { useTranslation } from 'react-i18next';
 import { Loader } from "../components/ui/Loader";
