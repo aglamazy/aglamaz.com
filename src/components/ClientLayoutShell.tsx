@@ -30,10 +30,13 @@ export default function ClientLayoutShell({ children }) {
   }, [checkAuth])
 
   useEffect(() => {
-    if (user?.user_id && siteInfo?.id) {
-      fetchMember(user.user_id, siteInfo.id);
-    }
-  }, [user?.user_id, siteInfo?.id, fetchMember]);
+    if (!user?.user_id || !siteInfo?.id) return;
+
+    (async () => {
+      const ok = await fetchMember(user.user_id, siteInfo.id);
+      if (!ok) router.replace("/pending-member");
+    })();
+  }, [user?.user_id, siteInfo?.id, fetchMember, router]);
 
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -66,7 +69,7 @@ export default function ClientLayoutShell({ children }) {
     <I18nProvider>
       <I18nGate>
         <div className="min-h-screen bg-gradient-to-br from-cream-50 to-sage-50">
-        <style>{`
+          <style>{`
           :root {
             --cream-50: #FEFCF8;
             --cream-100: #FDF8F0;
@@ -96,19 +99,19 @@ export default function ClientLayoutShell({ children }) {
           .hover\\:bg-sage-700:hover { background-color: var(--sage-700); }
           .hover\\:border-sage-300:hover { border-color: var(--sage-300); }
         `}</style>
-        {headerReady ? (
-          <Header
-            user={user}
-            member={member}
-            onLogout={handleLogout}
-            siteInfo={siteInfo}
-          />
-        ) : null}
-        {children}
-        <Modal isOpen={isLoginOpen} onClose={closeLogin}>
-          <LoginPage />
-        </Modal>
-      </div>
+          {headerReady ? (
+            <Header
+              user={user}
+              member={member}
+              onLogout={handleLogout}
+              siteInfo={siteInfo}
+            />
+          ) : null}
+          {children}
+          <Modal isOpen={isLoginOpen} onClose={closeLogin}>
+            <LoginPage/>
+          </Modal>
+        </div>
       </I18nGate>
     </I18nProvider>
   );
