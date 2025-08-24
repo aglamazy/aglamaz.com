@@ -1,3 +1,5 @@
+# page layout
+Use one layout for all pages. Header on top and then content.
 # Development cycle
 For now don't use tests.
 After task completion run npx tsc and fix errors
@@ -11,3 +13,6 @@ Rule of thumb: Use try/catch only if you can add value (logging, cleanup, updati
 
 # Fallbacks
 Don't use! If something is not build correctly, it should fail!
+
+# Css
+Use .css files instead of inline styles. Organize the css files wisely.

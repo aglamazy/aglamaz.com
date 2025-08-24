@@ -43,10 +43,10 @@ export default function PendingMembersPage() {
   const fetchPendingMembers = async () => {
     try {
       setLoading(true);
-      const data = await apiFetch<PendingMember[]>(
+      const data = await apiFetch<{data: PendingMember[]}>(
         `/api/user/${user?.user_id}/pending-members/${site?.id}`,
       );
-      setPendingMembers(data || []);
+      setPendingMembers(data?.data || []);
     } catch (error) {
       setError(t('failedToLoadPendingMembers'));
     } finally {
