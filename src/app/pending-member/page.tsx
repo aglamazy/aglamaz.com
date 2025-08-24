@@ -15,7 +15,7 @@ export default function PendingMemberPage() {
   const router = useRouter();
 
   const handleLogout = async () => {
-    await apiFetch<void>('/api/logout', { method: 'POST' });
+    await apiFetch<void>('/api/auth/logout', { method: 'POST' });
     router.push(landingPage);
   };
 

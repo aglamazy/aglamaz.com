@@ -48,7 +48,15 @@ export default function ClientLayoutShell({ children }) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
-  const headerReady = mounted && !!siteInfo?.name;
+  // Ensure site info is available on the client after hydration
+  useEffect(() => {
+    if (!siteInfo) {
+      const w = window as any;
+      if (w.__SITE_INFO__) setSiteInfo(w.__SITE_INFO__);
+    }
+  }, [siteInfo, setSiteInfo]);
+
+  const headerReady = mounted && !!siteInfo;
 
   useEffect(() => {
     const htmlElement = document.documentElement;
