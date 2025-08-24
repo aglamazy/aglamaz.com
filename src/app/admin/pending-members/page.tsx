@@ -104,8 +104,8 @@ export default function PendingMembersPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-cream-50 to-sage-50 flex items-center justify-center" dir={i18n.dir()}>
-        <div className={`flex items-center gap-3 ${i18n.dir() === 'rtl' ? 'flex-row-reverse' : ''}`}>
+      <div className="container mx-auto px-4 py-8">
+        <div className={`flex items-center justify-center gap-3 ${i18n.dir() === 'rtl' ? 'flex-row-reverse' : ''}`}>
           <Loader2 className="w-6 h-6 animate-spin text-sage-600" />
           <span className="text-sage-600">{t('loadingPendingMembers')}</span>
         </div>
@@ -114,7 +114,7 @@ export default function PendingMembersPage() {
   }
 
   return (
-    <div className={`min-h-screen bg-gradient-to-br from-cream-50 to-sage-50 p-4 ${i18n.dir() === 'rtl' ? 'text-right' : 'text-left'}`} dir={i18n.dir()}>
+    <div className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
           <div className={`flex items-center gap-3 mb-8 ${i18n.dir() === 'rtl' ? 'flex-row-reverse' : ''}`}>
             <Users size={32} className="text-sage-600" />
