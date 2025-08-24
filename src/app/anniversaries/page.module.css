@@ -1,0 +1,4 @@
+.cropImage {
+  width: 100%;
+  transform: translateY(calc(-1 * var(--offset-y)));
+}

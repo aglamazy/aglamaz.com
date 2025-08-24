@@ -10,6 +10,7 @@ import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useUserStore } from '@/store/UserStore';
 import { useMemberStore } from '@/store/MemberStore';
 import { apiFetch } from '@/utils/apiFetch';
+import styles from './page.module.css';
 
 interface AnniversaryEvent {
   id: string;
@@ -51,6 +52,12 @@ export default function AnniversariesPage() {
   const [maxOffsetY, setMaxOffsetY] = useState(0);
   const imgRef = useRef<HTMLImageElement | null>(null);
   const cropRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (imgRef.current) {
+      imgRef.current.style.setProperty('--offset-y', `${offsetY}px`);
+    }
+  }, [offsetY]);
 
   const fetchEvents = async () => {
     setLoading(true);
@@ -374,7 +381,7 @@ export default function AnniversariesPage() {
                     ref={imgRef}
                     src={imageSrc}
                     onLoad={onImageLoad}
-                    style={{ width: '100%', transform: `translateY(-${offsetY}px)` }}
+                    className={styles.cropImage}
                     alt="crop source"
                   />
                 </div>

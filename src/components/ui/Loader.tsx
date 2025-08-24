@@ -1,5 +1,6 @@
 "use client";
-import React from "react";
+import React, { useEffect, useRef } from "react";
+import styles from './Loader.module.css';
 
 type LoaderProps = {
   text?: string;            // Optional label next to the spinner
@@ -21,8 +22,7 @@ export const Loader: React.FC<LoaderProps> = ({
                                          className = "",
                                        }) => {
   const base = "grid place-items-center";
-  const surface =
-    blur ? "bg-white/70 backdrop-blur-sm" : "bg-transparent";
+  const surface = blur ? "bg-white/70 backdrop-blur-sm" : "bg-transparent";
 
   // Choose wrapper mode
   const wrapper = fullscreen
@@ -31,11 +31,14 @@ export const Loader: React.FC<LoaderProps> = ({
       ? `absolute inset-0 ${surface} ${base}`
       : base;
 
-  const spinnerStyle: React.CSSProperties = {
-    width: size,
-    height: size,
-    borderWidth: thickness,
-  };
+  const spinnerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (spinnerRef.current) {
+      spinnerRef.current.style.setProperty('--loader-size', `${size}px`);
+      spinnerRef.current.style.setProperty('--loader-thickness', `${thickness}px`);
+    }
+  }, [size, thickness]);
 
   return (
     <div
@@ -46,8 +49,8 @@ export const Loader: React.FC<LoaderProps> = ({
     >
       <div className="flex items-center gap-3">
         <div
-          className="animate-spin rounded-full border-gray-300 border-t-gray-700"
-          style={spinnerStyle}
+          ref={spinnerRef}
+          className={`animate-spin rounded-full border-gray-300 border-t-gray-700 ${styles.spinner}`}
         />
         {text ? (
           <span className="text-sm text-slate-700">{text}</span>

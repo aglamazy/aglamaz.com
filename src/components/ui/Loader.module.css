@@ -1,0 +1,5 @@
+.spinner {
+  width: var(--loader-size);
+  height: var(--loader-size);
+  border-width: var(--loader-thickness);
+}

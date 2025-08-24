@@ -89,6 +89,8 @@ export class GmailService {
           .button { display: inline-block; background: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 20px 0; }
           .footer { text-align: center; padding: 20px; color: #666; font-size: 14px; }
           .warning { background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 6px; margin: 20px 0; }
+          .text-center { text-align: center; }
+          .break-url { word-break: break-all; color: #007bff; }
         </style>
       </head>
       <body>
@@ -103,7 +105,7 @@ export class GmailService {
             
             <p>תודה שנרשמת למערכת FamilyCircle. כדי להשלים את ההרשמה, אנא לחץ על הכפתור למטה:</p>
             
-            <div style="text-align: center;">
+            <div class="text-center">
               <a href="${verificationUrl}" class="button">אמת את האימייל שלך</a>
             </div>
             
@@ -112,7 +114,7 @@ export class GmailService {
             </div>
             
             <p>אם הכפתור לא עובד, העתק והדבק את הקישור הבא בדפדפן:</p>
-            <p style="word-break: break-all; color: #007bff;">${verificationUrl}</p>
+            <p class="break-url">${verificationUrl}</p>
             
             <p>אם לא ביקשת להירשם למערכת זו, אנא התעלם מהודעה זו.</p>
           </div>
