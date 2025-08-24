@@ -1,6 +1,6 @@
 import { initializeApp, cert, getApps } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
-import { getFirestore } from 'firebase-admin/firestore';
+import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 
 export function initAdmin() {
   if (!getApps().length) {
@@ -24,5 +24,17 @@ export async function fetchSiteInfo() {
   }
   const siteId = process.env.NEXT_SITE_ID;
   const doc = await db.collection('sites').doc(siteId).get();
-  return doc.exists ? { id: doc.id, ...doc.data() } : null;
+  if (!doc.exists) return null;
+
+  const data = doc.data() || {};
+  const plainData: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(data)) {
+    if (value instanceof Timestamp) {
+      plainData[key] = value.toDate().toISOString();
+    } else {
+      plainData[key] = value;
+    }
+  }
+
+  return { id: doc.id, ...plainData };
 }
