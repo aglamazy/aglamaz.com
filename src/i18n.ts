@@ -4,10 +4,13 @@ import HttpBackend from 'i18next-http-backend';
 import LanguageDetector from 'i18next-browser-languagedetector';
 import nextI18NextConfig from '../next-i18next.config.js';
 
+const isBrowser = typeof window !== 'undefined';
+
 if (!i18n.isInitialized) {
+  if (isBrowser) {
+    i18n.use(HttpBackend).use(LanguageDetector);
+  }
   i18n
-    .use(HttpBackend)
-    .use(LanguageDetector)
     .use(initReactI18next)
     .init({
       ...nextI18NextConfig.i18n,

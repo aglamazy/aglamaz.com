@@ -1,4 +1,5 @@
 'use client';
+export const dynamic = 'force-dynamic';
 
 import { useEffect, useRef, useState, ChangeEvent } from 'react';
 import Modal from '@/components/ui/Modal';
@@ -43,7 +44,7 @@ export default function AnniversariesPage() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const user = useUserStore((s) => s.user);
   const member = useMemberStore((state) => state.member);
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   const [imageSrc, setImageSrc] = useState('');
   const [offsetY, setOffsetY] = useState(0);
@@ -222,11 +223,11 @@ export default function AnniversariesPage() {
         className={`border p-2 h-32 rounded-xl shadow-md transition-colors relative overflow-hidden ${
           isCurrentMonth ? 'hover:bg-emerald-50' : 'text-gray-400 bg-gray-50'
         }`}
-        dir={document.documentElement.dir}
+        dir={i18n.dir()}
       >
         <div
           className={`absolute top-1 ${
-            document.documentElement.dir === 'rtl' ? 'right-1' : 'left-1'
+            i18n.dir() === 'rtl' ? 'right-1' : 'left-1'
           } flex items-center`}
         >
           <span className="font-bold text-sm">{cellDay}</span>

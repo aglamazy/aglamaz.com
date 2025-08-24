@@ -3,12 +3,11 @@ import { ACCESS_TOKEN } from '@/auth/cookies';
 import { cookies } from 'next/headers';
 import { verifyAccessToken } from '@/auth/service';
 import { initAdmin } from '@/firebase/admin';
-import { getFirestore } from 'firebase-admin/firestore';
+import { getFirestore, Firestore } from 'firebase-admin/firestore';
 import { RouteHandler, GuardContext } from '../app/api/types';
 import { memberConverter } from '../entities/firebase/MemberDoc';
 
-initAdmin();
-let db = getFirestore();
+let db: Firestore | null = null;
 let getCookies = cookies;
 
 export function __setMockCookies(fn: typeof cookies) {
@@ -22,6 +21,10 @@ export function __setMockDb(mockDb: any) {
 export function withMemberGuard(handler: RouteHandler): RouteHandler {
   return async (request: Request, context: GuardContext) => {
     try {
+      if (!db) {
+        initAdmin();
+        db = getFirestore();
+      }
       const cookieStore = getCookies();
       const token = cookieStore.get(ACCESS_TOKEN)?.value;
       const payload = token && verifyAccessToken(token);
