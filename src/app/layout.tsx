@@ -1,4 +1,7 @@
 import './globals.css';
+import Header from '@/components/Header';
+import Footer from '@/components/Footer';
+import ClientLayoutShell from '@/components/ClientLayoutShell';
 import I18nProvider from '../components/I18nProvider';
 import I18nGate from '../components/I18nGate';
 import { fetchSiteInfo } from '../firebase/admin';
@@ -23,7 +26,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           }}
         />
         <I18nProvider>
-          <I18nGate>{children}</I18nGate>
+          <I18nGate>
+            <ClientLayoutShell />
+            <div className="min-h-screen bg-gradient-to-br from-cream-50 to-sage-50">
+              <Header />
+              {children}
+              <Footer />
+            </div>
+          </I18nGate>
         </I18nProvider>
       </body>
     </html>

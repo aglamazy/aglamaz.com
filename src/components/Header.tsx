@@ -5,10 +5,12 @@ import Navigation from "@/components/Navigation";
 import { useTranslation } from 'react-i18next';
 import { LogOut, Users, MessageCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { IUser } from "@/entities/User";
-import { IMember } from "@/entities/Member";
-import { ISite } from "@/entities/Site";
 import { useLoginModalStore } from '@/store/LoginModalStore';
+import { useUserStore } from '@/store/UserStore';
+import { useMemberStore } from '@/store/MemberStore';
+import { useSiteStore } from '@/store/SiteStore';
+import { landingPage } from '@/app/settings';
+import type { IMember } from '@/entities/Member';
 
 const LANGS = [
   { code: 'he', label: 'עברית', flag: '🇮🇱' },
@@ -26,14 +28,11 @@ function getUserInitials(member?: IMember) {
     .slice(0, 2);
 }
 
-interface HeaderProps {
-  user?: IUser;
-  member?: IMember;
-  onLogout?: () => void;
-  siteInfo: ISite;
-}
-
-export default function Header({ user, member, onLogout, siteInfo }: HeaderProps) {
+export default function Header() {
+  const user = useUserStore((s) => s.user);
+  const logout = useUserStore((s) => s.logout);
+  const member = useMemberStore((s) => s.member);
+  const siteInfo = useSiteStore((s) => s.siteInfo);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isLangMenuOpen, setIsLangMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
@@ -41,6 +40,10 @@ export default function Header({ user, member, onLogout, siteInfo }: HeaderProps
   const userMenuRef = useRef(null);
   const router = useRouter();
   const openLogin = useLoginModalStore((s) => s.open);
+  const handleLogout = async () => {
+    await logout();
+    router.push(landingPage);
+  };
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -69,12 +72,12 @@ export default function Header({ user, member, onLogout, siteInfo }: HeaderProps
     <header className="w-full flex items-center justify-between px-4 py-2 bg-white shadow-sm sticky top-0 z-50">
       {/* Left: Site title */}
       <div className="text-xl font-semibold text-sage-700">
-        {siteInfo.name}
+        {siteInfo?.name}
       </div>
       {/* Center: Navigation */}
       <div className="flex flex-row items-center">
-        {user && member && onLogout && member.role !== 'pending' && (
-          <Navigation user={user} onLogout={onLogout} setMobileMenuOpen={setMobileMenuOpen}/>
+        {user && member && member.role !== 'pending' && (
+          <Navigation user={user} onLogout={handleLogout} setMobileMenuOpen={setMobileMenuOpen}/>
         )}
       </div>
       {/* Right: Flags + Avatar */}
@@ -106,7 +109,7 @@ export default function Header({ user, member, onLogout, siteInfo }: HeaderProps
           )}
         </div>
         {/* Avatar + User Menu */}
-        {user && member && onLogout ? (
+        {user && member ? (
           <div className="hidden md:block relative" ref={userMenuRef}>
             <button
               onClick={() => setIsUserMenuOpen((v) => !v)}
@@ -155,9 +158,9 @@ export default function Header({ user, member, onLogout, siteInfo }: HeaderProps
                     </>
                   )}
                   <button
-                    onClick={() => {
+                    onClick={async () => {
                       setIsUserMenuOpen(false);
-                      onLogout?.();
+                      await handleLogout();
                     }}
                     className="flex items-center w-full px-4 py-2 text-sm text-sage-700 hover:bg-sage-50 transition-colors duration-200"
                   >
