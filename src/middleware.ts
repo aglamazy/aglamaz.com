@@ -35,7 +35,7 @@ export async function middleware(request: NextRequest) {
   try {
     await verifyAccessToken(token);
 
-    if (!isPublic && pathname !== '/pending-member') {
+    if (!isPublic) {
       const siteId = process.env.NEXT_SITE_ID!;
       const res = await apiFetchFromMiddleware(request, `/api/user/member-info?siteId=${siteId}`);
 
@@ -43,18 +43,17 @@ export async function middleware(request: NextRequest) {
         return res;
       }
 
-      if (res.status === 404) {
-        return NextResponse.redirect(new URL('/pending-member', request.url));
-      }
-
       if (!res.ok) {
-        throw new Error(`Request failed ${res.status} ${res.statusText}`);
+        return NextResponse.next();
       }
 
       const memberRes = await res.json();
-      const ok = memberRes?.success && memberRes?.member && ['member', 'admin'].includes(memberRes.member.role);
+      const ok =
+        memberRes?.success &&
+        memberRes?.member &&
+        ['member', 'admin'].includes(memberRes.member.role);
       if (!ok) {
-        return NextResponse.redirect(new URL('/pending-member', request.url));
+        return NextResponse.next();
       }
     }
 

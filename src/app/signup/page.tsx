@@ -8,7 +8,7 @@ export default function SignupPage() {
   const router = useRouter();
 
   const handleSuccess = () => {
-    router.push('/pending-member');
+    router.push('/app');
   };
 
   const handleCancel = () => {

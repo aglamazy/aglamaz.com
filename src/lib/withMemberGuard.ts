@@ -47,7 +47,7 @@ export function withMemberGuard(handler: RouteHandler): RouteHandler {
         .get();
 
       if (memberSnap.empty) {
-        return NextResponse.redirect(new URL('/pending-member', request.url));
+        return NextResponse.json({ error: 'Member not found' }, { status: 404 });
       }
       const doc = memberSnap.docs[0];
       context.member = doc.data();
