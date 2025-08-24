@@ -5,6 +5,7 @@ import { useUserStore } from '../store/UserStore';
 import { useRouter } from "next/navigation";
 import { useMemberStore } from '../store/MemberStore';
 import Header from "@/components/Header";
+import Footer from "@/components/Footer";
 import I18nProvider from './I18nProvider';
 import { useTranslation } from 'react-i18next';
 import { Loader } from "../components/ui/Loader";
@@ -126,6 +127,7 @@ export default function ClientLayoutShell({ children }) {
             />
           ) : null}
           {children}
+          {siteInfo ? <Footer siteInfo={siteInfo} /> : null}
           <Modal isOpen={isLoginOpen} onClose={closeLogin}>
             <LoginPage/>
           </Modal>
