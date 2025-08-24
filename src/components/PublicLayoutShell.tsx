@@ -55,7 +55,7 @@ export default function PublicLayoutShell({ siteInfo, children }: PublicLayoutSh
             .hover\\:bg-sage-700:hover { background-color: var(--sage-700); }
             .hover\\:border-sage-300:hover { border-color: var(--sage-300); }
           `}</style>
-      <Header siteInfo={siteInfo!} />
+      <Header />
       {children}
       <Modal isOpen={isOpen} onClose={close}>
         <LoginPage />
