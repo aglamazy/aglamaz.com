@@ -7,3 +7,7 @@ On major change (refactoring) run npx next build and fix errors.
 ✅ Rethrow or return false indicator after local handling so callers can decide what to do (redirect, retry, etc.).
 ❌ Don’t swallow errors by catching without rethrowing — this prevents upstream code from knowing something failed.
 Rule of thumb: Use try/catch only if you can add value (logging, cleanup, updating state). Always rethrow unless you have fully resolved the error.
+
+
+# Fallbacks
+Don't use! If something is not build correctly, it should fail!
