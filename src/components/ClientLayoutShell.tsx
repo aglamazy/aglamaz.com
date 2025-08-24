@@ -131,7 +131,7 @@ export default function ClientLayoutShell({ children }) {
           <Modal isOpen={isLoginOpen} onClose={closeLogin}>
             <LoginPage/>
           </Modal>
-          <Modal isOpen={isPendingOpen} onClose={closePending}>
+          <Modal isOpen={isPendingOpen} onClose={closePending} isClosable={false}>
             <PendingMemberContent/>
           </Modal>
         </div>
