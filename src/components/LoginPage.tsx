@@ -11,6 +11,7 @@ import { useUserStore } from '@/store/UserStore';
 import { useLoginModalStore } from '@/store/LoginModalStore';
 import SignupForm from '@/components/SignupForm';
 import { useTranslation } from 'react-i18next';
+import { usePendingMemberModalStore } from '@/store/PendingMemberModalStore';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -23,6 +24,7 @@ export default function LoginPage() {
   const { setUser } = useUserStore();
   const { t } = useTranslation();
   const { close: closeLogin } = useLoginModalStore();
+  const { open: openPending } = usePendingMemberModalStore();
 
   const handleGoogleLogin = async () => {
     try {
@@ -122,7 +124,10 @@ export default function LoginPage() {
   if (showSignup) {
     return (
       <SignupForm
-        onSuccess={() => router.push('/pending-member')}
+        onSuccess={() => {
+          closeLogin();
+          openPending();
+        }}
         onCancel={() => setShowSignup(false)}
       />
     );

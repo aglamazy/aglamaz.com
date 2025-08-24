@@ -13,6 +13,8 @@ import { landingPage } from "@/app/settings";
 import Modal from '@/components/ui/Modal';
 import LoginPage from '@/components/LoginPage';
 import { useLoginModalStore } from '@/store/LoginModalStore';
+import PendingMemberContent from '@/components/PendingMemberContent';
+import { usePendingMemberModalStore } from '@/store/PendingMemberModalStore';
 
 export default function ClientLayoutShell({ children }) {
   const { user, loading, logout, checkAuth } = useUserStore();
@@ -22,6 +24,7 @@ export default function ClientLayoutShell({ children }) {
   const router = useRouter();
   const { t, i18n } = useTranslation();
   const { isOpen: isLoginOpen, close: closeLogin, open: openLogin } = useLoginModalStore();
+  const { isOpen: isPendingOpen, close: closePending, open: openPending } = usePendingMemberModalStore();
 
   const { fetchMember } = useMemberStore();
 
@@ -41,9 +44,9 @@ export default function ClientLayoutShell({ children }) {
 
     (async () => {
       const ok = await fetchMember(user.user_id, siteInfo.id);
-      if (!ok) router.replace("/pending-member");
+      if (!ok && !useMemberStore.getState().error) openPending();
     })();
-  }, [user?.user_id, siteInfo?.id, fetchMember, router]);
+  }, [user?.user_id, siteInfo?.id, fetchMember, openPending]);
 
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -125,6 +128,9 @@ export default function ClientLayoutShell({ children }) {
           {children}
           <Modal isOpen={isLoginOpen} onClose={closeLogin}>
             <LoginPage/>
+          </Modal>
+          <Modal isOpen={isPendingOpen} onClose={closePending}>
+            <PendingMemberContent/>
           </Modal>
         </div>
       </I18nGate>

@@ -10,6 +10,7 @@ const PUBLIC_PATHS = [
   '/_next',
   '/locales',
   '/auth-gate',
+  '/app',
 ];
 
 export async function middleware(request: NextRequest) {

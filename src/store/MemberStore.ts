@@ -20,14 +20,16 @@ export const useMemberStore = create<MemberState>((set, get) => ({
     try {
       set({ loading: true, error: null });
 
-      const data =await apiFetch<{ member: IMember }>(`/api/user/${userId}/member-info?siteId=${siteId}`);
+      const data = await apiFetch<{ member: IMember }>(`/api/user/${userId}/member-info?siteId=${siteId}`);
       set({ member: data.member, loading: false });
       return true;
     } catch (error) {
-      set({
-        error: error instanceof Error ? error.message : 'Failed to fetch member info',
-        loading: false 
-      });
+      const message = error instanceof Error ? error.message : 'Failed to fetch member info';
+      if (message.startsWith('HTTP 404')) {
+        set({ member: null, loading: false, error: null });
+      } else {
+        set({ error: message, loading: false });
+      }
     }
     return false;
   },
