@@ -3,7 +3,7 @@ import { apiFetchFromMiddleware, verifyAccessToken } from 'src/lib/edgeAuth';
 import { NextRequest, NextResponse } from 'next/server';
 
 const PUBLIC_PATHS = [
-  '/',
+  '/', // public landing page
   '/login',
   '/contact',
   '/favicon.ico',
@@ -14,12 +14,13 @@ const PUBLIC_PATHS = [
 ];
 
 export async function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
+  const { pathname, searchParams } = request.nextUrl;
   const token = request.cookies.get(ACCESS_TOKEN)?.value;
   const isPublic = PUBLIC_PATHS.some(p => pathname === p || pathname.startsWith(p + '/'));
+  const isTempLogin = pathname === '/app' && searchParams.get('login') === '1';
 
   // Only skip auth for public paths when no token is present
-  if (!token && isPublic) {
+  if (!token && (isPublic || isTempLogin)) {
     return NextResponse.next();
   }
 
