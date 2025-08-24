@@ -1,1 +1,1 @@
-export const landingPage = "/app";
+export const landingPage = "/";
