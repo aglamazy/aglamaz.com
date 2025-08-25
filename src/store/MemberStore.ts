@@ -6,7 +6,7 @@ interface MemberState {
   member: IMember | null;
   loading: boolean;
   error: string | null;
-  fetchMember: (userId: string, siteId: string) => Promise<boolean>;
+  fetchMember: (userId: string, siteId: string) => Promise<'member' | 'pending' | 'not_applied' | 'error'>;
   setMember: (member: IMember | null) => void;
   clearMember: () => void;
 }
@@ -20,18 +20,20 @@ export const useMemberStore = create<MemberState>((set, get) => ({
     try {
       set({ loading: true, error: null });
 
-      const data = await apiFetch<{ member: IMember }>(`/api/user/${userId}/member-info?siteId=${siteId}`);
-      set({ member: data.member, loading: false });
-      return true;
+      const data = await apiFetch<{ status: string; member?: IMember }>(`/api/user/member-info?siteId=${siteId}`);
+      if (data.member) {
+        set({ member: data.member, loading: false });
+      } else {
+        set({ member: null, loading: false });
+      }
+      if (data.status === 'member') return 'member';
+      if (data.status === 'pending') return 'pending';
+      return 'not_applied';
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to fetch member info';
-      if (message.startsWith('HTTP 404')) {
-        set({ member: null, loading: false, error: null });
-      } else {
-        set({ error: message, loading: false });
-      }
+      set({ error: message, loading: false });
+      return 'error';
     }
-    return false;
   },
 
   setMember: (member) => set({ member }),

@@ -80,7 +80,7 @@ export default function LoginPage() {
           user_id: result.user.uid,
         });
 
-        router.push('/');
+        router.replace('/app');
         closeLogin();
       }
     } catch (error: any) {

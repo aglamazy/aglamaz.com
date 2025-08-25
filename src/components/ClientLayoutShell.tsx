@@ -44,10 +44,14 @@ export default function ClientLayoutShell({ children }) {
     if (!user?.user_id || !siteInfo?.id) return;
 
     (async () => {
-      const ok = await fetchMember(user.user_id, siteInfo.id);
-      if (!ok && !useMemberStore.getState().error) openPending();
+      const status = await fetchMember(user.user_id, siteInfo.id);
+      if (status === 'pending') {
+        openPending();
+      } else if (status === 'not_applied') {
+        openLogin();
+      }
     })();
-  }, [user?.user_id, siteInfo?.id, fetchMember, openPending]);
+  }, [user?.user_id, siteInfo?.id, fetchMember, openPending, openLogin]);
 
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);

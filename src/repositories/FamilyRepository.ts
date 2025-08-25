@@ -437,6 +437,28 @@ export class FamilyRepository {
     }
   }
 
+  async getSignupRequestByUserId(userId: string, siteId: string): Promise<SignupRequest | null> {
+    try {
+      const db = this.getDb();
+      const querySnapshot = await db.collection(this.signupRequestsCollection)
+        .where('userId', '==', userId)
+        .where('siteId', '==', siteId)
+        .orderBy('createdAt', 'desc')
+        .limit(1)
+        .get();
+
+      if (querySnapshot.empty) {
+        return null;
+      }
+
+      const doc = querySnapshot.docs[0];
+      return { id: doc.id, ...doc.data() } as SignupRequest;
+    } catch (error) {
+      console.error('Error getting signup request by user ID:', error);
+      throw new Error('Failed to get signup request by user ID');
+    }
+  }
+
   async getSignupRequestByEmail(email: string, siteId: string): Promise<SignupRequest | null> {
     try {
       const db = this.getDb();
