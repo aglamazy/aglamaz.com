@@ -16,6 +16,8 @@ import LoginPage from '@/components/LoginPage';
 import { useLoginModalStore } from '@/store/LoginModalStore';
 import PendingMemberContent from '@/components/PendingMemberContent';
 import { usePendingMemberModalStore } from '@/store/PendingMemberModalStore';
+import NotMemberContent from '@/components/NotMemberContent';
+import { useNotMemberModalStore } from '@/store/NotMemberModalStore';
 
 export default function ClientLayoutShell({ children }) {
   const { user, loading, logout, checkAuth } = useUserStore();
@@ -26,6 +28,7 @@ export default function ClientLayoutShell({ children }) {
   const { t, i18n } = useTranslation();
   const { isOpen: isLoginOpen, close: closeLogin, open: openLogin } = useLoginModalStore();
   const { isOpen: isPendingOpen, close: closePending, open: openPending } = usePendingMemberModalStore();
+  const { isOpen: isApplyOpen, close: closeApply, open: openApply } = useNotMemberModalStore();
 
   const { fetchMember } = useMemberStore();
 
@@ -46,13 +49,13 @@ export default function ClientLayoutShell({ children }) {
     (async () => {
       const status = await fetchMember(user.user_id, siteInfo.id);
       console.log("Status is ", status);
-      if (status === MembershipStatus.Member) {
+      if (status === MembershipStatus.Pending) {
         openPending();
       } else if (status === MembershipStatus.NotApplied) {
-        openLogin();
+        openApply();
       }
     })();
-  }, [user?.user_id, siteInfo?.id, fetchMember, openPending, openLogin]);
+  }, [user?.user_id, siteInfo?.id, fetchMember, openPending, openApply]);
 
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -108,6 +111,9 @@ export default function ClientLayoutShell({ children }) {
           </Modal>
           <Modal isOpen={isPendingOpen} onClose={closePending} isClosable={false}>
             <PendingMemberContent/>
+          </Modal>
+          <Modal isOpen={isApplyOpen} onClose={closeApply}>
+            <NotMemberContent/>
           </Modal>
         </div>
       </I18nGate>
