@@ -39,11 +39,14 @@ export class GmailService {
         throw new Error('GMAIL_FROM_EMAIL not configured');
       }
 
+      // Encode subject to support non-ASCII characters
+      const encodedSubject = `=?UTF-8?B?${Buffer.from(subject).toString('base64')}?=`;
+
       // Create email message
       const message = [
         `From: ${from}`,
         `To: ${to}`,
-        `Subject: ${subject}`,
+        `Subject: ${encodedSubject}`,
         'MIME-Version: 1.0',
         'Content-Type: text/html; charset=utf-8',
         '',
