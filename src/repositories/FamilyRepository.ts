@@ -320,6 +320,9 @@ export class FamilyRepository {
       };
     } catch (error) {
       console.error('Error verifying signup request:', error);
+      if (error instanceof Error) {
+        throw error;
+      }
       throw new Error('Failed to verify signup request');
     }
   }
