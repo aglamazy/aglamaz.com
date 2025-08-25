@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Loader2, CheckCircle } from 'lucide-react';
 import { apiFetch } from '@/utils/apiFetch';
+import { useSiteStore } from '@/store/SiteStore';
 
 interface SignupFormProps {
   onSuccess: () => void;
@@ -17,23 +18,10 @@ export default function SignupForm({ onSuccess, onCancel }: SignupFormProps) {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
 
-  // Get site info from the global variable injected by the server
-  const getSiteInfo = () => {
-    try {
-      const scriptElement = document.getElementById('__SITE_INFO__');
-      if (scriptElement) {
-        return JSON.parse(scriptElement.textContent || '{}');
-      }
-    } catch (error) {
-      console.error('Failed to parse site info:', error);
-    }
-    return null;
-  };
-
-  const getSiteId = () => {
-    const siteInfo = getSiteInfo();
-    return siteInfo?.id || process.env.NEXT_SITE_ID || 'default';
-  };
+  const siteId =
+    useSiteStore((s) => s.siteInfo?.id) ||
+    process.env.NEXT_SITE_ID ||
+    'default';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,7 +46,7 @@ export default function SignupForm({ onSuccess, onCancel }: SignupFormProps) {
           body: JSON.stringify({
             firstName: firstName.trim(),
             email: email.trim(),
-            siteId: getSiteId(),
+            siteId,
           }),
         },
       );
