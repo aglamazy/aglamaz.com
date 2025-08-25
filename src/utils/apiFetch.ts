@@ -11,7 +11,8 @@ function refreshOnce() {
   }));
 }
 
-const AUTH_RE = /^\/api\/auth\/(refresh|login|logout|me)(?:$|\?)/;
+// Endpoints that should bypass refresh logic
+const AUTH_RE = /^\/api\/auth\/(refresh|login|logout)(?:$|\?)/;
 
 export async function apiFetch<T = unknown>(
   input: RequestInfo | URL,
@@ -20,7 +21,7 @@ export async function apiFetch<T = unknown>(
   const url = typeof input === 'string' ? input : (input as URL).toString();
   const req = () => fetch(input, { ...init, credentials: 'include' });
 
-  // 1) Never run refresh logic on auth endpoints themselves
+  // 1) Never run refresh logic on login/logout/refresh endpoints themselves
   if (AUTH_RE.test(url)) {
     const r = await req();
     if (!r.ok) throw new Error(`HTTP ${r.status} ${r.statusText}`);
