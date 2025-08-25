@@ -2,11 +2,18 @@ import { create } from 'zustand';
 import type { IMember } from '@/entities/Member';
 import { apiFetch } from '@/utils/apiFetch';
 
+export enum MembershipStatus {
+  Member = 'member',
+  Pending = 'pending',
+  NotApplied = 'not_applied',
+  Error = 'error',
+}
+
 interface MemberState {
   member: IMember | null;
   loading: boolean;
   error: string | null;
-  fetchMember: (userId: string, siteId: string) => Promise<'member' | 'pending' | 'not_applied' | 'error'>;
+  fetchMember: (userId: string, siteId: string) => Promise<MembershipStatus>;
   setMember: (member: IMember | null) => void;
   clearMember: () => void;
 }
@@ -26,13 +33,13 @@ export const useMemberStore = create<MemberState>((set, get) => ({
       } else {
         set({ member: null, loading: false });
       }
-      if (data.status === 'member') return 'member';
-      if (data.status === 'pending') return 'pending';
-      return 'not_applied';
+      if (data.status === 'member') return MembershipStatus.Member;
+      if (data.status === 'pending') return MembershipStatus.Pending;
+      return MembershipStatus.NotApplied;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to fetch member info';
       set({ error: message, loading: false });
-      return 'error';
+      return MembershipStatus.Error;
     }
   },
 

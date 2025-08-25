@@ -1,9 +1,9 @@
 'use client';
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useSiteStore } from '../store/SiteStore';
 import { useUserStore } from '../store/UserStore';
 import { useRouter } from "next/navigation";
-import { useMemberStore } from '../store/MemberStore';
+import { MembershipStatus, useMemberStore } from '../store/MemberStore';
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import I18nProvider from './I18nProvider';
@@ -45,9 +45,10 @@ export default function ClientLayoutShell({ children }) {
 
     (async () => {
       const status = await fetchMember(user.user_id, siteInfo.id);
-      if (status === 'pending') {
+      console.log("Status is ", status);
+      if (status === MembershipStatus.Member) {
         openPending();
-      } else if (status === 'not_applied') {
+      } else if (status === MembershipStatus.NotApplied) {
         openLogin();
       }
     })();
