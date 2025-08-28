@@ -2,3 +2,20 @@
   width: 100%;
   transform: translateY(calc(-1 * var(--offset-y)));
 }
+
+/* Truncate event names on mobile to ~5 characters */
+
+/* Compact event name styling for mobile; truncation is done in JS
+   to behave better with RTL languages (Hebrew/Arabic). */
+.nameMobile {
+  display: inline;
+  white-space: nowrap;
+  font-size: 10px; /* slightly smaller on mobile */
+  line-height: 1.1;
+}
+
+@media (min-width: 640px) {
+  .nameMobile {
+    font-size: inherit; /* revert to normal on larger screens */
+  }
+}

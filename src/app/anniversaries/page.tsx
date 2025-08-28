@@ -3,12 +3,14 @@ export const dynamic = 'force-dynamic';
 
 import { useEffect, useRef, useState, ChangeEvent } from 'react';
 import Modal from '@/components/ui/Modal';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { useTranslation } from 'react-i18next';
 import { Calendar as CalendarIcon } from 'lucide-react';
-import { initFirebase } from '@/firebase/client';
+import { initFirebase, auth, ensureFirebaseSignedIn } from '@/firebase/client';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useUserStore } from '@/store/UserStore';
-import { useMemberStore } from '@/store/MemberStore';
+import { MembershipStatus, useMemberStore } from '@/store/MemberStore';
+import { useSiteStore } from '@/store/SiteStore';
 import { apiFetch } from '@/utils/apiFetch';
 import styles from './page.module.css';
 
@@ -43,8 +45,15 @@ export default function AnniversariesPage() {
   const [selectedEvent, setSelectedEvent] = useState<AnniversaryEvent | null>(null);
   const [editEvent, setEditEvent] = useState<AnniversaryEvent | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<AnniversaryEvent | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
   const user = useUserStore((s) => s.user);
+  const checkAuth = useUserStore((s) => s.checkAuth);
   const member = useMemberStore((state) => state.member);
+  const fetchMember = useMemberStore((s) => s.fetchMember);
+  const siteInfo = useSiteStore((s) => s.siteInfo);
   const { t, i18n } = useTranslation();
 
   const [imageSrc, setImageSrc] = useState('');
@@ -52,6 +61,10 @@ export default function AnniversariesPage() {
   const [maxOffsetY, setMaxOffsetY] = useState(0);
   const imgRef = useRef<HTMLImageElement | null>(null);
   const cropRef = useRef<HTMLDivElement | null>(null);
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const truncateName = (name: string, max = 6) =>
+    name && name.length > max ? `${name.slice(0, max)}…` : name;
+  const preloaded = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (imgRef.current) {
@@ -73,6 +86,51 @@ export default function AnniversariesPage() {
     initFirebase();
     fetchEvents();
   }, []);
+
+  // Preload event images to reduce perceived lag when opening modal
+  useEffect(() => {
+    const con: any = (navigator as any).connection;
+    const saveData = !!con?.saveData;
+    const slow = con?.effectiveType && /^(2g|slow-2g)$/i.test(con.effectiveType);
+    if (saveData || slow) return; // respect data saver / very slow connections
+
+    const urls = events
+      .map((e) => e.imageUrl || '')
+      .filter((u) => u && !preloaded.current.has(u));
+    // Cap preloads to a reasonable number
+    const toLoad = urls.slice(0, 12);
+    toLoad.forEach((u) => {
+      const img = new Image();
+      img.decoding = 'async';
+      img.src = u;
+      preloaded.current.add(u);
+    });
+  }, [events]);
+
+  // Ensure user session is populated on this route too (not only in app layout)
+  useEffect(() => {
+    (async () => {
+      try {
+        await checkAuth();
+      } catch (e) {
+        console.error('[Anniversaries][debug] checkAuth failed', e);
+      }
+    })();
+  }, [checkAuth]);
+
+  // After user + site are known, fetch member to populate role
+  useEffect(() => {
+    (async () => {
+      const uid = user?.user_id;
+      const sid = siteInfo?.id;
+      if (!uid || !sid) return;
+      try {
+        const status = await fetchMember(uid, sid);
+      } catch (e) {
+        console.error('[Anniversaries][debug] fetchMember failed', e);
+      }
+    })();
+  }, [user?.user_id, siteInfo?.id, fetchMember]);
 
   const onFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -131,13 +189,28 @@ export default function AnniversariesPage() {
     setError('');
     try {
       let imageUrl = editEvent?.imageUrl || '';
-      if (imageFile && user?.user_id) {
+      if (imageFile) {
+        // Ensure Firebase Auth is aligned with the app session before Storage ops
+        try {
+          await ensureFirebaseSignedIn();
+        } catch (e) {
+          setError('Failed to authenticate with Firebase');
+          throw e instanceof Error ? e : new Error('firebase-auth-failed');
+        }
+        const currentUser = auth().currentUser;
+        if (!currentUser) {
+          const err = new Error('Not signed in to Firebase');
+          setError(err.message);
+          throw err;
+        }
         const storage = getStorage();
         const storageRef = ref(
           storage,
-          `anniversaries/${user.user_id}/${Date.now()}_${imageFile.name}`
+          `anniversaries/${currentUser.uid}/${Date.now()}_${imageFile.name}`
         );
-        await uploadBytes(storageRef, imageFile);
+        await uploadBytes(storageRef, imageFile, {
+          cacheControl: 'public, max-age=31536000, immutable',
+        });
         imageUrl = await getDownloadURL(storageRef);
       }
 
@@ -168,14 +241,29 @@ export default function AnniversariesPage() {
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const openConfirmDelete = (event: AnniversaryEvent) => {
+    setDeleteTarget(event);
+    setDeleteError('');
+    setConfirmOpen(true);
+  };
+
+  const handleConfirmDelete = async (): Promise<void> => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    setDeleteError('');
     try {
-      if (!confirm('Are you sure?')) return;
-      await apiFetch<void>(`/api/anniversaries/${id}`, { method: 'DELETE' });
+      await apiFetch<void>(`/api/anniversaries/${deleteTarget.id}`, { method: 'DELETE' });
+      setConfirmOpen(false);
+      setDeleteTarget(null);
       setSelectedEvent(null);
       fetchEvents();
     } catch (err) {
-      console.error(err);
+      const msg = err instanceof Error ? err.message : 'Failed to delete';
+      setDeleteError(msg);
+      // Rethrow so callers can handle (e.g., toast)
+      throw err;
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -227,30 +315,34 @@ export default function AnniversariesPage() {
     dayCells.push(
       <div
         key={`${cellYear}-${cellMonth}-${cellDay}`}
-        className={`border p-2 h-32 rounded-xl shadow-md transition-colors relative overflow-hidden ${
+        className={`border p-1 sm:p-2 h-24 sm:h-32 rounded-xl shadow-md transition-colors relative overflow-hidden ${
           isCurrentMonth ? 'hover:bg-emerald-50' : 'text-gray-400 bg-gray-50'
         }`}
         dir={i18n.dir()}
       >
         <div
-          className={`absolute top-1 ${
+          className={`absolute top-1 pointer-events-none ${
             i18n.dir() === 'rtl' ? 'right-1' : 'left-1'
           } flex items-center`}
         >
           <span className="font-bold text-sm">{cellDay}</span>
-          {dayEvents.length === 1 && (
-            <span className="ml-3 text-xs">{dayEvents[0].name}</span>
+          {dayEvents.length === 1 && !dayEvents[0].imageUrl && (
+            <span className={`ml-2 text-xs ${styles.nameMobile}`}>
+              {truncateName(dayEvents[0].name)}
+            </span>
           )}
         </div>
         {dayEvents.length > 1 ? (
-          <div className={`mt-6 flex flex-col gap-1 ${isCurrentMonth ? '' : 'opacity-50'}`}>
+          <div className={`mt-4 sm:mt-6 flex flex-col gap-1 ${isCurrentMonth ? '' : 'opacity-50'}`}>
             {dayEvents.map((ev) => (
               <div
                 key={ev.id}
-                onClick={() => setSelectedEvent(ev)}
-                className="bg-blue-100 text-blue-800 px-2 py-1 rounded cursor-pointer text-xs"
+                onClick={() => {
+                  setSelectedEvent(ev);
+                }}
+                className="bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded cursor-pointer text-[10px] sm:text-xs"
               >
-                {ev.name}
+                <span className={styles.nameMobile}>{truncateName(ev.name)}</span>
               </div>
             ))}
           </div>
@@ -258,16 +350,18 @@ export default function AnniversariesPage() {
           dayEvents.map((ev) => (
             <div
               key={ev.id}
-              onClick={() => setSelectedEvent(ev)}
-              className={`mt-6 flex flex-col items-center gap-1 bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs cursor-pointer ${
-                isCurrentMonth ? '' : 'opacity-50'
-              }`}
+              onClick={() => {
+                setSelectedEvent(ev);
+              }}
+              className={`mt-6 sm:mt-7 flex flex-col items-center gap-1 text-xs cursor-pointer ${
+                ev.imageUrl ? 'p-0 bg-transparent' : 'bg-blue-100 text-blue-800 px-2 py-1 rounded-full'
+              } ${isCurrentMonth ? '' : 'opacity-50'}`}
             >
               {ev.imageUrl && (
                 <img
                   src={ev.imageUrl}
                   alt=""
-                  className="w-full h-20 object-cover mt-1 rounded"
+                  className="w-full h-16 sm:h-20 object-cover rounded"
                 />
               )}
             </div>
@@ -277,10 +371,49 @@ export default function AnniversariesPage() {
     );
   }
 
+  const handlePrevMonth = () => {
+    setSelectedDate(new Date(year, month - 1, 1));
+  };
+
+  const handleNextMonth = () => {
+    setSelectedDate(new Date(year, month + 1, 1));
+  };
+
+  const handleToday = () => {
+    const now = new Date();
+    setSelectedDate(new Date(now.getFullYear(), now.getMonth(), 1));
+  };
+
+  const onGridTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    const t = e.touches[0];
+    touchStartRef.current = { x: t.clientX, y: t.clientY };
+  };
+
+  const onGridTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
+    const start = touchStartRef.current;
+    if (!start) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - start.x;
+    const dy = t.clientY - start.y;
+    // Horizontal swipe with limited vertical movement
+    if (Math.abs(dx) > 50 && Math.abs(dy) < 40) {
+      if (dx < 0) handleNextMonth();
+      else handlePrevMonth();
+    }
+    touchStartRef.current = null;
+  };
+
   return (
-    <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">{t('anniversaries')}</h1>
-      <div className="mb-4 flex justify-center">
+    <div className="container mx-auto px-2 py-2 sm:px-4 sm:py-4">
+      <h1 className="text-2xl font-bold mb-2 sm:mb-4">{t('anniversaries')}</h1>
+      <div className="mb-3 sm:mb-4 flex items-center justify-center gap-2">
+        <button
+          aria-label="Previous month"
+          onClick={handlePrevMonth}
+          className="px-2 py-1 rounded border border-gray-300 bg-white hover:bg-gray-50"
+        >
+          ◀
+        </button>
         <input
           type="month"
           value={`${year}-${String(month + 1).padStart(2, '0')}`}
@@ -290,6 +423,20 @@ export default function AnniversariesPage() {
           }}
           className="border rounded px-3 py-2"
         />
+        <button
+          aria-label="Next month"
+          onClick={handleNextMonth}
+          className="px-2 py-1 rounded border border-gray-300 bg-white hover:bg-gray-50"
+        >
+          ▶
+        </button>
+        <button
+          aria-label="Today"
+          onClick={handleToday}
+          className="ml-1 text-xs sm:text-sm px-2 py-1 rounded border border-gray-300 bg-white hover:bg-gray-50"
+        >
+          Today
+        </button>
       </div>
       {loading ? (
         <div>Loading...</div>
@@ -298,7 +445,11 @@ export default function AnniversariesPage() {
           {eventsThisMonth.length === 0 && (
             <div className="mb-2">{t('noEventsThisMonth')}</div>
           )}
-          <div className="grid grid-cols-7 gap-2 mb-8 text-center p-4 rounded-lg bg-gradient-to-b from-slate-50 to-slate-200">
+          <div
+            className="grid grid-cols-7 gap-1 sm:gap-2 mb-6 sm:mb-8 text-center p-2 sm:p-4 rounded-lg bg-gradient-to-b from-slate-50 to-slate-200"
+            onTouchStart={onGridTouchStart}
+            onTouchEnd={onGridTouchEnd}
+          >
             {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => (
               <div key={d} className="font-semibold text-lg">
                 {d}
@@ -368,9 +519,9 @@ export default function AnniversariesPage() {
           <div>
             <label className="block mb-1 text-sm text-text">{t('image')}</label>
             {editEvent?.imageUrl && !imageSrc && (
-              <img src={editEvent.imageUrl} alt="" className="mb-2 max-h-40" />
+              <img src={editEvent.imageUrl} alt="" className="mb-2 max-h-40"/>
             )}
-            <input type="file" accept="image/*" onChange={onFileChange} />
+            <input type="file" accept="image/*" onChange={onFileChange}/>
             {imageSrc && (
               <div className="mt-2">
                 <div
@@ -403,7 +554,7 @@ export default function AnniversariesPage() {
                   {t('cropImage')}
                 </button>
                 {form.imageUrl && (
-                  <img src={form.imageUrl} alt="preview" className="w-full mt-2 rounded" />
+                  <img src={form.imageUrl} alt="preview" className="w-full mt-2 rounded"/>
                 )}
               </div>
             )}
@@ -426,8 +577,8 @@ export default function AnniversariesPage() {
             {saving
               ? t('saving')
               : editEvent
-              ? t('updateEvent')
-              : t('addEvent')}
+                ? t('updateEvent')
+                : t('addEvent')}
           </button>
         </form>
       </Modal>
@@ -441,6 +592,8 @@ export default function AnniversariesPage() {
                 src={selectedEvent.imageUrl}
                 alt=""
                 className="mb-2 max-h-60 w-full object-cover"
+                loading="eager"
+                decoding="async"
               />
             )}
             <div>
@@ -477,7 +630,7 @@ export default function AnniversariesPage() {
                   {t('edit')}
                 </button>
                 <button
-                  onClick={() => handleDelete(selectedEvent.id)}
+                  onClick={() => openConfirmDelete(selectedEvent)}
                   className="px-3 py-1 bg-red-500 text-white rounded"
                 >
                   {t('delete')}
@@ -487,6 +640,23 @@ export default function AnniversariesPage() {
           </div>
         )}
       </Modal>
+      <ConfirmDialog
+        isOpen={confirmOpen}
+        title={'Delete Event?'}
+        message={deleteTarget ? `${deleteTarget.name} — ${deleteTarget.day}/${deleteTarget.month + 1}/${deleteTarget.year}` : ''}
+        confirmLabel={'Delete'}
+        cancelLabel={'Cancel'}
+        destructive
+        loading={deleting}
+        error={deleteError}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => {
+          if (deleting) return;
+          setConfirmOpen(false);
+          setDeleteTarget(null);
+          setDeleteError('');
+        }}
+      />
     </div>
   );
 }

@@ -16,3 +16,6 @@ Don't use! If something is not build correctly, it should fail!
 
 # Css
 Use .css files instead of inline styles. Organize the css files wisely.
+
+# i18n
+String labels on the UI: use only with t()
