@@ -62,8 +62,11 @@ export default function AnniversariesPage() {
   const imgRef = useRef<HTMLImageElement | null>(null);
   const cropRef = useRef<HTMLDivElement | null>(null);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const [isSmUp, setIsSmUp] = useState(false);
   const truncateName = (name: string, max = 6) =>
     name && name.length > max ? `${name.slice(0, max)}…` : name;
+  const truncateResponsive = (name: string, mobileLen: number, desktopLen: number) =>
+    truncateName(name, isSmUp ? desktopLen : mobileLen);
   const preloaded = useRef<Set<string>>(new Set());
 
   useEffect(() => {
@@ -85,6 +88,16 @@ export default function AnniversariesPage() {
   useEffect(() => {
     initFirebase();
     fetchEvents();
+  }, []);
+
+  // Track breakpoint (Tailwind 'sm': 640px)
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+    const mql = window.matchMedia('(min-width: 640px)');
+    const set = () => setIsSmUp(mql.matches);
+    set();
+    mql.addEventListener?.('change', set);
+    return () => mql.removeEventListener?.('change', set);
   }, []);
 
   // Preload event images to reduce perceived lag when opening modal
@@ -328,7 +341,7 @@ export default function AnniversariesPage() {
           <span className="font-bold text-sm">{cellDay}</span>
           {dayEvents.length === 1 && !dayEvents[0].imageUrl && (
             <span className={`ml-2 text-xs ${styles.nameMobile}`}>
-              {truncateName(dayEvents[0].name)}
+              {truncateResponsive(dayEvents[0].name, 6, 12)}
             </span>
           )}
         </div>
@@ -342,7 +355,7 @@ export default function AnniversariesPage() {
                 }}
                 className="bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded cursor-pointer text-[10px] sm:text-xs"
               >
-                <span className={styles.nameMobile}>{truncateName(ev.name)}</span>
+                <span className={styles.nameMobile}>{truncateResponsive(ev.name, 6, 16)}</span>
               </div>
             ))}
           </div>

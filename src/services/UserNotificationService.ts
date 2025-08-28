@@ -8,7 +8,9 @@ export class UserNotificationService {
     const templateDir = path.join(process.cwd(), 'src', 'templates', 'user-notification');
     const file = path.join(templateDir, `${template}.pug`);
     const siteUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.SITE_URL || 'http://localhost:3000';
-    return pug.renderFile(file, { ...data, siteUrl });
+    const base = siteUrl.replace(/\/+$/, '');
+    const appUrl = `${base}/app`;
+    return pug.renderFile(file, { ...data, siteUrl, appUrl });
   }
 
   async sendWelcomeEmail(member: Pick<IMember, 'firstName' | 'email'>) {

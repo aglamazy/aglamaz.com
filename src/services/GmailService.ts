@@ -39,16 +39,46 @@ export class GmailService {
         throw new Error('GMAIL_FROM_EMAIL not configured');
       }
 
-      // Create email message
-      const message = [
+      // Properly encode non‑ASCII subjects per RFC 2047
+      const encodeSubject = (s: string) => `=?UTF-8?B?${Buffer.from(s, 'utf8').toString('base64')}?=`;
+
+      // Build RFC 5322 message with CRLF line endings
+      const headers = [
         `From: ${from}`,
         `To: ${to}`,
-        `Subject: ${subject}`,
+        `Subject: ${encodeSubject(subject)}`,
         'MIME-Version: 1.0',
-        'Content-Type: text/html; charset=utf-8',
-        '',
-        html
-      ].join('\n');
+      ];
+
+      let message: string;
+      if (text) {
+        // multipart/alternative with text + html for maximum compatibility
+        const boundary = `bndry_${Math.random().toString(36).slice(2)}`;
+        headers.push(`Content-Type: multipart/alternative; boundary="${boundary}"`);
+        message = [
+          ...headers,
+          '',
+          `--${boundary}`,
+          'Content-Type: text/plain; charset=UTF-8',
+          'Content-Transfer-Encoding: 8bit',
+          '',
+          text,
+          `--${boundary}`,
+          'Content-Type: text/html; charset=UTF-8',
+          'Content-Transfer-Encoding: 8bit',
+          '',
+          html,
+          `--${boundary}--`,
+          ''
+        ].join('\r\n');
+      } else {
+        headers.push('Content-Type: text/html; charset=UTF-8', 'Content-Transfer-Encoding: 8bit');
+        message = [
+          ...headers,
+          '',
+          html
+        ].join('\r\n');
+      }
 
       // Encode the message in base64
       const encodedMessage = Buffer.from(message).toString('base64')
