@@ -45,7 +45,7 @@ const deleteHandler = async (request: Request, context: GuardContext) => {
     if (!existing || existing.siteId !== member.siteId) {
       return Response.json({ error: 'Event not found' }, { status: 404 });
     }
-    if (existing.ownerId !== user.userId) {
+    if (existing.ownerId !== user.userId && member.role !== 'admin') {
       return Response.json({ error: 'Forbidden' }, { status: 403 });
     }
     await repo.delete(id!);
