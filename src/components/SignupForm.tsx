@@ -36,7 +36,7 @@ export default function SignupForm({ onSuccess, onCancel }: SignupFormProps) {
 
     try {
       // Step 1: Send email verification request (no Firebase auth yet)
-      const data = await apiFetch<{ emailSent: boolean }>(
+      const data = await apiFetch<{ success: boolean }>(
         '/api/signup/request-verification',
         {
           method: 'POST',
@@ -50,9 +50,10 @@ export default function SignupForm({ onSuccess, onCancel }: SignupFormProps) {
           }),
         },
       );
+      console.log("request verification", data);
 
       setIsSubmitted(true);
-      setEmailSent(data.emailSent ?? false);
+      setEmailSent(data.success == true);
     } catch (error) {
       console.error('Signup error:', error);
       setError('Failed to send verification email. Please try again.');
