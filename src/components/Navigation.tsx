@@ -43,11 +43,9 @@ export default function Navigation({ user, onLogout, setMobileMenuOpen }: Naviga
   }, [isMobileMenuOpen, setMobileMenuOpen]);
 
   const navigationItems = [
-    { name: t('home'), href: '/', icon: Home },
+    { name: t('home'), href: '/app', icon: Home },
     { name: t('family'), href: '/family', icon: Users },
-    { name: t('activities'), href: '/activities', icon: Heart },
-    { name: t('anniversaries'), href: '/anniversaries', icon: Calendar },
-    { name: t('settings'), href: '/settings', icon: Settings },
+    { name: t('familyCalendar', { defaultValue: 'Family Calendar' }) as string, href: '/calendar', icon: Calendar },
   ];
 
   // Add admin link if user is admin

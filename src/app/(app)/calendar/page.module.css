@@ -3,8 +3,6 @@
   transform: translateY(calc(-1 * var(--offset-y)));
 }
 
-/* Truncate event names on mobile to ~5 characters */
-
 /* Compact event name styling for mobile; truncation is done in JS
    to behave better with RTL languages (Hebrew/Arabic). */
 .nameMobile {
@@ -19,3 +17,4 @@
     font-size: inherit; /* revert to normal on larger screens */
   }
 }
+/* moved from /app/anniversaries */

@@ -5,7 +5,6 @@ import { useEffect, useRef, useState, ChangeEvent } from 'react';
 import Modal from '@/components/ui/Modal';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { useTranslation } from 'react-i18next';
-import { Calendar as CalendarIcon } from 'lucide-react';
 import { initFirebase, auth, ensureFirebaseSignedIn } from '@/firebase/client';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useUserStore } from '@/store/UserStore';
@@ -138,7 +137,7 @@ export default function AnniversariesPage() {
       const sid = siteInfo?.id;
       if (!uid || !sid) return;
       try {
-        const status = await fetchMember(uid, sid);
+        await fetchMember(uid, sid);
       } catch (e) {
         console.error('[Anniversaries][debug] fetchMember failed', e);
       }
@@ -418,7 +417,7 @@ export default function AnniversariesPage() {
 
   return (
     <div className="container mx-auto px-2 py-2 sm:px-4 sm:py-4">
-      <h1 className="text-2xl font-bold mb-2 sm:mb-4">{t('anniversaries')}</h1>
+      <h1 className="text-2xl font-bold mb-2 sm:mb-4">{t('familyCalendar')}</h1>
       <div className="mb-3 sm:mb-4 flex items-center justify-center gap-2">
         <button
           aria-label="Previous month"
