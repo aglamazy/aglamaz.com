@@ -67,6 +67,7 @@ export default function SiteMembersPage() {
                     <th className="px-4 py-2 cursor-pointer" onClick={() => handleSort('email')}>Email</th>
                     <th className="px-4 py-2 cursor-pointer" onClick={() => handleSort('role')}>Role</th>
                     <th className="px-4 py-2 cursor-pointer" onClick={() => handleSort('createdAt')}>Created At</th>
+                    <th className="px-4 py-2">Blog</th>
                   </tr>
                   <tr>
                     <th className="px-4 py-1">
@@ -108,11 +109,25 @@ export default function SiteMembersPage() {
                       <td className="px-4 py-2">{member.email}</td>
                       <td className="px-4 py-2 capitalize">{member.role}</td>
                       <td className="px-4 py-2">{formatDate(member.createdAt)}</td>
+                      <td className="px-4 py-2">
+                        {(member as any).blogEnabled && (member as any).uid ? (
+                          <a
+                            className="text-blue-600 hover:underline"
+                            href={`/blog/author/${member.uid}`}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            View Blog
+                          </a>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
+                      </td>
                     </tr>
                   ))}
                   {sorted.length === 0 && (
                     <tr>
-                      <td colSpan={4} className="text-center text-gray-400 py-8">No members found.</td>
+                      <td colSpan={5} className="text-center text-gray-400 py-8">No members found.</td>
                     </tr>
                   )}
                 </tbody>

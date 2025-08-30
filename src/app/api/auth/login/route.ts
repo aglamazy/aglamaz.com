@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { initAdmin, adminAuth } from '@/firebase/admin';
+import { FamilyRepository } from '@/repositories/FamilyRepository';
+import { sentMessageRepository } from '@/repositories/SentMessageRepository';
+import { adminNotificationService } from '@/services/AdminNotificationService';
 import { signAccessToken, signRefreshToken } from '@/auth/service';
 import { setAuthCookies } from '@/auth/cookies';
 
@@ -28,6 +31,28 @@ export async function POST(req: NextRequest) {
 
     const res = NextResponse.json({ token: access });
     setAuthCookies(res, access, refresh);
+
+    // Side-effect: if a signup request exists for this user/site, ping admin at most once per 24h
+    // This must not block login; errors are logged only.
+    (async () => {
+      try {
+        const siteId = appClaims.siteId;
+        const email = decoded.email?.toLowerCase().trim();
+        const firstName = (decoded as any).name || '';
+        if (!siteId || !email) return;
+        const fam = new FamilyRepository();
+        const reqDoc = await fam.getSignupRequestByEmail(email, siteId);
+        if (!reqDoc) return;
+        const key = `${siteId}_${email}`;
+        const dayMs = 24 * 60 * 60 * 1000;
+        const should = await sentMessageRepository.shouldSend('pending_member_reminder', key, dayMs);
+        if (!should) return;
+        await adminNotificationService.notify('pending_member', { firstName, email, siteId });
+        await sentMessageRepository.markSent('pending_member_reminder', key);
+      } catch (e) {
+        console.error('post-login notify failed', e);
+      }
+    })();
     return res;
   } catch (error) {
     console.error('Session creation failed', error);

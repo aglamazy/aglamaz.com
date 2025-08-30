@@ -37,22 +37,22 @@ export default function PendingMembersPage() {
   const { t, i18n } = useTranslation();
 
   useEffect(() => {
-    fetchPendingMembers();
-  }, []);
-
-  const fetchPendingMembers = async () => {
-    try {
-      setLoading(true);
-      const data = await apiFetch<{data: PendingMember[]}>(
-        `/api/user/${user?.user_id}/pending-members/${site?.id}`,
-      );
-      setPendingMembers(data?.data || []);
-    } catch (error) {
-      setError(t('failedToLoadPendingMembers'));
-    } finally {
-      setLoading(false);
+    const load = async (uid: string, sid: string) => {
+      try {
+        setLoading(true);
+        setError('');
+        const data = await apiFetch<{data: PendingMember[]}>(`/api/user/${uid}/pending-members/${sid}`);
+        setPendingMembers(data?.data || []);
+      } catch (error) {
+        setError(t('failedToLoadPendingMembers'));
+      } finally {
+        setLoading(false);
+      }
+    };
+    if (user?.user_id && site?.id) {
+      load(user.user_id, site.id);
     }
-  };
+  }, [user?.user_id, site?.id, t]);
 
   const handleApprove = async (memberId: string) => {
     await handleAction(memberId, 'approve');

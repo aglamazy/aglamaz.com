@@ -14,10 +14,11 @@ const handler = async (request: Request, context: GuardContext) => {
     const familyRepository = new FamilyRepository();
     const members = await familyRepository.getSiteMembers(siteId);
     // Map FamilyMember to IMember
-    const mapped = members.map(m => ({
+    const mapped = members.map((m: any) => ({
       ...m,
-      uid: m.userId,
-      displayName: m.firstName || '',
+      uid: m.userId || m.uid || m.id,
+      displayName: m.firstName || m.displayName || '',
+      blogEnabled: m.blogEnabled ?? false,
     })) as IMember[];
     return Response.json({ members: mapped });
   } catch (error) {
