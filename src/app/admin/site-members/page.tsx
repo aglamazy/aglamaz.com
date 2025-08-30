@@ -110,10 +110,10 @@ export default function SiteMembersPage() {
                       <td className="px-4 py-2 capitalize">{member.role}</td>
                       <td className="px-4 py-2">{formatDate(member.createdAt)}</td>
                       <td className="px-4 py-2">
-                        {(member as any).blogEnabled && (member as any).uid ? (
+                        {(member as any).blogEnabled && (member as any).blogHandle ? (
                           <a
                             className="text-blue-600 hover:underline"
-                            href={`/blog/author/${member.uid}`}
+                            href={`/blog/author/${(member as any).blogHandle}`}
                             target="_blank"
                             rel="noreferrer"
                           >

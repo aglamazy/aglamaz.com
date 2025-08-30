@@ -437,12 +437,57 @@ export class FamilyRepository {
         .limit(1)
         .get();
       if (querySnapshot.empty) throw new Error('Member not found');
-      const docRef = querySnapshot.docs[0].ref;
-      await docRef.update({ blogEnabled: !!enabled, updatedAt: Timestamp.now() });
+      const docSnap = querySnapshot.docs[0];
+      const docRef = docSnap.ref;
+      const data: any = { blogEnabled: !!enabled, updatedAt: Timestamp.now() };
+      // If enabling and no handle exists, generate one from email prefix
+      if (enabled && !docSnap.data().blogHandle) {
+        const base = (docSnap.data().email || 'user').toString().split('@')[0]
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/-+/g, '-')
+          .replace(/^-|-$/g, '') || 'user';
+        const handle = await this.generateUniqueBlogHandle(base, siteId);
+        data.blogHandle = handle;
+      }
+      await docRef.update(data);
     } catch (error) {
       console.error('Error updating member blogEnabled:', error);
       throw new Error('Failed to update member');
     }
+  }
+
+  async getMemberByHandle(handle: string, siteId: string): Promise<FamilyMember | null> {
+    try {
+      const db = this.getDb();
+      const qs = await db.collection(this.membersCollection)
+        .where('siteId', '==', siteId)
+        .where('blogHandle', '==', handle)
+        .limit(1)
+        .get();
+      if (qs.empty) return null;
+      const doc = qs.docs[0];
+      return { id: doc.id, ...doc.data() } as FamilyMember;
+    } catch (e) {
+      console.error('Error getMemberByHandle', e);
+      throw new Error('Failed to get member by handle');
+    }
+  }
+
+  private async generateUniqueBlogHandle(base: string, siteId: string): Promise<string> {
+    const db = this.getDb();
+    let attempt = 0;
+    while (attempt < 50) {
+      const candidate = attempt === 0 ? base : `${base}-${attempt+1}`;
+      const qs = await db.collection(this.membersCollection)
+        .where('siteId', '==', siteId)
+        .where('blogHandle', '==', candidate)
+        .limit(1)
+        .get();
+      if (qs.empty) return candidate;
+      attempt++;
+    }
+    return `${base}-${Math.random().toString(36).slice(2, 6)}`;
   }
 
   async isUserPending(userId: string, siteId: string): Promise<boolean> {

@@ -19,6 +19,7 @@ const handler = async (request: Request, context: GuardContext) => {
       uid: m.userId || m.uid || m.id,
       displayName: m.firstName || m.displayName || '',
       blogEnabled: m.blogEnabled ?? false,
+      blogHandle: m.blogHandle || null,
     })) as IMember[];
     return Response.json({ members: mapped });
   } catch (error) {
