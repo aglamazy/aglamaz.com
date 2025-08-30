@@ -1,4 +1,4 @@
-import { apiFetch } from "@/utils/apiFetch";
+import { apiFetchSilent } from "@/utils/apiFetch";
 
 export interface IUser {
   email: string;
@@ -11,7 +11,7 @@ export interface IUser {
 export class User {
   static async me(): Promise<IUser | null> {
     try {
-      const res = await apiFetch<IUser>('/api/auth/me');
+      const res = await apiFetchSilent<IUser>('/api/auth/me');
       return res;
     } catch {
       return null;
