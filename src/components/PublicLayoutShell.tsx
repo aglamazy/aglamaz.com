@@ -2,6 +2,7 @@
 
 import React, { useEffect } from 'react';
 import Header from '@/components/Header';
+import Footer from '@/components/Footer';
 import Modal from '@/components/ui/Modal';
 import LoginPage from '@/components/LoginPage';
 import { useLoginModalStore } from '@/store/LoginModalStore';
@@ -29,6 +30,7 @@ export default function PublicLayoutShell({ siteInfo, children }: PublicLayoutSh
       <main className="flex-1 w-full mx-auto max-w-[1600px] px-2 sm:px-4">
         {children}
       </main>
+      <Footer siteInfo={siteInfo!} />
       <Modal isOpen={isOpen} onClose={close}>
         <LoginPage />
       </Modal>

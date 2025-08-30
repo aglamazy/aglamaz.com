@@ -29,6 +29,7 @@ const postHandler = async (request: Request, context: GuardContext) => {
   try {
     const repo = new BlogRepository();
     const user = context.user!;
+    const member = context.member!;
     const body = await request.json();
     const { title, content, isPublic } = body;
     if (!title || !content) {
@@ -36,6 +37,7 @@ const postHandler = async (request: Request, context: GuardContext) => {
     }
     const post = await repo.create({
       authorId: user.userId,
+      siteId: member.siteId,
       title,
       content,
       isPublic: Boolean(isPublic),
@@ -64,7 +66,11 @@ const putHandler = async (request: Request, context: GuardContext) => {
     if (existing.authorId !== user.userId && member.role !== 'admin') {
       return Response.json({ error: 'Forbidden' }, { status: 403 });
     }
-    await repo.update(id, { title, content, isPublic });
+    const updates: any = { title, content, isPublic };
+    if (!(existing as any).siteId) {
+      updates.siteId = member.siteId;
+    }
+    await repo.update(id, updates);
     const updated = await repo.getById(id);
     return Response.json({ post: updated });
   } catch (error) {

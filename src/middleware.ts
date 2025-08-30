@@ -11,6 +11,7 @@ const PUBLIC_PATHS = [
   '/locales',
   '/auth-gate',
   '/app',
+  '/blog/author',
 ];
 
 export async function middleware(request: NextRequest) {
