@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import DOMPurify from 'dompurify';
 import type { IBlogPost } from '@/entities/BlogPost';
 import { apiFetch } from '@/utils/apiFetch';
 
@@ -39,7 +40,10 @@ export default function AuthorBlogPage() {
             <CardTitle>{post.title}</CardTitle>
           </CardHeader>
           <CardContent>
-            <p>{post.content}</p>
+            <div
+              className="prose max-w-none"
+              dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(post.content || '') }}
+            />
           </CardContent>
         </Card>
       ))}

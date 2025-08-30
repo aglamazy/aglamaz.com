@@ -95,7 +95,7 @@ export default function ClientLayoutShell({ children }) {
   return (
     <I18nProvider>
       <I18nGate>
-        <div className="min-h-screen bg-gradient-to-br from-cream-50 to-sage-50">
+        <div className="min-h-screen flex flex-col bg-gradient-to-br from-cream-50 to-sage-50">
           {headerReady ? (
             <Header
               user={user}
@@ -104,7 +104,7 @@ export default function ClientLayoutShell({ children }) {
               siteInfo={siteInfo}
             />
           ) : null}
-          <main className="w-full mx-auto max-w-[1600px] px-2 sm:px-4">
+          <main className="flex-1 w-full mx-auto max-w-[1600px] px-2 sm:px-4">
             {children}
           </main>
           {siteInfo ? <Footer siteInfo={siteInfo} /> : null}

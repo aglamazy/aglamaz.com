@@ -24,9 +24,9 @@ export default function PublicLayoutShell({ siteInfo, children }: PublicLayoutSh
   }, [siteInfo, setSiteInfo]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-cream-50 to-sage-50">
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-cream-50 to-sage-50">
       <Header siteInfo={siteInfo!} />
-      <main className="w-full mx-auto max-w-[1600px] px-2 sm:px-4">
+      <main className="flex-1 w-full mx-auto max-w-[1600px] px-2 sm:px-4">
         {children}
       </main>
       <Modal isOpen={isOpen} onClose={close}>
