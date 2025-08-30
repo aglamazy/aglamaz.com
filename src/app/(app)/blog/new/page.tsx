@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { apiFetch } from '@/utils/apiFetch';
+import EditorRich from '@/components/EditorRich';
 import { useUserStore } from '@/store/UserStore';
 
 export default function NewPostPage() {
@@ -48,12 +49,7 @@ export default function NewPostPage() {
             className="w-full border p-2"
             placeholder={t('title') as string}
           />
-          <textarea
-            value={content}
-            onChange={e => setContent(e.target.value)}
-            className="w-full border p-2 h-48"
-            placeholder={t('content') as string}
-          />
+          <EditorRich value={content} onChange={setContent} />
           <label className="flex items-center space-x-2">
             <input
               type="checkbox"

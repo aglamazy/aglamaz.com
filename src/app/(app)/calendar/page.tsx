@@ -12,6 +12,7 @@ import { MembershipStatus, useMemberStore } from '@/store/MemberStore';
 import { useSiteStore } from '@/store/SiteStore';
 import { apiFetch } from '@/utils/apiFetch';
 import styles from './page.module.css';
+import AddFab from '@/components/ui/AddFab';
 
 interface AnniversaryEvent {
   id: string;
@@ -472,7 +473,8 @@ export default function AnniversariesPage() {
         </>
       )}
 
-      <button
+      <AddFab
+        ariaLabel={t('add') as string}
         onClick={() => {
           setForm({ name: '', description: '', date: '', type: 'birthday', isAnnual: true, imageUrl: '' });
           setEditEvent(null);
@@ -480,10 +482,7 @@ export default function AnniversariesPage() {
           setImageSrc('');
           setIsModalOpen(true);
         }}
-        className="fixed bottom-4 right-1/2 transform translate-x-1/2 bg-primary text-white p-3 rounded-full shadow-lg hover:bg-secondary"
-      >
-        +
-      </button>
+      />
 
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
         <form onSubmit={handleSubmit} className="space-y-4 max-w-md">

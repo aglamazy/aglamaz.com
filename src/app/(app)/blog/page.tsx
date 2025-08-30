@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import DOMPurify from 'dompurify';
+import AddFab from '@/components/ui/AddFab';
+import { useRouter } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,6 +14,7 @@ import { useUserStore } from '@/store/UserStore';
 
 export default function BlogPage() {
   const { t } = useTranslation();
+  const router = useRouter();
   const { user } = useUserStore();
   const [posts, setPosts] = useState<IBlogPost[]>([]);
   const [loading, setLoading] = useState(false);
@@ -36,11 +40,7 @@ export default function BlogPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
-        <Link href="/blog/new">
-          <Button>{t('newPost')}</Button>
-        </Link>
-      </div>
+      <AddFab ariaLabel={t('add') as string} onClick={() => router.push('/blog/new')} />
       {loading && <div className="text-gray-500">{t('loading') as string}</div>}
       {error && <div className="text-red-600">{error}</div>}
       {posts.map((post) => (
@@ -49,7 +49,10 @@ export default function BlogPage() {
             <CardTitle>{post.title}</CardTitle>
           </CardHeader>
           <CardContent>
-            <p>{post.content}</p>
+            <div
+              className="prose max-w-none"
+              dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(post.content || '') }}
+            />
             <Link href={`/blog/${post.id}/edit`}>
               <Button className="mt-2">{t('edit')}</Button>
             </Link>

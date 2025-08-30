@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { apiFetch } from '@/utils/apiFetch';
+import EditorRich from '@/components/EditorRich';
 import type { IBlogPost } from '@/entities/BlogPost';
 
 export default function EditPostPage() {
@@ -18,8 +19,8 @@ export default function EditPostPage() {
   useEffect(() => {
     const load = async () => {
       try {
-        const data = await apiFetch<IBlogPost>(`/api/blog/${params.postId}`);
-        setPost(data);
+        const data = await apiFetch<{ post: IBlogPost }>(`/api/blog?id=${params.postId}`);
+        setPost(data.post);
       } catch (error) {
         console.error(error);
       }
@@ -32,10 +33,10 @@ export default function EditPostPage() {
     if (!post) return;
     setSaving(true);
     try {
-      await apiFetch(`/api/blog/${post.id}`, {
+      await apiFetch(`/api/blog`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: post.title, content: post.content, isPublic: post.isPublic })
+        body: JSON.stringify({ id: post.id, title: post.title, content: post.content, isPublic: post.isPublic })
       });
       router.push('/blog');
     } catch (error) {
@@ -59,11 +60,9 @@ export default function EditPostPage() {
               className="w-full border p-2"
               placeholder={t('title') as string}
             />
-            <textarea
+            <EditorRich
               value={post.content}
-              onChange={e => setPost({ ...post, content: e.target.value })}
-              className="w-full border p-2 h-48"
-              placeholder={t('content') as string}
+              onChange={(html) => setPost({ ...post, content: html })}
             />
             <label className="flex items-center space-x-2">
               <input
