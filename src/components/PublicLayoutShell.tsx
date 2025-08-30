@@ -26,7 +26,9 @@ export default function PublicLayoutShell({ siteInfo, children }: PublicLayoutSh
   return (
     <div className="min-h-screen bg-gradient-to-br from-cream-50 to-sage-50">
       <Header siteInfo={siteInfo!} />
-      {children}
+      <main className="w-full mx-auto max-w-[1600px] px-2 sm:px-4">
+        {children}
+      </main>
       <Modal isOpen={isOpen} onClose={close}>
         <LoginPage />
       </Modal>

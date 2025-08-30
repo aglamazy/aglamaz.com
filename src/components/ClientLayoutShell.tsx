@@ -104,7 +104,9 @@ export default function ClientLayoutShell({ children }) {
               siteInfo={siteInfo}
             />
           ) : null}
-          {children}
+          <main className="w-full mx-auto max-w-[1600px] px-2 sm:px-4">
+            {children}
+          </main>
           {siteInfo ? <Footer siteInfo={siteInfo} /> : null}
           <Modal isOpen={isLoginOpen} onClose={closeLogin}>
             <LoginPage/>
