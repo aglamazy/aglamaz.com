@@ -457,6 +457,22 @@ export class FamilyRepository {
     }
   }
 
+  async getMembersWithBlog(siteId: string): Promise<FamilyMember[]> {
+    try {
+      const db = this.getDb();
+      const snap = await db.collection(this.membersCollection)
+        .where('siteId', '==', siteId)
+        .where('blogEnabled', '==', true)
+        .get();
+      return snap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .filter((m: any) => !!m.blogHandle) as FamilyMember[];
+    } catch (e) {
+      console.error('Error getMembersWithBlog', e);
+      throw new Error('Failed to fetch members with blog');
+    }
+  }
+
   async getMemberByHandle(handle: string, siteId: string): Promise<FamilyMember | null> {
     try {
       const db = this.getDb();

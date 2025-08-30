@@ -12,6 +12,8 @@ const PUBLIC_PATHS = [
   '/auth-gate',
   '/app',
   '/blog/author',
+  '/sitemap.xml',
+  '/robots.txt',
 ];
 
 export async function middleware(request: NextRequest) {
