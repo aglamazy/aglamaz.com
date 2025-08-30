@@ -14,7 +14,13 @@ export class BlogRepository {
     const db = this.getDb();
     const ref = db.collection(this.collection).doc();
     const now = Timestamp.now();
-    const data = { ...post, createdAt: now, updatedAt: now };
+    const data = {
+      likeCount: 0,
+      shareCount: 0,
+      ...post,
+      createdAt: now,
+      updatedAt: now,
+    };
     await ref.set(data);
     return { id: ref.id, ...data };
   }
