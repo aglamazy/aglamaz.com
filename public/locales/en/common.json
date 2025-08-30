@@ -73,4 +73,10 @@
   "activities": "Activities",
   "settings": "Settings",
   "death_anniversary": "death anniversary"
+  ,
+  "familyCalendar": "Family Calendar",
+  "startYourBlog": "Start your blog",
+  "startYourBlogDesc": "Make your blog visible to family members.",
+  "start": "Start",
+  "today": "Today"
 }

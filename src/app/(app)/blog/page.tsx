@@ -13,20 +13,26 @@ export default function BlogPage() {
   const { t } = useTranslation();
   const { user } = useUserStore();
   const [posts, setPosts] = useState<IBlogPost[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     const fetchPosts = async () => {
       if (!user?.user_id) return;
+      setLoading(true);
+      setError('');
       try {
-        const data = await apiFetch<IBlogPost[]>(`/api/blog?authorId=${user.user_id}`);
-        setPosts(data);
-      } catch (error) {
-        console.error(error);
-        throw error;
+        const data = await apiFetch<{ posts: IBlogPost[] }>(`/api/blog?authorId=${user.user_id}`);
+        setPosts(data.posts || []);
+      } catch (e) {
+        console.error(e);
+        setError('Failed to load posts');
+      } finally {
+        setLoading(false);
       }
     };
     fetchPosts();
-  }, [user]);
+  }, [user?.user_id]);
 
   return (
     <div className="space-y-4">
@@ -35,6 +41,8 @@ export default function BlogPage() {
           <Button>{t('newPost')}</Button>
         </Link>
       </div>
+      {loading && <div className="text-gray-500">{t('loading') as string}</div>}
+      {error && <div className="text-red-600">{error}</div>}
       {posts.map((post) => (
         <Card key={post.id}>
           <CardHeader>
@@ -54,4 +62,3 @@ export default function BlogPage() {
     </div>
   );
 }
-

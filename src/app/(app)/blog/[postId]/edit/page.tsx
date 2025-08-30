@@ -22,7 +22,6 @@ export default function EditPostPage() {
         setPost(data);
       } catch (error) {
         console.error(error);
-        throw error;
       }
     };
     load();
@@ -41,7 +40,6 @@ export default function EditPostPage() {
       router.push('/blog');
     } catch (error) {
       console.error(error);
-      throw error;
     } finally {
       setSaving(false);
     }
@@ -86,4 +84,3 @@ export default function EditPostPage() {
     </Card>
   );
 }
-

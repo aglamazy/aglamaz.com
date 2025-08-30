@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -30,7 +30,6 @@ export default function NewPostPage() {
       router.push('/blog');
     } catch (error) {
       console.error(error);
-      throw error;
     } finally {
       setSaving(false);
     }
@@ -71,4 +70,3 @@ export default function NewPostPage() {
     </Card>
   );
 }
-

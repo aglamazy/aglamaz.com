@@ -16,7 +16,8 @@ const getHandler = async (request: Request, _context: GuardContext) => {
       }
       return Response.json({ post });
     }
-    const posts = await repo.getAll();
+    const authorId = url.searchParams.get('authorId');
+    const posts = authorId ? await repo.getByAuthor(authorId) : await repo.getAll();
     return Response.json({ posts });
   } catch (error) {
     console.error(error);
@@ -110,4 +111,3 @@ export const GET = withMemberGuard(getHandler);
 export const POST = withMemberGuard(postHandler);
 export const PUT = withMemberGuard(putHandler);
 export const DELETE = withMemberGuard(deleteHandler);
-

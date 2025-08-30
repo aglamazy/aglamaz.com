@@ -427,6 +427,24 @@ export class FamilyRepository {
     }
   }
 
+  // Member prefs
+  async setMemberBlogEnabled(userId: string, siteId: string, enabled: boolean): Promise<void> {
+    try {
+      const db = this.getDb();
+      const querySnapshot = await db.collection(this.membersCollection)
+        .where('uid', '==', userId)
+        .where('siteId', '==', siteId)
+        .limit(1)
+        .get();
+      if (querySnapshot.empty) throw new Error('Member not found');
+      const docRef = querySnapshot.docs[0].ref;
+      await docRef.update({ blogEnabled: !!enabled, updatedAt: Timestamp.now() });
+    } catch (error) {
+      console.error('Error updating member blogEnabled:', error);
+      throw new Error('Failed to update member');
+    }
+  }
+
   async isUserPending(userId: string, siteId: string): Promise<boolean> {
     try {
       const member = await this.getMemberByUserId(userId, siteId);

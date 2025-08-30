@@ -73,4 +73,10 @@
   "activities": "פעילויות",
   "settings": "הגדרות",
   "death_anniversary": "יום השנה לפטירה"
+  ,
+  "familyCalendar": "לוח משפחתי",
+  "startYourBlog": "התחל בלוג",
+  "startYourBlogDesc": "הפוך את הבלוג שלך לגלוי לבני המשפחה.",
+  "start": "התחל",
+  "today": "היום"
 }

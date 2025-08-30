@@ -41,6 +41,16 @@ export class BlogRepository {
     const snap = await db.collection(this.collection).orderBy('createdAt', 'desc').get();
     return snap.docs.map(doc => ({ id: doc.id, ...(doc.data() as Omit<IBlogPost, 'id'>) })) as IBlogPost[];
   }
+
+  async getByAuthor(authorId: string): Promise<IBlogPost[]> {
+    const db = this.getDb();
+    const snap = await db
+      .collection(this.collection)
+      .where('authorId', '==', authorId)
+      .orderBy('createdAt', 'desc')
+      .get();
+    return snap.docs.map(doc => ({ id: doc.id, ...(doc.data() as Omit<IBlogPost, 'id'>) })) as IBlogPost[];
+  }
 }
 
 export const blogRepository = new BlogRepository();

@@ -447,7 +447,7 @@ export default function AnniversariesPage() {
           onClick={handleToday}
           className="ml-1 text-xs sm:text-sm px-2 py-1 rounded border border-gray-300 bg-white hover:bg-gray-50"
         >
-          Today
+          {t('today')}
         </button>
       </div>
       {loading ? (

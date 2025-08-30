@@ -6,6 +6,7 @@ export interface IMember {
   displayName: string;
   firstName: string;
   email: string;
+  blogEnabled?: boolean;
   createdAt: any;
   updatedAt: any;
-} 
+}

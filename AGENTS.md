@@ -19,3 +19,6 @@ Use .css files instead of inline styles. Organize the css files wisely.
 
 # i18n
 String labels on the UI: use only with t()
+
+# Firebase
+if you adding a new query, let me know if I need to create the index in firbase (will be in backend log)
