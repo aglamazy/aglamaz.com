@@ -18,7 +18,7 @@ export default function Navigation({ user, onLogout, setMobileMenuOpen }: Naviga
   const router = useRouter();
   const userMenuRef = useRef<HTMLDivElement>(null);
   const member = useMemberStore((state) => state.member);
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   // Close user menu when clicking outside
   useEffect(() => {
@@ -56,6 +56,8 @@ export default function Navigation({ user, onLogout, setMobileMenuOpen }: Naviga
     { name: t('contactMessages'), href: '/admin/contact-messages', icon: MessageCircle },
   ];
 
+  const withLang = (href: string) => (href.includes('?') ? `${href}&lang=${i18n.language}` : `${href}?lang=${i18n.language}`);
+
   const handleLogout = () => {
     setIsUserMenuOpen(false);
     onLogout();
@@ -84,7 +86,7 @@ export default function Navigation({ user, onLogout, setMobileMenuOpen }: Naviga
                 return (
                   <button
                     key={item.name}
-                    onClick={() => router.push(item.href)}
+                    onClick={() => router.push(withLang(item.href))}
                     className="text-sage-600 hover:text-sage-700 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 flex items-center gap-2"
                   >
                     <Icon size={16} />
@@ -99,7 +101,7 @@ export default function Navigation({ user, onLogout, setMobileMenuOpen }: Naviga
                 return (
                   <button
                     key={item.name}
-                    onClick={() => router.push(item.href)}
+                    onClick={() => router.push(withLang(item.href))}
                     className="text-red-600 hover:text-red-700 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 flex items-center gap-2"
                   >
                     <Icon size={16} />
@@ -129,9 +131,9 @@ export default function Navigation({ user, onLogout, setMobileMenuOpen }: Naviga
                         return (
                           <button
                             key={item.name}
-                            onClick={() => {
+                    onClick={() => {
                               setIsUserMenuOpen(false);
-                              router.push(item.href);
+                              router.push(withLang(item.href));
                             }}
                             className="flex items-center w-full px-4 py-2 text-sm text-green-700 hover:bg-green-50 transition-colors duration-200"
                           >
@@ -181,7 +183,7 @@ export default function Navigation({ user, onLogout, setMobileMenuOpen }: Naviga
                 <button
                   key={item.name}
                   onClick={() => {
-                    router.push(item.href);
+                    router.push(withLang(item.href));
                     setIsMobileMenuOpenState(false);
                   }}
                   className="text-sage-600 hover:text-sage-700 hover:bg-sage-50 block px-3 py-2 rounded-md text-base font-medium transition-colors duration-200 flex items-center gap-3 w-full text-left"
@@ -199,7 +201,7 @@ export default function Navigation({ user, onLogout, setMobileMenuOpen }: Naviga
                 <button
                   key={item.name}
                   onClick={() => {
-                    router.push(item.href);
+                    router.push(withLang(item.href));
                     setIsMobileMenuOpenState(false);
                   }}
                   className="text-red-600 hover:text-red-700 hover:bg-red-50 block px-3 py-2 rounded-md text-base font-medium transition-colors duration-200 flex items-center gap-3 w-full text-left"

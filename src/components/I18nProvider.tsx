@@ -13,7 +13,7 @@ export default function I18nProvider({ children }: { children: React.ReactNode }
       htmlElement.dir = 'ltr';
       htmlElement.lang = i18n.language;
     }
-  }, []);
+  }, [i18n.language]);
 
   return <I18nextProvider i18n={i18n}>{children}</I18nextProvider>;
 }
