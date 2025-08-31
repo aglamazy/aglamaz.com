@@ -100,4 +100,16 @@
   "photos": "fotoğraflar",
   "blog": "blog",
   "event": "etkinlik"
+  ,
+  "role": "Rol",
+  "createdAt": "Oluşturulma Tarihi",
+  "filterName": "Ada göre filtrele...",
+  "filterEmail": "E-postaya göre filtrele...",
+  "all": "Tümü",
+  "admin": "Yönetici",
+  "member": "Üye",
+  "viewBlog": "Blogu Görüntüle",
+  "noMembersFound": "Üye bulunamadı.",
+  "deleteMemberQuestion": "Üye silinsin mi?",
+  "cancel": "İptal"
 }

@@ -108,4 +108,16 @@
   "photos": "photos",
   "blog": "blog",
   "event": "event"
+  ,
+  "role": "Role",
+  "createdAt": "Created At",
+  "filterName": "Filter name...",
+  "filterEmail": "Filter email...",
+  "all": "All",
+  "admin": "Admin",
+  "member": "Member",
+  "viewBlog": "View Blog",
+  "noMembersFound": "No members found.",
+  "deleteMemberQuestion": "Delete Member?",
+  "cancel": "Cancel"
 }

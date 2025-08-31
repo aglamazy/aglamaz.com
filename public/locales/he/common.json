@@ -108,4 +108,16 @@
   "photos": "תמונות",
   "blog": "בלוג",
   "event": "אירוע"
+  ,
+  "role": "תפקיד",
+  "createdAt": "נוצר בתאריך",
+  "filterName": "סינון לפי שם...",
+  "filterEmail": "סינון לפי אימייל...",
+  "all": "הכל",
+  "admin": "מנהל",
+  "member": "חבר",
+  "viewBlog": "צפה בבלוג",
+  "noMembersFound": "לא נמצאו חברים.",
+  "deleteMemberQuestion": "למחוק את החבר?",
+  "cancel": "ביטול"
 }

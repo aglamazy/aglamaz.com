@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useSiteStore } from '@/store/SiteStore';
 import { apiFetch } from '@/utils/apiFetch';
 
@@ -14,6 +15,7 @@ interface MemberLite {
 }
 
 export default function FamilyMembersPage() {
+  const { t } = useTranslation();
   const site = useSiteStore((s) => s.siteInfo);
   const [members, setMembers] = useState<MemberLite[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,7 +36,7 @@ export default function FamilyMembersPage() {
     })();
   }, [site?.id]);
 
-  if (loading) return <div className="p-6">Loading…</div>;
+  if (loading) return <div className="p-6">{t('loading')}</div>;
   if (error) return <div className="p-6 text-red-600">{error}</div>;
 
   return (

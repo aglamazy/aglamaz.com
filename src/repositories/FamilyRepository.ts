@@ -90,6 +90,17 @@ export class FamilyRepository {
   }
 
   // Member Management
+  async getMemberById(memberId: string): Promise<FamilyMember | null> {
+    try {
+      const db = this.getDb();
+      const doc = await db.collection(this.membersCollection).doc(memberId).get();
+      if (!doc.exists) return null;
+      return { id: doc.id, ...(doc.data() as any) } as FamilyMember;
+    } catch (error) {
+      console.error('Error getting member by id:', error);
+      throw new Error('Failed to get member by id');
+    }
+  }
   async getMemberByUserId(userId: string, siteId: string): Promise<FamilyMember | null> {
     try {
       const db = this.getDb();
@@ -179,6 +190,16 @@ export class FamilyRepository {
     } catch (error) {
       console.error('Error updating member:', error);
       throw new Error('Failed to update member');
+    }
+  }
+
+  async deleteMember(memberId: string): Promise<void> {
+    try {
+      const db = this.getDb();
+      await db.collection(this.membersCollection).doc(memberId).delete();
+    } catch (error) {
+      console.error('Error deleting member:', error);
+      throw new Error('Failed to delete member');
     }
   }
 

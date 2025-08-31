@@ -6,10 +6,13 @@ import { Calendar, Users, Camera, MessageCircle } from "lucide-react";
 import { useSiteStore } from '@/store/SiteStore';
 import { apiFetch } from '@/utils/apiFetch';
 import Link from 'next/link';
+import { useTranslation } from 'react-i18next';
 
 export default function FamilyOverview() {
+  const { t } = useTranslation();
   const site = useSiteStore((s) => s.siteInfo);
   const [memberCount, setMemberCount] = useState<number | null>(null);
+  const [blogCount, setBlogCount] = useState<number | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -23,36 +26,49 @@ export default function FamilyOverview() {
     })();
   }, [site?.id]);
 
+  useEffect(() => {
+    (async () => {
+      try {
+        if (!site?.id) return;
+        const data = await apiFetch<{ count: number }>(`/api/site/${site.id}/blog/count`);
+        setBlogCount(data.count);
+      } catch {
+        setBlogCount(null);
+      }
+    })();
+  }, [site?.id]);
+
   const stats = [
     {
-      title: "Family Members",
+      title: t('familyMembers') as string,
       value: memberCount === null ? "…" : String(memberCount),
-      description: "Active portal users",
+      description: t('activePortalUsers') as string,
       icon: Users,
       color: "text-blue-600",
       bg: "bg-blue-100",
       href: '/family/members'
     },
     {
-      title: "Photo Albums",
+      title: t('blogPosts') as string,
+      value: blogCount === null ? "…" : String(blogCount),
+      description: t('storiesSharedThisYear') as string,
+      icon: MessageCircle,
+      color: "text-green-600",
+      bg: "bg-green-100",
+      href: '/blog/family'
+    },
+    {
+      title: t('photoAlbums') as string,
       value: "24",
-      description: "Precious memories captured",
+      description: t('preciousMemoriesCaptured') as string,
       icon: Camera,
       color: "text-purple-600",
       bg: "bg-purple-100",
     },
     {
-      title: "Blog Posts",
-      value: "18",
-      description: "Stories shared this year",
-      icon: MessageCircle,
-      color: "text-green-600",
-      bg: "bg-green-100",
-    },
-    {
-      title: "Events Planned",
+      title: t('eventsPlanned') as string,
       value: "3",
-      description: "Upcoming family gatherings",
+      description: t('upcomingFamilyGatherings') as string,
       icon: Calendar,
       color: "text-orange-600",
       bg: "bg-orange-100",
@@ -86,7 +102,7 @@ export default function FamilyOverview() {
           transition={{ delay: 0.8, duration: 0.6 }}
         >
           <h2 className="text-3xl font-bold text-charcoal mb-8 text-center">
-            Family Overview
+            {t('familyOverview')}
           </h2>
           
           <div className="grid md:grid-cols-4 gap-6 mb-12">
@@ -97,27 +113,43 @@ export default function FamilyOverview() {
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: 1 + index * 0.1, duration: 0.4 }}
               >
-                <Card className="border-0 shadow-md bg-white/80 backdrop-blur-sm">
-                  <CardContent className="p-6 text-center">
-                    <div className={`w-12 h-12 ${stat.bg} rounded-xl flex items-center justify-center mx-auto mb-4`}>
-                      <stat.icon className={`w-6 h-6 ${stat.color}`} />
-                    </div>
-                    <div className="text-3xl font-bold text-charcoal mb-2">
-                      {stat.value}
-                    </div>
-                    <div className="font-medium text-charcoal mb-1">
-                      {stat.title}
-                    </div>
-                    <div className="text-sm text-sage-600">
-                      {stat.description}
-                    </div>
-                    {stat.href ? (
-                      <div className="mt-3">
-                        <Link className="text-blue-600 hover:underline" href={stat.href}>View</Link>
+                {stat.href ? (
+                  <Link href={stat.href} className="block">
+                    <Card className="border-0 shadow-md bg-white/80 backdrop-blur-sm cursor-pointer hover:shadow-lg transition-shadow">
+                      <CardContent className="p-6 text-center">
+                        <div className={`w-12 h-12 ${stat.bg} rounded-xl flex items-center justify-center mx-auto mb-4`}>
+                          <stat.icon className={`w-6 h-6 ${stat.color}`} />
+                        </div>
+                        <div className="text-3xl font-bold text-charcoal mb-2">
+                          {stat.value}
+                        </div>
+                        <div className="font-medium text-charcoal mb-1">
+                          {stat.title}
+                        </div>
+                        <div className="text-sm text-sage-600">
+                          {stat.description}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                ) : (
+                  <Card className="border-0 shadow-md bg-white/80 backdrop-blur-sm">
+                    <CardContent className="p-6 text-center">
+                      <div className={`w-12 h-12 ${stat.bg} rounded-xl flex items-center justify-center mx-auto mb-4`}>
+                        <stat.icon className={`w-6 h-6 ${stat.color}`} />
                       </div>
-                    ) : null}
-                  </CardContent>
-                </Card>
+                      <div className="text-3xl font-bold text-charcoal mb-2">
+                        {stat.value}
+                      </div>
+                      <div className="font-medium text-charcoal mb-1">
+                        {stat.title}
+                      </div>
+                      <div className="text-sm text-sage-600">
+                        {stat.description}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
               </motion.div>
             ))}
           </div>
@@ -125,7 +157,7 @@ export default function FamilyOverview() {
           <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
             <CardHeader>
               <CardTitle className="text-xl font-bold text-charcoal">
-                Recent Family Activity
+                {t('recentFamilyActivity')}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -140,12 +172,12 @@ export default function FamilyOverview() {
                   >
                     <div className="flex-1">
                       <p className="font-medium text-charcoal mb-1">
-                        {item.activity}
+                        {t(item.activity)}
                       </p>
-                      <p className="text-sm text-sage-600">{item.time}</p>
+                      <p className="text-sm text-sage-600">{t(item.time)}</p>
                     </div>
                     <Badge className="border-sage-200 text-sage-600">
-                      {item.type}
+                      {t(item.type)}
                     </Badge>
                   </motion.div>
                 ))}

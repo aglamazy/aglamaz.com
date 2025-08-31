@@ -6,6 +6,9 @@ import { useSiteStore } from '@/store/SiteStore';
 import type { ISite } from '@/entities/Site';
 import type { IMember } from '@/entities/Member';
 import { apiFetch } from '@/utils/apiFetch';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import { useTranslation } from 'react-i18next';
+import { Button } from '@/components/ui/button';
 
 function formatDate(ts: any) {
   if (!ts) return '';
@@ -16,6 +19,7 @@ function formatDate(ts: any) {
 }
 
 export default function SiteMembersPage() {
+  const { t } = useTranslation();
   const site = useSiteStore((state) => state.siteInfo) as ISite | null;
   const [members, setMembers] = useState<IMember[]>([]);
   const [nameFilter, setNameFilter] = useState("");
@@ -23,6 +27,12 @@ export default function SiteMembersPage() {
   const [roleFilter, setRoleFilter] = useState("");
   const [sortKey, setSortKey] = useState<keyof IMember>('displayName');
   const [sortAsc, setSortAsc] = useState(true);
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const [error, setError] = useState('');
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<IMember | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   useEffect(() => {
     if (!site?.id) return;
@@ -50,12 +60,57 @@ export default function SiteMembersPage() {
     }
   };
 
+  const updateMember = async (member: IMember, changes: Partial<IMember>) => {
+    if (!site?.id) return;
+    setSavingId(member.id);
+    setError('');
+    try {
+      await apiFetch(`/api/site/${site.id}/members/${member.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(changes)
+      });
+      setMembers((prev) => prev.map(m => m.id === member.id ? { ...m, ...changes } : m));
+      return true;
+    } catch (e: any) {
+      console.error(e);
+      setError(e?.message || 'Failed to update member');
+      return false;
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  const openConfirmDelete = (member: IMember) => {
+    setDeleteError('');
+    setDeleteTarget(member);
+    setConfirmOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!site?.id || !deleteTarget) return;
+    setDeleting(true);
+    setDeleteError('');
+    try {
+      await apiFetch(`/api/site/${site.id}/members/${deleteTarget.id}`, { method: 'DELETE' });
+      setMembers((prev) => prev.filter(m => m.id !== deleteTarget.id));
+      setConfirmOpen(false);
+      setDeleteTarget(null);
+    } catch (e: any) {
+      console.error(e);
+      setDeleteError(e?.message || 'Failed to delete member');
+      // Rethrow is not necessary for UI but keeping local error visible
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-cream-50 to-sage-50 p-4">
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center gap-3 mb-8">
           <Users size={32} className="text-sage-600" />
-          <h1 className="text-3xl font-bold text-sage-700">Site Members</h1>
+          <h1 className="text-3xl font-bold text-sage-700">{t('siteMembers')}</h1>
         </div>
         <Card>
           <CardContent className="pt-6">
@@ -63,17 +118,17 @@ export default function SiteMembersPage() {
               <table className="min-w-full bg-white border border-sage-200 rounded-lg">
                 <thead>
                   <tr>
-                    <th className="px-4 py-2 cursor-pointer" onClick={() => handleSort('displayName')}>Name</th>
-                    <th className="px-4 py-2 cursor-pointer" onClick={() => handleSort('email')}>Email</th>
-                    <th className="px-4 py-2 cursor-pointer" onClick={() => handleSort('role')}>Role</th>
-                    <th className="px-4 py-2 cursor-pointer" onClick={() => handleSort('createdAt')}>Created At</th>
-                    <th className="px-4 py-2">Blog</th>
+                    <th className="px-4 py-2 cursor-pointer" onClick={() => handleSort('displayName')}>{t('name')}</th>
+                    <th className="px-4 py-2 cursor-pointer" onClick={() => handleSort('email')}>{t('email')}</th>
+                    <th className="px-4 py-2 cursor-pointer" onClick={() => handleSort('role')}>{t('role') as string}</th>
+                    <th className="px-4 py-2 cursor-pointer" onClick={() => handleSort('createdAt')}>{t('createdAt') as string}</th>
+                    <th className="px-4 py-2">{t('blog') as string}</th>
                   </tr>
                   <tr>
                     <th className="px-4 py-1">
                       <input
                         type="text"
-                        placeholder="Filter name..."
+                        placeholder={t('filterName') as string}
                         value={nameFilter}
                         onChange={e => setNameFilter(e.target.value)}
                         className="w-full border border-sage-200 rounded px-2 py-1 text-sm"
@@ -82,7 +137,7 @@ export default function SiteMembersPage() {
                     <th className="px-4 py-1">
                       <input
                         type="text"
-                        placeholder="Filter email..."
+                        placeholder={t('filterEmail') as string}
                         value={emailFilter}
                         onChange={e => setEmailFilter(e.target.value)}
                         className="w-full border border-sage-200 rounded px-2 py-1 text-sm"
@@ -94,9 +149,9 @@ export default function SiteMembersPage() {
                         onChange={e => setRoleFilter(e.target.value)}
                         className="w-full border border-sage-200 rounded px-2 py-1 text-sm"
                       >
-                        <option value="">All</option>
-                        <option value="admin">Admin</option>
-                        <option value="member">Member</option>
+                        <option value="">{t('all') as string}</option>
+                        <option value="admin">{t('admin') as string}</option>
+                        <option value="member">{t('member') as string}</option>
                       </select>
                     </th>
                     <th></th>
@@ -105,9 +160,27 @@ export default function SiteMembersPage() {
                 <tbody>
                   {sorted.map(member => (
                     <tr key={member.id} className="border-t border-sage-100 hover:bg-sage-50">
-                      <td className="px-4 py-2">{member.displayName}</td>
+                      <td className="px-4 py-2">
+                        <input
+                          className="border rounded px-2 py-1 text-sm w-full"
+                          value={member.displayName || ''}
+                          onChange={(e) => setMembers(prev => prev.map(m => m.id === member.id ? { ...m, displayName: e.target.value } : m))}
+                          onBlur={(e) => updateMember(member, { displayName: e.target.value })}
+                          disabled={savingId === member.id}
+                        />
+                      </td>
                       <td className="px-4 py-2">{member.email}</td>
-                      <td className="px-4 py-2 capitalize">{member.role}</td>
+                      <td className="px-4 py-2 capitalize">
+                        <select
+                          className="border rounded px-2 py-1 text-sm"
+                          value={member.role}
+                          onChange={(e) => updateMember(member, { role: e.target.value as any })}
+                          disabled={savingId === member.id}
+                        >
+                          <option value="member">member</option>
+                          <option value="admin">admin</option>
+                        </select>
+                      </td>
                       <td className="px-4 py-2">{formatDate(member.createdAt)}</td>
                       <td className="px-4 py-2">
                         {(member as any).blogEnabled && (member as any).blogHandle ? (
@@ -117,22 +190,49 @@ export default function SiteMembersPage() {
                             target="_blank"
                             rel="noreferrer"
                           >
-                            View Blog
+                            {t('viewBlog') as string}
                           </a>
                         ) : (
                           <span className="text-gray-400">—</span>
                         )}
                       </td>
+                      <td className="px-4 py-2 text-right">
+                        <Button
+                          className="bg-red-500 hover:bg-red-600"
+                          disabled={savingId === member.id}
+                          onClick={() => openConfirmDelete(member)}
+                        >
+                          {t('delete') as string}
+                        </Button>
+                      </td>
                     </tr>
                   ))}
                   {sorted.length === 0 && (
                     <tr>
-                      <td colSpan={5} className="text-center text-gray-400 py-8">No members found.</td>
+                      <td colSpan={6} className="text-center text-gray-400 py-8">{t('noMembersFound') as string}</td>
                     </tr>
                   )}
                 </tbody>
               </table>
+              {error && <div className="text-red-600 mt-2">{error}</div>}
             </div>
+            <ConfirmDialog
+              isOpen={confirmOpen}
+              title={t('deleteMemberQuestion') as string}
+              message={deleteTarget ? `${deleteTarget.displayName || ''} (${deleteTarget.email || ''})` : ''}
+              confirmLabel={t('delete') as string}
+              cancelLabel={t('cancel') as string}
+              destructive
+              loading={deleting}
+              error={deleteError}
+              onConfirm={handleConfirmDelete}
+              onCancel={() => {
+                if (deleting) return;
+                setConfirmOpen(false);
+                setDeleteTarget(null);
+                setDeleteError('');
+              }}
+            />
           </CardContent>
         </Card>
       </div>
