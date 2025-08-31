@@ -57,6 +57,18 @@ export class BlogRepository {
       .get();
     return snap.docs.map(doc => ({ id: doc.id, ...(doc.data() as Omit<IBlogPost, 'id'>) })) as IBlogPost[];
   }
+
+  async getPublicBySite(siteId: string, limit = 20): Promise<IBlogPost[]> {
+    const db = this.getDb();
+    const snap = await db
+      .collection(this.collection)
+      .where('siteId', '==', siteId)
+      .where('isPublic', '==', true)
+      .orderBy('createdAt', 'desc')
+      .limit(limit)
+      .get();
+    return snap.docs.map(doc => ({ id: doc.id, ...(doc.data() as Omit<IBlogPost, 'id'>) })) as IBlogPost[];
+  }
 }
 
 export const blogRepository = new BlogRepository();

@@ -18,7 +18,7 @@ export default function WelcomeHero({ user, title, subtitle }: WelcomeHeroProps)
       title: "Read Family Blog",
       description: "Catch up on family news and memories",
       icon: BookOpen,
-      url: createPageUrl("Blog"),
+      url: '/blog/family',
       color: "from-blue-500 to-blue-600",
     },
     {
