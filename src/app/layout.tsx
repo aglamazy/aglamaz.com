@@ -3,7 +3,7 @@ import I18nProvider from '../components/I18nProvider';
 import I18nGate from '../components/I18nGate';
 import { fetchSiteInfo } from '../firebase/admin';
 
-const GOOGLE_VERIFICATION = process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION || process.env.GOOGLE_SITE_VERIFICATION || '';
+const GOOGLE_VERIFICATION = process.env.GOOGLE_SITE_VERIFICATION || '';
 export const metadata = {
   verification: {
     google: GOOGLE_VERIFICATION,
