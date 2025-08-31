@@ -48,7 +48,6 @@ export default function ClientLayoutShell({ children }) {
 
     (async () => {
       const status = await fetchMember(user.user_id, siteInfo.id);
-      console.log("Status is ", status);
       if (status === MembershipStatus.Pending) {
         openPending();
       } else if (status === MembershipStatus.NotApplied) {

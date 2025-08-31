@@ -10,7 +10,7 @@ import EditorRich from '@/components/EditorRich';
 import type { IBlogPost } from '@/entities/BlogPost';
 
 export default function EditPostPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const params = useParams<{ postId: string }>();
   const router = useRouter();
   const [post, setPost] = useState<IBlogPost | null>(null);
@@ -19,14 +19,14 @@ export default function EditPostPage() {
   useEffect(() => {
     const load = async () => {
       try {
-        const data = await apiFetch<{ post: IBlogPost }>(`/api/blog?id=${params.postId}`);
+        const data = await apiFetch<{ post: IBlogPost }>(`/api/blog?id=${params.postId}&lang=${i18n.language}`);
         setPost(data.post);
       } catch (error) {
         console.error(error);
       }
     };
     load();
-  }, [params.postId]);
+  }, [params.postId, i18n.language]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,7 +36,7 @@ export default function EditPostPage() {
       await apiFetch(`/api/blog`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: post.id, title: post.title, content: post.content, isPublic: post.isPublic })
+        body: JSON.stringify({ id: post.id, title: post.title, content: post.content, isPublic: post.isPublic, lang: i18n.language })
       });
       router.push('/blog');
     } catch (error) {

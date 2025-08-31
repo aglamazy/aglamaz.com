@@ -1,4 +1,4 @@
-import { getFirestore, Timestamp } from 'firebase-admin/firestore';
+import { FieldValue, getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { initAdmin } from '../firebase/admin';
 import type { IBlogPost } from '@/entities/BlogPost';
 
@@ -35,6 +35,32 @@ export class BlogRepository {
   async update(id: string, updates: Partial<Omit<IBlogPost, 'id' | 'createdAt' | 'updatedAt'>>): Promise<void> {
     const db = this.getDb();
     await db.collection(this.collection).doc(id).update({ ...updates, updatedAt: Timestamp.now() });
+  }
+
+  async markTranslationRequested(id: string, lang: string): Promise<void> {
+    const db = this.getDb();
+    const ref = db.collection(this.collection).doc(id);
+    await ref.set({
+      translationMeta: {
+        requested: { [lang]: Timestamp.now() },
+        attempts: FieldValue.increment(1),
+      }
+    }, { merge: true });
+  }
+
+  async addTranslation(id: string, lang: string, data: { title: string; content: string; engine: string }): Promise<void> {
+    const db = this.getDb();
+    const ref = db.collection(this.collection).doc(id);
+    await ref.set({
+      translations: {
+        [lang]: {
+          title: data.title,
+          content: data.content,
+          engine: data.engine,
+          translatedAt: Timestamp.now(),
+        }
+      }
+    }, { merge: true });
   }
 
   async delete(id: string): Promise<void> {

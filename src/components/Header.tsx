@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from "react";
 import Navigation from "@/components/Navigation";
 import { useTranslation } from 'react-i18next';
 import { LogOut, Users, MessageCircle } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { IUser } from "@/entities/User";
 import { IMember } from "@/entities/Member";
 import { ISite } from "@/entities/Site";
@@ -40,6 +40,8 @@ export default function Header({ user, member, onLogout, siteInfo }: HeaderProps
   const { i18n, t } = useTranslation();
   const userMenuRef = useRef(null);
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const openLogin = useLoginModalStore((s) => s.open);
 
   useEffect(() => {
@@ -57,10 +59,18 @@ export default function Header({ user, member, onLogout, siteInfo }: HeaderProps
     };
   }, [isUserMenuOpen]);
 
-  const handleLangChange = (lang) => {
+  const handleLangChange = (lang: string) => {
     if (i18n.language !== lang) {
       i18n.changeLanguage(lang);
     }
+    // Reflect selection in URL so server components (public pages) render the chosen language
+    try {
+      const params = new URLSearchParams(searchParams?.toString() || '');
+      params.set('lang', lang);
+      const newUrl = `${pathname}?${params.toString()}`;
+      router.replace(newUrl, { scroll: false });
+      router.refresh();
+    } catch {}
     setIsLangMenuOpen(false);
   };
 

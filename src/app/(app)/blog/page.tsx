@@ -13,7 +13,7 @@ import { apiFetch } from '@/utils/apiFetch';
 import { useUserStore } from '@/store/UserStore';
 
 export default function BlogPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const router = useRouter();
   const { user } = useUserStore();
   const [posts, setPosts] = useState<IBlogPost[]>([]);
@@ -26,7 +26,7 @@ export default function BlogPage() {
       setLoading(true);
       setError('');
       try {
-        const data = await apiFetch<{ posts: IBlogPost[] }>(`/api/blog?authorId=${user.user_id}`);
+        const data = await apiFetch<{ posts: IBlogPost[] }>(`/api/blog?authorId=${user.user_id}&lang=${i18n.language}`);
         setPosts(data.posts || []);
       } catch (e) {
         console.error(e);
@@ -36,7 +36,7 @@ export default function BlogPage() {
       }
     };
     fetchPosts();
-  }, [user?.user_id]);
+  }, [user?.user_id, i18n.language]);
 
   return (
     <div className="space-y-4">
