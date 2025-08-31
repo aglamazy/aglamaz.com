@@ -72,6 +72,32 @@
   "family": "Aile",
   "activities": "Aktiviteler",
   "settings": "Ayarlar",
-  "death_anniversary": "ölüm yıldönümü"
+  "death_anniversary": "ölüm yıldönümü",
+  "newPost": "Yeni Yazı"
+  ,
+  "writePost": "Yazı yaz"
+  ,
+  "readMoreInBlog": "Daha fazlasını {{name}}'nin blogunda okuyun",
+  "noPublicPostsYet": "Henüz herkese açık gönderi yok.",
+  "loading": "Yükleniyor..."
+  ,
+  "familyMembers": "Aile Üyeleri",
+  "activePortalUsers": "Aktif portal kullanıcıları",
+  "blogPosts": "Blog Yazıları",
+  "storiesSharedThisYear": "Bu yıl paylaşılan hikayeler",
+  "photoAlbums": "Fotoğraf Albümleri",
+  "preciousMemoriesCaptured": "Kıymetli anılar kaydedildi",
+  "eventsPlanned": "Planlanan Etkinlikler",
+  "upcomingFamilyGatherings": "Yaklaşan aile buluşmaları",
+  "familyOverview": "Aile Özeti",
+  "recentFamilyActivity": "Son Aile Etkinlikleri",
+  "newPhotosAddedSummer2024": "'2024 Yaz Tatili' albümüne yeni fotoğraflar eklendi",
+  "momSharedNewFamilyRecipe": "Anne yeni bir aile tarifi paylaştı",
+  "dadUpdatedFamilyCalendar": "Baba aile takvimini güncelledi",
+  "twoHoursAgo": "2 saat önce",
+  "oneDayAgo": "1 gün önce",
+  "threeDaysAgo": "3 gün önce",
+  "photos": "fotoğraflar",
+  "blog": "blog",
+  "event": "etkinlik"
 }
-

@@ -87,7 +87,7 @@ export default function ClientLayoutShell({ children }) {
 
   if (loading) {
     return (
-      <Loader size={24} thickness={3} text="Loading"/>
+      <Loader size={24} thickness={3} text={t('loading') as string}/>
     );
   }
 

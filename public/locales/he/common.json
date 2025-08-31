@@ -80,5 +80,32 @@
   "start": "התחל",
   "today": "היום",
   "add": "הוסף",
-  "noPostsYet": "אין פוסטים עדיין."
+  "noPostsYet": "אין פוסטים עדיין.",
+  "newPost": "פוסט חדש"
+  ,
+  "writePost": "כתוב פוסט"
+  ,
+  "readMoreInBlog": "קראו עוד בבלוג של {{name}}",
+  "noPublicPostsYet": "אין פוסטים ציבוריים עדיין.",
+  "loading": "טוען..."
+  ,
+  "familyMembers": "חברי משפחה",
+  "activePortalUsers": "משתמשים פעילים בפורטל",
+  "blogPosts": "פוסטים בבלוג",
+  "storiesSharedThisYear": "פוסטים נוספו השנה",
+  "photoAlbums": "אלבומי תמונות",
+  "preciousMemoriesCaptured": "זכרונות יקרים שתועדו",
+  "eventsPlanned": "אירועים מתוכננים",
+  "upcomingFamilyGatherings": "מפגשי משפחה קרובים",
+  "familyOverview": "סקירת משפחה",
+  "recentFamilyActivity": "פעילות משפחתית אחרונה",
+  "newPhotosAddedSummer2024": "תמונות חדשות נוספו ל׳חופשת הקיץ 2024׳",
+  "momSharedNewFamilyRecipe": "אמא שיתפה מתכון משפחתי חדש",
+  "dadUpdatedFamilyCalendar": "אבא עדכן את לוח המשפחה",
+  "twoHoursAgo": "לפני שעתיים",
+  "oneDayAgo": "לפני יום",
+  "threeDaysAgo": "לפני שלושה ימים",
+  "photos": "תמונות",
+  "blog": "בלוג",
+  "event": "אירוע"
 }

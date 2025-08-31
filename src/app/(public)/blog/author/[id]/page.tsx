@@ -3,8 +3,8 @@ import type { IBlogPost } from '@/entities/BlogPost';
 import { BlogRepository } from '@/repositories/BlogRepository';
 import { FamilyRepository } from '@/repositories/FamilyRepository';
 import { headers, cookies } from 'next/headers';
-import { TranslationService } from '@/services/TranslationService';
-import TranslationWatcher from '@/components/blog/TranslationWatcher';
+import TranslationTrigger from '@/components/blog/TranslationTrigger';
+import I18nText from '@/components/I18nText';
 
 export const dynamic = 'force-dynamic';
 
@@ -52,30 +52,19 @@ export default async function AuthorBlogPage({ params, searchParams }: { params:
     return { ...p, title: t.title || p.title, content: t.content || p.content };
   };
 
-  let queued = false;
-  const maybeTranslate = async (p: IBlogPost) => {
-    if (!lang || lang === p.sourceLang) return;
-    const translations = p.translations || {};
-    const base = lang.split('-')[0]?.toLowerCase();
-    const has = translations[lang] || Object.keys(translations).some(k => k.split('-')[0]?.toLowerCase() === base);
-    if (has) return;
-    try { await repo.markTranslationRequested(p.id, lang); } catch {}
-    queued = true;
-    if (!TranslationService.isEnabled()) return;
-    (async () => {
-      try {
-        console.log('[translate] start', { postId: p.id, to: lang });
-        const res = await TranslationService.translateHtml({ title: p.title, content: p.content, from: p.sourceLang, to: lang });
-        await repo.addTranslation(p.id, lang, { title: res.title, content: res.content, engine: 'gpt' });
-      } catch (e) { console.error('Author page translation failed', e); }
-    })();
-  };
+  const localized = posts.map((p) => choose(p));
 
-  const localized = await Promise.all(posts.map(async (p) => { await maybeTranslate(p); return choose(p); }));
+  const clientPosts = posts.map((p) => ({
+    id: p.id,
+    sourceLang: p.sourceLang,
+    translations: Object.fromEntries(
+      Object.entries(p.translations || {}).map(([k, v]: any) => [k, { title: String(v?.title || ''), content: String(v?.content || '') }])
+    ) as Record<string, { title: string; content: string }>,
+  }));
 
   return (
     <div className="space-y-4 p-4">
-      {queued ? <TranslationWatcher enabled={true} /> : null}
+      <TranslationTrigger posts={clientPosts} lang={lang} />
       {localized.map((post) => (
         <Card key={post.id}>
           <CardHeader>
@@ -89,7 +78,7 @@ export default async function AuthorBlogPage({ params, searchParams }: { params:
           </CardContent>
         </Card>
       ))}
-      {posts.length === 0 && <div>No posts yet.</div>}
+      {posts.length === 0 && <div><I18nText k="noPostsYet" /></div>}
     </div>
   );
 }

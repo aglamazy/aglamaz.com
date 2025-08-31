@@ -80,5 +80,32 @@
   "start": "Start",
   "today": "Today",
   "add": "Add",
-  "noPostsYet": "No posts yet."
+  "noPostsYet": "No posts yet.",
+  "newPost": "New Post"
+  ,
+  "writePost": "Write a post"
+  ,
+  "readMoreInBlog": "Read more in {{name}}'s blog",
+  "noPublicPostsYet": "No public posts yet.",
+  "loading": "Loading..."
+  ,
+  "familyMembers": "Family Members",
+  "activePortalUsers": "Active portal users",
+  "blogPosts": "Blog Posts",
+  "storiesSharedThisYear": "Stories shared this year",
+  "photoAlbums": "Photo Albums",
+  "preciousMemoriesCaptured": "Precious memories captured",
+  "eventsPlanned": "Events Planned",
+  "upcomingFamilyGatherings": "Upcoming family gatherings",
+  "familyOverview": "Family Overview",
+  "recentFamilyActivity": "Recent Family Activity",
+  "newPhotosAddedSummer2024": "New photos added to 'Summer Vacation 2024'",
+  "momSharedNewFamilyRecipe": "Mom shared a new family recipe",
+  "dadUpdatedFamilyCalendar": "Dad updated the family calendar",
+  "twoHoursAgo": "2 hours ago",
+  "oneDayAgo": "1 day ago",
+  "threeDaysAgo": "3 days ago",
+  "photos": "photos",
+  "blog": "blog",
+  "event": "event"
 }

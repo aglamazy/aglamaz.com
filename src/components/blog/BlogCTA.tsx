@@ -1,12 +1,14 @@
 "use client";
 
 import React, { useCallback, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useUserStore } from '@/store/UserStore';
 import { useMemberStore } from '@/store/MemberStore';
 import { useSiteStore } from '@/store/SiteStore';
 import { apiFetch } from '@/utils/apiFetch';
 
 export default function BlogCTA() {
+  const { t } = useTranslation();
   const { user } = useUserStore();
   const member = useMemberStore((s) => s.member);
   const fetchMember = useMemberStore((s) => s.fetchMember);
@@ -33,18 +35,15 @@ export default function BlogCTA() {
 
   return (
     <div className="p-3 border rounded-lg bg-white shadow-sm">
-      {hasBlog ? (
-        <a className="text-blue-600 hover:underline text-sm" href="/blog">Write a post</a>
-      ) : (
+      {hasBlog ? null : (
         <button
           onClick={start}
           disabled={saving}
           className="text-sm bg-sage-600 text-white px-3 py-1 rounded disabled:opacity-50"
         >
-          {saving ? 'Starting…' : 'Start your blog'}
+          {saving ? t('saving') : t('startYourBlog')}
         </button>
       )}
     </div>
   );
 }
-

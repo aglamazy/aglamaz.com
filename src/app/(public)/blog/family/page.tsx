@@ -5,9 +5,10 @@ import { FamilyRepository } from '@/repositories/FamilyRepository';
 import crypto from 'crypto';
 import styles from './page.module.css';
 import BlogCTA from '@/components/blog/BlogCTA';
-import TranslationWatcher from '@/components/blog/TranslationWatcher';
+import AddPostFab from '@/components/blog/AddPostFab';
+import I18nText from '@/components/I18nText';
+import TranslationTrigger from '@/components/blog/TranslationTrigger';
 import { headers } from 'next/headers';
-import { TranslationService } from '@/services/TranslationService';
 
 export const dynamic = 'force-dynamic';
 
@@ -42,29 +43,6 @@ export default async function FamilyBlogPage({ searchParams }: { searchParams?: 
     return { ...p, title: t.title || p.title, content: t.content || p.content };
   };
 
-  let queued = false;
-  const maybeTranslate = async (p: IBlogPost) => {
-    if (!lang || lang === p.sourceLang) return;
-    const translations = p.translations || {};
-    const base = lang.split('-')[0]?.toLowerCase();
-    const has = (translations as any)[lang] || Object.keys(translations).some(k => k.split('-')[0]?.toLowerCase() === base);
-    if (has) return;
-    try {
-      await repo.markTranslationRequested(p.id, lang);
-      queued = true;
-    } catch {}
-    if (!TranslationService.isEnabled()) return;
-    (async () => {
-      try {
-        console.log('[translate] start', { postId: p.id, to: lang });
-        const res = await TranslationService.translateHtml({ title: p.title, content: p.content, from: p.sourceLang, to: lang });
-        await repo.addTranslation(p.id, lang, { title: res.title, content: res.content, engine: 'gpt' });
-      } catch (e) {
-        console.error('Public family page translation failed', e);
-      }
-    })();
-  };
-
   const enriched = await Promise.all(posts.map(async (p) => {
     const m = await fam.getMemberByUserId(p.authorId, siteId);
     const email = (m as any)?.email || '';
@@ -75,14 +53,23 @@ export default async function FamilyBlogPage({ searchParams }: { searchParams?: 
     const palette = ['bg-blue-50','bg-green-50','bg-yellow-50','bg-purple-50','bg-rose-50'];
     const colorIdx = parseInt(crypto.createHash('md5').update(String(p.id)).digest('hex').slice(0, 2), 16) % palette.length;
     const tint = palette[colorIdx];
-    await maybeTranslate(p);
     return { post: choose(p), name, handle, avatar, tint };
+  }));
+
+  // Minimal, plain-JSON payload for client TranslationTrigger
+  const clientPosts = posts.map((p) => ({
+    id: p.id,
+    sourceLang: p.sourceLang,
+    translations: Object.fromEntries(
+      Object.entries(p.translations || {}).map(([k, v]: any) => [k, { title: String(v?.title || ''), content: String(v?.content || '') }])
+    ) as Record<string, { title: string; content: string }>,
   }));
 
   return (
     <div className={`space-y-4 p-4 ${styles.blobBg}`}>
-      {queued ? <TranslationWatcher enabled={true} /> : null}
-      {/* Invite banner for users (client-side) */}
+      <TranslationTrigger posts={clientPosts} lang={lang} />
+      {/* For users with blogs: FAB to add post. For others: CTA to start a blog */}
+      <AddPostFab />
       <BlogCTA />
       {enriched.map(({ post, name, handle, avatar, tint }) => (
         <Card key={post.id} className="border-0 shadow-lg bg-white/90">
@@ -104,12 +91,14 @@ export default async function FamilyBlogPage({ searchParams }: { searchParams?: 
               <div className={`text-sm text-gray-700 ${styles.clamp3}`} dangerouslySetInnerHTML={{ __html: post.content || '' }} />
             </div>
             <div className="mt-2">
-              <a className="text-blue-600 hover:underline text-sm" href={`/blog/author/${handle}?lang=${lang}`}>Read more in {name}'s blog</a>
+              <a className="text-blue-600 hover:underline text-sm" href={`/blog/author/${handle}?lang=${lang}`}>
+                <I18nText k="readMoreInBlog" options={{ name }} />
+              </a>
             </div>
           </CardContent>
         </Card>
       ))}
-      {posts.length === 0 && <div>No public posts yet.</div>}
+      {posts.length === 0 && <div><I18nText k="noPublicPostsYet" /></div>}
     </div>
   );
 }
