@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Menu, X, User, LogOut, Home, Users, Heart, Settings, MessageCircle, Calendar } from 'lucide-react';
+import { Menu, X, User, LogOut, Home, Users, Heart, Settings, MessageCircle, Calendar, BookOpen } from 'lucide-react';
 import { useMemberStore } from '@/store/MemberStore';
 import { useTranslation } from 'react-i18next';
 
@@ -45,6 +45,7 @@ export default function Navigation({ user, onLogout, setMobileMenuOpen }: Naviga
   const navigationItems = [
     { name: t('home'), href: '/app', icon: Home },
     { name: t('family'), href: '/family', icon: Users },
+    { name: t('readFamilyBlog'), href: '/blog/family', icon: BookOpen },
     { name: t('familyCalendar', { defaultValue: 'Family Calendar' }) as string, href: '/calendar', icon: Calendar },
   ];
 

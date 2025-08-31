@@ -10,7 +10,7 @@ import EditorRich from '@/components/EditorRich';
 import { useUserStore } from '@/store/UserStore';
 
 export default function NewPostPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const router = useRouter();
   const { user } = useUserStore();
   const [title, setTitle] = useState('');
@@ -26,7 +26,7 @@ export default function NewPostPage() {
       await apiFetch('/api/blog', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ authorId: user.user_id, title, content, isPublic })
+        body: JSON.stringify({ authorId: user.user_id, title, content, isPublic, lang: i18n.language })
       });
       router.push('/blog');
     } catch (error) {

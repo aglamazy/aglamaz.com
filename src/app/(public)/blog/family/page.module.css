@@ -1,0 +1,14 @@
+.clamp3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.blobBg {
+  background-image:
+    radial-gradient(40rem 20rem at -10% 10%, rgba(147, 197, 253, 0.25), transparent 60%),
+    radial-gradient(30rem 16rem at 110% 0%, rgba(167, 243, 208, 0.25), transparent 60%),
+    radial-gradient(28rem 16rem at 50% 120%, rgba(254, 215, 170, 0.25), transparent 60%);
+}
+

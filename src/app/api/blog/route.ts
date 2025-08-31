@@ -31,13 +31,17 @@ const postHandler = async (request: Request, context: GuardContext) => {
     const user = context.user!;
     const member = context.member!;
     const body = await request.json();
-    const { title, content, isPublic } = body;
+    const { title, content, isPublic, lang } = body;
     if (!title || !content) {
       return Response.json({ error: 'Missing fields' }, { status: 400 });
     }
+    const accept = request.headers.get('accept-language') || '';
+    const headerLang = accept.split(',')[0]?.split('-')[0] || '';
+    const sourceLang = (lang || headerLang || process.env.NEXT_DEFAULT_LANG || 'en').toString();
     const post = await repo.create({
       authorId: user.userId,
       siteId: member.siteId,
+      sourceLang,
       title,
       content,
       isPublic: Boolean(isPublic),
