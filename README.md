@@ -8,6 +8,16 @@ This is a minimal Next.js 14 application demonstrating Firebase Authentication w
 2. Install dependencies with `npm install` (requires internet access).
 3. Run the development server using `npm run dev`.
 
+### Google Search Console verification
+
+To verify the site with Google Search Console using a meta tag, set the environment variable with your verification token:
+
+```
+NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION=<The tag>
+```
+
+The app exposes this value via Next.js metadata in `src/app/layout.tsx`. Do not hardcode verification tokens in source; use env vars instead. Alternatively, DNS verification (Domain property) is recommended for broader coverage.
+
 ## Features
 
 - App Router with server components
