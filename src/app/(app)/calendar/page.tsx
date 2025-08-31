@@ -13,6 +13,8 @@ import { useSiteStore } from '@/store/SiteStore';
 import { apiFetch } from '@/utils/apiFetch';
 import styles from './page.module.css';
 import AddFab from '@/components/ui/AddFab';
+import { Button } from '@/components/ui/button';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface AnniversaryEvent {
   id: string;
@@ -420,13 +422,13 @@ export default function AnniversariesPage() {
     <div className="container mx-auto px-2 py-2 sm:px-4 sm:py-4">
       <h1 className="text-2xl font-bold mb-2 sm:mb-4">{t('familyCalendar')}</h1>
       <div className="mb-3 sm:mb-4 flex items-center justify-center gap-2">
-        <button
+        <Button
           aria-label="Previous month"
           onClick={handlePrevMonth}
-          className="px-2 py-1 rounded border border-gray-300 bg-white hover:bg-gray-50"
+          className="px-3 py-2 rounded-full"
         >
-          ◀
-        </button>
+          {i18n.dir() === 'rtl' ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+        </Button>
         <input
           type="month"
           value={`${year}-${String(month + 1).padStart(2, '0')}`}
@@ -436,20 +438,20 @@ export default function AnniversariesPage() {
           }}
           className="border rounded px-3 py-2"
         />
-        <button
+        <Button
           aria-label="Next month"
           onClick={handleNextMonth}
-          className="px-2 py-1 rounded border border-gray-300 bg-white hover:bg-gray-50"
+          className="px-3 py-2 rounded-full"
         >
-          ▶
-        </button>
-        <button
+          {i18n.dir() === 'rtl' ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
+        </Button>
+        <Button
           aria-label="Today"
           onClick={handleToday}
-          className="ml-1 text-xs sm:text-sm px-2 py-1 rounded border border-gray-300 bg-white hover:bg-gray-50"
+          className="ml-1 text-xs sm:text-sm"
         >
           {t('today')}
-        </button>
+        </Button>
       </div>
       {loading ? (
         <div>Loading...</div>
