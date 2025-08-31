@@ -3,6 +3,12 @@ import I18nProvider from '../components/I18nProvider';
 import I18nGate from '../components/I18nGate';
 import { fetchSiteInfo } from '../firebase/admin';
 
+export const metadata = {
+  verification: {
+    google: 'YrDYifOQqApB--LP-wpQj2SZPjWFVKY1YHywndTYvqE',
+  },
+};
+
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   let siteInfo = null;
   try {
