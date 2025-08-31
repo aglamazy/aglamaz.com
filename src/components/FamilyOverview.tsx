@@ -1,18 +1,37 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Calendar, Users, Camera, MessageCircle } from "lucide-react";
+import { useSiteStore } from '@/store/SiteStore';
+import { apiFetch } from '@/utils/apiFetch';
+import Link from 'next/link';
 
 export default function FamilyOverview() {
+  const site = useSiteStore((s) => s.siteInfo);
+  const [memberCount, setMemberCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        if (!site?.id) return;
+        const data = await apiFetch<{ count: number }>(`/api/site/${site.id}/members/count`);
+        setMemberCount(data.count);
+      } catch {
+        setMemberCount(null);
+      }
+    })();
+  }, [site?.id]);
+
   const stats = [
     {
       title: "Family Members",
-      value: "6",
+      value: memberCount === null ? "…" : String(memberCount),
       description: "Active portal users",
       icon: Users,
       color: "text-blue-600",
       bg: "bg-blue-100",
+      href: '/family/members'
     },
     {
       title: "Photo Albums",
@@ -92,6 +111,11 @@ export default function FamilyOverview() {
                     <div className="text-sm text-sage-600">
                       {stat.description}
                     </div>
+                    {stat.href ? (
+                      <div className="mt-3">
+                        <Link className="text-blue-600 hover:underline" href={stat.href}>View</Link>
+                      </div>
+                    ) : null}
                   </CardContent>
                 </Card>
               </motion.div>
