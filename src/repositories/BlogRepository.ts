@@ -95,6 +95,17 @@ export class BlogRepository {
       .get();
     return snap.docs.map(doc => ({ id: doc.id, ...(doc.data() as Omit<IBlogPost, 'id'>) })) as IBlogPost[];
   }
+
+  async countPublicSince(siteId: string, since: Timestamp): Promise<number> {
+    const db = this.getDb();
+    const snap = await db
+      .collection(this.collection)
+      .where('siteId', '==', siteId)
+      .where('isPublic', '==', true)
+      .where('createdAt', '>=', since)
+      .get();
+    return snap.size;
+  }
 }
 
 export const blogRepository = new BlogRepository();

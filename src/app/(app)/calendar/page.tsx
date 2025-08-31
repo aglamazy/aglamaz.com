@@ -454,7 +454,7 @@ export default function AnniversariesPage() {
         </Button>
       </div>
       {loading ? (
-        <div>Loading...</div>
+        <div>{t('loading')}</div>
       ) : (
         <>
           {eventsThisMonth.length === 0 && (
