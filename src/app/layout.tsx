@@ -19,8 +19,15 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     throw error;
   }
 
+  const googleVerify = process.env.GOOGLE_SITE_VERIFICATION || '';
+
   return (
     <html lang="en">
+      <head>
+        {googleVerify ? (
+          <meta name="google-site-verification" content={googleVerify} />
+        ) : null}
+      </head>
       <body>
         {/* Inject siteInfo for client-side access */}
         <script
