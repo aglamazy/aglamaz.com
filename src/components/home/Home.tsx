@@ -48,8 +48,8 @@ export default function Home() {
               <div className="max-w-3xl mx-auto mt-6 px-4">
                 <div className="bg-sage-50 border border-sage-200 rounded-xl p-4 flex items-center justify-between">
                   <div>
-                    <div className="font-semibold text-sage-800">{t('startYourBlog') || 'Start your blog'}</div>
-                    <div className="text-sage-600 text-sm">{t('startYourBlogDesc') || 'Make your blog visible to family members.'}</div>
+                    <div className="font-semibold text-sage-800">{t('startYourBlog')}</div>
+                    <div className="text-sage-600 text-sm">{t('startYourBlogDesc')}</div>
                   </div>
                   <button
                     className="bg-sage-600 text-white px-4 py-2 rounded-lg"
@@ -68,7 +68,7 @@ export default function Home() {
                       }
                     }}
                   >
-                    {t('start') || 'Start'}
+                    {t('start')}
                   </button>
                 </div>
               </div>

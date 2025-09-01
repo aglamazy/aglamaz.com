@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Loader2, CheckCircle } from 'lucide-react';
 import { apiFetch } from '@/utils/apiFetch';
 import { useSiteStore } from '@/store/SiteStore';
+import { useTranslation } from 'react-i18next';
 
 interface SignupFormProps {
   onSuccess: () => void;
@@ -17,6 +18,7 @@ export default function SignupForm({ onSuccess, onCancel }: SignupFormProps) {
   const [error, setError] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
+  const { t, i18n } = useTranslation();
 
   const siteId =
     useSiteStore((s) => s.siteInfo?.id) ||
@@ -27,7 +29,7 @@ export default function SignupForm({ onSuccess, onCancel }: SignupFormProps) {
     e.preventDefault();
     
     if (!firstName.trim() || !email.trim()) {
-      setError('Please fill in all fields');
+      setError(t('pleaseFillAllFields'));
       return;
     }
 
@@ -56,7 +58,7 @@ export default function SignupForm({ onSuccess, onCancel }: SignupFormProps) {
       setEmailSent(data.success == true);
     } catch (error) {
       console.error('Signup error:', error);
-      setError('Failed to send verification email. Please try again.');
+      setError(t('failedToSendVerification'));
     } finally {
       setIsLoading(false);
     }
@@ -64,17 +66,17 @@ export default function SignupForm({ onSuccess, onCancel }: SignupFormProps) {
 
   if (isSubmitted) {
     return (
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8 flex flex-col items-center">
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8 flex flex-col items-center" dir={i18n.dir()} lang={i18n.language}>
         <div className="text-center">
           <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-gray-900 mb-2">
-            {emailSent ? 'אימייל אימות נשלח' : 'בקשה נשלחה בהצלחה'}
+            {emailSent ? t('verificationEmailSent') : t('requestSentSuccessfully')}
           </h3>
           
           {emailSent ? (
             <>
               <p className="text-gray-600 mb-4">
-                בדוק את תיבת הדואר שלך וצור קשר עם המנהל
+                {t('checkInboxContactAdmin')}
               </p>
               <p className="text-sm text-gray-500">
                 {email}
@@ -83,7 +85,7 @@ export default function SignupForm({ onSuccess, onCancel }: SignupFormProps) {
           ) : (
             <>
               <p className="text-gray-600 mb-4">
-                הבקשה נשלחה אך לא הצלחנו לשלוח אימייל אימות
+                {t('requestSentButNoVerification')}
               </p>
               <p className="text-sm text-gray-500">
                 {email}
@@ -96,15 +98,15 @@ export default function SignupForm({ onSuccess, onCancel }: SignupFormProps) {
   }
 
   return (
-    <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8 flex flex-col items-center">
+    <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8 flex flex-col items-center" dir={i18n.dir()} lang={i18n.language}>
       {/* Logo */}
       <div className="flex flex-col items-center mb-6">
         <div className="w-20 h-20 rounded-full bg-yellow-100 flex items-center justify-center mb-4 shadow">
           {/* Placeholder for logo */}
           <span className="text-4xl">🌳</span>
         </div>
-        <h1 className="text-2xl font-bold text-gray-900 text-center">הרשמה למערכת</h1>
-        <p className="text-gray-500 mt-2 text-center">Sign up to continue</p>
+        <h1 className="text-2xl font-bold text-gray-900 text-center">{t('signUp')}</h1>
+        <p className="text-gray-500 mt-2 text-center">{t('signUpToContinue')}</p>
       </div>
 
 
@@ -119,7 +121,7 @@ export default function SignupForm({ onSuccess, onCancel }: SignupFormProps) {
       <form onSubmit={handleSubmit} className="w-full space-y-4">
         {/* First Name Input */}
         <div className="w-full">
-          <label className="block text-gray-700 text-sm mb-1" htmlFor="firstName">שם פרטי</label>
+          <label className="block text-gray-700 text-sm mb-1" htmlFor="firstName">{t('firstName')}</label>
           <div className="relative">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
               <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" strokeLinecap="round" strokeLinejoin="round"/></svg>
@@ -130,7 +132,7 @@ export default function SignupForm({ onSuccess, onCancel }: SignupFormProps) {
               value={firstName}
               onChange={(e) => setFirstName(e.target.value)}
               className="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200"
-              placeholder="הכנס את שמך הפרטי"
+              placeholder={t('firstNamePlaceholder') as string}
               disabled={isLoading}
             />
           </div>
@@ -138,7 +140,7 @@ export default function SignupForm({ onSuccess, onCancel }: SignupFormProps) {
 
         {/* Email Input */}
         <div className="w-full">
-          <label className="block text-gray-700 text-sm mb-1" htmlFor="email">כתובת אימייל</label>
+          <label className="block text-gray-700 text-sm mb-1" htmlFor="email">{t('email')}</label>
           <div className="relative">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
               <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M21 7.5V16.5C21 18.1569 19.6569 19.5 18 19.5H6C4.34315 19.5 3 18.1569 3 16.5V7.5M21 7.5C21 5.84315 19.6569 4.5 18 4.5H6C4.34315 4.5 3 5.84315 3 7.5M21 7.5L12 13.5L3 7.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
@@ -149,7 +151,7 @@ export default function SignupForm({ onSuccess, onCancel }: SignupFormProps) {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200"
-              placeholder="your@email.com"
+              placeholder={t('emailPlaceholder') as string}
               disabled={isLoading}
             />
           </div>
@@ -164,10 +166,10 @@ export default function SignupForm({ onSuccess, onCancel }: SignupFormProps) {
           {isLoading ? (
             <>
               <Loader2 className="w-4 h-4 mr-2 animate-spin inline" />
-              שולח...
+              {t('sending')}
             </>
           ) : (
-            'שלח בקשה'
+            t('submitRequest')
           )}
         </button>
 
@@ -179,10 +181,10 @@ export default function SignupForm({ onSuccess, onCancel }: SignupFormProps) {
             className="hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
             disabled={isLoading}
           >
-            ביטול
+            {t('cancel')}
           </button>
         </div>
       </form>
     </div>
   );
-} 
+}

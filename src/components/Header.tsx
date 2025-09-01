@@ -94,7 +94,7 @@ export default function Header({ user, member, onLogout, siteInfo }: HeaderProps
           <button
             onClick={() => setIsLangMenuOpen((v) => !v)}
             className="h-8 w-8 rounded-full flex items-center justify-center text-xl bg-gray-100 hover:bg-gray-200 border border-gray-300"
-            aria-label="Change language"
+            aria-label={t('changeLanguage') as string}
           >
             {LANGS.find(l => l.code === i18n.language)?.flag || '🌐'}
           </button>
@@ -121,7 +121,7 @@ export default function Header({ user, member, onLogout, siteInfo }: HeaderProps
             <button
               onClick={() => setIsUserMenuOpen((v) => !v)}
               className="h-8 w-8 rounded-full bg-sage-600 flex items-center justify-center text-white text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sage-500 transition-colors duration-200"
-              aria-label="User menu"
+              aria-label={t('userMenu') as string}
             >
               {getUserInitials(member)}
             </button>
