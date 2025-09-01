@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface ModalProps {
   isOpen: boolean;
@@ -9,6 +10,7 @@ interface ModalProps {
 
 const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, isClosable = true }) => {
   if (!isOpen) return null;
+  const { t } = useTranslation();
 
   return (
     <div
@@ -21,7 +23,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, isClosable = t
           <button
             onClick={onClose}
             className="absolute top-3 right-3 text-gray-700 hover:text-gray-900 text-2xl"
-            aria-label="Close"
+            aria-label={t('close') as string}
           >
             &times;
           </button>

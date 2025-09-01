@@ -77,19 +77,19 @@ export default function FamilyOverview() {
 
   const recentActivity = [
     {
-      activity: "New photos added to 'Summer Vacation 2024'",
-      time: "2 hours ago",
-      type: "photos",
+      activity: 'newPhotosAddedSummer2024',
+      time: 'twoHoursAgo',
+      type: 'photos',
     },
     {
-      activity: "Mom shared a new family recipe",
-      time: "1 day ago",
-      type: "blog",
+      activity: 'momSharedNewFamilyRecipe',
+      time: 'oneDayAgo',
+      type: 'blog',
     },
     {
-      activity: "Dad updated the family calendar",
-      time: "3 days ago",
-      type: "event",
+      activity: 'dadUpdatedFamilyCalendar',
+      time: 'threeDaysAgo',
+      type: 'event',
     },
   ];
 

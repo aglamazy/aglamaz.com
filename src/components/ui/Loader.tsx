@@ -1,6 +1,7 @@
 "use client";
 import React, { useEffect, useRef } from "react";
 import styles from './Loader.module.css';
+import { useTranslation } from 'react-i18next';
 
 type LoaderProps = {
   text?: string;            // Optional label next to the spinner
@@ -32,6 +33,7 @@ export const Loader: React.FC<LoaderProps> = ({
       : base;
 
   const spinnerRef = useRef<HTMLDivElement | null>(null);
+  const { t } = useTranslation();
 
   useEffect(() => {
     if (spinnerRef.current) {
@@ -55,7 +57,7 @@ export const Loader: React.FC<LoaderProps> = ({
         {text ? (
           <span className="text-sm text-slate-700">{text}</span>
         ) : (
-          <span className="sr-only">Loading…</span>
+          <span className="sr-only">{t('loading') as string}</span>
         )}
       </div>
     </div>

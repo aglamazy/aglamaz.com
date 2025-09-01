@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import Modal from './Modal';
 
 interface ConfirmDialogProps {
@@ -18,14 +19,17 @@ export default function ConfirmDialog({
   isOpen,
   title,
   message,
-  confirmLabel = 'Delete',
-  cancelLabel = 'Cancel',
+  confirmLabel,
+  cancelLabel,
   destructive = false,
   loading = false,
   error,
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
+  const { t } = useTranslation();
+  const confirmText = confirmLabel || (destructive ? (t('delete') as string) : (t('confirm') as string));
+  const cancelText = cancelLabel || (t('cancel') as string);
   return (
     <Modal isOpen={isOpen} onClose={onCancel} isClosable={!loading}>
       <div className="space-y-4">
@@ -43,7 +47,7 @@ export default function ConfirmDialog({
             disabled={loading}
             className="px-3 py-1 rounded border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
           >
-            {cancelLabel}
+            {cancelText}
           </button>
           <button
             type="button"
@@ -51,11 +55,10 @@ export default function ConfirmDialog({
             disabled={loading}
             className={`${destructive ? 'bg-red-600 hover:bg-red-700' : 'bg-primary hover:bg-secondary'} text-white px-3 py-1 rounded disabled:opacity-50`}
           >
-            {loading ? 'Deleting…' : confirmLabel}
+            {loading ? (t('deleting') as string) : confirmText}
           </button>
         </div>
       </div>
     </Modal>
   );
 }
-

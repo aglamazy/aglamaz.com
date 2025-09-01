@@ -1,5 +1,6 @@
 'use client';
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface ErrorBoundaryState {
   hasError: boolean;
@@ -35,14 +36,9 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
       return (
         <div className="min-h-screen flex items-center justify-center bg-gray-50">
           <div className="text-center">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Something went wrong</h2>
-            <p className="text-gray-600 mb-4">We're sorry, but something unexpected happened.</p>
-            <button
-              onClick={() => window.location.reload()}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-            >
-              Reload Page
-            </button>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">{/* i18n handled by hook in child */}</h2>
+            <p className="text-gray-600 mb-4">{/* i18n handled by hook in child */}</p>
+            <LocalizedReloadButton />
           </div>
         </div>
       );
@@ -50,4 +46,20 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
 
     return this.props.children;
   }
-} 
+}
+
+function LocalizedReloadButton() {
+  const { t } = useTranslation();
+  return (
+    <>
+      <h2 className="text-2xl font-bold text-gray-900 mb-4">{t('somethingWentWrong') as string}</h2>
+      <p className="text-gray-600 mb-4">{t('unexpectedError') as string}</p>
+      <button
+              onClick={() => window.location.reload()}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+            >
+              {t('reloadPage')}
+      </button>
+    </>
+  );
+}

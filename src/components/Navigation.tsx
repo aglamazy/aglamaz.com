@@ -46,7 +46,7 @@ export default function Navigation({ user, onLogout, setMobileMenuOpen }: Naviga
     { name: t('home'), href: '/app', icon: Home },
     { name: t('family'), href: '/family', icon: Users },
     { name: t('readFamilyBlog'), href: '/blog/family', icon: BookOpen },
-    { name: t('familyCalendar', { defaultValue: 'Family Calendar' }) as string, href: '/calendar', icon: Calendar },
+    { name: t('familyCalendar') as string, href: '/calendar', icon: Calendar },
   ];
 
   // Add admin link if user is admin
@@ -162,7 +162,7 @@ export default function Navigation({ user, onLogout, setMobileMenuOpen }: Naviga
               onClick={() => setIsMobileMenuOpenState(!isMobileMenuOpen)}
               className="inline-flex items-center justify-center p-2 rounded-md text-sage-600 hover:text-sage-700 hover:bg-sage-50 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-sage-500"
             >
-              <span className="sr-only">Open main menu</span>
+              <span className="sr-only">{t('openMainMenu') as string}</span>
               {isMobileMenuOpen ? (
                 <X size={24} />
               ) : (
@@ -218,7 +218,7 @@ export default function Navigation({ user, onLogout, setMobileMenuOpen }: Naviga
                 <div className="h-8 w-8 rounded-full bg-sage-600 flex items-center justify-center text-white text-sm font-medium mr-3">
                   {getUserInitials(user)}
                 </div>
-                <span className="text-sm font-medium text-sage-700">{user?.name || 'User'}</span>
+                <span className="text-sm font-medium text-sage-700">{user?.name || (t('user') as string)}</span>
               </div>
               <button
                 onClick={handleLogout}

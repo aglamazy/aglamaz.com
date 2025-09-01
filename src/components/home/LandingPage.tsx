@@ -12,7 +12,7 @@ export default function LandingPage() {
       <WelcomeHero user={null} title={t('welcomeToFamilyCircle')} subtitle={t('stayConnected')} />
       <div className="text-center mt-8">
         <Link href="/app" className="bg-sage-600 text-white px-6 py-2 rounded-lg">
-          Get started
+          {t('getStarted')}
         </Link>
       </div>
     </div>

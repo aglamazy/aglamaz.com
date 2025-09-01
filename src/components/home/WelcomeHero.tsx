@@ -5,6 +5,7 @@ import { Button } from "../ui/button";
 import Link from "next/link";
 import { createPageUrl } from "../../utils/createPageUrl";
 import { BookOpen, Images, Link as LinkIcon, ArrowRight } from "lucide-react";
+import { useTranslation } from 'react-i18next';
 
 interface WelcomeHeroProps {
   user: any;
@@ -13,24 +14,25 @@ interface WelcomeHeroProps {
 }
 
 export default function WelcomeHero({ user, title, subtitle }: WelcomeHeroProps) {
+  const { t } = useTranslation();
   const quickActions = [
     {
-      title: "Read Family Blog",
-      description: "Catch up on family news and memories",
+      title: t('readFamilyBlog') as string,
+      description: t('catchUpOnFamilyNews') as string,
       icon: BookOpen,
       url: '/blog/family',
       color: "from-blue-500 to-blue-600",
     },
     {
-      title: "Browse Photos",
-      description: "Explore our photo albums",
+      title: t('browsePhotos') as string,
+      description: t('explorePhotoAlbums') as string,
       icon: Images,
       url: createPageUrl("Albums"),
       color: "from-purple-500 to-purple-600",
     },
     {
-      title: "Family Links",
-      description: "Access important family resources",
+      title: t('familyLinks') as string,
+      description: t('accessFamilyResources') as string,
       icon: LinkIcon,
       url: createPageUrl("Links"),
       color: "from-green-500 to-green-600",
@@ -47,10 +49,10 @@ export default function WelcomeHero({ user, title, subtitle }: WelcomeHeroProps)
           className="text-center mb-12"
         >
           <h1 className="text-5xl font-bold text-charcoal mb-4">
-            {title || `Welcome back, ${user?.full_name?.split(' ')[0] || 'Family Member'}!`}
+            {title || (t('welcomeBack', { name: user?.full_name?.split(' ')[0] || t('familyMember') }) as string)}
           </h1>
           <p className="text-xl text-sage-600 max-w-2xl mx-auto leading-relaxed">
-            {subtitle || 'Stay connected with your family through shared memories, important links, and beautiful photo albums.'}
+            {subtitle || (t('stayConnected') as string)}
           </p>
         </motion.div>
 
@@ -77,7 +79,7 @@ export default function WelcomeHero({ user, title, subtitle }: WelcomeHeroProps)
                     <Button 
                       className="border-sage-200 hover:border-sage-300 hover:bg-sage-50 group"
                     >
-                      Explore
+                      {t('explore')}
                       <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform duration-200" />
                     </Button>
                   </Link>
