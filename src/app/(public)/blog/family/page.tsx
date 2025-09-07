@@ -9,6 +9,7 @@ import AddPostFab from '@/components/blog/AddPostFab';
 import I18nText from '@/components/I18nText';
 import TranslationTrigger from '@/components/blog/TranslationTrigger';
 import { headers } from 'next/headers';
+import blogStyles from '@/components/blog/BlogContent.module.css';
 
 export const dynamic = 'force-dynamic';
 
@@ -88,7 +89,7 @@ export default async function FamilyBlogPage({ searchParams }: { searchParams?: 
           </CardHeader>
           <CardContent>
             <div className={`rounded-lg p-3 ${tint}`}>
-              <div className={`text-sm text-gray-700 ${styles.clamp3}`} dangerouslySetInnerHTML={{ __html: post.content || '' }} />
+              <div className={`text-sm text-gray-700 ${styles.clamp3} ${blogStyles.content}`} dangerouslySetInnerHTML={{ __html: post.content || '' }} />
             </div>
             <div className="mt-2">
               <a className="text-blue-600 hover:underline text-sm" href={`/blog/author/${handle}?lang=${lang}`}>
