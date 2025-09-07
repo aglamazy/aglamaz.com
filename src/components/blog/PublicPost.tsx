@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { IBlogPost } from '@/entities/BlogPost';
 import { Button } from '@/components/ui/button';
+import styles from './PublicPost.module.css';
 
 interface Props {
   post: IBlogPost;
@@ -48,7 +49,7 @@ export default function PublicPost({ post }: Props) {
   };
 
   return (
-    <article className="prose max-w-none mx-auto py-8">
+    <article className={`prose max-w-none mx-auto py-8 ${styles.article}`}>
       <h1 className="mb-4">{post.title}</h1>
       <div dangerouslySetInnerHTML={{ __html: post.content }} />
       <div className="flex items-center space-x-4 mt-6">
