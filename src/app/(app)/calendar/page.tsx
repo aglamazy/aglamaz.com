@@ -15,6 +15,7 @@ import styles from './page.module.css';
 import AddFab from '@/components/ui/AddFab';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 interface AnniversaryEvent {
   id: string;
@@ -60,6 +61,7 @@ export default function AnniversariesPage() {
   const fetchMember = useMemberStore((s) => s.fetchMember);
   const siteInfo = useSiteStore((s) => s.siteInfo);
   const { t, i18n } = useTranslation();
+  const router = useRouter();
 
   const [imageSrc, setImageSrc] = useState('');
   const [offsetY, setOffsetY] = useState(0);
@@ -646,6 +648,12 @@ export default function AnniversariesPage() {
                 {t('description')}: {selectedEvent.description}
               </div>
             )}
+            <button
+              onClick={() => router.push(`/anniversaries/${selectedEvent.id}/occurrences/new`)}
+              className="px-3 py-1 bg-primary text-white rounded"
+            >
+              {t('addOccurrence')}
+            </button>
             {(user?.user_id === selectedEvent.ownerId || member?.role === 'admin') && (
               <div className="flex gap-2 pt-2">
                 <button

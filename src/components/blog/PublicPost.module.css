@@ -1,0 +1,4 @@
+.article * {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
