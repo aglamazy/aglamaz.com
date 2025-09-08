@@ -133,7 +133,7 @@ export default function AnniversariesPage() {
     });
   }, [events]);
 
-  // Load linked occurrences for the currently selected event
+  // Load linked events (formerly occurrences) for the currently selected event
   useEffect(() => {
     const load = async () => {
       if (!selectedEvent) {
@@ -143,13 +143,13 @@ export default function AnniversariesPage() {
       setOccLoading(true);
       setOccError('');
       try {
-        const data = await apiFetch<{ occurrences: Array<{ id: string; date: any }> }>(
-          `/api/anniversaries/${selectedEvent.id}/occurrences`
+        const data = await apiFetch<{ events: Array<{ id: string; date: any }> }>(
+          `/api/anniversaries/${selectedEvent.id}/events`
         );
-        setOccurrences(Array.isArray(data.occurrences) ? data.occurrences : []);
+        setOccurrences(Array.isArray(data.events) ? data.events : []);
         return true;
       } catch (e) {
-        console.error('[Anniversaries] occurrences fetch failed', e);
+        console.error('[Anniversaries] events fetch failed', e);
         setOccError('load');
         throw e;
       } finally {
@@ -679,13 +679,13 @@ export default function AnniversariesPage() {
                 {t('description')}: {selectedEvent.description}
               </div>
             )}
-            {/* Add occurrence and linked occurrences on a single row */}
+            {/* Add event and linked items on a single row */}
             <div className="flex flex-wrap items-center gap-2 pt-2">
               <button
-                onClick={() => router.push(`/anniversaries/${selectedEvent.id}/occurrences/new`)}
+                onClick={() => router.push(`/anniversaries/${selectedEvent.id}/events/new`)}
                 className="px-3 py-1 bg-primary text-white rounded"
               >
-                {t('addOccurrence')}
+                {t('addEvent')}
               </button>
               {occurrences.map((occ) => {
                 const d = (occ.date as any);
@@ -695,7 +695,7 @@ export default function AnniversariesPage() {
                 return (
                   <a
                     key={occ.id}
-                    href={`/anniversaries/${selectedEvent.id}/occurrences/${occ.id}`}
+                    href={`/anniversaries/${selectedEvent.id}/events/${occ.id}`}
                     className="px-3 py-1 bg-primary text-white rounded text-sm"
                   >
                     {String(yearText)}

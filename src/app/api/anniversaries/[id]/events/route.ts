@@ -17,10 +17,10 @@ const getHandler = async (_request: Request, context: GuardContext) => {
       return Response.json({ error: 'Event not found' }, { status: 404 });
     }
     const items = await occRepo.listByEvent(id!);
-    return Response.json({ occurrences: items });
+    return Response.json({ events: items });
   } catch (error) {
     console.error(error);
-    return Response.json({ error: 'Failed to fetch occurrences' }, { status: 500 });
+    return Response.json({ error: 'Failed to fetch events' }, { status: 500 });
   }
 };
 
@@ -30,7 +30,7 @@ const postHandler = async (request: Request, context: GuardContext) => {
     const user = context.user!;
     const { id } = context.params!; // eventId
     const body = await request.json();
-    const { date } = body;
+    const { date, imageUrl, images } = body;
     if (!date) {
       return Response.json({ error: 'Missing date' }, { status: 400 });
     }
@@ -40,15 +40,14 @@ const postHandler = async (request: Request, context: GuardContext) => {
     if (!event || event.siteId !== member.siteId) {
       return Response.json({ error: 'Event not found' }, { status: 404 });
     }
-    // All members can create occurrences
-    const occ = await occRepo.create({ siteId: member.siteId, eventId: id!, date: new Date(date), createdBy: user.userId });
-    return Response.json({ occurrence: occ }, { status: 201 });
+    // All members can create events (previously occurrences)
+    const occ = await occRepo.create({ siteId: member.siteId, eventId: id!, date: new Date(date), createdBy: user.userId, imageUrl, images: Array.isArray(images) ? images : undefined });
+    return Response.json({ event: occ }, { status: 201 });
   } catch (error) {
     console.error(error);
-    return Response.json({ error: 'Failed to create occurrence' }, { status: 500 });
+    return Response.json({ error: 'Failed to create event' }, { status: 500 });
   }
 };
 
 export const GET = withMemberGuard(getHandler);
 export const POST = withMemberGuard(postHandler);
-

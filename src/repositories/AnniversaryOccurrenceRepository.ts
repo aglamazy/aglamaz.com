@@ -7,7 +7,8 @@ export interface AnniversaryOccurrence {
   eventId: string;
   date: any; // Firestore Timestamp
   createdAt: any;
-  createdBy: string;
+  createdBy: string; // legacy single image
+  images?: string[]; // new: multiple images
 }
 
 export class AnniversaryOccurrenceRepository {
@@ -18,7 +19,7 @@ export class AnniversaryOccurrenceRepository {
     return getFirestore();
   }
 
-  async create(data: { siteId: string; eventId: string; date: Date; createdBy: string }): Promise<AnniversaryOccurrence> {
+  async create(data: { siteId: string; eventId: string; date: Date; createdBy: string; imageUrl?: string; images?: string[] }): Promise<AnniversaryOccurrence> {
     const db = this.getDb();
     const ref = await db.collection(this.collection).add({
       siteId: data.siteId,
@@ -26,6 +27,7 @@ export class AnniversaryOccurrenceRepository {
       date: Timestamp.fromDate(data.date),
       createdAt: Timestamp.now(),
       createdBy: data.createdBy,
+      images: Array.isArray(data.images) ? data.images : [],
     });
     const doc = await ref.get();
     return { id: doc.id, ...doc.data() } as AnniversaryOccurrence;
@@ -44,10 +46,11 @@ export class AnniversaryOccurrenceRepository {
     return qs.docs.map((d) => ({ id: d.id, ...d.data() } as AnniversaryOccurrence));
   }
 
-  async update(id: string, updates: { date?: Date }): Promise<void> {
+  async update(id: string, updates: { date?: Date; imageUrl?: string | null; images?: string[] }): Promise<void> {
     const db = this.getDb();
     const data: any = {};
     if (updates.date) data.date = Timestamp.fromDate(updates.date);
+    if (updates.images !== undefined) data.images = updates.images;
     await db.collection(this.collection).doc(id).update(data);
   }
 
