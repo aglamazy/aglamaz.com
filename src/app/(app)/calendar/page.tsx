@@ -53,6 +53,9 @@ export default function AnniversariesPage() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<AnniversaryEvent | null>(null);
+  const [occurrences, setOccurrences] = useState<Array<{ id: string; date: any }>>([]);
+  const [occLoading, setOccLoading] = useState(false);
+  const [occError, setOccError] = useState('');
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
   const user = useUserStore((s) => s.user);
@@ -129,6 +132,34 @@ export default function AnniversariesPage() {
       preloaded.current.add(u);
     });
   }, [events]);
+
+  // Load linked occurrences for the currently selected event
+  useEffect(() => {
+    const load = async () => {
+      if (!selectedEvent) {
+        setOccurrences([]);
+        return;
+      }
+      setOccLoading(true);
+      setOccError('');
+      try {
+        const data = await apiFetch<{ occurrences: Array<{ id: string; date: any }> }>(
+          `/api/anniversaries/${selectedEvent.id}/occurrences`
+        );
+        setOccurrences(Array.isArray(data.occurrences) ? data.occurrences : []);
+        return true;
+      } catch (e) {
+        console.error('[Anniversaries] occurrences fetch failed', e);
+        setOccError('load');
+        throw e;
+      } finally {
+        setOccLoading(false);
+      }
+    };
+    load();
+  }, [selectedEvent?.id]);
+
+  
 
   // Ensure user session is populated on this route too (not only in app layout)
   useEffect(() => {
@@ -340,7 +371,7 @@ export default function AnniversariesPage() {
         key={`${cellYear}-${cellMonth}-${cellDay}`}
         className={`border p-1 sm:p-2 h-24 sm:h-32 rounded-xl shadow-md transition-colors relative overflow-hidden ${
           isCurrentMonth ? 'hover:bg-emerald-50' : 'text-gray-400 bg-gray-50'
-        }`}
+        } ${isToday ? 'ring-2 ring-emerald-500' : ''}`}
         dir={i18n.dir()}
       >
         <div
@@ -348,7 +379,7 @@ export default function AnniversariesPage() {
             i18n.dir() === 'rtl' ? 'right-1' : 'left-1'
           } flex items-center`}
         >
-          <span className="font-bold text-sm">{cellDay}</span>
+          <span className={`font-bold text-sm ${isToday ? styles.todayNumber : ''}`}>{cellDay}</span>
           {dayEvents.length === 1 && !dayEvents[0].imageUrl && (
             <span className={`ml-2 text-xs ${styles.nameMobile}`}>
               {truncateResponsive(dayEvents[0].name, 6, 12)}
@@ -648,12 +679,30 @@ export default function AnniversariesPage() {
                 {t('description')}: {selectedEvent.description}
               </div>
             )}
-            <button
-              onClick={() => router.push(`/anniversaries/${selectedEvent.id}/occurrences/new`)}
-              className="px-3 py-1 bg-primary text-white rounded"
-            >
-              {t('addOccurrence')}
-            </button>
+            {/* Add occurrence and linked occurrences on a single row */}
+            <div className="flex flex-wrap items-center gap-2 pt-2">
+              <button
+                onClick={() => router.push(`/anniversaries/${selectedEvent.id}/occurrences/new`)}
+                className="px-3 py-1 bg-primary text-white rounded"
+              >
+                {t('addOccurrence')}
+              </button>
+              {occurrences.map((occ) => {
+                const d = (occ.date as any);
+                const sec = d?._seconds ?? d?.seconds;
+                const jsDate = typeof sec === 'number' ? new Date(sec * 1000) : (d?.toDate ? d.toDate() : new Date(d));
+                const yearText = jsDate instanceof Date && !isNaN(jsDate.getTime()) ? jsDate.getFullYear() : '';
+                return (
+                  <a
+                    key={occ.id}
+                    href={`/anniversaries/${selectedEvent.id}/occurrences/${occ.id}`}
+                    className="px-3 py-1 bg-primary text-white rounded text-sm"
+                  >
+                    {String(yearText)}
+                  </a>
+                );
+              })}
+            </div>
             {(user?.user_id === selectedEvent.ownerId || member?.role === 'admin') && (
               <div className="flex gap-2 pt-2">
                 <button
