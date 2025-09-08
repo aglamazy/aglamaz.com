@@ -18,3 +18,15 @@
   }
 }
 /* moved from /app/anniversaries */
+
+/* Highlight for today's date number inside a cell */
+.todayNumber {
+  background-color: #059669; /* emerald-600 */
+  color: #fff;
+  border-radius: 9999px;
+  width: 1.5rem;
+  height: 1.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
