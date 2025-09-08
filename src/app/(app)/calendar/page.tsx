@@ -27,6 +27,8 @@ interface AnniversaryEvent {
   isAnnual: boolean;
   ownerId: string;
   imageUrl?: string;
+  useHebrew?: boolean;
+  hebrewDate?: string;
 }
 
 export default function AnniversariesPage() {
@@ -39,6 +41,7 @@ export default function AnniversariesPage() {
     type: 'birthday',
     isAnnual: true,
     imageUrl: '',
+    useHebrew: false,
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -77,10 +80,11 @@ export default function AnniversariesPage() {
     }
   }, [offsetY]);
 
-  const fetchEvents = async () => {
+  const fetchEvents = async (y: number, m: number) => {
     setLoading(true);
     try {
-      const data = await apiFetch<{ events: AnniversaryEvent[] }>('/api/anniversaries');
+      const params = new URLSearchParams({ year: String(y), month: String(m) });
+      const data = await apiFetch<{ events: AnniversaryEvent[] }>(`/api/anniversaries?${params.toString()}`);
       setEvents(data.events || []);
     } finally {
       setLoading(false);
@@ -89,8 +93,10 @@ export default function AnniversariesPage() {
 
   useEffect(() => {
     initFirebase();
-    fetchEvents();
-  }, []);
+    const y = selectedDate.getFullYear();
+    const m = selectedDate.getMonth();
+    fetchEvents(y, m);
+  }, [selectedDate]);
 
   // Track breakpoint (Tailwind 'sm': 640px)
   useEffect(() => {
@@ -243,12 +249,12 @@ export default function AnniversariesPage() {
           body: JSON.stringify(payload),
         });
       }
-      setForm({ name: '', description: '', date: '', type: 'birthday', isAnnual: true, imageUrl: '' });
+      setForm({ name: '', description: '', date: '', type: 'birthday', isAnnual: true, imageUrl: '', useHebrew: false });
       setImageFile(null);
       setEditEvent(null);
       setIsModalOpen(false);
       setImageSrc('');
-      fetchEvents();
+      fetchEvents(selectedDate.getFullYear(), selectedDate.getMonth());
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save');
     } finally {
@@ -271,7 +277,7 @@ export default function AnniversariesPage() {
       setConfirmOpen(false);
       setDeleteTarget(null);
       setSelectedEvent(null);
-      fetchEvents();
+      fetchEvents(selectedDate.getFullYear(), selectedDate.getMonth());
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to delete';
       setDeleteError(msg);
@@ -478,7 +484,7 @@ export default function AnniversariesPage() {
       <AddFab
         ariaLabel={t('add') as string}
         onClick={() => {
-          setForm({ name: '', description: '', date: '', type: 'birthday', isAnnual: true, imageUrl: '' });
+      setForm({ name: '', description: '', date: '', type: 'birthday', isAnnual: true, imageUrl: '', useHebrew: false });
           setEditEvent(null);
           setImageFile(null);
           setImageSrc('');
@@ -574,6 +580,21 @@ export default function AnniversariesPage() {
           </div>
           <div className="flex items-center">
             <input
+              id="useHebrew"
+              type="checkbox"
+              checked={form.useHebrew}
+              onChange={(e) => setForm({ ...form, useHebrew: e.target.checked })}
+              className="mr-2"
+            />
+            <label htmlFor="useHebrew" className="text-text">{t('hebrewCalendar') as string}</label>
+          </div>
+          {form.useHebrew && form.date && (
+            <div className="text-sm text-sage-700">
+              {t('hebrewDate') as string}: {new Intl.DateTimeFormat('he-u-ca-hebrew', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(form.date))}
+            </div>
+          )}
+          <div className="flex items-center">
+            <input
               id="isAnnual"
               type="checkbox"
               checked={form.isAnnual}
@@ -612,6 +633,11 @@ export default function AnniversariesPage() {
             <div>
               {t('date')}: {selectedEvent.day}/{selectedEvent.month + 1}
             </div>
+            {selectedEvent.hebrewDate && (
+              <div>
+                {t('hebrewDate')}: {selectedEvent.hebrewDate}
+              </div>
+            )}
             <div>
               {t('type')}: {selectedEvent.type}
             </div>
@@ -631,6 +657,7 @@ export default function AnniversariesPage() {
                       type: selectedEvent.type,
                       isAnnual: selectedEvent.isAnnual,
                       imageUrl: '',
+                      useHebrew: Boolean((selectedEvent as any).useHebrew),
                     });
                     setEditEvent(selectedEvent);
                     setImageFile(null);

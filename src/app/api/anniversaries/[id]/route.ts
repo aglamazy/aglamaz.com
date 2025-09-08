@@ -18,7 +18,7 @@ const putHandler = async (request: Request, context: GuardContext) => {
       return Response.json({ error: 'Forbidden' }, { status: 403 });
     }
     const body = await request.json();
-    const { name, description, type, date, isAnnual, imageUrl } = body;
+    const { name, description, type, date, isAnnual, imageUrl, useHebrew } = body;
     await repo.update(id!, {
       name,
       description,
@@ -26,6 +26,7 @@ const putHandler = async (request: Request, context: GuardContext) => {
       date: date ? new Date(date) : undefined,
       isAnnual: isAnnual !== undefined ? Boolean(isAnnual) : undefined,
       imageUrl,
+      useHebrew,
     });
       const updated = await repo.getById(id!);
     return Response.json({ event: updated });
