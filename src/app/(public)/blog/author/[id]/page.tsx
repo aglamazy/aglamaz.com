@@ -5,6 +5,7 @@ import { FamilyRepository } from '@/repositories/FamilyRepository';
 import { headers, cookies } from 'next/headers';
 import TranslationTrigger from '@/components/blog/TranslationTrigger';
 import I18nText from '@/components/I18nText';
+import blogStyles from '@/components/blog/PublicPost.module.css';
 
 export const dynamic = 'force-dynamic';
 
@@ -72,7 +73,7 @@ export default async function AuthorBlogPage({ params, searchParams }: { params:
           </CardHeader>
           <CardContent>
             <div
-              className="prose max-w-none"
+              className={`prose max-w-none ${blogStyles.content}`}
               dangerouslySetInnerHTML={{ __html: post.content || '' }}
             />
           </CardContent>

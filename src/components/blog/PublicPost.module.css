@@ -1,4 +1,23 @@
-.article * {
+.article,
+.content {
+  /* Ensure long words/URLs can wrap inside containers */
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.article *,
+.content * {
+  /* Apply wrapping to all children to be safe */
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* Make code blocks wrap instead of forcing horizontal scroll */
+.article pre,
+.content pre,
+.article code,
+.content code {
+  white-space: pre-wrap;
   overflow-wrap: anywhere;
   word-break: break-word;
 }
