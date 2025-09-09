@@ -83,6 +83,28 @@ export default function OccurrenceDetailsPage({ params }: { params: { id: string
     })();
   }, [occ?.id, params.id, params.eventId]);
 
+  const visibleImages = Array.isArray(occ?.images) ? (occ?.images as string[]) : [];
+
+  // Keyboard: ESC closes lightbox, arrows navigate when open
+  useEffect(() => {
+    if (!lightboxOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (!lightboxOpen || visibleImages.length === 0) return;
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setLightboxOpen(false);
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        setLightboxIndex((p) => (p - 1 + visibleImages.length) % visibleImages.length);
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        setLightboxIndex((p) => (p + 1) % visibleImages.length);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [lightboxOpen, visibleImages.length]);
+
   if (loading) {
     return (
       <div className="p-4">
@@ -187,7 +209,7 @@ export default function OccurrenceDetailsPage({ params }: { params: { id: string
     }
   }
 
-  const visibleImages = Array.isArray(occ.images) ? occ.images : [];
+  
 
   function getLikeMeta(idx: number) {
     return likes.find((l) => l.index === idx) || { index: idx, count: 0, likedByMe: false };
@@ -224,25 +246,6 @@ export default function OccurrenceDetailsPage({ params }: { params: { id: string
     }
   }
 
-  // Keyboard: ESC closes lightbox, arrows navigate when open
-  useEffect(() => {
-    if (!lightboxOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (!lightboxOpen || visibleImages.length === 0) return;
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        setLightboxOpen(false);
-      } else if (e.key === 'ArrowLeft') {
-        e.preventDefault();
-        setLightboxIndex((p) => (p - 1 + visibleImages.length) % visibleImages.length);
-      } else if (e.key === 'ArrowRight') {
-        e.preventDefault();
-        setLightboxIndex((p) => (p + 1) % visibleImages.length);
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [lightboxOpen, visibleImages.length]);
 
   return (
     <>
