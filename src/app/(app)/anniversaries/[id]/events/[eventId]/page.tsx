@@ -36,6 +36,9 @@ export default function OccurrenceDetailsPage({ params }: { params: { id: string
   const [showAdd, setShowAdd] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
+  const [likes, setLikes] = useState<Array<{ index: number; count: number; likedByMe: boolean }>>([]);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
 
   useEffect(() => {
     let mounted = true;
@@ -65,6 +68,20 @@ export default function OccurrenceDetailsPage({ params }: { params: { id: string
       mounted = false;
     };
   }, [params.id, params.eventId]);
+
+  useEffect(() => {
+    (async () => {
+      if (!occ) return;
+      try {
+        const data = await apiFetch<{ items: Array<{ index: number; count: number; likedByMe: boolean }> }>(
+          `/api/anniversaries/${params.id}/events/${params.eventId}/image-likes`
+        );
+        setLikes(data.items || []);
+      } catch (e) {
+        console.error('[likes] fetch failed', e);
+      }
+    })();
+  }, [occ?.id, params.id, params.eventId]);
 
   if (loading) {
     return (
@@ -152,6 +169,12 @@ export default function OccurrenceDetailsPage({ params }: { params: { id: string
         `/api/anniversaries/${occ.eventId}/events/${occ.id}`
       );
       setOcc(refreshed.event as any);
+      try {
+        const data = await apiFetch<{ items: Array<{ index: number; count: number; likedByMe: boolean }> }>(
+          `/api/anniversaries/${params.id}/events/${params.eventId}/image-likes`
+        );
+        setLikes(data.items || []);
+      } catch {}
       setShowAdd(false);
       setSelectedFiles([]);
       setPreviews([]);
@@ -164,6 +187,63 @@ export default function OccurrenceDetailsPage({ params }: { params: { id: string
     }
   }
 
+  const visibleImages = Array.isArray(occ.images) ? occ.images : [];
+
+  function getLikeMeta(idx: number) {
+    return likes.find((l) => l.index === idx) || { index: idx, count: 0, likedByMe: false };
+  }
+
+  async function toggleLike(idx: number) {
+    const meta = getLikeMeta(idx);
+    const next = { ...meta, likedByMe: !meta.likedByMe, count: meta.count + (meta.likedByMe ? -1 : 1) };
+    setLikes((cur) => {
+      const other = cur.filter((l) => l.index !== idx);
+      return [...other, next].sort((a, b) => a.index - b.index);
+    });
+    try {
+      const res = await apiFetch<{ index: number; count: number; likedByMe: boolean }>(
+        `/api/anniversaries/${params.id}/events/${params.eventId}/image-likes`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ imageIndex: idx, like: !meta.likedByMe }),
+        }
+      );
+      setLikes((cur) => {
+        const other = cur.filter((l) => l.index !== idx);
+        return [...other, res].sort((a, b) => a.index - b.index);
+      });
+    } catch (e) {
+      console.error('[likes] toggle failed', e);
+      // revert
+      setLikes((cur) => {
+        const other = cur.filter((l) => l.index !== idx);
+        return [...other, meta].sort((a, b) => a.index - b.index);
+      });
+      throw e;
+    }
+  }
+
+  // Keyboard: ESC closes lightbox, arrows navigate when open
+  useEffect(() => {
+    if (!lightboxOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (!lightboxOpen || visibleImages.length === 0) return;
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setLightboxOpen(false);
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        setLightboxIndex((p) => (p - 1 + visibleImages.length) % visibleImages.length);
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        setLightboxIndex((p) => (p + 1) % visibleImages.length);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [lightboxOpen, visibleImages.length]);
+
   return (
     <>
     <Card className="max-w-xl mx-auto">
@@ -172,11 +252,30 @@ export default function OccurrenceDetailsPage({ params }: { params: { id: string
       </CardHeader>
       <CardContent>
         <div className="text-sm text-gray-700">
-          {Array.isArray(occ.images) && occ.images.length > 0 && (
-            <div className="grid grid-cols-2 gap-2 mb-3">
-              {occ.images.map((src) => (
-                <img key={src} src={src} alt="" className="w-full max-h-60 object-cover rounded" />
-              ))}
+          {visibleImages.length > 0 && (
+            <div className={styles.imagesGrid + ' mb-3'}>
+              {visibleImages.map((src, i) => {
+                const meta = getLikeMeta(i);
+                return (
+                  <div key={src} className={styles.thumbWrap}>
+                    <img
+                      src={src}
+                      alt=""
+                      className={styles.thumb}
+                      onClick={() => { setLightboxIndex(i); setLightboxOpen(true); }}
+                    />
+                    <button
+                      type="button"
+                      aria-label={meta.likedByMe ? (t('unlike') as string) : (t('like') as string)}
+                      className={styles.likeBtn + (meta.likedByMe ? (' ' + styles.likeBtnLiked) : '')}
+                      onClick={(e) => { e.stopPropagation(); toggleLike(i); }}
+                    >
+                      <span>❤</span>
+                      <span>{meta.count}</span>
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           )}
           {!occ.images?.length && (occ as any).imageUrl && (
@@ -218,6 +317,14 @@ export default function OccurrenceDetailsPage({ params }: { params: { id: string
         </div>
       </div>
     </Modal>
+
+    {lightboxOpen && (
+      <div className={styles.lightboxBackdrop} onClick={() => setLightboxOpen(false)}>
+        <button className={styles.navBtn + ' ' + styles.navLeft} onClick={(e) => { e.stopPropagation(); setLightboxIndex((p) => (p - 1 + visibleImages.length) % visibleImages.length); }}>‹</button>
+        <img src={visibleImages[lightboxIndex]} alt="" className={styles.lightboxImg} onClick={(e) => e.stopPropagation()} />
+        <button className={styles.navBtn + ' ' + styles.navRight} onClick={(e) => { e.stopPropagation(); setLightboxIndex((p) => (p + 1) % visibleImages.length); }}>›</button>
+      </div>
+    )}
     </>
   );
 }
