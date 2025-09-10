@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import Navigation from "@/components/Navigation";
 import { useTranslation } from 'react-i18next';
-import { LogOut, Users, MessageCircle } from 'lucide-react';
+import { LogOut, Users, MessageCircle, Home as HomeIcon, BookOpen } from 'lucide-react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { IUser } from "@/entities/User";
 import { IMember } from "@/entities/Member";
@@ -83,8 +83,24 @@ export default function Header({ user, member, onLogout, siteInfo }: HeaderProps
       </div>
       {/* Center: Navigation */}
       <div className="flex flex-row items-center">
-        {user && member && onLogout && member.role !== 'pending' && (
+        {user && member && onLogout && member.role !== 'pending' ? (
           <Navigation user={user} onLogout={onLogout} setMobileMenuOpen={setMobileMenuOpen}/>
+        ) : (
+          <nav className="hidden md:flex items-center gap-6 text-sage-700">
+            {(() => { const isRTL = (i18n.language || '').startsWith('he'); return (
+              <>
+                <a className="hover:underline flex items-center gap-1" href="/">
+                  {isRTL ? (<><span>{t('home') as string}</span><HomeIcon size={18} /></>) : (<><HomeIcon size={18} /><span>{t('home') as string}</span></>)}
+                </a>
+                <a className="hover:underline flex items-center gap-1" href="/blog/family">
+                  {isRTL ? (<><span>{t('blog') as string}</span><BookOpen size={18} /></>) : (<><BookOpen size={18} /><span>{t('blog') as string}</span></>)}
+                </a>
+                <a className="hover:underline flex items-center gap-1" href="/contact">
+                  {isRTL ? (<><span>{t('contactUs') as string}</span><MessageCircle size={18} /></>) : (<><MessageCircle size={18} /><span>{t('contactUs') as string}</span></>)}
+                </a>
+              </>
+            ); })()}
+          </nav>
         )}
       </div>
       {/* Right: Flags + Avatar */}

@@ -11,6 +11,7 @@ const PUBLIC_PATHS = [
   '/locales',
   '/auth-gate',
   '/app',
+  '/blog/family',
   '/blog/author',
   '/sitemap.xml',
   '/robots.txt',
