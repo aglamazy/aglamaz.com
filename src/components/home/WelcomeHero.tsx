@@ -7,15 +7,24 @@ import { createPageUrl } from "../../utils/createPageUrl";
 import { BookOpen, Images, Link as LinkIcon, ArrowRight } from "lucide-react";
 import { useTranslation } from 'react-i18next';
 
+interface ActionDef {
+  title: string;
+  description: string;
+  icon: any;
+  url: string;
+  color: string;
+}
+
 interface WelcomeHeroProps {
   user: any;
   title?: string;
   subtitle?: string;
+  actions?: ActionDef[];
 }
 
-export default function WelcomeHero({ user, title, subtitle }: WelcomeHeroProps) {
+export default function WelcomeHero({ user, title, subtitle, actions }: WelcomeHeroProps) {
   const { t } = useTranslation();
-  const quickActions = [
+  const defaultActions: ActionDef[] = [
     {
       title: t('readFamilyBlog') as string,
       description: t('catchUpOnFamilyNews') as string,
@@ -38,6 +47,7 @@ export default function WelcomeHero({ user, title, subtitle }: WelcomeHeroProps)
       color: "from-green-500 to-green-600",
     },
   ];
+  const quickActions = Array.isArray(actions) ? actions : defaultActions;
 
   return (
     <div className="p-8">
@@ -56,7 +66,8 @@ export default function WelcomeHero({ user, title, subtitle }: WelcomeHeroProps)
           </p>
         </motion.div>
 
-        <div className="grid md:grid-cols-3 gap-8">
+        {quickActions.length > 0 && (
+          <div className="grid md:grid-cols-3 gap-8">
           {quickActions.map((action, index) => (
             <motion.div
               key={action.title}
@@ -87,7 +98,8 @@ export default function WelcomeHero({ user, title, subtitle }: WelcomeHeroProps)
               </Card>
             </motion.div>
           ))}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );
