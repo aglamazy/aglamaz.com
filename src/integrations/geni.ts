@@ -13,7 +13,7 @@ export function requireGeniEnv() {
   const key = process.env.GENI_KEY;
   const secret = process.env.GENI_SECRET;
   if (!key || !secret) {
-    throw new Error('GENI_KEY/GENI_SECRET are required');
+    throw new Error(`GENI_KEY/GENI_SECRET are required. key=${key} secret=${secret}`);
   }
   return { key, secret } as const;
 }
