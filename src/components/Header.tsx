@@ -9,6 +9,7 @@ import { IUser } from "@/entities/User";
 import { IMember } from "@/entities/Member";
 import { ISite } from "@/entities/Site";
 import { useLoginModalStore } from '@/store/LoginModalStore';
+import md5 from 'blueimp-md5';
 
 const LANGS = [
   { code: 'he', label: 'עברית', flag: '🇮🇱' },
@@ -16,14 +17,9 @@ const LANGS = [
   { code: 'tr', label: 'Türkçe', flag: '🇹🇷' },
 ];
 
-function getUserInitials(member?: IMember) {
-  if (!member?.displayName) return 'U';
-  return member.displayName
-    .split(' ')
-    .map((n) => n[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2);
+function getGravatarUrl(email?: string) {
+  const hash = md5((email || '').trim().toLowerCase());
+  return `https://www.gravatar.com/avatar/${hash}?s=80&d=identicon`;
 }
 
 interface HeaderProps {
@@ -43,6 +39,7 @@ export default function Header({ user, member, onLogout, siteInfo }: HeaderProps
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const openLogin = useLoginModalStore((s) => s.open);
+  const avatarUrl = getGravatarUrl(member?.email);
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -133,13 +130,13 @@ export default function Header({ user, member, onLogout, siteInfo }: HeaderProps
         </div>
         {/* Avatar + User Menu */}
         {user && member && onLogout ? (
-          <div className="hidden md:block relative" ref={userMenuRef}>
+          <div className="relative" ref={userMenuRef}>
             <button
               onClick={() => setIsUserMenuOpen((v) => !v)}
-              className="h-8 w-8 rounded-full bg-sage-600 flex items-center justify-center text-white text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sage-500 transition-colors duration-200"
+              className="h-8 w-8 rounded-full overflow-hidden focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sage-500 transition-colors duration-200"
               aria-label={t('userMenu') as string}
             >
-              {getUserInitials(member)}
+              <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
             </button>
             {isUserMenuOpen && (
               <div
