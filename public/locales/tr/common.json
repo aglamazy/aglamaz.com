@@ -152,5 +152,9 @@
   "cancel": "İptal",
   "hebrewCalendar": "İbranice takvim",
   "hebrewDate": "İbranice tarih",
-  "termsAndConditions": "Şartlar ve Koşullar"
+  "termsAndConditions": "Şartlar ve Koşullar",
+  "geniIntegration": "Geni Entegrasyonu",
+  "connectYourGeniAccount": "Profilinizi almak için Geni hesabınızı bağlayın.",
+  "connectToGeni": "Geni'ye Bağlan",
+  "basicInformation": "Temel Bilgiler"
 }

@@ -160,5 +160,9 @@
   "cancel": "Cancel",
   "hebrewCalendar": "Hebrew calendar",
   "hebrewDate": "Hebrew date",
-  "termsAndConditions": "Terms and Conditions"
+  "termsAndConditions": "Terms and Conditions",
+  "geniIntegration": "Geni Integration",
+  "connectYourGeniAccount": "Connect your Geni account to fetch your profile.",
+  "connectToGeni": "Connect to Geni",
+  "basicInformation": "Basic Information"
 }

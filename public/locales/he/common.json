@@ -160,5 +160,9 @@
   "cancel": "ביטול",
   "hebrewCalendar": "לוח שנה עברי",
   "hebrewDate": "תאריך עברי",
-  "termsAndConditions": "תנאים והגבלות"
+  "termsAndConditions": "תנאים והגבלות",
+  "geniIntegration": "חיבור ל-Geni",
+  "connectYourGeniAccount": "חברו את חשבון Geni כדי למשוך פרופיל.",
+  "connectToGeni": "התחבר ל-Geni",
+  "basicInformation": "מידע בסיסי"
 }
