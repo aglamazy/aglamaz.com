@@ -1,3 +1,4 @@
+import 'server-only';
 import type { NextRequest } from 'next/server';
 
 const GENI_BASE = 'https://www.geni.com';
