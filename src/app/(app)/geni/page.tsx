@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 
-export default function GeniExamplePage() {
+export default function GeniExampleAppPage() {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -76,3 +76,4 @@ export default function GeniExamplePage() {
     </div>
   );
 }
+

@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
     const origin = getOrigin(req);
     const token = await exchangeCodeForToken(code, origin);
 
-    const res = NextResponse.redirect(new URL('/geni', origin), 303);
+    const res = NextResponse.redirect(new URL('/app/geni', origin), 303);
     res.cookies.set(GENI_ACCESS, token.access_token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
@@ -37,6 +37,6 @@ export async function GET(req: NextRequest) {
     console.error('GENI callback error:', err);
     // Redirect back with error so UI can show a message
     const origin = getOrigin(req);
-    return NextResponse.redirect(new URL('/geni?error=oauth', origin), 303);
+    return NextResponse.redirect(new URL('/app/geni?error=oauth', origin), 303);
   }
 }

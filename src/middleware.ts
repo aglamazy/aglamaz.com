@@ -15,7 +15,6 @@ const PUBLIC_PATHS = [
   '/blog/author',
   '/sitemap.xml',
   '/robots.txt',
-  '/geni',
   '/terms',
 ];
 
