@@ -164,5 +164,6 @@
   "geniIntegration": "Geni Integration",
   "connectYourGeniAccount": "Connect your Geni account to fetch your profile.",
   "connectToGeni": "Connect to Geni",
-  "basicInformation": "Basic Information"
+  "basicInformation": "Basic Information",
+  "refreshData": "Refresh data"
 }

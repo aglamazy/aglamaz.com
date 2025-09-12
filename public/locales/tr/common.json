@@ -156,5 +156,6 @@
   "geniIntegration": "Geni Entegrasyonu",
   "connectYourGeniAccount": "Profilinizi almak için Geni hesabınızı bağlayın.",
   "connectToGeni": "Geni'ye Bağlan",
-  "basicInformation": "Temel Bilgiler"
+  "basicInformation": "Temel Bilgiler",
+  "refreshData": "Verileri yenile"
 }

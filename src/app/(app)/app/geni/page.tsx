@@ -11,25 +11,32 @@ export default function GeniExampleAppPage() {
   const [error, setError] = useState<string | null>(null);
   const [me, setMe] = useState<any | null>(null);
   const [family, setFamily] = useState<any | null>(null);
+  const [connected, setConnected] = useState<boolean>(false);
 
   useEffect(() => {
     (async () => {
       try {
         setLoading(true);
         setError(null);
-        const res = await fetch('/api/geni/family', { cache: 'no-store' });
-        if (!res.ok) {
-          setMe(null);
-          setFamily(null);
-          if (res.status !== 401) {
-            const text = await res.text();
-            setError(text || 'Failed');
+        // First, check connection status via /api/geni/me
+        const meRes = await fetch('/api/geni/me', { cache: 'no-store' });
+        if (meRes.ok) {
+          const meData = await meRes.json();
+          setConnected(true);
+          setMe(meData);
+          // Then load family (uses cache on server)
+          const famRes = await fetch('/api/geni/family', { cache: 'no-store' });
+          if (famRes.ok) {
+            const famData = await famRes.json();
+            setMe(famData.me || meData);
+            setFamily(famData.family || null);
           }
-          return;
+        } else if (meRes.status === 401) {
+          setConnected(false);
+        } else {
+          const text = await meRes.text();
+          setError(text || 'Failed');
         }
-        const data = await res.json();
-        setMe(data.me || null);
-        setFamily(data.family || null);
       } catch (e: any) {
         setError(e?.message || 'Unexpected error');
       } finally {
@@ -50,7 +57,7 @@ export default function GeniExampleAppPage() {
       <div className="max-w-3xl mx-auto px-2 sm:px-4">
         <h1 className="text-3xl font-bold text-charcoal mb-6">{t('geniIntegration')}</h1>
 
-        {!me && (
+        {!connected && (
           <Card className="border-0 shadow-md bg-white/80 backdrop-blur-sm mb-6">
             <CardContent className="p-6">
               <p className="text-sage-700 mb-4">{t('connectYourGeniAccount')}</p>
@@ -63,10 +70,15 @@ export default function GeniExampleAppPage() {
           </Card>
         )}
 
-        {me && (
+        {connected && (
           <Card className="border-0 shadow-md bg-white/80 backdrop-blur-sm">
             <CardContent className="p-6">
-              <h2 className="text-xl font-semibold text-charcoal mb-2">{t('basicInformation')}</h2>
+              <div className="flex items-center justify-between mb-2">
+                <h2 className="text-xl font-semibold text-charcoal">{t('basicInformation')}</h2>
+                <a href="/api/geni/family?refresh=1" className="text-sage-700 underline hover:no-underline">
+                  {t('refreshData')}
+                </a>
+              </div>
               <div className="text-sage-700">
                 <div><span className="font-semibold">ID:</span> {String(me?.id ?? me?.guid ?? '')}</div>
                 <div><span className="font-semibold">Name:</span> {me?.name || me?.display_name || '-'}</div>
