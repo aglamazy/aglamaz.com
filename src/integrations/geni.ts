@@ -65,7 +65,7 @@ export async function exchangeCodeForToken(code: string, origin: string) {
 
 export async function fetchGeniMe(accessToken: string) {
   const res = await fetch(ME_URL, {
-    headers: { Authorization: `Bearer ${accessToken}` },
+    headers: { Authorization: `Bearer ${accessToken}`, Accept: 'application/json' },
     cache: 'no-store',
   });
   if (!res.ok) {
@@ -86,6 +86,25 @@ export async function fetchGeniImmediateFamily(accessToken: string, guid: string
     throw new Error(`GENI immediate family failed: ${res.status} ${text}`);
   }
   return (await res.json()) as any;
+}
+
+export async function fetchGeniFocusGuid(accessToken: string): Promise<string | null> {
+  const me = await fetchGeniMe(accessToken);
+  // Try several shapes to locate a profile GUID
+  let guid: string | null = null;
+  const fx = me?.focus;
+  if (typeof fx === 'string') {
+    // e.g., 'profile-1234' or 'profile-g1234'
+    const m = fx.match(/profile-?g?([A-Za-z0-9]+)/);
+    if (m) guid = m[1];
+  } else if (fx && typeof fx === 'object') {
+    guid = fx.guid || fx.id || null;
+  }
+  if (!guid) {
+    // Some responses may put current profile under person or user
+    guid = me?.person?.guid || me?.user?.guid || me?.guid || null;
+  }
+  return guid ? String(guid) : null;
 }
 
 export function getOrigin(req: NextRequest) {

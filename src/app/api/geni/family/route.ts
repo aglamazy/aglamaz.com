@@ -1,14 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { fetchGeniImmediateFamily, fetchGeniMe, GENI_ACCESS } from '@/integrations/geni';
+import { fetchGeniImmediateFamily, fetchGeniFocusGuid, fetchGeniMe, GENI_ACCESS } from '@/integrations/geni';
 
 export async function GET(req: NextRequest) {
   try {
     const token = req.cookies.get(GENI_ACCESS)?.value;
     if (!token) return NextResponse.json({ error: 'Not connected to Geni' }, { status: 401 });
 
+    const url = new URL(req.url);
+    const overrideGuid = url.searchParams.get('guid');
+
     const me = await fetchGeniMe(token);
-    const guid = me?.focus?.guid || me?.guid || me?.id;
-    if (!guid) return NextResponse.json({ error: 'Geni GUID not found' }, { status: 400 });
+    let guid = overrideGuid || (await fetchGeniFocusGuid(token));
+    if (!guid) {
+      console.warn('[GENI] GUID not found on /family; keys:', Object.keys(me || {}));
+      return NextResponse.json({ error: 'Geni GUID not found' }, { status: 400 });
+    }
 
     const family = await fetchGeniImmediateFamily(token, String(guid));
     return NextResponse.json({ me, family });
