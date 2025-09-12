@@ -10,15 +10,17 @@ export default function GeniExampleAppPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [me, setMe] = useState<any | null>(null);
+  const [family, setFamily] = useState<any | null>(null);
 
   useEffect(() => {
     (async () => {
       try {
         setLoading(true);
         setError(null);
-        const res = await fetch('/api/geni/me', { cache: 'no-store' });
+        const res = await fetch('/api/geni/family', { cache: 'no-store' });
         if (!res.ok) {
           setMe(null);
+          setFamily(null);
           if (res.status !== 401) {
             const text = await res.text();
             setError(text || 'Failed');
@@ -26,7 +28,8 @@ export default function GeniExampleAppPage() {
           return;
         }
         const data = await res.json();
-        setMe(data);
+        setMe(data.me || null);
+        setFamily(data.family || null);
       } catch (e: any) {
         setError(e?.message || 'Unexpected error');
       } finally {
@@ -69,6 +72,26 @@ export default function GeniExampleAppPage() {
                 <div><span className="font-semibold">Name:</span> {me?.name || me?.display_name || '-'}</div>
                 <div><span className="font-semibold">Email:</span> {me?.email || '-'}</div>
               </div>
+              {family && (
+                <div className="mt-6 grid md:grid-cols-2 gap-6">
+                  <div>
+                    <h3 className="font-semibold text-charcoal mb-2">Parents</h3>
+                    <ul className="list-disc ml-5 text-sage-700">
+                      {(family?.parents || []).map((p: any) => (
+                        <li key={p?.id || p?.guid}>{p?.name || p?.display_name}</li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-charcoal mb-2">Siblings</h3>
+                    <ul className="list-disc ml-5 text-sage-700">
+                      {(family?.siblings || []).map((s: any) => (
+                        <li key={s?.id || s?.guid}>{s?.name || s?.display_name}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         )}
@@ -76,4 +99,3 @@ export default function GeniExampleAppPage() {
     </div>
   );
 }
-

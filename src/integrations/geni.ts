@@ -5,6 +5,7 @@ const GENI_BASE = 'https://www.geni.com';
 const AUTH_URL = `${GENI_BASE}/platform/oauth/authorize`;
 const TOKEN_URL = `${GENI_BASE}/platform/oauth/token`;
 const ME_URL = `${GENI_BASE}/api/user`;
+const PROFILE_FAMILY_PATH = (guid: string) => `${GENI_BASE}/api/profile-g${guid}/immediate-family`;
 
 export const GENI_ACCESS = 'geni_access';
 export const GENI_REFRESH = 'geni_refresh';
@@ -70,6 +71,19 @@ export async function fetchGeniMe(accessToken: string) {
   if (!res.ok) {
     const text = await res.text().catch(() => '');
     throw new Error(`GENI me failed: ${res.status} ${text}`);
+  }
+  return (await res.json()) as any;
+}
+
+export async function fetchGeniImmediateFamily(accessToken: string, guid: string) {
+  const url = PROFILE_FAMILY_PATH(guid);
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${accessToken}`, Accept: 'application/json' },
+    cache: 'no-store',
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`GENI immediate family failed: ${res.status} ${text}`);
   }
   return (await res.json()) as any;
 }
