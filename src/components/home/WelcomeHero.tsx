@@ -4,7 +4,7 @@ import { Card, CardContent } from "../ui/card";
 import { Button } from "../ui/button";
 import Link from "next/link";
 import { createPageUrl } from "../../utils/createPageUrl";
-import { BookOpen, Images, Link as LinkIcon, ArrowRight } from "lucide-react";
+import { BookOpen, Images, Link as LinkIcon, ArrowRight, Calendar } from "lucide-react";
 import { useTranslation } from 'react-i18next';
 
 interface ActionDef {
@@ -25,6 +25,15 @@ interface WelcomeHeroProps {
 export default function WelcomeHero({ user, title, subtitle, actions }: WelcomeHeroProps) {
   const { t } = useTranslation();
   const defaultActions: ActionDef[] = [
+    ...(user
+      ? [{
+          title: t('familyCalendar') as string,
+          description: t('upcomingFamilyGatherings') as string,
+          icon: Calendar,
+          url: '/calendar',
+          color: 'from-amber-500 to-amber-600',
+        }]
+      : []),
     {
       title: t('readFamilyBlog') as string,
       description: t('catchUpOnFamilyNews') as string,
