@@ -18,6 +18,8 @@ import PendingMemberContent from '@/components/PendingMemberContent';
 import { usePendingMemberModalStore } from '@/store/PendingMemberModalStore';
 import NotMemberContent from '@/components/NotMemberContent';
 import { useNotMemberModalStore } from '@/store/NotMemberModalStore';
+import EditUserDetails from '@/components/EditUserDetails';
+import { useEditUserModalStore } from '@/store/EditUserModalStore';
 
 export default function ClientLayoutShell({ children }) {
   const { user, loading, logout, checkAuth } = useUserStore();
@@ -29,6 +31,7 @@ export default function ClientLayoutShell({ children }) {
   const { isOpen: isLoginOpen, close: closeLogin, open: openLogin } = useLoginModalStore();
   const { isOpen: isPendingOpen, close: closePending, open: openPending } = usePendingMemberModalStore();
   const { isOpen: isApplyOpen, close: closeApply, open: openApply } = useNotMemberModalStore();
+  const { isOpen: isEditOpen, close: closeEdit } = useEditUserModalStore();
 
   const { fetchMember } = useMemberStore();
 
@@ -115,6 +118,9 @@ export default function ClientLayoutShell({ children }) {
           </Modal>
           <Modal isOpen={isApplyOpen} onClose={closeApply}>
             <NotMemberContent/>
+          </Modal>
+          <Modal isOpen={isEditOpen} onClose={closeEdit}>
+            <EditUserDetails/>
           </Modal>
         </div>
       </I18nGate>

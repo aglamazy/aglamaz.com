@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Menu, X, User, LogOut, Home, Users, Heart, Settings, MessageCircle, Calendar, BookOpen } from 'lucide-react';
 import { useMemberStore } from '@/store/MemberStore';
 import { useTranslation } from 'react-i18next';
+import { useEditUserModalStore } from '@/store/EditUserModalStore';
 
 interface NavigationProps {
   user: any;
@@ -19,6 +20,7 @@ export default function Navigation({ user, onLogout, setMobileMenuOpen }: Naviga
   const userMenuRef = useRef<HTMLDivElement>(null);
   const member = useMemberStore((state) => state.member);
   const { t, i18n } = useTranslation();
+  const openEdit = useEditUserModalStore((s) => s.open);
 
   // Close user menu when clicking outside
   useEffect(() => {
@@ -143,6 +145,16 @@ export default function Navigation({ user, onLogout, setMobileMenuOpen }: Naviga
                         );
                       })}
                       <button
+                        onClick={() => {
+                          setIsUserMenuOpen(false);
+                          openEdit();
+                        }}
+                        className="flex items-center w-full px-4 py-2 text-sm text-sage-700 hover:bg-sage-50 transition-colors duration-200"
+                      >
+                        <User size={16} className="mr-3" />
+                        {t('editProfile')}
+                      </button>
+                      <button
                         onClick={handleLogout}
                         className="flex items-center w-full px-4 py-2 text-sm text-sage-700 hover:bg-sage-50 transition-colors duration-200"
                       >
@@ -220,6 +232,16 @@ export default function Navigation({ user, onLogout, setMobileMenuOpen }: Naviga
                 </div>
                 <span className="text-sm font-medium text-sage-700">{user?.name || (t('user') as string)}</span>
               </div>
+              <button
+                onClick={() => {
+                  openEdit();
+                  setIsMobileMenuOpenState(false);
+                }}
+                className="text-sage-600 hover:text-sage-700 hover:bg-sage-50 block px-3 py-2 rounded-md text-base font-medium transition-colors duration-200 flex items-center gap-3 w-full text-left"
+              >
+                <User size={20} />
+                {t('editProfile')}
+              </button>
               <button
                 onClick={handleLogout}
                 className="text-sage-600 hover:text-sage-700 hover:bg-sage-50 block px-3 py-2 rounded-md text-base font-medium transition-colors duration-200 flex items-center gap-3 w-full text-left"
