@@ -3,12 +3,13 @@
 import React, { useState, useRef, useEffect } from "react";
 import Navigation from "@/components/Navigation";
 import { useTranslation } from 'react-i18next';
-import { LogOut, Users, MessageCircle, Home as HomeIcon, BookOpen } from 'lucide-react';
+import { LogOut, Users, MessageCircle, Home as HomeIcon, BookOpen, User } from 'lucide-react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { IUser } from "@/entities/User";
 import { IMember } from "@/entities/Member";
 import { ISite } from "@/entities/Site";
 import { useLoginModalStore } from '@/store/LoginModalStore';
+import { useEditUserModalStore } from '@/store/EditUserModalStore';
 import md5 from 'blueimp-md5';
 
 const LANGS = [
@@ -39,6 +40,7 @@ export default function Header({ user, member, onLogout, siteInfo }: HeaderProps
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const openLogin = useLoginModalStore((s) => s.open);
+  const openEdit = useEditUserModalStore((s) => s.open);
   const avatarUrl = getGravatarUrl(member?.email);
 
   useEffect(() => {
@@ -177,6 +179,16 @@ export default function Header({ user, member, onLogout, siteInfo }: HeaderProps
                       </button>
                     </>
                   )}
+                  <button
+                    onClick={() => {
+                      setIsUserMenuOpen(false);
+                      openEdit();
+                    }}
+                    className="flex items-center w-full px-4 py-2 text-sm text-sage-700 hover:bg-sage-50 transition-colors duration-200"
+                  >
+                    <User size={16} className="mr-3"/>
+                    {t('editProfile')}
+                  </button>
                   <button
                     onClick={() => {
                       setIsUserMenuOpen(false);
