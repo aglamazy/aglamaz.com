@@ -18,6 +18,8 @@ const PUBLIC_PATHS = [
   '/terms',
 ];
 
+const PUBLIC_REDIRECT_PATHS = ['/', '/login'];
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const token = request.cookies.get(ACCESS_TOKEN)?.value;
@@ -39,6 +41,10 @@ export async function middleware(request: NextRequest) {
 
   try {
     await verifyAccessToken(token);
+
+    if (PUBLIC_REDIRECT_PATHS.includes(pathname)) {
+      return NextResponse.redirect(new URL('/app', request.url));
+    }
 
     if (!isPublic) {
       const siteId = process.env.NEXT_SITE_ID!;
