@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { apiFetch } from '@/utils/apiFetch';
 import { useUserStore } from '@/store/UserStore';
@@ -15,6 +15,13 @@ export default function EditUserDetails() {
   const [error, setError] = useState('');
   const { t, i18n } = useTranslation();
   const { close } = useEditUserModalStore();
+
+  useEffect(() => {
+    if (user) {
+      setName(user.name || '');
+      setEmail(user.email || '');
+    }
+  }, [user]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
