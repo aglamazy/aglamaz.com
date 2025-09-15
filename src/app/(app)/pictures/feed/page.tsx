@@ -21,6 +21,7 @@ export default function PicturesFeedPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [items, setItems] = useState<Occurrence[]>([]);
+  const [eventNames, setEventNames] = useState<Record<string, { name: string }>>({});
   const [likes, setLikes] = useState<Record<string, ImageLikeMeta[]>>({}); // key: occId
 
   useEffect(() => {
@@ -35,6 +36,7 @@ export default function PicturesFeedPage() {
         if (!mounted) return;
         const list: Occurrence[] = Array.isArray(data.items) ? data.items : [];
         setItems(list);
+        setEventNames(data.events || {});
         // fetch likes per occurrence
         await Promise.all(
           list.map(async (occ) => {
@@ -60,10 +62,22 @@ export default function PicturesFeedPage() {
   }, []);
 
   const feed = useMemo(() => {
-    const flat: Array<{ src: string; occId: string; annId: string; idx: number; key: string }> = [];
+    const flat: Array<{ src: string; occId: string; annId: string; idx: number; key: string; title?: string }> = [];
     for (const occ of items) {
       const arr = Array.isArray(occ.images) ? occ.images : [];
-      arr.forEach((src, i) => flat.push({ src, occId: occ.id, annId: occ.eventId, idx: i, key: `${occ.id}:${i}` }));
+      arr.forEach((src, i) => {
+        // Compute title only on first image per occurrence
+        let title: string | undefined = undefined;
+        if (i === 0) {
+          const name = eventNames[occ.eventId]?.name || '';
+          const d = occ.date as any;
+          const sec = d?._seconds ?? d?.seconds;
+          const js = typeof sec === 'number' ? new Date(sec * 1000) : (d?.toDate ? d.toDate() : new Date(d));
+          const dateText = js instanceof Date && !isNaN(js.getTime()) ? js.toLocaleDateString() : '';
+          if (name || dateText) title = [name, dateText].filter(Boolean).join(' — ');
+        }
+        flat.push({ src, occId: occ.id, annId: occ.eventId, idx: i, key: `${occ.id}:${i}`, title });
+      });
     }
     return flat;
   }, [items]);
@@ -103,7 +117,7 @@ export default function PicturesFeedPage() {
       </CardHeader>
       <CardContent>
         <ImageGrid
-          items={feed.map((f) => ({ key: f.key, src: f.src }))}
+          items={feed.map((f) => ({ key: f.key, src: f.src, title: f.title }))}
           getMeta={(item) => {
             const f = feed.find((x) => x.key === item.key)!;
             return getLikeMeta(f.occId, f.idx);

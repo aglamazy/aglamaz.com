@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 export interface GridItem {
   key: string;
   src: string;
+  title?: string;
 }
 
 export interface LikeMeta { count: number; likedByMe: boolean; }
@@ -47,6 +48,9 @@ export default function ImageGrid({ items, getMeta, onToggle }: ImageGridProps) 
                 className={styles.thumb}
                 onClick={() => { setLightboxIndex(i); setLightboxOpen(true); }}
               />
+              {it.title && (
+                <div className={styles.titleBadge} title={it.title}>{it.title}</div>
+              )}
               <button
                 type="button"
                 aria-label={meta.likedByMe ? (t('unlike') as string) : (t('like') as string)}
@@ -71,4 +75,3 @@ export default function ImageGrid({ items, getMeta, onToggle }: ImageGridProps) 
     </>
   );
 }
-
