@@ -69,7 +69,7 @@ export default function LandingPage() {
         {/* Feature showcase (2 cards): Photos + Links (original style) */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
           {/* Photos */}
-          <Link href={createPageUrl('Albums')} className="block">
+          <Link href={createPageUrl('/pictures/feed')} className="block">
             <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2 bg-white/80 backdrop-blur-sm text-center">
               <CardContent className="p-8">
                 <div className="mx-auto w-16 h-16 rounded-2xl bg-gradient-to-r from-purple-500 to-purple-600 flex items-center justify-center mb-6">

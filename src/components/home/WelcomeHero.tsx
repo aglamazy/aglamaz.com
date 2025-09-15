@@ -3,8 +3,7 @@ import { motion } from "framer-motion";
 import { Card, CardContent } from "../ui/card";
 import { Button } from "../ui/button";
 import Link from "next/link";
-import { createPageUrl } from "../../utils/createPageUrl";
-import { BookOpen, Images, Link as LinkIcon, ArrowRight, Calendar } from "lucide-react";
+import { BookOpen, Images, ArrowRight, Calendar } from "lucide-react";
 import { useTranslation } from 'react-i18next';
 
 interface ActionDef {
@@ -45,16 +44,16 @@ export default function WelcomeHero({ user, title, subtitle, actions }: WelcomeH
       title: t('browsePhotos') as string,
       description: t('explorePhotoAlbums') as string,
       icon: Images,
-      url: createPageUrl("Albums"),
+      url: '/pictures/feed',
       color: "from-purple-500 to-purple-600",
     },
-    {
-      title: t('familyLinks') as string,
-      description: t('accessFamilyResources') as string,
-      icon: LinkIcon,
-      url: createPageUrl("Links"),
-      color: "from-green-500 to-green-600",
-    },
+    // {
+    //   title: t('familyLinks') as string,
+    //   description: t('accessFamilyResources') as string,
+    //   icon: LinkIcon,
+    //   url: createPageUrl("Links"),
+    //   color: "from-green-500 to-green-600",
+    // },
   ];
   const quickActions = Array.isArray(actions) ? actions : defaultActions;
 

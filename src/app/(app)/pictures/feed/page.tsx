@@ -1,94 +1,121 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import I18nText from '@/components/I18nText';
-import { apiFetch } from '@/utils/apiFetch';
-import styles from './page.module.css';
+import ImageGrid from '@/components/media/ImageGrid';
+import mediaStyles from '@/components/media/MediaLayout.module.css';
+import { useTranslation } from 'react-i18next';
 
-interface AnniversaryOccurrence {
-  id: string;
+type Occurrence = {
+  id: string; // occurrence id
+  eventId: string; // anniversary id
   date: any;
   images?: string[];
-}
+};
 
-function toMillis(raw: any): number {
-  if (raw?.toMillis) return raw.toMillis();
-  if (raw?.toDate) return raw.toDate().getTime();
-  if (typeof raw?._seconds === 'number') return raw._seconds * 1000;
-  if (typeof raw?.seconds === 'number') return raw.seconds * 1000;
-  return new Date(raw).getTime();
-}
+type ImageLikeMeta = { index: number; count: number; likedByMe: boolean };
 
 export default function PicturesFeedPage() {
-  const [items, setItems] = useState<AnniversaryOccurrence[]>([]);
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [items, setItems] = useState<Occurrence[]>([]);
+  const [likes, setLikes] = useState<Record<string, ImageLikeMeta[]>>({}); // key: occId
 
   useEffect(() => {
     let mounted = true;
-    const run = async () => {
+    (async () => {
       setLoading(true);
       setError('');
       try {
-        const data = await apiFetch<{ items: AnniversaryOccurrence[] }>('/api/pictures');
+        const res = await fetch('/api/pictures', { cache: 'no-store' });
+        if (!res.ok) throw new Error('fetch');
+        const data = await res.json();
         if (!mounted) return;
-        const sorted = [...(data.items || [])].sort((a, b) => toMillis(b.date) - toMillis(a.date));
-        setItems(sorted);
+        const list: Occurrence[] = Array.isArray(data.items) ? data.items : [];
+        setItems(list);
+        // fetch likes per occurrence
+        await Promise.all(
+          list.map(async (occ) => {
+            try {
+              const r = await fetch(`/api/anniversaries/${occ.eventId}/events/${occ.id}/image-likes`, { cache: 'no-store' });
+              if (!r.ok) return;
+              const d = await r.json();
+              if (!mounted) return;
+              setLikes((cur) => ({ ...cur, [occ.id]: d.items || [] }));
+            } catch {}
+          })
+        );
       } catch (e) {
-        console.error(e);
+        console.error('[feed] load error', e);
         if (mounted) setError('load');
-        throw e;
       } finally {
         if (mounted) setLoading(false);
       }
-    };
-    run();
+    })();
     return () => {
       mounted = false;
     };
   }, []);
 
-  if (loading) {
-    return (
-      <div className="p-4">
-        <I18nText k="loading" />
-      </div>
-    );
-  }
-  if (error) {
-    return (
-      <div className="p-4">
-        <I18nText k="somethingWentWrong" />
-      </div>
-    );
-  }
-  if (items.length === 0) {
-    return (
-      <div className="p-4">
-        <I18nText k="noPicturesYet" />
-      </div>
-    );
+  const feed = useMemo(() => {
+    const flat: Array<{ src: string; occId: string; annId: string; idx: number; key: string }> = [];
+    for (const occ of items) {
+      const arr = Array.isArray(occ.images) ? occ.images : [];
+      arr.forEach((src, i) => flat.push({ src, occId: occ.id, annId: occ.eventId, idx: i, key: `${occ.id}:${i}` }));
+    }
+    return flat;
+  }, [items]);
+
+  function getLikeMeta(occId: string, idx: number): ImageLikeMeta {
+    const arr = likes[occId] || [];
+    return arr.find((l) => l.index === idx) || { index: idx, count: 0, likedByMe: false };
   }
 
+  async function toggleLike(annId: string, occId: string, idx: number) {
+    const meta = getLikeMeta(occId, idx);
+    const next = { ...meta, likedByMe: !meta.likedByMe, count: meta.count + (meta.likedByMe ? -1 : 1) };
+    setLikes((cur) => ({ ...cur, [occId]: [...(cur[occId] || []).filter((l) => l.index !== idx), next].sort((a, b) => a.index - b.index) }));
+    try {
+      const res = await fetch(`/api/anniversaries/${annId}/events/${occId}/image-likes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageIndex: idx, like: !meta.likedByMe }),
+      });
+      if (!res.ok) throw new Error('like');
+      const data = await res.json();
+      setLikes((cur) => ({ ...cur, [occId]: [...(cur[occId] || []).filter((l) => l.index !== idx), data].sort((a, b) => a.index - b.index) }));
+    } catch (e) {
+      console.error('[feed] like toggle failed', e);
+      // revert
+      setLikes((cur) => ({ ...cur, [occId]: [...(cur[occId] || []).filter((l) => l.index !== idx), meta].sort((a, b) => a.index - b.index) }));
+    }
+  }
+
+  if (loading) return <div className="p-4"><I18nText k="loading" /></div>;
+  if (error) return <div className="p-4"><I18nText k="somethingWentWrong" /></div>;
+
   return (
-    <div className={`p-4 ${styles.grid}`}>
-      {items.map((occ) => {
-        const date = new Date(toMillis(occ.date));
-        const images = Array.isArray(occ.images) ? occ.images : [];
-        return (
-          <Card key={occ.id}>
-            <CardHeader>
-              <CardTitle>{date.toLocaleDateString()}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {images.map((url, idx) => (
-                <img key={idx} src={url} alt="" className={styles.image} />
-              ))}
-            </CardContent>
-          </Card>
-        );
-      })}
-    </div>
+    <Card className={mediaStyles.container}>
+      <CardHeader>
+        <CardTitle>Pictures Feed</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <ImageGrid
+          items={feed.map((f) => ({ key: f.key, src: f.src }))}
+          getMeta={(item) => {
+            const f = feed.find((x) => x.key === item.key)!;
+            return getLikeMeta(f.occId, f.idx);
+          }}
+          onToggle={(item) => {
+            const f = feed.find((x) => x.key === item.key)!;
+            return toggleLike(f.annId, f.occId, f.idx);
+          }}
+        />
+      </CardContent>
+
+      {/* Lightbox handled inside ImageGrid */}
+    </Card>
   );
 }

@@ -80,12 +80,9 @@
   "activities": "Aktiviteler",
   "settings": "Ayarlar",
   "death_anniversary": "ölüm yıldönümü",
-  ,
   "familyCalendar": "Aile Takvimi",
-  "newPost": "Yeni Yazı"
-  ,
-  "writePost": "Yazı yaz"
-  ,
+  "newPost": "Yeni Yazı",
+  "writePost": "Yazı yaz",
   "readMoreInBlog": "Daha fazlasını {{name}}'nin blogunda okuyun",
   "noPublicPostsYet": "Henüz herkese açık gönderi yok.",
   "familyBlog": "Aile Blogu",
@@ -140,8 +137,7 @@
   "threeDaysAgo": "3 gün önce",
   "photos": "fotoğraflar",
   "blog": "blog",
-  "event": "etkinlik"
-  ,
+  "event": "etkinlik",
   "role": "Rol",
   "createdAt": "Oluşturulma Tarihi",
   "filterName": "Ada göre filtrele...",
@@ -155,6 +151,8 @@
   "cancel": "İptal",
   "hebrewCalendar": "İbranice takvim",
   "hebrewDate": "İbranice tarih",
+  "like": "Beğen",
+  "unlike": "Beğenmekten vazgeç",
   "termsAndConditions": "Şartlar ve Koşullar",
   "geniIntegration": "Geni Entegrasyonu",
   "connectYourGeniAccount": "Profilinizi almak için Geni hesabınızı bağlayın.",

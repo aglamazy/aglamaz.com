@@ -10,6 +10,8 @@ import AddFab from '@/components/ui/AddFab';
 import { Button } from '@/components/ui/button';
 import Modal from '@/components/ui/Modal';
 import styles from './page.module.css';
+import ImageGrid, { LikeMeta } from '@/components/media/ImageGrid';
+import mediaStyles from '@/components/media/MediaLayout.module.css';
 import { useTranslation } from 'react-i18next';
 
 interface OccurrenceDoc {
@@ -37,8 +39,6 @@ export default function OccurrenceDetailsPage({ params }: { params: { id: string
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
   const [likes, setLikes] = useState<Array<{ index: number; count: number; likedByMe: boolean }>>([]);
-  const [lightboxOpen, setLightboxOpen] = useState(false);
-  const [lightboxIndex, setLightboxIndex] = useState(0);
 
   useEffect(() => {
     let mounted = true;
@@ -85,25 +85,6 @@ export default function OccurrenceDetailsPage({ params }: { params: { id: string
 
   const visibleImages = Array.isArray(occ?.images) ? (occ?.images as string[]) : [];
 
-  // Keyboard: ESC closes lightbox, arrows navigate when open
-  useEffect(() => {
-    if (!lightboxOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (!lightboxOpen || visibleImages.length === 0) return;
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        setLightboxOpen(false);
-      } else if (e.key === 'ArrowLeft') {
-        e.preventDefault();
-        setLightboxIndex((p) => (p - 1 + visibleImages.length) % visibleImages.length);
-      } else if (e.key === 'ArrowRight') {
-        e.preventDefault();
-        setLightboxIndex((p) => (p + 1) % visibleImages.length);
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [lightboxOpen, visibleImages.length]);
 
   if (loading) {
     return (
@@ -249,36 +230,26 @@ export default function OccurrenceDetailsPage({ params }: { params: { id: string
 
   return (
     <>
-    <Card className="max-w-xl mx-auto">
+    <Card className={mediaStyles.container}>
       <CardHeader>
         <CardTitle>{event.name}</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="text-sm text-gray-700">
           {visibleImages.length > 0 && (
-            <div className={styles.imagesGrid + ' mb-3'}>
-              {visibleImages.map((src, i) => {
-                const meta = getLikeMeta(i);
-                return (
-                  <div key={src} className={styles.thumbWrap}>
-                    <img
-                      src={src}
-                      alt=""
-                      className={styles.thumb}
-                      onClick={() => { setLightboxIndex(i); setLightboxOpen(true); }}
-                    />
-                    <button
-                      type="button"
-                      aria-label={meta.likedByMe ? (t('unlike') as string) : (t('like') as string)}
-                      className={styles.likeBtn + (meta.likedByMe ? (' ' + styles.likeBtnLiked) : '')}
-                      onClick={(e) => { e.stopPropagation(); toggleLike(i); }}
-                    >
-                      <span>❤</span>
-                      <span>{meta.count}</span>
-                    </button>
-                  </div>
-                );
-              })}
+            <div className="mb-3">
+              <ImageGrid
+                items={visibleImages.map((src, i) => ({ key: `${occ.id}:${i}`, src }))}
+                getMeta={(item) => {
+                  const idx = Number(item.key.split(':')[1]);
+                  const m = getLikeMeta(idx);
+                  return { count: m.count, likedByMe: m.likedByMe } as LikeMeta;
+                }}
+                onToggle={(item) => {
+                  const idx = Number(item.key.split(':')[1]);
+                  return toggleLike(idx);
+                }}
+              />
             </div>
           )}
           {!occ.images?.length && (occ as any).imageUrl && (
@@ -321,13 +292,7 @@ export default function OccurrenceDetailsPage({ params }: { params: { id: string
       </div>
     </Modal>
 
-    {lightboxOpen && (
-      <div className={styles.lightboxBackdrop} onClick={() => setLightboxOpen(false)}>
-        <button className={styles.navBtn + ' ' + styles.navLeft} onClick={(e) => { e.stopPropagation(); setLightboxIndex((p) => (p - 1 + visibleImages.length) % visibleImages.length); }}>‹</button>
-        <img src={visibleImages[lightboxIndex]} alt="" className={styles.lightboxImg} onClick={(e) => e.stopPropagation()} />
-        <button className={styles.navBtn + ' ' + styles.navRight} onClick={(e) => { e.stopPropagation(); setLightboxIndex((p) => (p + 1) % visibleImages.length); }}>›</button>
-      </div>
-    )}
+    {/* Lightbox handled by ImageGrid */}
     </>
   );
 }

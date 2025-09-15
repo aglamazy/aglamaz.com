@@ -56,6 +56,18 @@ export class AnniversaryOccurrenceRepository {
     return qs.docs.map((d) => ({ id: d.id, ...d.data() } as AnniversaryOccurrence));
   }
 
+  async listBySiteAndRange(siteId: string, start: Date, end: Date): Promise<AnniversaryOccurrence[]> {
+    const db = this.getDb();
+    const qs = await db
+      .collection(this.collection)
+      .where('siteId', '==', siteId)
+      .where('date', '>=', Timestamp.fromDate(start))
+      .where('date', '<', Timestamp.fromDate(end))
+      .orderBy('date', 'asc')
+      .get();
+    return qs.docs.map((d) => ({ id: d.id, ...d.data() } as AnniversaryOccurrence));
+  }
+
   async update(id: string, updates: { date?: Date; imageUrl?: string | null; images?: string[] }): Promise<void> {
     const db = this.getDb();
     const data: any = {};

@@ -162,6 +162,8 @@
   "cancel": "Cancel",
   "hebrewCalendar": "Hebrew calendar",
   "hebrewDate": "Hebrew date",
+  "like": "Like",
+  "unlike": "Unlike",
   "termsAndConditions": "Terms and Conditions",
   "geniIntegration": "Geni Integration",
   "connectYourGeniAccount": "Connect your Geni account to fetch your profile.",

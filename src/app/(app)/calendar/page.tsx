@@ -8,7 +8,7 @@ import { useTranslation } from 'react-i18next';
 import { initFirebase, auth, ensureFirebaseSignedIn } from '@/firebase/client';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useUserStore } from '@/store/UserStore';
-import { MembershipStatus, useMemberStore } from '@/store/MemberStore';
+import { useMemberStore } from '@/store/MemberStore';
 import { useSiteStore } from '@/store/SiteStore';
 import { apiFetch } from '@/utils/apiFetch';
 import styles from './page.module.css';
@@ -54,6 +54,7 @@ export default function AnniversariesPage() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<AnniversaryEvent | null>(null);
   const [occurrences, setOccurrences] = useState<Array<{ id: string; date: any }>>([]);
+  const [monthOccs, setMonthOccs] = useState<Array<{ id: string; eventId: string; date: any }>>([]);
   const [occLoading, setOccLoading] = useState(false);
   const [occError, setOccError] = useState('');
   const [deleting, setDeleting] = useState(false);
@@ -101,6 +102,17 @@ export default function AnniversariesPage() {
     const y = selectedDate.getFullYear();
     const m = selectedDate.getMonth();
     fetchEvents(y, m);
+    // also fetch month occurrences (events that happened this month)
+    (async () => {
+      try {
+        const params = new URLSearchParams({ year: String(y), month: String(m) });
+        const res = await apiFetch<{ items: Array<{ id: string; eventId: string; date: any }> }>(`/api/calendar/occurrences?${params.toString()}`);
+        setMonthOccs(Array.isArray(res.items) ? res.items : []);
+      } catch (e) {
+        console.error('[Anniversaries] month occurrences fetch failed', e);
+        setMonthOccs([]);
+      }
+    })();
   }, [selectedDate]);
 
   // Track breakpoint (Tailwind 'sm': 640px)
@@ -361,6 +373,12 @@ export default function AnniversariesPage() {
     const dayEvents = events.filter(
       (ev) => ev.month === cellMonth && ev.day === cellDay
     );
+    const dayOccs = monthOccs.filter((occ) => {
+      const d = occ.date as any;
+      const sec = d?._seconds ?? d?.seconds;
+      const js = typeof sec === 'number' ? new Date(sec * 1000) : (d?.toDate ? d.toDate() : new Date(d));
+      return js.getFullYear() === cellYear && js.getMonth() === cellMonth && js.getDate() === cellDay;
+    });
     const isToday =
       cellDay === today.getDate() &&
       cellMonth === today.getMonth() &&
@@ -420,6 +438,24 @@ export default function AnniversariesPage() {
               )}
             </div>
           ))
+        )}
+        {/* same-day occurrences (actual celebrations) */}
+        {dayOccs.length > 0 && (
+          <div className={`mt-1 flex flex-col gap-1 ${isCurrentMonth ? '' : 'opacity-50'}`}>
+            {dayOccs.map((occ) => {
+              const ev = events.find((e) => e.id === occ.eventId);
+              const label = ev ? ev.name : 'Event';
+              return (
+                <a
+                  key={occ.id}
+                  href={`/anniversaries/${occ.eventId}/events/${occ.id}`}
+                  className="bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded text-[10px] sm:text-xs"
+                >
+                  {label}
+                </a>
+              );
+            })}
+          </div>
         )}
       </div>
     );
