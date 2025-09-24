@@ -30,7 +30,7 @@ const postHandler = async (request: Request, context: GuardContext) => {
     const user = context.user!;
     const { id } = context.params!; // eventId
     const body = await request.json();
-    const { date, imageUrl, images } = body;
+    const { date, imageUrl, images, description } = body;
     if (!date) {
       return Response.json({ error: 'Missing date' }, { status: 400 });
     }
@@ -41,7 +41,8 @@ const postHandler = async (request: Request, context: GuardContext) => {
       return Response.json({ error: 'Event not found' }, { status: 404 });
     }
     // All members can create events (previously occurrences)
-    const occ = await occRepo.create({ siteId: member.siteId, eventId: id!, date: new Date(date), createdBy: user.userId, imageUrl, images: Array.isArray(images) ? images : undefined });
+    const defaultDesc = typeof description === 'string' ? description : (event.description || '');
+    const occ = await occRepo.create({ siteId: member.siteId, eventId: id!, date: new Date(date), createdBy: user.userId, imageUrl, images: Array.isArray(images) ? images : undefined, description: defaultDesc });
     return Response.json({ event: occ }, { status: 201 });
   } catch (error) {
     console.error(error);

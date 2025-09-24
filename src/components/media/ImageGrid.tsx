@@ -26,6 +26,7 @@ export default function ImageGrid({ items, getMeta, onToggle }: ImageGridProps) 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showGestureHint, setShowGestureHint] = useState(false);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const prefetchedSrc = useRef<Set<string>>(new Set());
 
   const hideGestureHint = useCallback(() => {
     setShowGestureHint(false);
@@ -39,6 +40,20 @@ export default function ImageGrid({ items, getMeta, onToggle }: ImageGridProps) 
     mediaQuery.addEventListener('change', update);
     return () => mediaQuery.removeEventListener('change', update);
   }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || items.length === 0) return;
+
+    const newSources = items
+      .map((item) => item.src)
+      .filter((src) => src && !prefetchedSrc.current.has(src));
+
+    newSources.forEach((src) => {
+      const img = new Image();
+      img.src = src;
+      prefetchedSrc.current.add(src);
+    });
+  }, [items]);
 
   useEffect(() => {
     if (!isMobile) {

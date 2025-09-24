@@ -13,8 +13,9 @@ const getHandler = async (req: Request, context: GuardContext) => {
     if (!Number.isFinite(year) || !Number.isFinite(month)) {
       return Response.json({ error: 'Invalid year/month' }, { status: 400 });
     }
-    const start = new Date(year, month, 1);
-    const end = new Date(year, month + 1, 1);
+    // Use UTC month boundaries to avoid server timezone skew
+    const start = new Date(Date.UTC(year, month, 1, 0, 0, 0));
+    const end = new Date(Date.UTC(year, month + 1, 1, 0, 0, 0));
     const repo = new AnniversaryOccurrenceRepository();
     const items = await repo.listBySiteAndRange(member.siteId, start, end);
     return Response.json({ items });
@@ -25,4 +26,3 @@ const getHandler = async (req: Request, context: GuardContext) => {
 };
 
 export const GET = withMemberGuard(getHandler);
-

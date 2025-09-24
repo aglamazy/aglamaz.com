@@ -19,7 +19,7 @@ export class AnniversaryOccurrenceRepository {
     return getFirestore();
   }
 
-  async create(data: { siteId: string; eventId: string; date: Date; createdBy: string; imageUrl?: string; images?: string[] }): Promise<AnniversaryOccurrence> {
+  async create(data: { siteId: string; eventId: string; date: Date; createdBy: string; imageUrl?: string; images?: string[]; description?: string }): Promise<AnniversaryOccurrence> {
     const db = this.getDb();
     const ref = await db.collection(this.collection).add({
       siteId: data.siteId,
@@ -28,6 +28,7 @@ export class AnniversaryOccurrenceRepository {
       createdAt: Timestamp.now(),
       createdBy: data.createdBy,
       images: Array.isArray(data.images) ? data.images : [],
+      description: data.description || '',
     });
     const doc = await ref.get();
     return { id: doc.id, ...doc.data() } as AnniversaryOccurrence;
@@ -58,6 +59,13 @@ export class AnniversaryOccurrenceRepository {
 
   async listBySiteAndRange(siteId: string, start: Date, end: Date): Promise<AnniversaryOccurrence[]> {
     const db = this.getDb();
+    try {
+      console.log('[occRepo] listBySiteAndRange params', {
+        siteId,
+        start: start.toISOString(),
+        end: end.toISOString(),
+      });
+    } catch {}
     const qs = await db
       .collection(this.collection)
       .where('siteId', '==', siteId)
@@ -65,14 +73,23 @@ export class AnniversaryOccurrenceRepository {
       .where('date', '<', Timestamp.fromDate(end))
       .orderBy('date', 'asc')
       .get();
-    return qs.docs.map((d) => ({ id: d.id, ...d.data() } as AnniversaryOccurrence));
+    const items = qs.docs.map((d) => ({ id: d.id, ...d.data() } as AnniversaryOccurrence));
+    try {
+      const first = items[0];
+      console.log('[occRepo] listBySiteAndRange result', {
+        count: items.length,
+        sample: first ? { id: first.id, eventId: first.eventId, date: String((first as any).date) } : null,
+      });
+    } catch {}
+    return items;
   }
 
-  async update(id: string, updates: { date?: Date; imageUrl?: string | null; images?: string[] }): Promise<void> {
+  async update(id: string, updates: { date?: Date; imageUrl?: string | null; images?: string[]; description?: string }): Promise<void> {
     const db = this.getDb();
     const data: any = {};
     if (updates.date) data.date = Timestamp.fromDate(updates.date);
     if (updates.images !== undefined) data.images = updates.images;
+    if (updates.description !== undefined) data.description = updates.description;
     await db.collection(this.collection).doc(id).update(data);
   }
 

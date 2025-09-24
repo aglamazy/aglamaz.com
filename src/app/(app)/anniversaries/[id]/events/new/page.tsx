@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -25,6 +25,28 @@ export default function NewOccurrencePage() {
     setImageFiles(files);
     setPreviews(files.map((f) => URL.createObjectURL(f)));
   }
+
+  // Default occurrence date to same day/month as anniversary (current year)
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await apiFetch<{ event: { month?: number; day?: number; useHebrew?: boolean; hebrewOccurrences?: Array<{ year: number; month: number; day: number }> } }>(`/api/anniversaries/${eventId}`);
+        const now = new Date();
+        let m = (res.event?.month ?? now.getMonth());
+        let d = (res.event?.day ?? now.getDate());
+        if (res.event?.useHebrew && Array.isArray(res.event?.hebrewOccurrences)) {
+          const occ = res.event.hebrewOccurrences.find((o: any) => o.year === now.getFullYear());
+          if (occ) { m = occ.month; d = occ.day; }
+        }
+        const yyyy = now.getFullYear();
+        const mm = String(m + 1).padStart(2, '0');
+        const dd = String(d).padStart(2, '0');
+        setDate(`${yyyy}-${mm}-${dd}`);
+      } catch {
+        // leave empty if fetch fails
+      }
+    })();
+  }, [eventId]);
 
   async function resizeToWebp(file: File, maxWidth = 1600, quality = 0.9): Promise<Blob> {
     const img = document.createElement('img');

@@ -33,7 +33,7 @@ const putHandler = async (request: Request, context: GuardContext) => {
       return Response.json({ error: 'Event not found' }, { status: 404 });
     }
     const body = await request.json();
-    const { date, imageUrl, addImages, removeImages, images } = body;
+    const { date, imageUrl, addImages, removeImages, images, description } = body;
 
     // Allow any member to add/remove images; restrict date edits to owner/admin
     if (date && !(occ.createdBy === user.userId || member.role === 'admin')) {
@@ -55,6 +55,7 @@ const putHandler = async (request: Request, context: GuardContext) => {
       date: date ? new Date(date) : undefined,
       imageUrl, // legacy
       images: nextImages,
+      description: typeof description === 'string' ? description : undefined,
     });
     const updated = await occRepo.getById(occurrenceId!);
     return Response.json({ event: updated });

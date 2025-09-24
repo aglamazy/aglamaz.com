@@ -404,7 +404,26 @@ export default function AnniversariesPage() {
             </span>
           )}
         </div>
-        {dayEvents.length > 1 ? (
+        {/* same-day occurrences (actual celebrations) — show small chips near the top */}
+        {dayOccs.length > 0 && (
+          <div className={`mt-5 flex flex-col gap-1 ${isCurrentMonth ? '' : 'opacity-50'}`}>
+            {dayOccs.map((occ) => {
+              const ev = events.find((e) => e.id === occ.eventId);
+              const label = ev ? ev.name : 'Event';
+              return (
+                <a
+                  key={occ.id}
+                  href={`/anniversaries/${occ.eventId}/events/${occ.id}`}
+                  className="bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded text-[10px] sm:text-xs"
+                >
+                  {label}
+                </a>
+              );
+            })}
+          </div>
+        )}
+        {/* If more than one item (anniversary + occurrences), show text chips (no image). */}
+        {(dayEvents.length + dayOccs.length) > 1 ? (
           <div className={`mt-4 sm:mt-6 flex flex-col gap-1 ${isCurrentMonth ? '' : 'opacity-50'}`}>
             {dayEvents.map((ev) => (
               <div
@@ -438,24 +457,6 @@ export default function AnniversariesPage() {
               )}
             </div>
           ))
-        )}
-        {/* same-day occurrences (actual celebrations) */}
-        {dayOccs.length > 0 && (
-          <div className={`mt-1 flex flex-col gap-1 ${isCurrentMonth ? '' : 'opacity-50'}`}>
-            {dayOccs.map((occ) => {
-              const ev = events.find((e) => e.id === occ.eventId);
-              const label = ev ? ev.name : 'Event';
-              return (
-                <a
-                  key={occ.id}
-                  href={`/anniversaries/${occ.eventId}/events/${occ.id}`}
-                  className="bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded text-[10px] sm:text-xs"
-                >
-                  {label}
-                </a>
-              );
-            })}
-          </div>
         )}
       </div>
     );
