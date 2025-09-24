@@ -1,7 +1,16 @@
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { initAdmin } from '../firebase/admin';
 import type { IMember } from '@/entities/Member';
-import {adminNotificationService} from "@/services/AdminNotificationService";
+import { adminNotificationService } from '@/services/AdminNotificationService';
+
+export type InviteStatus = 'pending' | 'used' | 'expired' | 'revoked';
+
+export class InviteError extends Error {
+  constructor(public code: string, message: string) {
+    super(message);
+    this.name = 'InviteError';
+  }
+}
 
 export interface FamilyMember {
   id: string;
@@ -55,10 +64,32 @@ export interface SignupRequest {
   rejectionReason?: string;
 }
 
+export interface SiteInvite {
+  id: string;
+  token: string;
+  siteId: string;
+  inviterId?: string;
+  inviterEmail?: string;
+  inviterName?: string;
+  status: InviteStatus;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+  expiresAt: Timestamp;
+  usedAt?: Timestamp;
+  usedBy?: string;
+  usedByEmail?: string;
+}
+
 export class FamilyRepository {
   private readonly membersCollection = 'members';
   private readonly sitesCollection = 'sites';
   private readonly signupRequestsCollection = 'signupRequests';
+  private readonly invitesCollection = 'invites';
+
+  private isTimestamp(value: unknown): value is Timestamp {
+    return value instanceof Timestamp ||
+      (typeof value === 'object' && value !== null && 'toMillis' in value && typeof (value as any).toMillis === 'function');
+  }
 
   private getDb() {
     initAdmin();
@@ -235,6 +266,139 @@ export class FamilyRepository {
     } catch (error) {
       console.error('Error rejecting member:', error);
       throw new Error('Failed to reject member');
+    }
+  }
+
+  // Invite Management
+  async createInvite(siteId: string, inviter?: { id?: string; email?: string; name?: string }): Promise<SiteInvite> {
+    try {
+      const db = this.getDb();
+      const { randomUUID } = require('crypto');
+      const token = randomUUID();
+      const now = Timestamp.now();
+      const expiresAt = Timestamp.fromDate(new Date(Date.now() + 24 * 60 * 60 * 1000));
+
+      const inviteData = {
+        token,
+        siteId,
+        inviterId: inviter?.id || null,
+        inviterEmail: inviter?.email || null,
+        inviterName: inviter?.name || null,
+        status: 'pending' as InviteStatus,
+        createdAt: now,
+        updatedAt: now,
+        expiresAt,
+      };
+
+      const docRef = db.collection(this.invitesCollection).doc(token);
+      await docRef.set(inviteData);
+      const doc = await docRef.get();
+      return { id: doc.id, ...(doc.data() as SiteInvite) };
+    } catch (error) {
+      console.error('Error creating invite:', error);
+      throw new Error('Failed to create invite');
+    }
+  }
+
+  async getInviteByToken(token: string): Promise<SiteInvite | null> {
+    try {
+      const db = this.getDb();
+      const ref = db.collection(this.invitesCollection).doc(token);
+      const doc = await ref.get();
+      if (!doc.exists) return null;
+
+      const invite = { id: doc.id, ...(doc.data() as SiteInvite) };
+      const now = Timestamp.now();
+      if (invite.status === 'pending' && this.isTimestamp(invite.expiresAt) && invite.expiresAt.toMillis() <= now.toMillis()) {
+        await ref.update({ status: 'expired', updatedAt: now });
+        invite.status = 'expired';
+        invite.updatedAt = now;
+      }
+      return invite;
+    } catch (error) {
+      console.error('Error getting invite by token:', error);
+      throw new Error('Failed to get invite');
+    }
+  }
+
+  async acceptInvite(token: string, user: { uid: string; siteId: string; email: string; displayName?: string; firstName?: string }): Promise<IMember> {
+    const db = this.getDb();
+    const inviteRef = db.collection(this.invitesCollection).doc(token);
+    const membersRef = db.collection(this.membersCollection);
+    const now = Timestamp.now();
+
+    try {
+      return await db.runTransaction(async (tx) => {
+        const inviteSnap = await tx.get(inviteRef);
+        if (!inviteSnap.exists) {
+          throw new InviteError('invite/not-found', 'Invite not found');
+        }
+        const invite = { id: inviteSnap.id, ...(inviteSnap.data() as SiteInvite) };
+        if (invite.siteId !== user.siteId) {
+          throw new InviteError('invite/wrong-site', 'Invite does not belong to this site');
+        }
+        if (invite.status === 'pending' && this.isTimestamp(invite.expiresAt) && invite.expiresAt.toMillis() <= now.toMillis()) {
+          tx.update(inviteRef, { status: 'expired', updatedAt: now });
+          throw new InviteError('invite/expired', 'Invite has expired');
+        }
+        if (invite.siteId !== user.siteId) {
+          throw new InviteError('invite/wrong-site', 'Invite does not belong to this site');
+        }
+        if (invite.status === 'expired') {
+          throw new InviteError('invite/expired', 'Invite has expired');
+        }
+        if (invite.status === 'used') {
+          throw new InviteError('invite/used', 'Invite already used');
+        }
+        if (invite.status === 'revoked') {
+          throw new InviteError('invite/revoked', 'Invite has been revoked');
+        }
+
+        const existingMemberSnap = await tx.get(
+          membersRef
+            .where('siteId', '==', invite.siteId)
+            .where('uid', '==', user.uid)
+            .limit(1)
+        );
+
+        if (!existingMemberSnap.empty) {
+          throw new InviteError('invite/already-member', 'User is already a member');
+        }
+
+        if (!user.email) {
+          throw new InviteError('invite/missing-email', 'User email is required');
+        }
+
+        const memberDoc = {
+          uid: user.uid,
+          siteId: invite.siteId,
+          role: 'member',
+          displayName: user.displayName || user.firstName || user.email,
+          firstName: user.firstName || user.displayName || user.email,
+          email: user.email,
+          createdAt: now,
+          updatedAt: now,
+        } satisfies Omit<IMember, 'id'>;
+
+        const memberRef = membersRef.doc();
+        tx.set(memberRef, memberDoc);
+
+        tx.update(inviteRef, {
+          status: 'used',
+          usedAt: now,
+          usedBy: user.uid,
+          usedByEmail: user.email,
+          updatedAt: now,
+        });
+
+        return { id: memberRef.id, ...memberDoc } as IMember;
+      });
+    } catch (error) {
+      if (error instanceof InviteError) {
+        throw error;
+      }
+      console.error('Error accepting invite:', error);
+      throw new Error('Failed to accept invite');
     }
   }
 
