@@ -89,8 +89,9 @@
   "add": "הוסף",
   "noPostsYet": "אין פוסטים עדיין.",
   "noPicturesYet": "אין תמונות עדיין.",
-  "photoFeedTapHint": "הקישו על התמונה כדי לעשות לייק.",
-  "photoFeedSwipeHint": "החליקו למעלה או לימין לתמונה הבאה, למטה או לשמאל לקודמת.",
+  "photoFeedTapHint": "הקישו על התמונה כדי לעבור למסך מלא.",
+  "photoFeedSwipeHint": "גללו כדי לראות עוד תמונות.",
+  "photoFeedBack": "חזרה",
   "newPost": "פוסט חדש"
   ,
   "writePost": "כתוב פוסט"

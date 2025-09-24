@@ -144,6 +144,8 @@
   color: #fff;
   font-size: 0.95rem;
   font-weight: 600;
+  border: none;
+  cursor: pointer;
 }
 
 .mobileLikeBadgeRaised {
@@ -192,4 +194,88 @@
 .mobileHint button:focus-visible {
   outline: 2px solid rgba(255,255,255,0.6);
   outline-offset: 2px;
+}
+
+.presentationOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(135deg, rgba(253, 249, 244, 0.98), rgba(232, 240, 234, 0.98));
+  color: #111827;
+}
+
+.presentationTopBar {
+  display: flex;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  backdrop-filter: blur(12px);
+  background: rgba(255, 255, 255, 0.75);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+}
+
+.presentationBackBtn {
+  background: rgba(17, 24, 39, 0.85);
+  color: #f9fafb;
+  border: none;
+  border-radius: 9999px;
+  padding: 0.4rem 1rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.presentationList {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem 1rem 2.5rem;
+}
+
+.presentationItem {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-bottom: 1.75rem;
+}
+
+.presentationTitle {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1f2937;
+  padding: 0 0.25rem;
+}
+
+.presentationImageWrap {
+  position: relative;
+  border-radius: 1rem;
+  overflow: hidden;
+  background: #0f172a;
+  box-shadow: 0 12px 35px rgba(15, 23, 42, 0.25);
+}
+
+.presentationImg {
+  width: 100%;
+  height: auto;
+  display: block;
+  cursor: pointer;
+}
+
+.presentationLikeBadge {
+  position: absolute;
+  bottom: 1rem;
+  right: 1rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.85rem;
+  border-radius: 9999px;
+  background: rgba(17, 24, 39, 0.75);
+  color: #f9fafb;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.presentationLikeBadgeLiked {
+  background: rgba(220, 38, 38, 0.85);
 }

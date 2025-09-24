@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import styles from './ImageGrid.module.css';
 import { useTranslation } from 'react-i18next';
+import { usePresentationModeStore } from '@/store/PresentationModeStore';
 
 export interface GridItem {
   key: string;
@@ -25,8 +26,13 @@ export default function ImageGrid({ items, getMeta, onToggle }: ImageGridProps) 
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showGestureHint, setShowGestureHint] = useState(false);
+  const [presentationMode, setPresentationMode] = useState(false);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const prefetchedSrc = useRef<Set<string>>(new Set());
+  const presentationListRef = useRef<HTMLDivElement | null>(null);
+
+  const enablePresentation = usePresentationModeStore((state) => state.enable);
+  const disablePresentation = usePresentationModeStore((state) => state.disable);
 
   const hideGestureHint = useCallback(() => {
     setShowGestureHint(false);
@@ -58,6 +64,7 @@ export default function ImageGrid({ items, getMeta, onToggle }: ImageGridProps) 
   useEffect(() => {
     if (!isMobile) {
       setShowGestureHint(false);
+      setPresentationMode(false);
       return;
     }
     if (items.length === 0) return;
@@ -85,6 +92,7 @@ export default function ImageGrid({ items, getMeta, onToggle }: ImageGridProps) 
   useEffect(() => {
     if (items.length === 0) {
       setShowGestureHint(false);
+      setPresentationMode(false);
     }
   }, [items.length]);
 
@@ -130,11 +138,11 @@ export default function ImageGrid({ items, getMeta, onToggle }: ImageGridProps) 
     void onToggle(currentItem);
   }, [currentItem, onToggle]);
 
-  const handleMobileClick = useCallback(() => {
-    if (!isMobile) return;
-    handleMobileToggle();
+  const openPresentationMode = useCallback(() => {
+    if (!isMobile || items.length === 0) return;
+    setPresentationMode(true);
     hideGestureHint();
-  }, [handleMobileToggle, hideGestureHint, isMobile]);
+  }, [hideGestureHint, isMobile, items.length]);
 
   const handleTouchStart = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
     if (!isMobile || e.touches.length === 0) return;
@@ -163,28 +171,120 @@ export default function ImageGrid({ items, getMeta, onToggle }: ImageGridProps) 
           handled = true;
         }
       }
-    } else if (currentItem) {
+    } else {
       if (e.cancelable) e.preventDefault();
-      handleMobileToggle();
+      openPresentationMode();
       handled = true;
     }
 
     if (handled) hideGestureHint();
     touchStartRef.current = null;
-  }, [currentItem, goNext, goPrev, handleMobileToggle, hideGestureHint, isMobile, items.length]);
+  }, [goNext, goPrev, hideGestureHint, isMobile, items.length, openPresentationMode]);
 
   const handleTouchCancel = useCallback(() => {
     touchStartRef.current = null;
   }, []);
 
+  useEffect(() => {
+    if (!presentationMode) return;
+    enablePresentation();
+
+    if (typeof document !== 'undefined') {
+      const previousOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+
+      return () => {
+        document.body.style.overflow = previousOverflow;
+        disablePresentation();
+      };
+    }
+
+    return () => {
+      disablePresentation();
+    };
+  }, [presentationMode, enablePresentation, disablePresentation]);
+
+  useEffect(() => {
+    if (!presentationMode) return;
+    const container = presentationListRef.current;
+    if (!container) return;
+    const target = container.querySelector<HTMLElement>(
+      `[data-presentation-index="${currentIndex}"]`
+    );
+    if (target) {
+      requestAnimationFrame(() => {
+        container.scrollTo({ top: target.offsetTop, behavior: 'auto' });
+      });
+    }
+  }, [presentationMode, currentIndex]);
+
+  useEffect(() => {
+    if (!presentationMode) return;
+    if (items.length === 0) {
+      setPresentationMode(false);
+    }
+  }, [items.length, presentationMode]);
+
+  const handlePresentationClose = useCallback(() => {
+    setPresentationMode(false);
+  }, []);
+
   if (isMobile) {
     return (
       <div className={styles.mobileViewer}>
+        {presentationMode && (
+          <div className={styles.presentationOverlay}>
+            <div className={styles.presentationTopBar}>
+              <button
+                type="button"
+                className={styles.presentationBackBtn}
+                onClick={handlePresentationClose}
+                aria-label={t('photoFeedBack') as string}
+              >
+                <span aria-hidden="true">&larr;</span>
+              </button>
+            </div>
+            <div className={styles.presentationList} ref={presentationListRef}>
+              {items.map((item, index) => {
+                const meta = getMeta(item);
+                return (
+                  <div
+                    key={item.key}
+                    className={styles.presentationItem}
+                    data-presentation-index={index}
+                  >
+                    {item.title && (
+                      <div className={styles.presentationTitle} title={item.title}>{item.title}</div>
+                    )}
+                    <div className={styles.presentationImageWrap}>
+                      <img
+                        src={item.src}
+                        alt=""
+                        className={styles.presentationImg}
+                        onClick={() => { void onToggle(item); }}
+                      />
+                      <div
+                        className={
+                          styles.presentationLikeBadge +
+                          (meta.likedByMe ? ' ' + styles.presentationLikeBadgeLiked : '')
+                        }
+                        aria-hidden="true"
+                      >
+                        <span>❤</span>
+                        <span>{meta.count}</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
         {currentItem && (
           <>
             <div
               className={styles.mobileImageWrap}
-              onClick={handleMobileClick}
+              onClick={openPresentationMode}
               onTouchStart={handleTouchStart}
               onTouchEnd={handleTouchEnd}
               onTouchCancel={handleTouchCancel}
@@ -194,16 +294,19 @@ export default function ImageGrid({ items, getMeta, onToggle }: ImageGridProps) 
                 <div className={styles.mobileTitle} title={currentItem.title}>{currentItem.title}</div>
               )}
               {currentMeta && (
-                <div
+                <button
+                  type="button"
                   className={
                     styles.mobileLikeBadge +
                     (showGestureHint ? ' ' + styles.mobileLikeBadgeRaised : '') +
                     (currentMeta.likedByMe ? ' ' + styles.mobileLikeBadgeLiked : '')
                   }
+                  onClick={(e) => { e.stopPropagation(); void onToggle(currentItem); }}
+                  aria-label={currentMeta.likedByMe ? (t('unlike') as string) : (t('like') as string)}
                 >
                   <span>❤</span>
                   <span>{currentMeta.count}</span>
-                </div>
+                </button>
               )}
             </div>
             {showGestureHint && (

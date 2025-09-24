@@ -20,6 +20,7 @@ import NotMemberContent from '@/components/NotMemberContent';
 import { useNotMemberModalStore } from '@/store/NotMemberModalStore';
 import EditUserDetails from '@/components/EditUserDetails';
 import { useEditUserModalStore } from '@/store/EditUserModalStore';
+import { usePresentationModeStore } from '@/store/PresentationModeStore';
 
 export default function ClientLayoutShell({ children }) {
   const { user, loading, logout, checkAuth } = useUserStore();
@@ -34,6 +35,7 @@ export default function ClientLayoutShell({ children }) {
   const { isOpen: isEditOpen, close: closeEdit } = useEditUserModalStore();
 
   const { fetchMember } = useMemberStore();
+  const presentationModeActive = usePresentationModeStore((state) => state.active);
 
   useEffect(() => {
     checkAuth()
@@ -97,8 +99,11 @@ export default function ClientLayoutShell({ children }) {
   return (
     <I18nProvider>
       <I18nGate>
-        <div className="min-h-screen flex flex-col bg-gradient-to-br from-cream-50 to-sage-50">
-          {headerReady ? (
+        <div className={
+          'min-h-screen flex flex-col bg-gradient-to-br from-cream-50 to-sage-50' +
+          (presentationModeActive ? ' overflow-hidden' : '')
+        }>
+          {headerReady && !presentationModeActive ? (
             <Header
               user={user}
               member={member}
@@ -106,10 +111,16 @@ export default function ClientLayoutShell({ children }) {
               siteInfo={siteInfo}
             />
           ) : null}
-          <main className="flex-1 w-full mx-auto max-w-[1600px] px-2 sm:px-4">
+          <main
+            className={
+              presentationModeActive
+                ? 'flex-1 w-full'
+                : 'flex-1 w-full mx-auto max-w-[1600px] px-2 sm:px-4'
+            }
+          >
             {children}
           </main>
-          {siteInfo ? <Footer siteInfo={siteInfo} /> : null}
+          {siteInfo && !presentationModeActive ? <Footer siteInfo={siteInfo} /> : null}
           <Modal isOpen={isLoginOpen} onClose={closeLogin}>
             <LoginPage/>
           </Modal>
