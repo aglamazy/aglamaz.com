@@ -116,9 +116,12 @@ export class AnniversaryRepository {
     useHebrew?: boolean;
   }): Promise<void> {
     const db = this.getDb();
+    const existing = await this.getById(id);
+    if (!existing) {
+      throw new Error(`Anniversary ${id} not found`);
+    }
+
     const data: any = { ...updates };
-    const needComputeFromExisting = updates.useHebrew === true && !updates.date;
-    const existing = needComputeFromExisting ? await this.getById(id) : null;
     if (updates.date) {
       const eventDate = Timestamp.fromDate(updates.date);
       data.date = eventDate;
@@ -130,7 +133,7 @@ export class AnniversaryRepository {
         data.hebrewDate = formatHebrewDisplay(updates.date);
         data.hebrewKey = formatHebrewKey(updates.date);
         // Recompute occurrences up to horizon
-        const hebHorizonYear = await this.config.getHorizonYear((existing?.siteId || '') as string);
+        const hebHorizonYear = await this.config.getHorizonYear(existing.siteId);
         const startYear = Math.max(new Date().getFullYear(), updates.date.getFullYear());
         const endYear = Math.max(hebHorizonYear, startYear);
         const occurrences: Array<{ year: number; month: number; day: number; date: any }> = [];
@@ -145,7 +148,7 @@ export class AnniversaryRepository {
     }
     if (updates.useHebrew !== undefined && !updates.date) {
       data.useHebrew = !!updates.useHebrew;
-      if (updates.useHebrew && existing?.date) {
+      if (updates.useHebrew && existing.date) {
         const d = (existing.date as Timestamp).toDate();
         data.hebrewDate = formatHebrewDisplay(d);
         data.hebrewKey = formatHebrewKey(d);
