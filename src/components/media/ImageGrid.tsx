@@ -241,7 +241,7 @@ export default function ImageGrid({ items, getMeta, onToggle }: ImageGridProps) 
                 onClick={handlePresentationClose}
                 aria-label={t('photoFeedBack') as string}
               >
-                <span aria-hidden="true">&larr;</span>
+                <span className={styles.presentationBackIcon} aria-hidden="true" />
               </button>
             </div>
             <div className={styles.presentationList} ref={presentationListRef}>

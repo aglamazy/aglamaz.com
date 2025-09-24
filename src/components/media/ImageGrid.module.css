@@ -216,14 +216,26 @@
 }
 
 .presentationBackBtn {
-  background: rgba(17, 24, 39, 0.85);
-  color: #f9fafb;
+  background: none;
   border: none;
-  border-radius: 9999px;
-  padding: 0.4rem 1rem;
-  font-size: 0.95rem;
-  font-weight: 600;
+  padding: 0.35rem;
   cursor: pointer;
+}
+
+.presentationBackIcon {
+  display: inline-block;
+  width: 0.75rem;
+  height: 0.75rem;
+  border-left: 2px solid #111827;
+  border-bottom: 2px solid #111827;
+  transform: rotate(45deg);
+  margin-left: 0.2rem;
+}
+
+:global([dir='rtl']) .presentationBackIcon {
+  transform: rotate(-135deg);
+  margin-left: 0;
+  margin-right: 0.2rem;
 }
 
 .presentationList {

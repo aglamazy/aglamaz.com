@@ -59,13 +59,6 @@ export class AnniversaryOccurrenceRepository {
 
   async listBySiteAndRange(siteId: string, start: Date, end: Date): Promise<AnniversaryOccurrence[]> {
     const db = this.getDb();
-    try {
-      console.log('[occRepo] listBySiteAndRange params', {
-        siteId,
-        start: start.toISOString(),
-        end: end.toISOString(),
-      });
-    } catch {}
     const qs = await db
       .collection(this.collection)
       .where('siteId', '==', siteId)
@@ -74,13 +67,6 @@ export class AnniversaryOccurrenceRepository {
       .orderBy('date', 'asc')
       .get();
     const items = qs.docs.map((d) => ({ id: d.id, ...d.data() } as AnniversaryOccurrence));
-    try {
-      const first = items[0];
-      console.log('[occRepo] listBySiteAndRange result', {
-        count: items.length,
-        sample: first ? { id: first.id, eventId: first.eventId, date: String((first as any).date) } : null,
-      });
-    } catch {}
     return items;
   }
 

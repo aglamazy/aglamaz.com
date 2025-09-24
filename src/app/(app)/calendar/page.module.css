@@ -30,3 +30,28 @@
   align-items: center;
   justify-content: center;
 }
+
+.monthNavArrow {
+  display: inline-block;
+  width: 0.65rem;
+  height: 0.65rem;
+  border-top: 2px solid currentColor;
+  border-right: 2px solid currentColor;
+  transform: rotate(45deg);
+}
+
+.monthNavPrev {
+  transform: rotate(-135deg);
+}
+
+.monthNavNext {
+  transform: rotate(45deg);
+}
+
+:global([dir='rtl']) .monthNavPrev {
+  transform: rotate(45deg);
+}
+
+:global([dir='rtl']) .monthNavNext {
+  transform: rotate(-135deg);
+}

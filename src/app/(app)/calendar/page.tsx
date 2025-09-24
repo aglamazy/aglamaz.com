@@ -54,7 +54,7 @@ export default function AnniversariesPage() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<AnniversaryEvent | null>(null);
   const [occurrences, setOccurrences] = useState<Array<{ id: string; date: any }>>([]);
-  const [monthOccs, setMonthOccs] = useState<Array<{ id: string; eventId: string; date: any }>>([]);
+  const [monthOccs, setMonthOccs] = useState<Array<{ id: string; eventId: string; date: any; images?: string[] }>>([]);
   const [occLoading, setOccLoading] = useState(false);
   const [occError, setOccError] = useState('');
   const [deleting, setDeleting] = useState(false);
@@ -106,7 +106,7 @@ export default function AnniversariesPage() {
     (async () => {
       try {
         const params = new URLSearchParams({ year: String(y), month: String(m) });
-        const res = await apiFetch<{ items: Array<{ id: string; eventId: string; date: any }> }>(`/api/calendar/occurrences?${params.toString()}`);
+        const res = await apiFetch<{ items: Array<{ id: string; eventId: string; date: any; images?: string[] }> }>(`/api/calendar/occurrences?${params.toString()}`);
         setMonthOccs(Array.isArray(res.items) ? res.items : []);
       } catch (e) {
         console.error('[Anniversaries] month occurrences fetch failed', e);
@@ -370,7 +370,7 @@ export default function AnniversariesPage() {
       cellDay = i - firstDay + 1;
     }
 
-    const dayEvents = events.filter(
+    const baseDayEvents = events.filter(
       (ev) => ev.month === cellMonth && ev.day === cellDay
     );
     const dayOccs = monthOccs.filter((occ) => {
@@ -379,6 +379,11 @@ export default function AnniversariesPage() {
       const js = typeof sec === 'number' ? new Date(sec * 1000) : (d?.toDate ? d.toDate() : new Date(d));
       return js.getFullYear() === cellYear && js.getMonth() === cellMonth && js.getDate() === cellDay;
     });
+    const occEventIds = new Set(dayOccs.map((occ) => occ.eventId));
+    const dayEvents = baseDayEvents.filter((ev) => !occEventIds.has(ev.id));
+    const totalItems = dayEvents.length + dayOccs.length;
+    const hasUniqueOccurrence = totalItems === 1 && dayEvents.length === 0 && dayOccs.length === 1;
+    const showOccurrenceChips = dayOccs.length > 0 && !hasUniqueOccurrence;
     const isToday =
       cellDay === today.getDate() &&
       cellMonth === today.getMonth() &&
@@ -405,7 +410,7 @@ export default function AnniversariesPage() {
           )}
         </div>
         {/* same-day occurrences (actual celebrations) — show small chips near the top */}
-        {dayOccs.length > 0 && (
+        {showOccurrenceChips && (
           <div className={`mt-5 flex flex-col gap-1 ${isCurrentMonth ? '' : 'opacity-50'}`}>
             {dayOccs.map((occ) => {
               const ev = events.find((e) => e.id === occ.eventId);
@@ -423,7 +428,7 @@ export default function AnniversariesPage() {
           </div>
         )}
         {/* If more than one item (anniversary + occurrences), show text chips (no image). */}
-        {(dayEvents.length + dayOccs.length) > 1 ? (
+        {totalItems > 1 ? (
           <div className={`mt-4 sm:mt-6 flex flex-col gap-1 ${isCurrentMonth ? '' : 'opacity-50'}`}>
             {dayEvents.map((ev) => (
               <div
@@ -438,25 +443,67 @@ export default function AnniversariesPage() {
             ))}
           </div>
         ) : (
-          dayEvents.map((ev) => (
-            <div
-              key={ev.id}
-              onClick={() => {
-                setSelectedEvent(ev);
-              }}
-              className={`mt-6 sm:mt-7 flex flex-col items-center gap-1 text-xs cursor-pointer ${
-                ev.imageUrl ? 'p-0 bg-transparent' : 'bg-blue-100 text-blue-800 px-2 py-1 rounded-full'
-              } ${isCurrentMonth ? '' : 'opacity-50'}`}
-            >
-              {ev.imageUrl && (
-                <img
-                  src={ev.imageUrl}
-                  alt=""
-                  className="w-full h-16 sm:h-20 object-cover rounded"
-                />
-              )}
-            </div>
-          ))
+          (() => {
+            const renderEventCard = (
+              ev: AnniversaryEvent,
+              key: string | number,
+              imageOverride?: string
+            ) => {
+              const fallbackImages = Array.isArray((ev as unknown as { images?: string[] })?.images)
+                ? (ev as unknown as { images?: string[] }).images
+                : [];
+              const imageUrl = imageOverride || ev.imageUrl || fallbackImages[0];
+              return (
+                <div
+                  key={key}
+                  onClick={() => {
+                    setSelectedEvent(ev);
+                  }}
+                  className={`mt-6 sm:mt-7 flex flex-col items-center gap-1 text-xs cursor-pointer ${
+                  imageUrl ? 'p-0 bg-transparent' : 'bg-blue-100 text-blue-800 px-2 py-1 rounded-full'
+                } ${isCurrentMonth ? '' : 'opacity-50'}`}
+                >
+                {imageUrl ? (
+                  <img
+                    src={imageUrl}
+                    alt=""
+                    className="w-full h-16 sm:h-20 object-cover rounded"
+                  />
+                ) : (
+                  <span className={styles.nameMobile}>{truncateResponsive(ev.name, 6, 16)}</span>
+                )}
+              </div>
+            );
+            };
+
+            if (dayEvents.length === 1) {
+              const ev = dayEvents[0];
+              return (
+                renderEventCard(ev, ev.id)
+              );
+            }
+            if (hasUniqueOccurrence) {
+              const occ = dayOccs[0];
+              const ev = events.find((e) => e.id === occ.eventId);
+              const label = ev ? ev.name : 'Event';
+              if (!ev) {
+                return (
+                  <a
+                    key={occ.id}
+                    href={`/anniversaries/${occ.eventId}/events/${occ.id}`}
+                    className={`mt-6 sm:mt-7 bg-emerald-100 text-emerald-800 px-2 py-1 rounded-full text-xs ${
+                      isCurrentMonth ? '' : 'opacity-50'
+                    }`}
+                  >
+                    {label}
+                  </a>
+                );
+              }
+              const imageOverride = Array.isArray(occ.images) ? occ.images[0] : undefined;
+              return renderEventCard(ev, occ.id, imageOverride);
+            }
+            return null;
+          })()
         )}
       </div>
     );
@@ -499,11 +546,11 @@ export default function AnniversariesPage() {
       <h1 className="text-2xl font-bold mb-2 sm:mb-4">{t('familyCalendar')}</h1>
       <div className="mb-3 sm:mb-4 flex items-center justify-center gap-2">
         <Button
-          aria-label="Previous month"
+          aria-label={t('calendarPrevMonth') as string}
           onClick={handlePrevMonth}
           className="px-3 py-2 rounded-full"
         >
-          {i18n.dir() === 'rtl' ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+          <span className={styles.monthNavArrow + ' ' + styles.monthNavPrev} aria-hidden="true" />
         </Button>
         <input
           type="month"
@@ -515,11 +562,11 @@ export default function AnniversariesPage() {
           className="border rounded px-3 py-2"
         />
         <Button
-          aria-label="Next month"
+          aria-label={t('calendarNextMonth') as string}
           onClick={handleNextMonth}
           className="px-3 py-2 rounded-full"
         >
-          {i18n.dir() === 'rtl' ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
+          <span className={styles.monthNavArrow + ' ' + styles.monthNavNext} aria-hidden="true" />
         </Button>
         <Button
           aria-label="Today"
