@@ -89,6 +89,8 @@
   "add": "Add",
   "noPostsYet": "No posts yet.",
   "noPicturesYet": "No pictures yet.",
+  "photoFeedTapHint": "Tap the photo to like it.",
+  "photoFeedSwipeHint": "Swipe up or right for the next photo, down or left for the previous photo.",
   "newPost": "New Post"
   ,
   "writePost": "Write a post"

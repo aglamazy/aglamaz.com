@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import styles from './ImageGrid.module.css';
 import { useTranslation } from 'react-i18next';
 
@@ -20,8 +20,70 @@ interface ImageGridProps {
 
 export default function ImageGrid({ items, getMeta, onToggle }: ImageGridProps) {
   const { t } = useTranslation();
+  const [isMobile, setIsMobile] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [showGestureHint, setShowGestureHint] = useState(false);
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+
+  const hideGestureHint = useCallback(() => {
+    setShowGestureHint(false);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mediaQuery = window.matchMedia('(max-width: 767px)');
+    const update = () => setIsMobile(mediaQuery.matches);
+    update();
+    mediaQuery.addEventListener('change', update);
+    return () => mediaQuery.removeEventListener('change', update);
+  }, []);
+
+  useEffect(() => {
+    if (!isMobile) {
+      setShowGestureHint(false);
+      return;
+    }
+    if (items.length === 0) return;
+    try {
+      const key = 'image-grid-gesture-hint';
+      const storage = window.localStorage;
+      if (!storage.getItem(key)) {
+        setShowGestureHint(true);
+        storage.setItem(key, '1');
+      }
+    } catch (err) {
+      console.warn('[image-grid] hint storage unavailable', err);
+    }
+  }, [isMobile, items.length]);
+
+  useEffect(() => {
+    setCurrentIndex((prev) => {
+      if (items.length === 0) return 0;
+      if (prev >= items.length) return items.length - 1;
+      if (prev < 0) return 0;
+      return prev;
+    });
+  }, [items.length]);
+
+  useEffect(() => {
+    if (items.length === 0) {
+      setShowGestureHint(false);
+    }
+  }, [items.length]);
+
+  useEffect(() => {
+    if (isMobile) {
+      setLightboxOpen(false);
+    }
+  }, [isMobile]);
+
+  useEffect(() => {
+    if (!isMobile) {
+      touchStartRef.current = null;
+    }
+  }, [isMobile]);
 
   useEffect(() => {
     if (!lightboxOpen) return;
@@ -34,6 +96,113 @@ export default function ImageGrid({ items, getMeta, onToggle }: ImageGridProps) 
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [lightboxOpen, items.length]);
+
+  const currentItem = items[currentIndex];
+  const currentMeta = currentItem ? getMeta(currentItem) : undefined;
+
+  const goNext = useCallback(() => {
+    if (items.length <= 1) return;
+    setCurrentIndex((prev) => (prev + 1) % items.length);
+  }, [items.length]);
+
+  const goPrev = useCallback(() => {
+    if (items.length <= 1) return;
+    setCurrentIndex((prev) => (prev - 1 + items.length) % items.length);
+  }, [items.length]);
+
+  const handleMobileToggle = useCallback(() => {
+    if (!currentItem) return;
+    void onToggle(currentItem);
+  }, [currentItem, onToggle]);
+
+  const handleMobileClick = useCallback(() => {
+    if (!isMobile) return;
+    handleMobileToggle();
+    hideGestureHint();
+  }, [handleMobileToggle, hideGestureHint, isMobile]);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
+    if (!isMobile || e.touches.length === 0) return;
+    const touch = e.touches[0];
+    touchStartRef.current = { x: touch.clientX, y: touch.clientY };
+  }, [isMobile]);
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
+    if (!isMobile || !touchStartRef.current || items.length === 0) return;
+    const touch = e.changedTouches[0];
+    const dx = touch.clientX - touchStartRef.current.x;
+    const dy = touch.clientY - touchStartRef.current.y;
+    const threshold = 30;
+    const absX = Math.abs(dx);
+    const absY = Math.abs(dy);
+
+    let handled = false;
+
+    if (absX > threshold || absY > threshold) {
+      if (items.length > 1) {
+        if (dx > threshold || dy < -threshold) {
+          goNext();
+          handled = true;
+        } else if (dx < -threshold || dy > threshold) {
+          goPrev();
+          handled = true;
+        }
+      }
+    } else if (currentItem) {
+      if (e.cancelable) e.preventDefault();
+      handleMobileToggle();
+      handled = true;
+    }
+
+    if (handled) hideGestureHint();
+    touchStartRef.current = null;
+  }, [currentItem, goNext, goPrev, handleMobileToggle, hideGestureHint, isMobile, items.length]);
+
+  const handleTouchCancel = useCallback(() => {
+    touchStartRef.current = null;
+  }, []);
+
+  if (isMobile) {
+    return (
+      <div className={styles.mobileViewer}>
+        {currentItem && (
+          <>
+            <div
+              className={styles.mobileImageWrap}
+              onClick={handleMobileClick}
+              onTouchStart={handleTouchStart}
+              onTouchEnd={handleTouchEnd}
+              onTouchCancel={handleTouchCancel}
+            >
+              <img src={currentItem.src} alt="" className={styles.mobileImage} />
+              {currentItem.title && (
+                <div className={styles.mobileTitle} title={currentItem.title}>{currentItem.title}</div>
+              )}
+              {currentMeta && (
+                <div
+                  className={
+                    styles.mobileLikeBadge +
+                    (showGestureHint ? ' ' + styles.mobileLikeBadgeRaised : '') +
+                    (currentMeta.likedByMe ? ' ' + styles.mobileLikeBadgeLiked : '')
+                  }
+                >
+                  <span>❤</span>
+                  <span>{currentMeta.count}</span>
+                </div>
+              )}
+            </div>
+            {showGestureHint && (
+              <div className={styles.mobileHint}>
+                <p>{t('photoFeedTapHint')}</p>
+                <p>{t('photoFeedSwipeHint')}</p>
+                <button type="button" onClick={hideGestureHint}>{t('close')}</button>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    );
+  }
 
   return (
     <>

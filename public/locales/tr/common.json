@@ -47,6 +47,8 @@
   "catchUpOnFamilyNews": "Aile haberleri ve anıları ile güncel kal",
   "browsePhotos": "Fotoğraflara Göz At",
   "explorePhotoAlbums": "Fotoğraf albümlerimizi keşfedin",
+  "photoFeedTapHint": "Fotoğrafı beğenmek için dokunun.",
+  "photoFeedSwipeHint": "Sonraki fotoğraf için yukarıya ya da sağa kaydırın, önceki için aşağıya ya da sola kaydırın.",
   "familyLinks": "Aile Bağlantıları",
   "accessFamilyResources": "Önemli aile kaynaklarına erişin",
   "welcomeBack": "Tekrar hoş geldiniz, {{name}}!",
