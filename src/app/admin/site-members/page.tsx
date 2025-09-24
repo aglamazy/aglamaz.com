@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { Card, CardContent } from '@/components/ui/card';
-import { Users } from 'lucide-react';
+import { Copy, Link2, Users } from 'lucide-react';
 import { useSiteStore } from '@/store/SiteStore';
 import type { ISite } from '@/entities/Site';
 import type { IMember } from '@/entities/Member';
@@ -9,6 +9,98 @@ import { apiFetch } from '@/utils/apiFetch';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
+
+function formatDateTime(iso: string | null) {
+  if (!iso) return '';
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleString();
+}
+
+function InviteLinkGenerator() {
+  const { t } = useTranslation();
+  const site = useSiteStore((state) => state.siteInfo) as ISite | null;
+  const [inviteUrl, setInviteUrl] = useState('');
+  const [expiresAt, setExpiresAt] = useState<string | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [error, setError] = useState('');
+
+  const generateInvite = async () => {
+    if (!site?.id) return;
+    setIsGenerating(true);
+    setError('');
+    setCopied(false);
+    try {
+      const response = await apiFetch<{ invite: { expiresAt: string }; url: string }>(`/api/site/${site.id}/invites`, {
+        method: 'POST',
+      });
+      setInviteUrl(response.url);
+      setExpiresAt(response.invite.expiresAt);
+    } catch (err) {
+      console.error(err);
+      setError(t('inviteLinkCreateError'));
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const copyInvite = async () => {
+    if (!inviteUrl) return;
+    try {
+      await navigator.clipboard.writeText(inviteUrl);
+      setCopied(true);
+      setError('');
+      setTimeout(() => setCopied(false), 3000);
+    } catch (err) {
+      console.error(err);
+      setError(t('inviteLinkCopyError'));
+    }
+  };
+
+  return (
+    <Card className="mb-6">
+      <CardContent className="pt-6">
+        <div className="flex items-start gap-3 mb-4">
+          <div className="p-2 rounded-full bg-sage-100 text-sage-600">
+            <Link2 className="w-5 h-5" />
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold text-sage-700">{t('inviteMembers')}</h2>
+            <p className="text-sm text-sage-600">{t('inviteLinkDescription')}</p>
+          </div>
+        </div>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <Button onClick={generateInvite} disabled={isGenerating || !site?.id}>
+            {isGenerating ? t('generatingInviteLink') : t('generateInviteLink')}
+          </Button>
+          {inviteUrl && (
+            <Button
+              onClick={copyInvite}
+              className="bg-white text-sage-700 border border-sage-300 hover:bg-sage-50"
+              type="button"
+            >
+              <Copy className="w-4 h-4" />
+              {t('copyLink')}
+            </Button>
+          )}
+        </div>
+        {inviteUrl && (
+          <div className="mt-4 space-y-2">
+            <div className="bg-sage-50 border border-sage-200 rounded-lg p-3 text-sm break-all">
+              {inviteUrl}
+            </div>
+            {expiresAt && (
+              <p className="text-sm text-sage-600">{t('linkExpiresAt', { time: formatDateTime(expiresAt) })}</p>
+            )}
+            {copied && <p className="text-sm text-emerald-600">{t('inviteLinkCopied')}</p>}
+          </div>
+        )}
+        {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+      </CardContent>
+    </Card>
+  );
+}
 
 function formatDate(ts: any) {
   if (!ts) return '';
@@ -107,12 +199,13 @@ export default function SiteMembersPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-cream-50 to-sage-50 p-4">
-      <div className="max-w-4xl mx-auto">
-        <div className="flex items-center gap-3 mb-8">
-          <Users size={32} className="text-sage-600" />
-          <h1 className="text-3xl font-bold text-sage-700">{t('siteMembers')}</h1>
-        </div>
-        <Card>
+        <div className="max-w-4xl mx-auto">
+          <div className="flex items-center gap-3 mb-8">
+            <Users size={32} className="text-sage-600" />
+            <h1 className="text-3xl font-bold text-sage-700">{t('siteMembers')}</h1>
+          </div>
+          <InviteLinkGenerator />
+          <Card>
           <CardContent className="pt-6">
             <div className="overflow-x-auto">
               <table className="min-w-full bg-white border border-sage-200 rounded-lg">

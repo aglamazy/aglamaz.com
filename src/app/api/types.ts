@@ -2,6 +2,7 @@ import { TokenClaims } from '@/auth/tokens';
 export interface RouteParams {
   siteId?: string;
   id?: string;
+  token?: string;
 }
 
 export interface MemberDoc {
