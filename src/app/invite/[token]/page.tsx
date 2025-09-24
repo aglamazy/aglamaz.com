@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useUserStore } from '@/store/UserStore';
-import { useMemberStore } from '@/store/MemberStore';
+import { useMemberStore, MembershipStatus } from '@/store/MemberStore';
 import { useSiteStore } from '@/store/SiteStore';
 import { CheckCircle, Clock, ExternalLink, Frown, Loader2, LogIn, ShieldX } from 'lucide-react';
 
@@ -40,7 +40,8 @@ export default function InvitePage({ params }: { params: { token: string } }) {
   const { t } = useTranslation();
   const router = useRouter();
   const { user, checkAuth } = useUserStore();
-  const memberStore = useMemberStore();
+  const member = useMemberStore((state) => state.member);
+  const fetchMember = useMemberStore((state) => state.fetchMember);
   const siteInfo = useSiteStore((state) => state.siteInfo);
 
   const [status, setStatus] = useState<InviteStatus>('loading');
@@ -102,11 +103,32 @@ export default function InvitePage({ params }: { params: { token: string } }) {
   }, [token, t]);
 
   useEffect(() => {
-    if (status === 'already-member') {
-      console.log('[invite-page] user already a member; redirecting to /app');
-      router.replace('/app');
+    if (!invite?.siteId) return;
+    const userId = user?.user_id;
+    if (!userId) return;
+    if (status === 'accepted') return;
+
+    if (member && member.siteId === invite.siteId) {
+      setStatus((prev) => (prev === 'accepted' ? prev : 'already-member'));
+      return;
     }
-  }, [status, router]);
+
+    let canceled = false;
+    (async () => {
+      try {
+        const membership = await fetchMember(userId, invite.siteId);
+        if (!canceled && membership === MembershipStatus.Member) {
+          setStatus((prev) => (prev === 'accepted' ? prev : 'already-member'));
+        }
+      } catch (err) {
+        console.warn('[invite-page] membership check failed', err);
+      }
+    })();
+
+    return () => {
+      canceled = true;
+    };
+  }, [invite?.siteId, user?.user_id, member?.id, fetchMember, status]);
 
   const handleLogin = () => {
     router.push(`/login?redirect=/invite/${token}`);
@@ -134,9 +156,6 @@ export default function InvitePage({ params }: { params: { token: string } }) {
           case 'invite/expired':
             setStatus('expired');
             break;
-          case 'invite/used':
-            setStatus('ready');
-            break;
           case 'invite/revoked':
             setStatus('revoked');
             break;
@@ -159,7 +178,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
       const siteId = member?.siteId || invite?.siteId;
       const currentUser = useUserStore.getState().user;
       if (siteId && currentUser?.user_id) {
-        await memberStore.fetchMember(currentUser.user_id, siteId);
+        await fetchMember(currentUser.user_id, siteId);
       }
     } catch (err) {
       console.error(err);
@@ -246,24 +265,37 @@ export default function InvitePage({ params }: { params: { token: string } }) {
           )}
           <p className="text-sm text-sage-500">{t('inviteExpiresAt', { time: formatDateTime(invite?.expiresAt || null) })}</p>
         </div>
-        <div className="flex flex-col sm:flex-row gap-3 justify-center">
-          {!user?.user_id && (
-            <Button onClick={handleLogin} className="bg-white text-sage-700 border border-sage-300 hover:bg-sage-50">
-              <LogIn className="w-4 h-4" />
-              {t('inviteLoginButton')}
+        {status === 'already-member' ? (
+          <div className="flex flex-col items-center gap-3 justify-center">
+            <div className="text-center text-sage-600 text-sm">
+              <div className="font-semibold text-sage-700">{t('inviteAlreadyMemberTitle')}</div>
+              <div>{t('inviteAlreadyMemberMessage')}</div>
+            </div>
+            <Button onClick={() => router.push('/app')} className="flex items-center gap-2">
+              <ExternalLink className="w-4 h-4" />
+              {t('goToDashboard')}
             </Button>
-          )}
-          <Button onClick={handleAccept} disabled={accepting} className="flex items-center gap-2">
-            {accepting ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                {t('inviteAccepting')}
-              </>
-            ) : (
-              <>{t('acceptInvite')}</>
+          </div>
+        ) : (
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            {!user?.user_id && (
+              <Button onClick={handleLogin} className="bg-white text-sage-700 border border-sage-300 hover:bg-sage-50">
+                <LogIn className="w-4 h-4" />
+                {t('inviteLoginButton')}
+              </Button>
             )}
-          </Button>
-        </div>
+            <Button onClick={handleAccept} disabled={accepting} className="flex items-center gap-2">
+              {accepting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  {t('inviteAccepting')}
+                </>
+              ) : (
+                <>{t('acceptInvite')}</>
+              )}
+            </Button>
+          </div>
+        )}
         {error && <p className="text-center text-sm text-red-600">{error}</p>}
       </div>
     );
