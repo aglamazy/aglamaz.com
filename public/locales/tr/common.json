@@ -27,6 +27,7 @@
   "invalidEmailOrPassword": "Geçersiz e-posta veya şifre",
   "tooManyFailedAttempts": "Çok fazla başarısız deneme. Lütfen daha sonra tekrar deneyin.",
   "loginFailed": "Giriş başarısız oldu. Lütfen tekrar deneyin.",
+  "googlePopupBlocked": "Tarayıcı açılır pencereyi engelledi. Bunun yerine yönlendirmeli giriş deneyeceğiz. Sorun devam ederse açılır pencerelere izin verin.",
   "pleaseEnterEmailAddressFirst": "Lütfen önce e-posta adresinizi girin",
   "noAccountFoundWithThisEmail": "Bu e-posta adresiyle eşleşen hesap bulunamadı",
   "failedToSendResetEmail": "Şifre sıfırlama e-postası gönderilemedi. Lütfen tekrar deneyin.",

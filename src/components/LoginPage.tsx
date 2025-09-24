@@ -1,11 +1,19 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { FcGoogle } from 'react-icons/fc';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { initFirebase, auth, googleProvider } from '@/firebase/client';
-import { signInWithPopup, getIdToken, signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
+import {
+  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
+  getIdToken,
+  signInWithEmailAndPassword,
+  sendPasswordResetEmail,
+  type User,
+} from 'firebase/auth';
 import { useSiteStore } from '@/store/SiteStore';
 import { useUserStore } from '@/store/UserStore';
 import { useLoginModalStore } from '@/store/LoginModalStore';
@@ -26,37 +34,82 @@ export default function LoginPage() {
   const { close: closeLogin } = useLoginModalStore();
   const { open: openPending } = usePendingMemberModalStore();
 
+  useEffect(() => {
+    let isMounted = true;
+    initFirebase();
+    const firebaseAuth = auth();
+    if (!firebaseAuth) return () => { isMounted = false; };
+
+    (async () => {
+      try {
+        const result = await getRedirectResult(firebaseAuth);
+        if (!isMounted || !result) return;
+        console.log('[login] handling redirect result', { user: result.user?.uid });
+        setIsLoading(true);
+        await completeLogin(result.user);
+      } catch (err) {
+        console.error('[login] redirect result failed', err);
+        if (isMounted) setError(t('googleLoginFailed'));
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    })();
+
+    return () => {
+      isMounted = false;
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const completeLogin = async (firebaseUser: User) => {
+    const idToken = await getIdToken(firebaseUser);
+
+    const sessionRes = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken }),
+      credentials: 'include',
+    });
+    if (!sessionRes.ok) throw new Error('Session creation failed');
+
+    setUser({
+      name: firebaseUser.displayName || firebaseUser.email,
+      email: firebaseUser.email,
+      user_id: firebaseUser.uid,
+    });
+
+    await router.replace('/app');
+    closeLogin();
+  };
+
   const handleGoogleLogin = async () => {
+    let resetLoading = true;
     try {
       setIsLoading(true);
       setError('');
       initFirebase();
 
       if (auth && googleProvider) {
-        const result = await signInWithPopup(auth(), googleProvider);
-        const idToken = await getIdToken(result.user);
-
-        const sessionRes = await fetch('/api/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ idToken }),
-          credentials: 'include',
-        });
-        if (!sessionRes.ok) throw new Error('Session creation failed');
-
-        setUser({
-          name: result.user.displayName || result.user.email,
-          email: result.user.email,
-          user_id: result.user.uid,
-        });
-
-        await router.replace('/app');
-        closeLogin();
+        const firebaseAuth = auth();
+        const result = await signInWithPopup(firebaseAuth, googleProvider);
+        console.log('[login] popup sign-in success', { user: result.user.uid });
+        await completeLogin(result.user);
       }
-    } catch (e) {
+    } catch (e: any) {
+      console.error('[login] popup sign-in failed', e);
+      if (e?.code === 'auth/popup-blocked' || e?.code === 'auth/popup-closed-by-user') {
+        console.warn('[login] popup blocked, falling back to redirect');
+        setError(t('googlePopupBlocked'));
+        const firebaseAuth = auth();
+        if (firebaseAuth && googleProvider) {
+          resetLoading = false;
+          await signInWithRedirect(firebaseAuth, googleProvider);
+        }
+        return;
+      }
       setError(t('googleLoginFailed'));
     } finally {
-      setIsLoading(false);
+      if (resetLoading) setIsLoading(false);
     }
   };
 
@@ -261,4 +314,3 @@ export default function LoginPage() {
     </div>
   );
 }
-

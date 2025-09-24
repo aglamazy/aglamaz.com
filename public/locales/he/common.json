@@ -13,6 +13,7 @@
   "invalidEmailOrPassword": "אימייל או סיסמה לא נכונים",
   "tooManyFailedAttempts": "יותר מדי ניסיונות כושלים. נסה שוב מאוחר יותר.",
   "loginFailed": "ההתחברות נכשלה. נסה שוב.",
+  "googlePopupBlocked": "הדפדפן חסם את חלון ההתחברות. ננסה להתחבר באמצעות הפניה. אם זה לא מצליח, אשר חלונות קופצים ונסה שוב.",
   "pleaseEnterEmailAddressFirst": "אנא הזן כתובת אימייל קודם",
   "noAccountFoundWithThisEmail": "לא נמצא חשבון עם כתובת אימייל זו",
   "failedToSendResetEmail": "שליחת מייל איפוס נכשלה. נסה שוב.",

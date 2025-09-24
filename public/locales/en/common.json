@@ -13,6 +13,7 @@
   "invalidEmailOrPassword": "Invalid email or password",
   "tooManyFailedAttempts": "Too many failed attempts. Please try again later.",
   "loginFailed": "Login failed. Please try again.",
+  "googlePopupBlocked": "Your browser blocked the popup sign-in. We'll try a full-page redirect instead. Please allow popups if this continues.",
   "pleaseEnterEmailAddressFirst": "Please enter your email address first",
   "noAccountFoundWithThisEmail": "No account found with this email address",
   "failedToSendResetEmail": "Failed to send reset email. Please try again.",
