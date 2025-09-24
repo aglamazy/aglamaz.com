@@ -347,22 +347,53 @@ export class FamilyRepository {
         if (invite.status === 'expired') {
           throw new InviteError('invite/expired', 'Invite has expired');
         }
-        if (invite.status === 'used') {
-          throw new InviteError('invite/used', 'Invite already used');
-        }
         if (invite.status === 'revoked') {
           throw new InviteError('invite/revoked', 'Invite has been revoked');
         }
 
-        const existingMemberSnap = await tx.get(
+        const existingByUid = await tx.get(
           membersRef
             .where('siteId', '==', invite.siteId)
             .where('uid', '==', user.uid)
             .limit(1)
         );
 
-        if (!existingMemberSnap.empty) {
-          throw new InviteError('invite/already-member', 'User is already a member');
+        let existingMemberDoc = !existingByUid.empty ? existingByUid.docs[0] : undefined;
+
+        if (!existingMemberDoc && user.email) {
+          const existingByEmail = await tx.get(
+            membersRef
+              .where('siteId', '==', invite.siteId)
+              .where('email', '==', user.email)
+              .limit(1)
+          );
+          if (!existingByEmail.empty) {
+            existingMemberDoc = existingByEmail.docs[0];
+          }
+        }
+
+        if (existingMemberDoc) {
+          const current = existingMemberDoc.data() as IMember;
+          const memberRef = existingMemberDoc.ref;
+          const updates: Partial<IMember> & { updatedAt: Timestamp } = {
+            updatedAt: now,
+          };
+          if (!current.uid) updates.uid = user.uid;
+          if (current.email !== user.email && user.email) updates.email = user.email;
+          const displayCandidate = user.displayName || user.firstName || user.email;
+          if (!current.displayName && displayCandidate) updates.displayName = displayCandidate;
+          if (!current.firstName && displayCandidate) updates.firstName = displayCandidate;
+          if (current.role === 'pending') updates.role = 'member';
+
+          tx.update(memberRef, updates);
+          tx.update(inviteRef, {
+            lastUsedAt: now,
+            lastUsedBy: user.uid,
+            lastUsedByEmail: user.email,
+            updatedAt: now,
+          });
+
+          return { id: memberRef.id, ...current, ...updates } as IMember;
         }
 
         if (!user.email) {
@@ -383,11 +414,11 @@ export class FamilyRepository {
         const memberRef = membersRef.doc();
         tx.set(memberRef, memberDoc);
 
+        // Record usage metadata but keep status pending so the link can be reused.
         tx.update(inviteRef, {
-          status: 'used',
-          usedAt: now,
-          usedBy: user.uid,
-          usedByEmail: user.email,
+          lastUsedAt: now,
+          lastUsedBy: user.uid,
+          lastUsedByEmail: user.email,
           updatedAt: now,
         });
 

@@ -14,7 +14,6 @@ type InviteStatus =
   | 'loading'
   | 'ready'
   | 'expired'
-  | 'used'
   | 'revoked'
   | 'not-found'
   | 'accepted'
@@ -72,7 +71,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
               setStatus('expired');
               break;
             case 'invite/used':
-              setStatus('used');
+              setStatus('ready');
               break;
             case 'invite/revoked':
               setStatus('revoked');
@@ -102,6 +101,13 @@ export default function InvitePage({ params }: { params: { token: string } }) {
     };
   }, [token, t]);
 
+  useEffect(() => {
+    if (status === 'already-member') {
+      console.log('[invite-page] user already a member; redirecting to /app');
+      router.replace('/app');
+    }
+  }, [status, router]);
+
   const handleLogin = () => {
     router.push(`/login?redirect=/invite/${token}`);
   };
@@ -129,7 +135,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
             setStatus('expired');
             break;
           case 'invite/used':
-            setStatus('used');
+            setStatus('ready');
             break;
           case 'invite/revoked':
             setStatus('revoked');
@@ -190,36 +196,12 @@ export default function InvitePage({ params }: { params: { token: string } }) {
       );
     }
 
-    if (status === 'already-member') {
-      return (
-        <div className="flex flex-col items-center text-center gap-4">
-          <CheckCircle className="w-12 h-12 text-sage-500" />
-          <h1 className="text-2xl font-semibold text-sage-700">{t('inviteAlreadyMemberTitle')}</h1>
-          <p className="text-sage-600">{t('inviteAlreadyMemberMessage')}</p>
-          <Button onClick={() => router.push('/app')} className="flex items-center gap-2">
-            <ExternalLink className="w-4 h-4" />
-            {t('goToDashboard')}
-          </Button>
-        </div>
-      );
-    }
-
     if (status === 'expired') {
       return (
         <div className="flex flex-col items-center text-center gap-4">
           <Clock className="w-12 h-12 text-amber-500" />
           <h1 className="text-2xl font-semibold text-sage-700">{t('inviteExpiredTitle')}</h1>
           <p className="text-sage-600">{t('inviteExpiredMessage')}</p>
-        </div>
-      );
-    }
-
-    if (status === 'used') {
-      return (
-        <div className="flex flex-col items-center text-center gap-4">
-          <LogIn className="w-12 h-12 text-sage-500" />
-          <h1 className="text-2xl font-semibold text-sage-700">{t('inviteUsedTitle')}</h1>
-          <p className="text-sage-600">{t('inviteUsedMessage')}</p>
         </div>
       );
     }

@@ -44,9 +44,6 @@ export async function GET(request: Request, { params }: { params: { token: strin
     if (invite.status === 'expired') {
       return NextResponse.json({ ...payload, error: 'Invite expired', code: 'invite/expired' }, { status: 410 });
     }
-    if (invite.status === 'used') {
-      return NextResponse.json({ ...payload, error: 'Invite already used', code: 'invite/used' }, { status: 409 });
-    }
     if (invite.status === 'revoked') {
       return NextResponse.json({ ...payload, error: 'Invite revoked', code: 'invite/revoked' }, { status: 410 });
     }

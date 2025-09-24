@@ -195,7 +195,7 @@
   "inviteExpiredTitle": "Invite expired",
   "inviteExpiredMessage": "This invite link has expired. Please ask the admin for a new link.",
   "inviteUsedTitle": "Invite already used",
-  "inviteUsedMessage": "This invite link was already used to join.",
+  "inviteUsedMessage": "This invite link has been used before, but you can still join with it.",
   "inviteRevokedTitle": "Invite revoked",
   "inviteRevokedMessage": "This invite link is no longer valid.",
   "inviteNotFoundTitle": "Invite not found",

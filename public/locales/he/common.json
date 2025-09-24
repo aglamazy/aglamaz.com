@@ -195,7 +195,7 @@
   "inviteExpiredTitle": "ההזמנה פגה",
   "inviteExpiredMessage": "קישור ההזמנה הזה אינו תקף. בקשו מהאדמין קישור חדש.",
   "inviteUsedTitle": "ההזמנה כבר נוצלה",
-  "inviteUsedMessage": "קישור ההזמנה הזה כבר שימש להצטרפות.",
+  "inviteUsedMessage": "אפשר עדיין להצטרף עם הקישור הזה גם אם נעשה בו שימוש בעבר.",
   "inviteRevokedTitle": "ההזמנה בוטלה",
   "inviteRevokedMessage": "קישור ההזמנה הזה כבר לא זמין.",
   "inviteNotFoundTitle": "ההזמנה לא נמצאה",
