@@ -328,6 +328,12 @@ export class FamilyRepository {
     const now = Timestamp.now();
 
     try {
+      console.info('[invite][repo] acceptInvite start', {
+        token,
+        userId: user.uid,
+        siteId: user.siteId,
+        email: user.email,
+      });
       return await db.runTransaction(async (tx) => {
         const inviteSnap = await tx.get(inviteRef);
         if (!inviteSnap.exists) {
@@ -360,6 +366,13 @@ export class FamilyRepository {
 
         let existingMemberDoc = !existingByUid.empty ? existingByUid.docs[0] : undefined;
 
+        if (existingMemberDoc) {
+          console.info('[invite][repo] found member by uid', {
+            token,
+            memberId: existingMemberDoc.id,
+          });
+        }
+
         if (!existingMemberDoc && user.email) {
           const existingByEmail = await tx.get(
             membersRef
@@ -369,6 +382,10 @@ export class FamilyRepository {
           );
           if (!existingByEmail.empty) {
             existingMemberDoc = existingByEmail.docs[0];
+            console.info('[invite][repo] found member by email', {
+              token,
+              memberId: existingMemberDoc.id,
+            });
           }
         }
 
@@ -391,6 +408,12 @@ export class FamilyRepository {
             lastUsedBy: user.uid,
             lastUsedByEmail: user.email,
             updatedAt: now,
+          });
+
+          console.info('[invite][repo] updated existing member', {
+            token,
+            memberId: memberRef.id,
+            updates,
           });
 
           return { id: memberRef.id, ...current, ...updates } as IMember;
@@ -422,13 +445,23 @@ export class FamilyRepository {
           updatedAt: now,
         });
 
+        console.info('[invite][repo] created new member from invite', {
+          token,
+          memberId: memberRef.id,
+        });
+
         return { id: memberRef.id, ...memberDoc } as IMember;
       });
     } catch (error) {
       if (error instanceof InviteError) {
+        console.warn('[invite][repo] invite error', {
+          token,
+          code: error.code,
+          message: error.message,
+        });
         throw error;
       }
-      console.error('Error accepting invite:', error);
+      console.error('[invite][repo] unexpected error accepting invite', { token }, error);
       throw new Error('Failed to accept invite');
     }
   }

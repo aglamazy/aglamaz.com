@@ -19,17 +19,26 @@ const statusByCode: Record<string, number> = {
 export async function GET(request: Request, { params }: { params: { token: string } }) {
   const token = params?.token;
   if (!token) {
+    console.warn('[invite][GET] missing token');
     return NextResponse.json({ error: 'Missing token', code: 'invite/missing-token' }, { status: 400 });
   }
 
   try {
+    console.info('[invite][GET] loading invite', { token });
     const familyRepository = new FamilyRepository();
     const invite = await familyRepository.getInviteByToken(token);
     if (!invite) {
+      console.warn('[invite][GET] invite not found', { token });
       return NextResponse.json({ error: 'Invite not found', code: 'invite/not-found' }, { status: 404 });
     }
 
     const site = await familyRepository.getSite(invite.siteId);
+    console.info('[invite][GET] invite loaded', {
+      token,
+      siteId: invite.siteId,
+      status: invite.status,
+      expiresAt: invite.expiresAt.toDate().toISOString(),
+    });
     const payload = {
       invite: {
         token: invite.token,
@@ -42,15 +51,18 @@ export async function GET(request: Request, { params }: { params: { token: strin
     };
 
     if (invite.status === 'expired') {
+      console.info('[invite][GET] invite expired', { token });
       return NextResponse.json({ ...payload, error: 'Invite expired', code: 'invite/expired' }, { status: 410 });
     }
     if (invite.status === 'revoked') {
+      console.info('[invite][GET] invite revoked', { token });
       return NextResponse.json({ ...payload, error: 'Invite revoked', code: 'invite/revoked' }, { status: 410 });
     }
 
+    console.info('[invite][GET] invite active', { token });
     return NextResponse.json(payload);
   } catch (error) {
-    console.error('Failed to load invite', error);
+    console.error('[invite][GET] failed to load invite', { token }, error);
     return NextResponse.json({ error: 'Failed to load invite' }, { status: 500 });
   }
 }
@@ -58,18 +70,22 @@ export async function GET(request: Request, { params }: { params: { token: strin
 const postHandler = async (request: Request, context: GuardContext) => {
   const token = context.params?.token;
   if (!token) {
+    console.warn('[invite][POST] missing token');
     return NextResponse.json({ error: 'Missing token', code: 'invite/missing-token' }, { status: 400 });
   }
 
   try {
     const user = context.user;
     if (!user?.userId || !user.siteId) {
+      console.warn('[invite][POST] unauthorized', { token, userId: user?.userId, siteId: user?.siteId });
       return NextResponse.json({ error: 'Unauthorized', code: 'auth/unauthorized' }, { status: 401 });
     }
 
+    console.info('[invite][POST] accepting invite', { token, userId: user.userId, siteId: user.siteId });
     initAdmin();
     const userRecord = await adminAuth().getUser(user.userId);
     if (!userRecord.email) {
+      console.warn('[invite][POST] missing email', { token, userId: user.userId });
       return NextResponse.json({ error: 'User email is required', code: 'invite/missing-email' }, { status: 400 });
     }
 
@@ -82,13 +98,15 @@ const postHandler = async (request: Request, context: GuardContext) => {
       firstName: user.firstName || undefined,
     });
 
+    console.info('[invite][POST] invite accepted', { token, memberId: member.id, role: member.role });
     return NextResponse.json({ member });
   } catch (error) {
     if (error instanceof InviteError) {
       const status = statusByCode[error.code] ?? 400;
+      console.warn('[invite][POST] invite error', { token, code: error.code, message: error.message });
       return NextResponse.json({ error: error.message, code: error.code }, { status });
     }
-    console.error('Failed to accept invite', error);
+    console.error('[invite][POST] failed to accept invite', { token }, error);
     return NextResponse.json({ error: 'Failed to accept invite' }, { status: 500 });
   }
 };

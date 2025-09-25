@@ -50,19 +50,23 @@ export default function InvitePage({ params }: { params: { token: string } }) {
   const [accepting, setAccepting] = useState(false);
 
   useEffect(() => {
-    checkAuth().catch(() => {
-      // ignore errors; handled via UI states
-    });
+    checkAuth()
+      .then(() => console.log('[invite-page] checkAuth success'))
+      .catch((err) => {
+        console.warn('[invite-page] checkAuth failed', err);
+      });
   }, [checkAuth]);
 
   useEffect(() => {
     let isActive = true;
     (async () => {
       try {
+        console.log('[invite-page] fetching invite', token);
         const res = await fetch(`/api/invite/${token}`, { credentials: 'include' });
         const data = await res.json().catch(() => ({}));
         if (!isActive) return;
 
+        console.log('[invite-page] invite fetch response', { status: res.status, ok: res.ok, data });
         if (!res.ok) {
           if (data?.invite) {
             setInvite(data.invite as InviteInfo);
@@ -93,6 +97,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
       } catch (err) {
         console.error(err);
         if (!isActive) return;
+        console.error('[invite-page] invite fetch error', err);
         setStatus('error');
         setError(t('inviteLoadFailed'));
       }
@@ -109,6 +114,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
     if (status === 'accepted') return;
 
     if (member && member.siteId === invite.siteId) {
+      console.log('[invite-page] member already loaded for site', invite.siteId);
       setStatus((prev) => (prev === 'accepted' ? prev : 'already-member'));
       return;
     }
@@ -116,7 +122,9 @@ export default function InvitePage({ params }: { params: { token: string } }) {
     let canceled = false;
     (async () => {
       try {
+        console.log('[invite-page] fetching member state', { userId, siteId: invite.siteId });
         const membership = await fetchMember(userId, invite.siteId);
+        console.log('[invite-page] fetchMember result', { membership, siteId: invite.siteId });
         if (!canceled && membership === MembershipStatus.Member) {
           setStatus((prev) => (prev === 'accepted' ? prev : 'already-member'));
         }
@@ -128,7 +136,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
     return () => {
       canceled = true;
     };
-  }, [invite?.siteId, user?.user_id, member?.id, fetchMember, status]);
+  }, [invite?.siteId, user?.user_id, member?.siteId, fetchMember, status]);
 
   const handleLogin = () => {
     router.push(`/login?redirect=/invite/${token}`);
@@ -136,17 +144,20 @@ export default function InvitePage({ params }: { params: { token: string } }) {
 
   const handleAccept = async () => {
     if (!user?.user_id) {
+      console.log('[invite-page] accept clicked without authenticated user');
       handleLogin();
       return;
     }
     setAccepting(true);
     setError('');
     try {
+      console.log('[invite-page] posting accept request', { token, userId: user.user_id });
       const res = await fetch(`/api/invite/${token}`, {
         method: 'POST',
         credentials: 'include',
       });
       const data = await res.json().catch(() => ({}));
+      console.log('[invite-page] accept response', { status: res.status, ok: res.ok, data });
       if (res.status === 401) {
         handleLogin();
         return;
@@ -180,8 +191,10 @@ export default function InvitePage({ params }: { params: { token: string } }) {
       if (siteId && currentUser?.user_id) {
         await fetchMember(currentUser.user_id, siteId);
       }
+      console.log('[invite-page] accept success', { siteId });
     } catch (err) {
       console.error(err);
+      console.error('[invite-page] accept error', err);
       setError(t('inviteAcceptFailed'));
       setStatus('error');
     } finally {
