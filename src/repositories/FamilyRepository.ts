@@ -1,7 +1,7 @@
-import { getFirestore, Timestamp } from 'firebase-admin/firestore';
-import { initAdmin } from '../firebase/admin';
-import type { IMember } from '@/entities/Member';
-import { adminNotificationService } from '@/services/AdminNotificationService';
+import {getFirestore, Timestamp} from 'firebase-admin/firestore';
+import {initAdmin} from '../firebase/admin';
+import type {IMember} from '@/entities/Member';
+import {adminNotificationService} from '@/services/AdminNotificationService';
 
 export type InviteStatus = 'pending' | 'used' | 'expired' | 'revoked';
 
@@ -67,6 +67,7 @@ export interface SignupRequest {
   invitationId?: string;
   invitedBy?: string;
   invitedAt?: Timestamp;
+  language?: string;
 }
 
 export interface SiteInvite {
@@ -704,8 +705,7 @@ export class FamilyRepository {
           .replace(/[^a-z0-9]+/g, '-')
           .replace(/-+/g, '-')
           .replace(/^-|-$/g, '') || 'user';
-        const handle = await this.generateUniqueBlogHandle(base, siteId);
-        data.blogHandle = handle;
+        data.blogHandle = await this.generateUniqueBlogHandle(base, siteId);
       }
       await docRef.update(data);
     } catch (error) {

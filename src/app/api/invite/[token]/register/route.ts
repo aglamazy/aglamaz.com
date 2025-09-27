@@ -13,7 +13,7 @@ export async function POST(request: Request, { params }: { params: { token: stri
       return NextResponse.json({ error: 'Missing invite token' }, { status: 400 });
     }
 
-    const { name, email } = await request.json().catch(() => ({}));
+    const { name, email, language } = await request.json().catch(() => ({}));
     if (typeof name !== 'string' || !name.trim() || typeof email !== 'string' || !email.trim()) {
       return NextResponse.json({ error: 'Missing name or email' }, { status: 400 });
     }
@@ -59,6 +59,8 @@ export async function POST(request: Request, { params }: { params: { token: stri
     const verificationToken = randomUUID();
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
+    const locale = typeof language === 'string' ? language : undefined;
+
     const signupRequest = await repo.createSignupRequest({
       firstName,
       email: normalizedEmail,
@@ -72,13 +74,14 @@ export async function POST(request: Request, { params }: { params: { token: stri
       email_verified: false,
       verificationToken,
       expiresAt,
+      language: locale,
     }, origin);
 
     const verificationUrl = `${baseUrl.replace(/\/$/, '')}/invite/${invite.token}/verify?code=${verificationToken}`;
 
     try {
       const gmailService = await GmailService.init();
-      await gmailService.sendInviteVerificationEmail(normalizedEmail, firstName, verificationUrl);
+      await gmailService.sendInviteVerificationEmail(normalizedEmail, firstName, verificationUrl, locale);
     } catch (emailError) {
       console.error('[invite][register] failed to send invitation email', emailError);
       return NextResponse.json({ error: 'Failed to send verification email' }, { status: 500 });

@@ -15,7 +15,7 @@ export default function InviteSignupModal({ token, onSubmitted }: InviteSignupMo
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [view, setView] = useState<'form' | 'success'>('form');
   const [submittedEmail, setSubmittedEmail] = useState('');
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   const handleSuccess = useCallback(() => {
     setView('success');
@@ -37,7 +37,7 @@ export default function InviteSignupModal({ token, onSubmitted }: InviteSignupMo
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ name: firstName, email, token }),
+          body: JSON.stringify({ name: firstName, email, token, language: i18n.language }),
         });
         const data = await response.json().catch(() => ({}));
         if (!response.ok) {
