@@ -209,5 +209,15 @@
   "inviteLoginButton": "התחברות",
   "inviteAccepting": "מצטרף...",
   "inviteAcceptFailed": "האישור נכשל. נסו שוב.",
-  "acceptInvite": "אישור הצטרפות"
+  "acceptInvite": "אישור הצטרפות",
+  "inviteJoinCallToAction": "הצטרף",
+  "inviteCheckEmailTitle": "בדקו את תיבת המייל",
+  "inviteCheckEmailDescription": "שלחנו אליכם קישור לאישור ההצטרפות.",
+  "inviteCheckEmailHint": "לחצו על הקישור כדי להשלים את ההצטרפות.",
+  "inviteVerifyMissingToken": "טוקן אימות חסר. השתמשו בקישור שנשלח במייל.",
+  "inviteVerificationInProgress": "מאמתים את ההזמנה…",
+  "inviteVerificationSuccessTitle": "ההזמנה אושרה!",
+  "inviteVerificationSuccessMessage": "מעביר אותך ללוח המשפחה…",
+  "inviteVerificationFailedTitle": "לא הצלחנו לאשר את ההזמנה",
+  "inviteVerificationFailed": "לא הצלחנו לאמת את ההזמנה. נסו לבקש קישור חדש."
 }

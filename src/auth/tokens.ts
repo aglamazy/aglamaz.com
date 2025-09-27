@@ -16,6 +16,7 @@ export interface AppClaims {
   role: string;
   firstName: string;
   lastName?: string;
+  email?: string;
 }
 
 export type TokenClaims = JwtRegisteredClaims & AppClaims;

@@ -209,5 +209,15 @@
   "inviteLoginButton": "Sign in",
   "inviteAccepting": "Joining...",
   "inviteAcceptFailed": "Failed to accept invite. Please try again.",
-  "acceptInvite": "Accept invite"
+  "acceptInvite": "Accept invite",
+  "inviteJoinCallToAction": "Join",
+  "inviteCheckEmailTitle": "Check your email",
+  "inviteCheckEmailDescription": "We sent you a confirmation link to finish joining.",
+  "inviteCheckEmailHint": "Click the link in the message to complete your membership.",
+  "inviteVerifyMissingToken": "Missing verification token. Please use the link from your email.",
+  "inviteVerificationInProgress": "We’re confirming your invitation…",
+  "inviteVerificationSuccessTitle": "Your invitation is confirmed!",
+  "inviteVerificationSuccessMessage": "Redirecting you to the family dashboard…",
+  "inviteVerificationFailedTitle": "We couldn’t confirm the invitation",
+  "inviteVerificationFailed": "We couldn’t verify your invitation. Please request a new link."
 }

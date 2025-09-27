@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { FamilyRepository, InviteError } from '@/repositories/FamilyRepository';
-import { withUserGuard } from '@/lib/withUserGuard';
-import type { GuardContext } from '@/app/api/types';
 import { adminAuth, initAdmin } from '@/firebase/admin';
+import { signAccessToken, signRefreshToken } from '@/auth/service';
+import { setAuthCookies } from '@/auth/cookies';
 
 export const dynamic = 'force-dynamic';
 
@@ -67,39 +67,70 @@ export async function GET(request: Request, { params }: { params: { token: strin
   }
 }
 
-const postHandler = async (request: Request, context: GuardContext) => {
-  const token = context.params?.token;
+export async function POST(request: Request, { params }: { params: { token: string } }) {
+  const token = params?.token;
   if (!token) {
     console.warn('[invite][POST] missing token');
     return NextResponse.json({ error: 'Missing token', code: 'invite/missing-token' }, { status: 400 });
   }
 
   try {
-    const user = context.user;
-    if (!user?.userId || !user.siteId) {
-      console.warn('[invite][POST] unauthorized', { token, userId: user?.userId, siteId: user?.siteId });
-      return NextResponse.json({ error: 'Unauthorized', code: 'auth/unauthorized' }, { status: 401 });
+    const body = await request.json().catch(() => ({}));
+    const idToken = body?.idToken;
+    if (typeof idToken !== 'string' || !idToken) {
+      return NextResponse.json({ error: 'Missing idToken', code: 'auth/missing-id-token' }, { status: 400 });
     }
 
-    console.info('[invite][POST] accepting invite', { token, userId: user.userId, siteId: user.siteId });
     initAdmin();
-    const userRecord = await adminAuth().getUser(user.userId);
-    if (!userRecord.email) {
-      console.warn('[invite][POST] missing email', { token, userId: user.userId });
-      return NextResponse.json({ error: 'User email is required', code: 'invite/missing-email' }, { status: 400 });
+    const decoded = await adminAuth().verifyIdToken(idToken);
+    const familyRepository = new FamilyRepository();
+    const invite = await familyRepository.getInviteByToken(token);
+    if (!invite) {
+      return NextResponse.json({ error: 'Invite not found', code: 'invite/not-found' }, { status: 404 });
     }
 
-    const familyRepository = new FamilyRepository();
+    const pendingClaims = {
+      userId: decoded.uid,
+      siteId: invite.siteId,
+      role: 'pending' as const,
+      firstName: decoded.name?.split(' ')[0] || body?.firstName || '',
+      lastName: '',
+      email: decoded.email || body?.email || '',
+    };
+
+    const respondWithClaims = (status: number, payload: any, claims = pendingClaims) => {
+      const access = signAccessToken(claims, 10);
+      const refresh = signRefreshToken(claims, 30);
+      const response = NextResponse.json(payload, { status });
+      setAuthCookies(response, access, refresh);
+      return response;
+    };
+
+    if (invite.status === 'revoked') {
+      return respondWithClaims(410, { error: 'Invite revoked', code: 'invite/revoked' });
+    }
+    if (invite.status === 'expired') {
+      return respondWithClaims(410, { error: 'Invite expired', code: 'invite/expired' });
+    }
+
     const member = await familyRepository.acceptInvite(token, {
-      uid: user.userId,
-      siteId: user.siteId,
-      email: userRecord.email,
-      displayName: userRecord.displayName || userRecord.email || undefined,
-      firstName: user.firstName || undefined,
+      uid: decoded.uid,
+      siteId: invite.siteId,
+      email: decoded.email || body?.email || '',
+      displayName: decoded.name || decoded.email || undefined,
+      firstName: decoded.name?.split(' ')[0] || undefined,
     });
 
-    console.info('[invite][POST] invite accepted', { token, memberId: member.id, role: member.role });
-    return NextResponse.json({ member });
+    const memberClaims = {
+      userId: decoded.uid,
+      siteId: invite.siteId,
+      role: (member.role || 'member') as 'member' | 'admin',
+      firstName: member.firstName || member.displayName || pendingClaims.firstName,
+      lastName: '',
+      email: decoded.email || body?.email || '',
+    };
+
+    return respondWithClaims(200, { member, status: 'member' }, memberClaims as any);
   } catch (error) {
     if (error instanceof InviteError) {
       const status = statusByCode[error.code] ?? 400;
@@ -109,6 +140,4 @@ const postHandler = async (request: Request, context: GuardContext) => {
     console.error('[invite][POST] failed to accept invite', { token }, error);
     return NextResponse.json({ error: 'Failed to accept invite' }, { status: 500 });
   }
-};
-
-export const POST = withUserGuard(postHandler);
+}

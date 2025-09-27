@@ -13,6 +13,7 @@ const PUBLIC_PATHS = [
   '/app',
   '/blog/family',
   '/blog/author',
+  '/invite',
   '/sitemap.xml',
   '/robots.txt',
   '/terms',

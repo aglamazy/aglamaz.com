@@ -199,5 +199,15 @@
   "inviteLoginButton": "Giriş yap",
   "inviteAccepting": "Katılıyor...",
   "inviteAcceptFailed": "Davet kabul edilemedi. Lütfen tekrar deneyin.",
-  "acceptInvite": "Daveti kabul et"
+  "acceptInvite": "Daveti kabul et",
+  "inviteJoinCallToAction": "Katıl",
+  "inviteCheckEmailTitle": "E-postanızı kontrol edin",
+  "inviteCheckEmailDescription": "Katılımı tamamlamak için size bir onay bağlantısı gönderdik.",
+  "inviteCheckEmailHint": "Üyeliği tamamlamak için mesajdaki bağlantıya tıklayın.",
+  "inviteVerifyMissingToken": "Doğrulama jetonu eksik. Lütfen e-postadaki bağlantıyı kullanın.",
+  "inviteVerificationInProgress": "Davetinizi doğruluyoruz…",
+  "inviteVerificationSuccessTitle": "Davetiniz doğrulandı!",
+  "inviteVerificationSuccessMessage": "Sizi aile panosuna yönlendiriyoruz…",
+  "inviteVerificationFailedTitle": "Daveti doğrulayamıyoruz",
+  "inviteVerificationFailed": "Daveti doğrulayamadık. Lütfen yeni bir bağlantı isteyin."
 }

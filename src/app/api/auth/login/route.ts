@@ -23,6 +23,7 @@ export async function POST(req: NextRequest) {
       role: (decoded as any).role || 'member',
       firstName: (decoded as any).name || '',
       lastName: '',
+      email: decoded.email || '',
     };
     const accessMin = 10;
     const refreshDays = 30;

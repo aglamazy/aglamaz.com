@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { FcGoogle } from 'react-icons/fc';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -21,7 +21,12 @@ import SignupForm from '@/components/SignupForm';
 import { useTranslation } from 'react-i18next';
 import { usePendingMemberModalStore } from '@/store/PendingMemberModalStore';
 
-export default function LoginPage() {
+interface LoginPageProps {
+  redirectPath?: string;
+  onAuthenticated?: () => void | Promise<void>;
+}
+
+export default function LoginPage({ redirectPath = '/app', onAuthenticated }: LoginPageProps = {}) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -61,6 +66,15 @@ export default function LoginPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const afterAuth = useCallback(async () => {
+    if (onAuthenticated) {
+      await onAuthenticated();
+    } else {
+      await router.replace(redirectPath);
+      closeLogin();
+    }
+  }, [closeLogin, onAuthenticated, redirectPath, router]);
+
   const completeLogin = async (firebaseUser: User) => {
     const idToken = await getIdToken(firebaseUser);
 
@@ -78,8 +92,7 @@ export default function LoginPage() {
       user_id: firebaseUser.uid,
     });
 
-    await router.replace('/app');
-    closeLogin();
+    await afterAuth();
   };
 
   const handleGoogleLogin = async () => {
@@ -133,8 +146,7 @@ export default function LoginPage() {
           user_id: result.user.uid,
         });
 
-        router.replace('/app');
-        closeLogin();
+        await afterAuth();
       }
     } catch (error: any) {
       if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {

@@ -180,6 +180,83 @@ export class GmailService {
     });
   }
 
+  async sendInviteVerificationEmail(to: string, firstName: string, verificationUrl: string): Promise<void> {
+    const subject = 'הצטרפות לקהילה - FamilyCircle';
+
+    const html = `
+      <!DOCTYPE html>
+      <html dir="rtl" lang="he">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>אישור הצטרפות</title>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: #f2f7f3; padding: 20px; text-align: center; border-radius: 8px; }
+          .content { padding: 20px; }
+          .button { display: inline-block; background: #4f7a65; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 20px 0; }
+          .footer { text-align: center; padding: 20px; color: #666; font-size: 14px; }
+          .warning { background: #fffbe6; border: 1px solid #ffe58f; padding: 15px; border-radius: 6px; margin: 20px 0; }
+          .text-center { text-align: center; }
+          .break-url { word-break: break-all; color: #4f7a65; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>🌳 FamilyCircle</h1>
+            <p>הזמנה להצטרפות למשפחה שלנו</p>
+          </div>
+
+          <div class="content">
+            <p>שלום ${firstName},</p>
+
+            <p>קיבלת הזמנה להצטרף לקהילה המשפחתית שלנו ב-FamilyCircle. כדי להשלים את ההצטרפות, אנא אשר את כתובת המייל שלך:</p>
+
+            <div class="text-center">
+              <a href="${verificationUrl}" class="button">אישור הצטרפות</a>
+            </div>
+
+            <div class="warning">
+              <strong>שימו לב:</strong> הקישור תקף ל-24 שעות. אם לא תאשרו בזמן, ניתן לבקש הזמנה חדשה מהמזמין/ה.
+            </div>
+
+            <p>אם הכפתור אינו עובד, ניתן להעתיק את הקישור הבא ולהדביק בדפדפן:</p>
+            <p class="break-url">${verificationUrl}</p>
+
+            <p>אם לא ציפיתם להזמנה זו, ניתן להתעלם מההודעה.</p>
+          </div>
+
+          <div class="footer">
+            <p>זהו אימייל אוטומטי, אנא אל תשיבו לו.</p>
+            <p>© ${new Date().getFullYear()} FamilyCircle. כל הזכויות שמורות.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    const text = `
+      שלום ${firstName},
+
+      קיבלת הזמנה להצטרף לקהילה המשפחתית שלנו ב-FamilyCircle. כדי להשלים את ההצטרפות, אנא אשר את כתובת המייל שלך באמצעות הקישור הבא:
+
+      ${verificationUrl}
+
+      הקישור תקף ל-24 שעות. אם לא ציפית להזמנה זו, ניתן להתעלם מהודעה זו.
+
+      © ${new Date().getFullYear()} FamilyCircle
+    `;
+
+    await this.sendEmail({
+      to,
+      subject,
+      html,
+      text,
+    });
+  }
+
   // Method to simulate email failure for testing
   async sendVerificationEmailWithFailure(to: string, firstName: string, verificationUrl: string): Promise<void> {
     // Simulate email failure by throwing an error

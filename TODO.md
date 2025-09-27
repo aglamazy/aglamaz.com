@@ -39,3 +39,4 @@
 - Monitor metrics for 3–5 days: refresh rates, rewrite counts, 401s.
 - Adjust TTL and background interval based on observed churn.
 
+## When refresh token is needed, it is done correctly, but the page is not redirected to /app

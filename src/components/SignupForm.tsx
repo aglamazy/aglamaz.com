@@ -9,9 +9,18 @@ import { useTranslation } from 'react-i18next';
 interface SignupFormProps {
   onSuccess: () => void;
   onCancel: () => void;
+  submitLabel?: string;
+  onSubmitOverride?: (payload: { firstName: string; email: string }) => Promise<void>;
+  isLoadingOverride?: boolean;
 }
 
-export default function SignupForm({ onSuccess, onCancel }: SignupFormProps) {
+export default function SignupForm({
+  onSuccess,
+  onCancel,
+  submitLabel,
+  onSubmitOverride,
+  isLoadingOverride,
+}: SignupFormProps) {
   const [firstName, setFirstName] = useState('');
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -27,44 +36,63 @@ export default function SignupForm({ onSuccess, onCancel }: SignupFormProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!firstName.trim() || !email.trim()) {
       setError(t('pleaseFillAllFields'));
       return;
     }
 
-    setIsLoading(true);
+    const useInternalLoader = isLoadingOverride === undefined;
+    if (useInternalLoader) {
+      setIsLoading(true);
+    }
     setError('');
 
     try {
-      // Step 1: Send email verification request (no Firebase auth yet)
-      const data = await apiFetch<{ success: boolean }>(
-        '/api/signup/request-verification',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
+      if (onSubmitOverride) {
+        await onSubmitOverride({
+          firstName: firstName.trim(),
+          email: email.trim(),
+        });
+        onSuccess();
+      } else {
+        // Step 1: Send email verification request (no Firebase auth yet)
+        const data = await apiFetch<{ success: boolean }>(
+          '/api/signup/request-verification',
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              firstName: firstName.trim(),
+              email: email.trim(),
+              siteId,
+            }),
           },
-          body: JSON.stringify({
-            firstName: firstName.trim(),
-            email: email.trim(),
-            siteId,
-          }),
-        },
-      );
-      console.log("request verification", data);
+        );
+        console.log('request verification', data);
 
-      setIsSubmitted(true);
-      setEmailSent(data.success == true);
-    } catch (error) {
+        setIsSubmitted(true);
+        setEmailSent(data.success == true);
+      }
+    } catch (error: unknown) {
       console.error('Signup error:', error);
-      setError(t('failedToSendVerification'));
+      if (onSubmitOverride && error instanceof Error && error.message) {
+        setError(error.message);
+      } else if (onSubmitOverride && typeof error === 'string') {
+        setError(error);
+      } else {
+        setError(t('failedToSendVerification'));
+      }
     } finally {
-      setIsLoading(false);
+      if (useInternalLoader) {
+        setIsLoading(false);
+      }
     }
   };
 
-  if (isSubmitted) {
+  if (!onSubmitOverride && isSubmitted) {
     return (
       <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8 flex flex-col items-center" dir={i18n.dir()} lang={i18n.language}>
         <div className="text-center">
@@ -133,7 +161,7 @@ export default function SignupForm({ onSuccess, onCancel }: SignupFormProps) {
               onChange={(e) => setFirstName(e.target.value)}
               className="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200"
               placeholder={t('firstNamePlaceholder') as string}
-              disabled={isLoading}
+              disabled={isLoadingOverride ?? isLoading}
             />
           </div>
         </div>
@@ -152,24 +180,24 @@ export default function SignupForm({ onSuccess, onCancel }: SignupFormProps) {
               onChange={(e) => setEmail(e.target.value)}
               className="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200"
               placeholder={t('emailPlaceholder') as string}
-              disabled={isLoading}
+              disabled={isLoadingOverride ?? isLoading}
             />
           </div>
         </div>
 
         {/* Submit Button */}
-        <button 
+        <button
           type="submit"
           className="w-full bg-gray-900 text-white py-2 rounded-lg font-semibold hover:bg-gray-800 transition mb-4 disabled:opacity-50 disabled:cursor-not-allowed"
-          disabled={isLoading}
+          disabled={isLoadingOverride ?? isLoading}
         >
-          {isLoading ? (
+          {isLoadingOverride ?? isLoading ? (
             <>
               <Loader2 className="w-4 h-4 mr-2 animate-spin inline" />
               {t('sending')}
             </>
           ) : (
-            t('submitRequest')
+            submitLabel || t('submitRequest')
           )}
         </button>
 
@@ -179,7 +207,7 @@ export default function SignupForm({ onSuccess, onCancel }: SignupFormProps) {
             type="button"
             onClick={onCancel}
             className="hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={isLoading}
+            disabled={isLoadingOverride ?? isLoading}
           >
             {t('cancel')}
           </button>

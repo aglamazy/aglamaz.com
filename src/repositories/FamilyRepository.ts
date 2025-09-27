@@ -62,6 +62,11 @@ export interface SignupRequest {
   rejectedAt?: Timestamp;
   rejectedBy?: string;
   rejectionReason?: string;
+  source?: 'signup' | 'invite';
+  inviteToken?: string;
+  invitationId?: string;
+  invitedBy?: string;
+  invitedAt?: Timestamp;
 }
 
 export interface SiteInvite {
@@ -482,22 +487,25 @@ export class FamilyRepository {
       
       // Use setDoc with merge to ensure idempotency
       const requestRef = db.collection(this.signupRequestsCollection).doc(documentId);
-      await requestRef.set({
+      const payload: Record<string, unknown> = {
         ...requestData,
         email: emailKey, // Store normalized email
-        email_verified: false, // Default to false, will be updated if email succeeds
+        email_verified: requestData.email_verified ?? false,
         createdAt: now,
-        updatedAt: now
-      }, { merge: true });
+        updatedAt: now,
+      };
+
+      if (requestData.source === 'invite' && !requestData.invitedAt) {
+        payload.invitedAt = now;
+      }
+
+      await requestRef.set(payload, { merge: true });
       await adminNotificationService.notify('pending_member', requestData, siteUrl);
 
       return {
         id: documentId,
-        ...requestData,
-        email: emailKey,
-        createdAt: now,
-        updatedAt: now
-      };
+        ...(payload as Record<string, unknown>),
+      } as SignupRequest;
     } catch (error) {
       console.error('Error creating signup request:', error);
       throw new Error('Failed to create signup request');
