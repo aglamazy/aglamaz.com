@@ -25,7 +25,13 @@ export default function InviteVerifyClient({ token }: InviteVerifyClientProps) {
   const [status, setStatus] = useState<VerifyStatus>('loading');
   const [error, setError] = useState('');
 
-  const handleSuccess = useCallback(async (customToken: string, siteId: string, email: string | null, firstName: string | null) => {
+  const handleSuccess = useCallback(async (
+    customToken: string,
+    siteId: string | undefined,
+    email: string | null,
+    firstName: string | null,
+    needsCredentialSetup: boolean,
+  ) => {
     initFirebase();
     const firebaseAuth = auth();
     if (!firebaseAuth) {
@@ -39,6 +45,7 @@ export default function InviteVerifyClient({ token }: InviteVerifyClientProps) {
       name: firebaseUser.displayName || firstName || firebaseUser.email || '',
       email: firebaseUser.email || email || '',
       user_id: firebaseUser.uid,
+      needsCredentialSetup,
     });
 
     if (firebaseUser.uid && siteId) {
@@ -46,7 +53,7 @@ export default function InviteVerifyClient({ token }: InviteVerifyClientProps) {
     }
 
     setStatus('success');
-    await router.replace('/app');
+    await router.replace(needsCredentialSetup ? '/welcome/credentials' : '/app');
   }, [fetchMember, router, setUser]);
 
   useEffect(() => {
@@ -69,16 +76,21 @@ export default function InviteVerifyClient({ token }: InviteVerifyClientProps) {
 
         if (!res.ok) {
           setStatus('error');
-          const message = typeof data?.error === 'string' ? data.error : t('inviteVerificationFailed');
-          setError(message);
+          if (data?.code === 'invite/already-verified') {
+            setError(t('inviteAlreadyVerified'));
+          } else {
+            const message = typeof data?.error === 'string' ? data.error : t('inviteVerificationFailed');
+            setError(message);
+          }
           return;
         }
 
         await handleSuccess(
           data.customToken as string,
-          data.member?.siteId as string,
+          data.member?.siteId ?? undefined,
           data.member?.email ?? null,
           data.member?.firstName ?? null,
+          Boolean(data.needsCredentialSetup),
         );
       } catch (err) {
         if (!active) return;

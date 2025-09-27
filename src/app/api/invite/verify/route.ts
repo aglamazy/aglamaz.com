@@ -30,7 +30,23 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invite revoked', code: 'invite/revoked' }, { status: 410 });
     }
 
-    const pendingRequest = await repository.verifySignupRequest(verificationToken);
+    let pendingRequest;
+    try {
+      pendingRequest = await repository.verifySignupRequest(verificationToken);
+    } catch (error) {
+      console.warn('[invite][verify] token reuse or invalid', {
+        inviteToken,
+        verificationToken,
+        message: error instanceof Error ? error.message : String(error),
+      });
+      return NextResponse.json(
+        {
+          error: 'Invite link already used',
+          code: 'invite/already-verified',
+        },
+        { status: 409 },
+      );
+    }
     if (!pendingRequest || pendingRequest.source !== 'invite') {
       return NextResponse.json({ error: 'Invalid verification token', code: 'invite/invalid-verification' }, { status: 400 });
     }
@@ -48,8 +64,24 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Pending invite is missing user information' }, { status: 500 });
     }
 
-    const verifiedRequest = await repository.verifySignupRequest(verificationToken, pendingRequest.userId);
-    await repository.updateSignupRequestEmailVerified(verifiedRequest.id);
+    let verifiedRequest;
+    try {
+      verifiedRequest = await repository.verifySignupRequest(verificationToken, pendingRequest.userId);
+      await repository.updateSignupRequestEmailVerified(verifiedRequest.id);
+    } catch (error) {
+      console.warn('[invite][verify] token consumed before completion', {
+        inviteToken,
+        verificationToken,
+        message: error instanceof Error ? error.message : String(error),
+      });
+      return NextResponse.json(
+        {
+          error: 'Invite link already used',
+          code: 'invite/already-verified',
+        },
+        { status: 409 },
+      );
+    }
 
     let userRecord;
     try {
@@ -65,6 +97,11 @@ export async function POST(request: Request) {
         displayName: pendingRequest.firstName || pendingRequest.email,
       });
     }
+
+    const providerIds = userRecord.providerData?.map((p) => p?.providerId).filter(Boolean) ?? [];
+    const hasPasswordProvider = providerIds.includes('password');
+    const hasGoogleProvider = providerIds.includes('google.com');
+    const needsCredentialSetup = !(hasPasswordProvider || hasGoogleProvider);
 
     const member = await repository.acceptInvite(invite.token, {
       uid: userRecord.uid,
@@ -87,6 +124,7 @@ export async function POST(request: Request) {
       firstName: member.firstName || member.displayName || pendingRequest.firstName || '',
       lastName: '',
       email: userRecord.email || pendingRequest.email,
+      needsCredentialSetup,
     } as const;
 
     const access = signAccessToken(claims, 10);
@@ -95,6 +133,7 @@ export async function POST(request: Request) {
       success: true,
       customToken,
       member,
+      needsCredentialSetup,
     });
     setAuthCookies(response, access, refresh);
     return response;

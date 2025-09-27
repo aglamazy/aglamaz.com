@@ -16,5 +16,6 @@ export async function GET(req: NextRequest) {
     user_id: payload.sub,
     roles: (payload as any).roles ?? [],
     siteId: (payload as any).siteId ?? null,
+    needsCredentialSetup: (payload as any).needsCredentialSetup ?? false,
   });
 }

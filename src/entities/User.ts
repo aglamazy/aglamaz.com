@@ -6,6 +6,7 @@ export interface IUser {
   name: string;
   picture: string;
   user_id: string;
+  needsCredentialSetup?: boolean;
 }
 
 export class User {

@@ -191,43 +191,44 @@ export class GmailService {
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>אישור הצטרפות</title>
         <style>
-          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background: #f2f7f3; padding: 20px; text-align: center; border-radius: 8px; }
-          .content { padding: 20px; }
-          .button { display: inline-block; background: #4f7a65; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 20px 0; }
-          .footer { text-align: center; padding: 20px; color: #666; font-size: 14px; }
-          .warning { background: #fffbe6; border: 1px solid #ffe58f; padding: 15px; border-radius: 6px; margin: 20px 0; }
-          .text-center { text-align: center; }
-          .break-url { word-break: break-all; color: #4f7a65; }
+          body { font-family: 'Assistant', Arial, sans-serif; line-height: 1.7; color: #1f2d21; background: #f4f7f2; margin: 0; }
+          .container { max-width: 640px; margin: 0 auto; padding: 36px 20px 48px; }
+          .card { background: #ffffff; border-radius: 18px; border: 1px solid #e5efe7; box-shadow: 0 14px 28px rgba(31, 63, 45, 0.12); overflow: hidden; }
+          .header { background: linear-gradient(135deg, #edf4ef 0%, #f7faf6 100%); padding: 40px 32px; text-align: center; }
+          .header h1 { margin: 0 0 8px; font-size: 28px; color: #203426; }
+          .header p { margin: 0; font-size: 15px; color: #486352; }
+          .content { padding: 32px 36px; text-align: right; background: #ffffff; }
+          .content p { margin: 0 0 18px; }
+          .button-wrap { text-align: center; margin: 32px 0; }
+          .button { display: inline-block; background: #3f6f55; color: #ffffff !important; padding: 14px 38px; border-radius: 999px; text-decoration: none; font-weight: 600; font-size: 16px; box-shadow: 0 12px 20px rgba(63, 111, 85, 0.25); }
+          .button:hover { background: #365f49; }
+          .warning { background: #fff6e3; border: 1px solid #f1deba; padding: 16px 20px; border-radius: 12px; margin: 28px 0; color: #6a541f; font-size: 14px; }
+          .break-url { direction: ltr; display: block; margin-top: 12px; color: #3f6f55; word-break: break-all; }
+          .footer { text-align: center; color: #6a8575; font-size: 14px; padding: 26px 0 0; }
+          @media (max-width: 600px) { .content { padding: 24px; } .button { width: 100%; } }
         </style>
       </head>
       <body>
         <div class="container">
-          <div class="header">
-            <h1>🌳 FamilyCircle</h1>
-            <p>הזמנה להצטרפות למשפחה שלנו</p>
-          </div>
-
-          <div class="content">
-            <p>שלום ${firstName},</p>
-
-            <p>קיבלת הזמנה להצטרף לקהילה המשפחתית שלנו ב-FamilyCircle. כדי להשלים את ההצטרפות, אנא אשר את כתובת המייל שלך:</p>
-
-            <div class="text-center">
-              <a href="${verificationUrl}" class="button">אישור הצטרפות</a>
+          <div class="card">
+            <div class="header">
+              <h1>🌳 FamilyCircle</h1>
+              <p>הזמנה להצטרפות למשפחה שלנו</p>
             </div>
-
-            <div class="warning">
-              <strong>שימו לב:</strong> הקישור תקף ל-24 שעות. אם לא תאשרו בזמן, ניתן לבקש הזמנה חדשה מהמזמין/ה.
+            <div class="content">
+              <p>שלום ${firstName},</p>
+              <p>קיבלת הזמנה להצטרף לקהילה המשפחתית שלנו ב-FamilyCircle. כדי להשלים את ההצטרפות, אנא אשר/י את כתובת המייל שלך:</p>
+              <div class="button-wrap">
+                <a href="${verificationUrl}" class="button">אישור הצטרפות</a>
+              </div>
+              <div class="warning">
+                <strong>שימו לב:</strong> הקישור תקף ל-24 שעות. אם לא תאשרו בזמן, ניתן לבקש הזמנה חדשה מהמזמין/ה.
+              </div>
+              <p>אם הכפתור אינו עובד, ניתן להעתיק את הקישור הבא ולהדביק בדפדפן:</p>
+              <span class="break-url">${verificationUrl}</span>
+              <p>אם לא ציפיתם להזמנה זו, אפשר להתעלם מההודעה.</p>
             </div>
-
-            <p>אם הכפתור אינו עובד, ניתן להעתיק את הקישור הבא ולהדביק בדפדפן:</p>
-            <p class="break-url">${verificationUrl}</p>
-
-            <p>אם לא ציפיתם להזמנה זו, ניתן להתעלם מההודעה.</p>
           </div>
-
           <div class="footer">
             <p>זהו אימייל אוטומטי, אנא אל תשיבו לו.</p>
             <p>© ${new Date().getFullYear()} FamilyCircle. כל הזכויות שמורות.</p>

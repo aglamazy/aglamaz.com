@@ -17,6 +17,7 @@ export interface AppClaims {
   firstName: string;
   lastName?: string;
   email?: string;
+  needsCredentialSetup?: boolean;
 }
 
 export type TokenClaims = JwtRegisteredClaims & AppClaims;

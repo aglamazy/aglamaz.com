@@ -90,6 +90,7 @@ export default function LoginPage({ redirectPath = '/app', onAuthenticated }: Lo
       name: firebaseUser.displayName || firebaseUser.email,
       email: firebaseUser.email,
       user_id: firebaseUser.uid,
+      needsCredentialSetup: false,
     });
 
     await afterAuth();
@@ -144,6 +145,7 @@ export default function LoginPage({ redirectPath = '/app', onAuthenticated }: Lo
           name: result.user.displayName || result.user.email,
           email: result.user.email,
           user_id: result.user.uid,
+          needsCredentialSetup: false,
         });
 
         await afterAuth();

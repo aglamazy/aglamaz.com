@@ -41,10 +41,32 @@ export async function middleware(request: NextRequest) {
   }
 
   try {
-    await verifyAccessToken(token);
+    const claims = await verifyAccessToken(token);
+    const needsCredentialSetup = Boolean((claims as any)?.needsCredentialSetup);
+    const isCredentialPage = pathname === '/welcome/credentials' || pathname.startsWith('/welcome/credentials/');
+    const isCredentialApi = pathname.startsWith('/api/auth/credentials');
+    const isLogoutApi = pathname === '/api/auth/logout';
+
+    if (!needsCredentialSetup && isCredentialPage) {
+      return NextResponse.redirect(new URL('/app', request.url));
+    }
+
+    if (needsCredentialSetup) {
+      if (isApi) {
+        if (isCredentialApi || isLogoutApi) {
+          return NextResponse.next();
+        }
+        return NextResponse.json({ error: 'Credentials setup required' }, { status: 403 });
+      }
+
+      if (!isCredentialPage && !pathname.startsWith('/invite')) {
+        return NextResponse.redirect(new URL('/welcome/credentials', request.url));
+      }
+    }
 
     if (PUBLIC_REDIRECT_PATHS.includes(pathname)) {
-      return NextResponse.redirect(new URL('/app', request.url));
+      const target = needsCredentialSetup ? '/welcome/credentials' : '/app';
+      return NextResponse.redirect(new URL(target, request.url));
     }
 
     if (!isPublic) {
