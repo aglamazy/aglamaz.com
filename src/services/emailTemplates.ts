@@ -66,6 +66,12 @@ export function renderEmailHtml(options: EmailTemplateOptions): string {
     ? `<div class="button-row"><a href="${escapeHtml(button.url)}" class="button">${button.label}</a></div>`
     : '';
   const footerHtml = footerLines.map((line) => `<p>${line}</p>`).join('\n');
+  const contentStyle = dir === 'rtl'
+    ? 'direction: rtl; text-align: right;'
+    : 'direction: ltr; text-align: left;';
+  const footerStyle = dir === 'rtl'
+    ? 'direction: rtl; text-align: right;'
+    : 'direction: ltr; text-align: center;';
 
   const hiddenPreheader = preheader ? `
     <span class="preheader" style="display:none;visibility:hidden;mso-hide:all;font-size:1px;color:#f5f7f4;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;">${preheader}</span>` : '';
@@ -103,7 +109,7 @@ export function renderEmailHtml(options: EmailTemplateOptions): string {
     <div class="wrapper">
       <div class="card">
         <div class="header">${heading}</div>
-        <div class="content">
+        <div class="content" style="${contentStyle}">
           ${greeting ? `<p>${greeting}</p>` : ''}
           ${paragraphsHtml}
           ${buttonHtml}
@@ -111,7 +117,7 @@ export function renderEmailHtml(options: EmailTemplateOptions): string {
           ${secondaryHtml}
           ${linkHtml}
         </div>
-        <div class="footer">
+        <div class="footer" style="${footerStyle}">
           ${footerHtml}
         </div>
       </div>

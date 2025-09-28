@@ -210,7 +210,11 @@ export default function LoginPage({ redirectPath = '/app', onAuthenticated }: Lo
   }
 
   return (
-    <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8 flex flex-col items-center">
+    <div
+      className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8 flex flex-col items-center"
+      dir={i18n.dir()}
+      lang={i18n.language}
+    >
       {/* Logo */}
       <div className="flex flex-col items-center mb-6">
         <div className="w-20 h-20 rounded-full bg-yellow-100 flex items-center justify-center mb-4 shadow">
