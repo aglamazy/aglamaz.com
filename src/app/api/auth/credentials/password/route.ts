@@ -6,13 +6,17 @@ import { initAdmin, adminAuth } from '@/firebase/admin';
 
 export const dynamic = 'force-dynamic';
 
-const MIN_PASSWORD_LENGTH = 8;
-
 export async function POST(request: NextRequest) {
   try {
-    const { password } = await request.json().catch(() => ({}));
-    if (typeof password !== 'string' || password.length < MIN_PASSWORD_LENGTH) {
-      return NextResponse.json({ error: 'Password too short' }, { status: 400 });
+    let body: Record<string, unknown> = {};
+    try {
+      body = await request.json();
+    } catch {
+      body = {};
+    }
+    const { password } = body as { password?: string };
+    if (typeof password === 'string') {
+      console.warn('[credentials][password] received password in request body; ignoring client payload');
     }
 
     const cookieStore = cookies();
@@ -28,12 +32,14 @@ export async function POST(request: NextRequest) {
 
     const userId = (payload as any).userId || payload.sub;
     initAdmin();
-    await adminAuth().updateUser(userId, { password });
     const userRecord = await adminAuth().getUser(userId);
 
     const providerIds = userRecord.providerData?.map(p => p?.providerId).filter(Boolean) ?? [];
     const hasPasswordProvider = providerIds.includes('password');
     const hasGoogleProvider = providerIds.includes('google.com');
+    if (!hasPasswordProvider) {
+      return NextResponse.json({ error: 'Password provider missing on account' }, { status: 400 });
+    }
     const needsCredentialSetup = !(hasPasswordProvider || hasGoogleProvider);
 
     const claims = {

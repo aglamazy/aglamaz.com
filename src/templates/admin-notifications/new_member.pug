@@ -1,0 +1,11 @@
+h2 New Member Joined!
+p Someone just joined your site via an invite link.
+ul
+  if firstName
+    li Name: #{firstName}
+  if email
+    li Email: #{email}
+  if role
+    li Role: #{role}
+p
+  a(href=`${siteUrl}/admin/members`) View members

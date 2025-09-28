@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
 import { Loader2, ShieldCheck, LogIn } from 'lucide-react';
 import { initFirebase, auth, googleProvider } from '@/firebase/client';
-import { linkWithPopup } from 'firebase/auth';
+import { linkWithPopup, updatePassword } from 'firebase/auth';
 import { useUserStore } from '@/store/UserStore';
 
 export default function CredentialSetupClient() {
@@ -54,10 +54,20 @@ export default function CredentialSetupClient() {
     setPasswordSuccess('');
 
     try {
+      initFirebase();
+      const firebaseAuth = auth();
+      if (!firebaseAuth) {
+        throw new Error(t('credentialSetupFirebaseUserMissing'));
+      }
+      const currentUser = firebaseAuth.currentUser;
+      if (!currentUser) {
+        throw new Error(t('credentialSetupFirebaseUserMissing'));
+      }
+
+      await updatePassword(currentUser, password);
+
       const res = await fetch('/api/auth/credentials/password', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password }),
         credentials: 'include',
       });
       const data = await res.json().catch(() => ({}));

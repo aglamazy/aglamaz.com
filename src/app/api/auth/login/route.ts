@@ -45,6 +45,10 @@ export async function POST(req: NextRequest) {
         const fam = new FamilyRepository();
         const reqDoc = await fam.getSignupRequestByEmail(email, siteId);
         if (!reqDoc) return;
+        const status = (reqDoc as any).status;
+        if (status && status !== 'pending' && status !== 'pending_verification') {
+          return;
+        }
         const key = `${siteId}_${email}`;
         const dayMs = 24 * 60 * 60 * 1000;
         const should = await sentMessageRepository.shouldSend('pending_member_reminder', key, dayMs);

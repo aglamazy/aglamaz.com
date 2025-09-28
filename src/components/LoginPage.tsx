@@ -11,7 +11,6 @@ import {
   getRedirectResult,
   getIdToken,
   signInWithEmailAndPassword,
-  sendPasswordResetEmail,
   type User,
 } from 'firebase/auth';
 import { useSiteStore } from '@/store/SiteStore';
@@ -31,11 +30,12 @@ export default function LoginPage({ redirectPath = '/app', onAuthenticated }: Lo
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [passwordResetMessage, setPasswordResetMessage] = useState('');
   const [showSignup, setShowSignup] = useState(false);
   const router = useRouter();
   const { siteInfo } = useSiteStore();
   const { setUser } = useUserStore();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { close: closeLogin } = useLoginModalStore();
   const { open: openPending } = usePendingMemberModalStore();
 
@@ -172,17 +172,26 @@ export default function LoginPage({ redirectPath = '/app', onAuthenticated }: Lo
     try {
       setIsLoading(true);
       setError('');
-      initFirebase();
-      if (auth) {
-        await sendPasswordResetEmail(auth(), email);
-        alert(t('passwordResetEmailSent'));
+      setPasswordResetMessage('');
+
+      const res = await fetch('/api/auth/password/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ email, locale: i18n.language }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const message = typeof data?.error === 'string' ? data.error : t('failedToSendResetEmail');
+        setError(message);
+        return;
       }
-    } catch (error: any) {
-      if (error.code === 'auth/user-not-found') {
-        setError(t('noAccountFoundWithThisEmail'));
-      } else {
-        setError(t('failedToSendResetEmail'));
-      }
+
+      setError('');
+      setPasswordResetMessage(t('passwordResetEmailSent'));
+    } catch (error) {
+      console.error('[login] password reset request failed', error);
+      setError(t('failedToSendResetEmail'));
     } finally {
       setIsLoading(false);
     }
@@ -217,6 +226,11 @@ export default function LoginPage({ redirectPath = '/app', onAuthenticated }: Lo
       {error && (
         <div className="w-full mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
           {error}
+        </div>
+      )}
+      {passwordResetMessage && !error && (
+        <div className="w-full mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm">
+          {passwordResetMessage}
         </div>
       )}
       {/* Google Login */}

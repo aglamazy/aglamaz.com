@@ -4,7 +4,13 @@ import { fetchSiteInfo, adminAuth } from '../firebase/admin';
 import path from 'path';
 import pug from 'pug';
 
-export type NotificationEventType = 'contact_form' | 'pending_member';
+export type NotificationEventType = 'contact_form' | 'pending_member' | 'new_member';
+
+const subjectByType: Record<NotificationEventType, string> = {
+  contact_form: 'New contact form submission',
+  pending_member: 'Pending member awaiting approval',
+  new_member: 'New member joined!',
+};
 
 export class AdminNotificationService {
   private async queueNotification(eventType: NotificationEventType, payload: any, siteUrl?: string) {
@@ -35,7 +41,7 @@ export class AdminNotificationService {
       return;
     }
 
-    const subject = `New ${notification.eventType.replace('_', ' ')}`;
+    const subject = subjectByType[notification.eventType] ?? 'New notification';
     let html: string;
     try {
       html = this.renderTemplate(notification);
