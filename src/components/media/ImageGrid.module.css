@@ -303,27 +303,8 @@
 .mobileContinuousContainer {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
   width: 100%;
   padding: 1rem 0 2rem;
-}
-
-.mobileContinuousHeader {
-  text-align: center;
-  padding: 0 1.5rem;
-}
-
-.mobileContinuousHeader h2 {
-  margin: 0;
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: var(--sage-700);
-}
-
-.mobileContinuousHeader p {
-  margin: 0.25rem 0 0;
-  color: var(--sage-600);
-  font-size: 0.95rem;
 }
 
 .mobileContinuousList {
@@ -408,12 +389,6 @@
 .mobileContinuousLikeActive {
   background: rgba(220, 38, 38, 0.12);
   color: #dc2626;
-}
-
-.mobileContinuousLikeHidden {
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.3s ease;
 }
 
 .mobileContinuousLikePlaceholder {

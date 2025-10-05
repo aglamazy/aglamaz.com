@@ -51,17 +51,22 @@ export default function ClientMobileShell({
     [t]
   );
 
+  const shimmerLabel = t('loadingPreview', { defaultValue: 'Loading Preview' }) as string;
+  const calendarLabel = t('calendar') as string;
+  const photoFeedLabel = t('photoFeed', { defaultValue: 'Photo Feed' }) as string;
+  const blogLabel = t('blog') as string;
+
   return (
     <div className={containerClassName}>
       <main className={styles.mobileMain}>
         <SweepableContainer indicatorLabel={indicatorLabel}>
-          <SweepableElement label={(t('calendar') as string) || 'Calendar'}>
+          <SweepableElement label={calendarLabel}>
             <CalendarPage />
           </SweepableElement>
-          <SweepableElement label={(t('photoFeed', { defaultValue: 'Photo Feed' }) as string) || 'Photo Feed'}>
+          <SweepableElement label={photoFeedLabel}>
             <PicturesFeedPage />
           </SweepableElement>
-          <SweepableElement label={(t('blog') as string) || 'Blog'}>
+          <SweepableElement label={blogLabel}>
             <BlogPage />
           </SweepableElement>
         </SweepableContainer>

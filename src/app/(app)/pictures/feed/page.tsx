@@ -117,10 +117,6 @@ export default function PicturesFeedPage() {
   if (isMobile) {
     return (
       <div className={mediaStyles.mobileContinuousContainer}>
-        <div className={mediaStyles.mobileContinuousHeader}>
-          <h2>{t('photoFeed', { defaultValue: 'Photo Feed' }) as string}</h2>
-          <p>{t('photoFeedSwipeHint', { defaultValue: 'Scroll to browse the latest photos' }) as string}</p>
-        </div>
         <div className={mediaStyles.mobileContinuousList}>
           {feed.map((item) => {
             const meta = getLikeMeta(item.occId, item.idx);

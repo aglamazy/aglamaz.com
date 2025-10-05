@@ -5,12 +5,12 @@ import { AnimatePresence, motion } from 'framer-motion';
 import styles from './SweepableContainer.module.css';
 import type { SweepableElementProps } from './SweepableElement';
 
-interface SwipableContainerProps {
+interface SweepableContainerProps {
   children: React.ReactElement<SweepableElementProps>[];
   indicatorLabel?: string;
 }
 
-export default function SweepableContainer({ children, indicatorLabel }: SwipableContainerProps) {
+export default function SweepableContainer({ children, indicatorLabel }: SweepableContainerProps) {
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const touchStartX = useRef<number | null>(null);
   const touchEndX = useRef<number | null>(null);
