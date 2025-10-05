@@ -1,0 +1,60 @@
+.demoRoot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 2rem 1rem;
+  gap: 1rem;
+}
+
+.imageShell {
+  position: relative;
+  width: min(90vw, 480px);
+  aspect-ratio: 16 / 9;
+  border-radius: 1.25rem;
+  overflow: hidden;
+  background: #111827;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.loading {
+  background: rgba(17, 24, 39, 0.85);
+}
+
+.shimmer {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(243, 244, 246, 0.05) 0%, rgba(229, 231, 235, 0.55) 45%, rgba(243, 244, 246, 0.05) 90%);
+  background-size: 200% 100%;
+  animation: shimmerMove 1.4s ease-in-out infinite;
+}
+
+.image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: opacity 0.35s ease;
+}
+
+.imageHidden {
+  opacity: 0;
+}
+
+.imageVisible {
+  opacity: 1;
+}
+
+.caption {
+  margin: 0;
+  font-size: 0.95rem;
+  color: #4b5563;
+  text-align: center;
+}
+
+@keyframes shimmerMove {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}

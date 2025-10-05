@@ -6,6 +6,9 @@ import I18nText from '@/components/I18nText';
 import ImageGrid from '@/components/media/ImageGrid';
 import mediaStyles from '@/components/media/MediaLayout.module.css';
 import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
+import { useIsMobile } from '@/hooks/useIsMobile';
+import { ShimmerImage } from "@/components/mobile/ShimmerImagePreview";
 
 type Occurrence = {
   id: string; // occurrence id
@@ -23,6 +26,7 @@ export default function PicturesFeedPage() {
   const [items, setItems] = useState<Occurrence[]>([]);
   const [eventNames, setEventNames] = useState<Record<string, { name: string }>>({});
   const [likes, setLikes] = useState<Record<string, ImageLikeMeta[]>>({}); // key: occId
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     let mounted = true;
@@ -110,6 +114,32 @@ export default function PicturesFeedPage() {
   if (loading) return <div className="p-4"><I18nText k="loading" /></div>;
   if (error) return <div className="p-4"><I18nText k="somethingWentWrong" /></div>;
 
+  if (isMobile) {
+    return (
+      <div className={mediaStyles.mobileContinuousContainer}>
+        <div className={mediaStyles.mobileContinuousHeader}>
+          <h2>{t('photoFeed', { defaultValue: 'Photo Feed' }) as string}</h2>
+          <p>{t('photoFeedSwipeHint', { defaultValue: 'Scroll to browse the latest photos' }) as string}</p>
+        </div>
+        <div className={mediaStyles.mobileContinuousList}>
+          {feed.map((item) => {
+            const meta = getLikeMeta(item.occId, item.idx);
+            return (
+              <MobileFeedItem
+                key={item.key}
+                item={item}
+                title={item.title}
+                meta={meta}
+                onToggle={() => toggleLike(item.annId, item.occId, item.idx)}
+                t={t}
+              />
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <Card className={mediaStyles.container}>
       <CardHeader>
@@ -131,5 +161,58 @@ export default function PicturesFeedPage() {
 
       {/* Lightbox handled inside ImageGrid */}
     </Card>
+  );
+}
+
+interface MobileFeedItemProps {
+  item: {
+    key: string;
+    src: string;
+    title?: string;
+  } & { occId: string; annId: string; idx: number };
+  title?: string;
+  meta: ImageLikeMeta;
+  onToggle: () => Promise<void> | void;
+  t: TFunction;
+}
+
+function MobileFeedItem({ item, title, meta, onToggle, t }: MobileFeedItemProps) {
+  const [loaded, setLoaded] = useState(false);
+  const wrapperClass = mediaStyles.mobileContinuousImageWrap;
+  const likeClass =
+    mediaStyles.mobileContinuousLike +
+    (meta.likedByMe ? ' ' + mediaStyles.mobileContinuousLikeActive : '');
+
+  return (
+    <article className={mediaStyles.mobileContinuousItem}>
+      {title ? <div className={mediaStyles.mobileContinuousTitle}>{title}</div> : null}
+      <ShimmerImage
+        src={item.src}
+        alt={title || ''}
+        useDefaultStyles={false}
+        wrapperClassName={wrapperClass}
+        imageClassName={mediaStyles.mobileContinuousImage}
+        loadingClassName={mediaStyles.mobileContinuousImageWrapLoading}
+        hiddenClassName={mediaStyles.mobileContinuousImageHidden}
+        visibleClassName={mediaStyles.mobileContinuousImageVisible}
+        shimmerClassName={mediaStyles.mobileShimmer}
+        onLoadStateChange={setLoaded}
+      />
+      {loaded ? (
+        <button
+          type="button"
+          className={likeClass}
+          onClick={() => {
+            void onToggle();
+          }}
+          aria-label={meta.likedByMe ? (t('unlike') as string) : (t('like') as string)}
+        >
+          <span>❤</span>
+          <span>{meta.count}</span>
+        </button>
+      ) : (
+        <div className={mediaStyles.mobileContinuousLikePlaceholder} aria-hidden="true" />
+      )}
+    </article>
   );
 }

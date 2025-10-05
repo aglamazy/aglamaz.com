@@ -291,3 +291,143 @@
 .presentationLikeBadgeLiked {
   background: rgba(220, 38, 38, 0.85);
 }
+
+.mobileContinuousPlaceholder {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  width: 100%;
+  padding: 1rem 0 2rem;
+}
+
+.mobileContinuousContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  width: 100%;
+  padding: 1rem 0 2rem;
+}
+
+.mobileContinuousHeader {
+  text-align: center;
+  padding: 0 1.5rem;
+}
+
+.mobileContinuousHeader h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--sage-700);
+}
+
+.mobileContinuousHeader p {
+  margin: 0.25rem 0 0;
+  color: var(--sage-600);
+  font-size: 0.95rem;
+}
+
+.mobileContinuousList {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 0 1rem 2rem;
+}
+
+.mobileContinuousItem {
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 1rem;
+  box-shadow: 0 10px 25px rgba(17, 24, 39, 0.08);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.mobileContinuousTitle {
+  padding: 0.85rem 1.25rem 0.35rem;
+  font-weight: 600;
+  color: var(--sage-700);
+  font-size: 1rem;
+}
+
+.mobileContinuousImageWrap {
+  position: relative;
+  background: #111827;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 320px;
+  overflow: hidden;
+  border-radius: 1rem 1rem 0 0;
+}
+
+.mobileContinuousImageWrapLoading {
+  background: rgba(17, 24, 39, 0.85);
+}
+
+
+.mobileContinuousImage {
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+  opacity: 1;
+  transition: opacity 0.4s ease;
+}
+
+.mobileContinuousImageHidden {
+  opacity: 0;
+}
+
+.mobileContinuousImageVisible {
+  opacity: 1;
+}
+
+.mobileShimmer {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(229, 231, 235, 0.1) 0%, rgba(229, 231, 235, 0.35) 40%, rgba(229, 231, 235, 0.1) 80%);
+  background-size: 200% 100%;
+  animation: mobileSkeletonWave 1.6s linear infinite;
+}
+
+.mobileContinuousLike {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  align-self: flex-end;
+  margin: 0.75rem 1rem 1.1rem;
+  padding: 0.4rem 0.9rem;
+  border-radius: 9999px;
+  border: none;
+  font-size: 0.95rem;
+  font-weight: 600;
+  background: rgba(17, 24, 39, 0.08);
+  color: var(--sage-700);
+}
+
+.mobileContinuousLikeActive {
+  background: rgba(220, 38, 38, 0.12);
+  color: #dc2626;
+}
+
+.mobileContinuousLikeHidden {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.mobileContinuousLikePlaceholder {
+  align-self: flex-end;
+  margin: 0.75rem 1.25rem 1.15rem;
+  width: 96px;
+  height: 32px;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, rgba(229, 231, 235, 0.25) 0%, rgba(209, 213, 219, 0.55) 50%, rgba(229, 231, 235, 0.25) 100%);
+  background-size: 200% 100%;
+  animation: mobileSkeletonWave 1.6s linear infinite;
+}
+
+@keyframes mobileSkeletonWave {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}

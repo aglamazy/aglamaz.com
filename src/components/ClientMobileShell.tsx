@@ -1,11 +1,17 @@
 'use client';
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import Modal from '@/components/ui/Modal';
 import LoginPage from '@/components/LoginPage';
 import PendingMemberContent from '@/components/PendingMemberContent';
 import NotMemberContent from '@/components/NotMemberContent';
 import EditUserDetails from '@/components/EditUserDetails';
+import SweepableContainer from '@/components/mobile/SweepableContainer';
+import SweepableElement from '@/components/mobile/SweepableElement';
+import PicturesFeedPage from '@/app/(app)/pictures/feed/page';
+import CalendarPage from '@/app/(app)/calendar/page';
+import BlogPage from '@/app/(app)/blog/page';
+import ShimmerImagePreview from '@/components/mobile/ShimmerImagePreview';
 import styles from './ClientLayoutShell.module.css';
 import type { TFunction } from 'i18next';
 
@@ -40,10 +46,25 @@ export default function ClientMobileShell({
   const baseClass = styles.mobileContainer;
   const containerClassName = presentationModeActive ? `${baseClass} ${styles.presentationActive}` : baseClass;
 
+  const indicatorLabel = useMemo(
+    () => (t('mobileSections', { defaultValue: 'Mobile sections' }) as string) || 'Mobile sections',
+    [t]
+  );
+
   return (
     <div className={containerClassName}>
       <main className={styles.mobileMain}>
-        <div className={styles.mobilePlaceholder}>{t('mobileIndicator', { defaultValue: 'MOBILE' })}</div>
+        <SweepableContainer indicatorLabel={indicatorLabel}>
+          <SweepableElement label={(t('calendar') as string) || 'Calendar'}>
+            <CalendarPage />
+          </SweepableElement>
+          <SweepableElement label={(t('photoFeed', { defaultValue: 'Photo Feed' }) as string) || 'Photo Feed'}>
+            <PicturesFeedPage />
+          </SweepableElement>
+          <SweepableElement label={(t('blog') as string) || 'Blog'}>
+            <BlogPage />
+          </SweepableElement>
+        </SweepableContainer>
       </main>
       <Modal isOpen={isLoginOpen} onClose={closeLogin}>
         <LoginPage/>
