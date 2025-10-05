@@ -12,6 +12,8 @@ import { useMemberStore } from '@/store/MemberStore';
 import { useRouter } from 'next/navigation';
 import { landingPage } from '@/app/settings';
 import type { ISite } from '@/entities/Site';
+import { useIsMobile } from '@/hooks/useIsMobile';
+import styles from './PublicLayoutShell.module.css';
 
 interface PublicLayoutShellProps {
   siteInfo: ISite | null;
@@ -26,6 +28,7 @@ export default function PublicLayoutShell({ siteInfo, children }: PublicLayoutSh
   const member = useMemberStore((s) => s.member);
   const fetchMember = useMemberStore((s) => s.fetchMember);
   const router = useRouter();
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     if (siteInfo) {
@@ -35,7 +38,16 @@ export default function PublicLayoutShell({ siteInfo, children }: PublicLayoutSh
 
   // Populate user (silently) so header can show initials if logged in
   useEffect(() => {
-    checkAuth().catch(() => {});
+    const populateUser = async () => {
+      try {
+        await checkAuth();
+      } catch (error) {
+        console.error('Failed to check auth inside PublicLayoutShell', error);
+        throw error;
+      }
+    };
+
+    void populateUser();
   }, [checkAuth]);
 
   // Fetch member info when user + site ready
@@ -43,7 +55,16 @@ export default function PublicLayoutShell({ siteInfo, children }: PublicLayoutSh
     const uid = user?.user_id;
     const sid = site?.id;
     if (!uid || !sid) return;
-    fetchMember(uid, sid).catch(() => {});
+    const loadMember = async () => {
+      try {
+        await fetchMember(uid, sid);
+      } catch (error) {
+        console.error('Failed to fetch member in PublicLayoutShell', error);
+        throw error;
+      }
+    };
+
+    void loadMember();
   }, [user?.user_id, site?.id, fetchMember]);
 
   const handleLogout = async () => {
@@ -51,13 +72,16 @@ export default function PublicLayoutShell({ siteInfo, children }: PublicLayoutSh
     router.push(landingPage);
   };
 
+  const containerClass = isMobile ? styles.mobileContainer : styles.desktopContainer;
+  const mainClass = isMobile ? styles.mobileMain : styles.desktopMain;
+
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-cream-50 to-sage-50">
-      <Header siteInfo={siteInfo!} user={user} member={member} onLogout={handleLogout} />
-      <main className="flex-1 w-full mx-auto max-w-[1600px] px-2 sm:px-4">
-        {children}
-      </main>
-      <Footer siteInfo={siteInfo!} />
+    <div className={containerClass}>
+      {siteInfo ? (
+        <Header siteInfo={siteInfo} user={user} member={member} onLogout={handleLogout} />
+      ) : null}
+      <main className={mainClass}>{children}</main>
+      {siteInfo ? <Footer siteInfo={siteInfo} /> : null}
       <Modal isOpen={isOpen} onClose={close}>
         <LoginPage />
       </Modal>

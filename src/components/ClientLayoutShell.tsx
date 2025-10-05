@@ -4,23 +4,19 @@ import { useSiteStore } from '../store/SiteStore';
 import { useUserStore } from '../store/UserStore';
 import { useRouter } from "next/navigation";
 import { MembershipStatus, useMemberStore } from '../store/MemberStore';
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
 import I18nProvider from './I18nProvider';
 import { useTranslation } from 'react-i18next';
 import { Loader } from "../components/ui/Loader";
 import I18nGate from "@/components/I18nGate";
 import { landingPage } from "@/app/settings";
-import Modal from '@/components/ui/Modal';
-import LoginPage from '@/components/LoginPage';
 import { useLoginModalStore } from '@/store/LoginModalStore';
-import PendingMemberContent from '@/components/PendingMemberContent';
 import { usePendingMemberModalStore } from '@/store/PendingMemberModalStore';
-import NotMemberContent from '@/components/NotMemberContent';
 import { useNotMemberModalStore } from '@/store/NotMemberModalStore';
-import EditUserDetails from '@/components/EditUserDetails';
 import { useEditUserModalStore } from '@/store/EditUserModalStore';
 import { usePresentationModeStore } from '@/store/PresentationModeStore';
+import { useIsMobile } from '@/hooks/useIsMobile';
+import ClientDesktopShell from '@/components/ClientDesktopShell';
+import ClientMobileShell from '@/components/ClientMobileShell';
 
 export default function ClientLayoutShell({ children }) {
   const { user, loading, logout, checkAuth } = useUserStore();
@@ -36,6 +32,7 @@ export default function ClientLayoutShell({ children }) {
 
   const { fetchMember } = useMemberStore();
   const presentationModeActive = usePresentationModeStore((state) => state.active);
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     checkAuth()
@@ -51,14 +48,21 @@ export default function ClientLayoutShell({ children }) {
   useEffect(() => {
     if (!user?.user_id || !siteInfo?.id) return;
 
-    (async () => {
-      const status = await fetchMember(user.user_id, siteInfo.id);
-      if (status === MembershipStatus.Pending) {
-        openPending();
-      } else if (status === MembershipStatus.NotApplied) {
-        openApply();
+    const ensureMemberStatus = async () => {
+      try {
+        const status = await fetchMember(user.user_id, siteInfo.id);
+        if (status === MembershipStatus.Pending) {
+          openPending();
+        } else if (status === MembershipStatus.NotApplied) {
+          openApply();
+        }
+      } catch (error) {
+        console.error('Failed to fetch member inside ClientLayoutShell', error);
+        throw error;
       }
-    })();
+    };
+
+    void ensureMemberStatus();
   }, [user?.user_id, siteInfo?.id, fetchMember, openPending, openApply]);
 
   const [mounted, setMounted] = useState(false);
@@ -99,41 +103,39 @@ export default function ClientLayoutShell({ children }) {
   return (
     <I18nProvider>
       <I18nGate>
-        <div className={
-          'min-h-screen flex flex-col bg-gradient-to-br from-cream-50 to-sage-50' +
-          (presentationModeActive ? ' overflow-hidden' : '')
-        }>
-          {headerReady && !presentationModeActive ? (
-            <Header
-              user={user}
-              member={member}
-              onLogout={handleLogout}
-              siteInfo={siteInfo}
-            />
-          ) : null}
-          <main
-            className={
-              presentationModeActive
-                ? 'flex-1 w-full'
-                : 'flex-1 w-full mx-auto max-w-[1600px] px-2 sm:px-4'
-            }
+        {isMobile ? (
+          <ClientMobileShell
+            t={t}
+            presentationModeActive={presentationModeActive}
+            isLoginOpen={isLoginOpen}
+            closeLogin={closeLogin}
+            isPendingOpen={isPendingOpen}
+            closePending={closePending}
+            isApplyOpen={isApplyOpen}
+            closeApply={closeApply}
+            isEditOpen={isEditOpen}
+            closeEdit={closeEdit}
+          />
+        ) : (
+          <ClientDesktopShell
+            headerReady={headerReady}
+            presentationModeActive={presentationModeActive}
+            handleLogout={handleLogout}
+            user={user}
+            member={member}
+            siteInfo={siteInfo}
+            isLoginOpen={isLoginOpen}
+            closeLogin={closeLogin}
+            isPendingOpen={isPendingOpen}
+            closePending={closePending}
+            isApplyOpen={isApplyOpen}
+            closeApply={closeApply}
+            isEditOpen={isEditOpen}
+            closeEdit={closeEdit}
           >
             {children}
-          </main>
-          {siteInfo && !presentationModeActive ? <Footer siteInfo={siteInfo} /> : null}
-          <Modal isOpen={isLoginOpen} onClose={closeLogin}>
-            <LoginPage/>
-          </Modal>
-          <Modal isOpen={isPendingOpen} onClose={closePending} isClosable={false}>
-            <PendingMemberContent/>
-          </Modal>
-          <Modal isOpen={isApplyOpen} onClose={closeApply}>
-            <NotMemberContent/>
-          </Modal>
-          <Modal isOpen={isEditOpen} onClose={closeEdit}>
-            <EditUserDetails/>
-          </Modal>
-        </div>
+          </ClientDesktopShell>
+        )}
       </I18nGate>
     </I18nProvider>
   );

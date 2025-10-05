@@ -1,0 +1,52 @@
+.desktopContainer {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(135deg, var(--cream-50), var(--sage-50));
+}
+
+.mobileContainer {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(180deg, var(--cream-100) 0%, var(--cream-50) 80%);
+}
+
+.presentationActive {
+  overflow: hidden;
+}
+
+.desktopMain {
+  flex: 1;
+  width: 100%;
+  margin: 0 auto;
+  max-width: 1600px;
+  padding: 0 0.5rem 3rem;
+}
+
+@media (min-width: 640px) {
+  .desktopMain {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+}
+
+.mobileMain {
+  flex: 1;
+  width: 100%;
+  padding: 0.75rem 1rem 2.5rem;
+}
+
+.presentationMain {
+  flex: 1;
+  width: 100%;
+}
+
+.mobilePlaceholder {
+  padding: 0.5rem 1rem;
+  text-align: center;
+  font-weight: 600;
+  color: var(--sage-700);
+  background: var(--sage-200);
+  border-bottom: 1px solid var(--sage-300);
+}
