@@ -10,19 +10,14 @@ import { IMember } from "@/entities/Member";
 import { ISite } from "@/entities/Site";
 import { useLoginModalStore } from '@/store/LoginModalStore';
 import { useEditUserModalStore } from '@/store/EditUserModalStore';
-import md5 from 'blueimp-md5';
 import { getLocalizedSiteName } from '@/utils/siteName';
+import MemberAvatar from '@/components/MemberAvatar';
 
 const LANGS = [
   { code: 'he', label: 'עברית', flag: '🇮🇱' },
   { code: 'en', label: 'English', flag: '🇬🇧' },
   { code: 'tr', label: 'Türkçe', flag: '🇹🇷' },
 ];
-
-function getGravatarUrl(email?: string) {
-  const hash = md5((email || '').trim().toLowerCase());
-  return `https://www.gravatar.com/avatar/${hash}?s=80&d=identicon`;
-}
 
 interface HeaderProps {
   user?: IUser;
@@ -42,7 +37,6 @@ export default function Header({ user, member, onLogout, siteInfo }: HeaderProps
   const searchParams = useSearchParams();
   const openLogin = useLoginModalStore((s) => s.open);
   const openEdit = useEditUserModalStore((s) => s.open);
-  const avatarUrl = getGravatarUrl(member?.email);
   const localizedName = getLocalizedSiteName(siteInfo, i18n.language);
 
   useEffect(() => {
@@ -134,13 +128,13 @@ export default function Header({ user, member, onLogout, siteInfo }: HeaderProps
         </div>
         {/* Avatar + User Menu */}
         {user && member && onLogout ? (
-          <div className="relative" ref={userMenuRef}>
+        <div className="relative" ref={userMenuRef}>
             <button
               onClick={() => setIsUserMenuOpen((v) => !v)}
               className="h-8 w-8 rounded-full overflow-hidden focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sage-500 transition-colors duration-200"
               aria-label={t('userMenu') as string}
             >
-              <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
+              <MemberAvatar member={member} fallbackName={user?.name} fallbackEmail={member?.email || user?.email} size={32} />
             </button>
             {isUserMenuOpen && (
               <div

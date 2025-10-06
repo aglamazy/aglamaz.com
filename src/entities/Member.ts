@@ -7,6 +7,8 @@ export interface IMember {
   firstName: string;
   email: string;
   blogEnabled?: boolean;
+  avatarUrl?: string | null;
+  avatarStoragePath?: string | null;
   createdAt: any;
   updatedAt: any;
 }

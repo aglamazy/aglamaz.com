@@ -1,4 +1,4 @@
-import {getFirestore, Timestamp} from 'firebase-admin/firestore';
+import { getFirestore, Timestamp, FieldValue } from 'firebase-admin/firestore';
 import {initAdmin} from '../firebase/admin';
 import type {IMember} from '@/entities/Member';
 import {adminNotificationService} from '@/services/AdminNotificationService';
@@ -27,6 +27,8 @@ export interface FamilyMember {
   rejectedAt?: Timestamp;
   rejectedBy?: string;
   rejectionReason?: string;
+  avatarUrl?: string | null;
+  avatarStoragePath?: string | null;
 }
 
 export interface FamilySite {
@@ -220,10 +222,16 @@ export class FamilyRepository {
   async updateMember(memberId: string, updates: Partial<FamilyMember>): Promise<void> {
     try {
       const db = this.getDb();
-      await db.collection(this.membersCollection).doc(memberId).update({
+      const payload: Record<string, unknown> = {
         ...updates,
-        updatedAt: Timestamp.now()
-      });
+        updatedAt: Timestamp.now(),
+      };
+      for (const [key, value] of Object.entries(payload)) {
+        if (value === null) {
+          payload[key] = FieldValue.delete();
+        }
+      }
+      await db.collection(this.membersCollection).doc(memberId).update(payload);
     } catch (error) {
       console.error('Error updating member:', error);
       throw new Error('Failed to update member');

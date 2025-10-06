@@ -6,6 +6,7 @@ import { useSiteStore } from '@/store/SiteStore';
 import type { ISite } from '@/entities/Site';
 import type { IMember } from '@/entities/Member';
 import { apiFetch } from '@/utils/apiFetch';
+import MemberAvatar from '@/components/MemberAvatar';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
@@ -254,13 +255,18 @@ export default function SiteMembersPage() {
                   {sorted.map(member => (
                     <tr key={member.id} className="border-t border-sage-100 hover:bg-sage-50">
                       <td className="px-4 py-2">
-                        <input
-                          className="border rounded px-2 py-1 text-sm w-full"
-                          value={member.displayName || ''}
-                          onChange={(e) => setMembers(prev => prev.map(m => m.id === member.id ? { ...m, displayName: e.target.value } : m))}
-                          onBlur={(e) => updateMember(member, { displayName: e.target.value })}
-                          disabled={savingId === member.id}
-                        />
+                        <div className="flex items-center gap-3">
+                          <MemberAvatar member={member} size={40} fallbackName={member.displayName || member.firstName} fallbackEmail={member.email} />
+                          <div className="flex-1">
+                          <input
+                            className="border rounded px-2 py-1 text-sm w-full"
+                            value={member.displayName || ''}
+                            onChange={(e) => setMembers(prev => prev.map(m => m.id === member.id ? { ...m, displayName: e.target.value } : m))}
+                            onBlur={(e) => updateMember(member, { displayName: e.target.value })}
+                            disabled={savingId === member.id}
+                          />
+                          </div>
+                        </div>
                       </td>
                       <td className="px-4 py-2">{member.email}</td>
                       <td className="px-4 py-2 capitalize">
