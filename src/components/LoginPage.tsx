@@ -14,6 +14,7 @@ import {
   type User,
 } from 'firebase/auth';
 import { useSiteStore } from '@/store/SiteStore';
+import { getLocalizedSiteName } from '@/utils/siteName';
 import { useUserStore } from '@/store/UserStore';
 import { useLoginModalStore } from '@/store/LoginModalStore';
 import SignupForm from '@/components/SignupForm';
@@ -34,8 +35,9 @@ export default function LoginPage({ redirectPath = '/app', onAuthenticated }: Lo
   const [showSignup, setShowSignup] = useState(false);
   const router = useRouter();
   const { siteInfo } = useSiteStore();
-  const { setUser } = useUserStore();
   const { t, i18n } = useTranslation();
+  const localizedSiteName = getLocalizedSiteName(siteInfo, i18n.language);
+  const { setUser } = useUserStore();
   const { close: closeLogin } = useLoginModalStore();
   const { open: openPending } = usePendingMemberModalStore();
 
@@ -222,7 +224,7 @@ export default function LoginPage({ redirectPath = '/app', onAuthenticated }: Lo
           <span className="text-4xl">🌳</span>
         </div>
         <h1 className="text-2xl font-bold text-gray-900 text-center">
-          {t('welcomeToFamilyCircle', { name: siteInfo?.name || 'FamilyCircle' })}
+          {t('welcomeToFamilyCircle', { name: localizedSiteName || siteInfo?.name || 'FamilyCircle' })}
         </h1>
         <p className="text-gray-500 mt-2 text-center">{t('signInToContinue')}</p>
       </div>

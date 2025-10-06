@@ -102,6 +102,8 @@
   "readMoreInBlog": "Read more in {{name}}'s blog",
   "noPublicPostsYet": "No public posts yet.",
   "familyBlog": "Family Blog",
+  "familyBlogHeader": "{{site}} Family Blog",
+  "failedToLoadBlogPosts": "Failed to load blog posts",
   "openBlog": "Open Blog",
   "welcomeToSite": "Welcome to {{name}}",
   "poweredByFamilyCircle": "Powered by FamilyCircle",

@@ -102,6 +102,8 @@
   "readMoreInBlog": "קראו עוד בבלוג של {{name}}",
   "noPublicPostsYet": "אין פוסטים ציבוריים עדיין.",
   "familyBlog": "בלוג המשפחה",
+  "familyBlogHeader": "הבלוג המשפחתי של {{site}}",
+  "failedToLoadBlogPosts": "לא הצלחנו לטעון את הפוסטים בבלוג",
   "openBlog": "פתח בלוג",
   "welcomeToSite": "ברוכים הבאים ל{{name}}",
   "poweredByFamilyCircle": "מופעל ע\"י FamilyCircle",

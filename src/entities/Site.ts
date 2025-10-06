@@ -4,4 +4,5 @@ export interface ISite {
   ownerUid: string;
   createdAt: any;
   updatedAt: any;
-} 
+  translations?: Record<string, string>;
+}

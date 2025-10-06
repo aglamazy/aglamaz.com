@@ -93,6 +93,8 @@
   "readMoreInBlog": "Daha fazlasını {{name}}'nin blogunda okuyun",
   "noPublicPostsYet": "Henüz herkese açık gönderi yok.",
   "familyBlog": "Aile Blogu",
+  "familyBlogHeader": "{{site}} Aile Blogu",
+  "failedToLoadBlogPosts": "Blog gönderileri yüklenemedi",
   "openBlog": "Blogu Aç",
   "welcomeToSite": "{{name}}'a Hoş Geldiniz",
   "poweredByFamilyCircle": "FamilyCircle ile desteklenmektedir",

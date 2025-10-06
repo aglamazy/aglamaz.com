@@ -11,6 +11,7 @@ import { ISite } from "@/entities/Site";
 import { useLoginModalStore } from '@/store/LoginModalStore';
 import { useEditUserModalStore } from '@/store/EditUserModalStore';
 import md5 from 'blueimp-md5';
+import { getLocalizedSiteName } from '@/utils/siteName';
 
 const LANGS = [
   { code: 'he', label: 'עברית', flag: '🇮🇱' },
@@ -42,6 +43,7 @@ export default function Header({ user, member, onLogout, siteInfo }: HeaderProps
   const openLogin = useLoginModalStore((s) => s.open);
   const openEdit = useEditUserModalStore((s) => s.open);
   const avatarUrl = getGravatarUrl(member?.email);
+  const localizedName = getLocalizedSiteName(siteInfo, i18n.language);
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -78,7 +80,7 @@ export default function Header({ user, member, onLogout, siteInfo }: HeaderProps
     <header className="w-full flex items-center justify-between px-4 py-2 bg-white shadow-sm sticky top-0 z-50">
       {/* Left: Site title */}
       <div className="text-xl font-semibold text-sage-700">
-        {siteInfo.name}
+        {localizedName || siteInfo.name}
       </div>
       {/* Center: Navigation */}
       <div className="flex flex-row items-center">

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import DOMPurify from 'dompurify';
 import AddFab from '@/components/ui/AddFab';
@@ -11,11 +11,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { IBlogPost } from '@/entities/BlogPost';
 import { apiFetch } from '@/utils/apiFetch';
 import { useUserStore } from '@/store/UserStore';
+import { useSiteStore } from '@/store/SiteStore';
+import { getLocalizedSiteName } from '@/utils/siteName';
+import styles from './BlogPage.module.css';
 
 export default function BlogPage() {
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const { user } = useUserStore();
+  const siteInfo = useSiteStore((state) => state.siteInfo);
   const [posts, setPosts] = useState<IBlogPost[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -30,7 +34,7 @@ export default function BlogPage() {
         setPosts(data.posts || []);
       } catch (e) {
         console.error(e);
-        setError('Failed to load posts');
+        setError('failedToLoadBlogPosts');
       } finally {
         setLoading(false);
       }
@@ -38,30 +42,53 @@ export default function BlogPage() {
     fetchPosts();
   }, [user?.user_id, i18n.language]);
 
+  const localizedSiteName = getLocalizedSiteName(siteInfo, i18n.language);
+
+  const headerTitle = useMemo(() => {
+    const siteName = (localizedSiteName || siteInfo?.name || '').trim();
+    if (siteName) {
+      return t('familyBlogHeader', { site: siteName, defaultValue: '{{site}} Family Blog' }) as string;
+    }
+    return t('familyBlog') as string;
+  }, [localizedSiteName, siteInfo?.name, t]);
+
+  const loadError = error ? (t('failedToLoadBlogPosts', { defaultValue: 'Failed to load blog posts' }) as string) : '';
+
   return (
-    <div className="space-y-4">
+    <div className={styles.container}>
       <AddFab ariaLabel={t('add') as string} onClick={() => router.push('/blog/new')} />
-      {loading && <div className="text-gray-500">{t('loading') as string}</div>}
-      {error && <div className="text-red-600">{error}</div>}
-      {posts.map((post) => (
-        <Card key={post.id}>
-          <CardHeader>
-            <CardTitle>{post.title}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div
-              className="prose max-w-none"
-              dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(post.content || '') }}
-            />
-            <Link href={`/blog/${post.id}/edit`}>
-              <Button className="mt-2">{t('edit')}</Button>
-            </Link>
-          </CardContent>
-        </Card>
-      ))}
-      {posts.length === 0 && (
-        <div className="text-center text-gray-500">{t('noPostsYet')}</div>
-      )}
+      <header className={styles.header}>
+        <h1 className={styles.headerTitle}>{headerTitle}</h1>
+      </header>
+      {loading ? <div className={styles.status}>{t('loading') as string}</div> : null}
+      {error ? <div className={`${styles.status} ${styles.statusError}`}>{loadError}</div> : null}
+      <div className={styles.list}>
+        {posts.map((post, index) => {
+          const tintPalette = [styles.tintBlue, styles.tintGreen, styles.tintYellow, styles.tintPurple, styles.tintRose];
+          const tintClass = tintPalette[index % tintPalette.length];
+          return (
+            <Card key={post.id} className={styles.card}>
+            <CardHeader className={styles.cardHeader}>
+              <CardTitle className={styles.cardTitle}>{post.title}</CardTitle>
+            </CardHeader>
+            <CardContent className={styles.cardContent}>
+              <div
+                className={`${styles.cardTint} ${tintClass} prose max-w-none`}
+                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(post.content || '') }}
+              />
+              <div className={styles.cardActions}>
+                <Link href={`/blog/${post.id}/edit`}>
+                  <Button className={styles.editButton}>{t('edit')}</Button>
+                </Link>
+              </div>
+            </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+      {posts.length === 0 && !loading && !error ? (
+        <div className={styles.emptyState}>{t('noPostsYet')}</div>
+      ) : null}
     </div>
   );
 }

@@ -2,7 +2,8 @@ import { getFirestore } from 'firebase-admin/firestore';
 import { initAdmin } from '@/firebase/admin';
 
 export interface SiteConfigDoc {
-  hebHorizonYear: number;
+  hebHorizonYear?: number;
+  siteNameTranslations?: Record<string, string>;
 }
 
 export class ConfigRepository {
@@ -13,20 +14,38 @@ export class ConfigRepository {
     return getFirestore();
   }
 
+  private docRef(siteId: string) {
+    return this.getDb().collection(this.collection).doc(siteId);
+  }
+
+  async getSiteConfig(siteId: string): Promise<Partial<SiteConfigDoc>> {
+    const snap = await this.docRef(siteId).get();
+    if (!snap.exists) return {};
+    return snap.data() as Partial<SiteConfigDoc>;
+  }
+
+  async setSiteConfig(siteId: string, data: Partial<SiteConfigDoc>): Promise<void> {
+    await this.docRef(siteId).set(data, { merge: true });
+  }
+
   async getHorizonYear(siteId: string): Promise<number> {
-    const db = this.getDb();
-    const snap = await db.collection(this.collection).doc(siteId).get();
     const currentYear = new Date().getFullYear();
-    if (!snap.exists) {
-      await db.collection(this.collection).doc(siteId).set({ hebHorizonYear: currentYear }, { merge: true });
-      return currentYear;
-    }
-    const data = snap.data() as Partial<SiteConfigDoc> | undefined;
-    return typeof data?.hebHorizonYear === 'number' ? data!.hebHorizonYear : currentYear;
+    const data = await this.getSiteConfig(siteId);
+    if (typeof data.hebHorizonYear === 'number') return data.hebHorizonYear;
+    await this.setSiteConfig(siteId, { hebHorizonYear: currentYear });
+    return currentYear;
   }
 
   async setHorizonYear(siteId: string, year: number): Promise<void> {
-    const db = this.getDb();
-    await db.collection(this.collection).doc(siteId).set({ hebHorizonYear: year }, { merge: true });
+    await this.setSiteConfig(siteId, { hebHorizonYear: year });
+  }
+
+  async getSiteNameTranslations(siteId: string): Promise<Record<string, string>> {
+    const data = await this.getSiteConfig(siteId);
+    return { ...(data.siteNameTranslations || {}) };
+  }
+
+  async setSiteNameTranslations(siteId: string, translations: Record<string, string>): Promise<void> {
+    await this.setSiteConfig(siteId, { siteNameTranslations: translations });
   }
 }
