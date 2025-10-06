@@ -4,20 +4,24 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import I18nText from '@/components/I18nText';
 import ImageGrid from '@/components/media/ImageGrid';
-import mediaStyles from '@/components/media/MediaLayout.module.css';
+import layoutStyles from '@/components/media/MediaLayout.module.css';
+import feedStyles from '@/components/media/ImageGrid.module.css';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { ShimmerImage } from "@/components/mobile/ShimmerImagePreview";
+import md5 from 'blueimp-md5';
 
 type Occurrence = {
   id: string; // occurrence id
   eventId: string; // anniversary id
   date: any;
   images?: string[];
+  createdBy?: string;
 };
 
 type ImageLikeMeta = { index: number; count: number; likedByMe: boolean };
+type AuthorInfo = { name: string; email: string };
 
 export default function PicturesFeedPage() {
   const { t } = useTranslation();
@@ -27,6 +31,7 @@ export default function PicturesFeedPage() {
   const [eventNames, setEventNames] = useState<Record<string, { name: string }>>({});
   const [likes, setLikes] = useState<Record<string, ImageLikeMeta[]>>({}); // key: occId
   const isMobile = useIsMobile();
+  const [authors, setAuthors] = useState<Record<string, AuthorInfo>>({});
 
   useEffect(() => {
     let mounted = true;
@@ -41,6 +46,24 @@ export default function PicturesFeedPage() {
         const list: Occurrence[] = Array.isArray(data.items) ? data.items : [];
         setItems(list);
         setEventNames(data.events || {});
+        const rawAuthors = data.authors;
+        if (!rawAuthors || typeof rawAuthors !== 'object') {
+          throw new Error('[PicturesFeedPage] authors payload missing');
+        }
+        const normalizedAuthors: Record<string, AuthorInfo> = {};
+        for (const [id, info] of Object.entries(rawAuthors)) {
+          if (!info || typeof info !== 'object') {
+            throw new Error(`[PicturesFeedPage] invalid author payload for ${id}`);
+          }
+          const maybeAuthor = info as Partial<AuthorInfo> & { name?: string; email?: string };
+          const name = maybeAuthor.name?.trim();
+          const email = maybeAuthor.email?.trim();
+          if (!name || !email) {
+            throw new Error(`[PicturesFeedPage] incomplete author data for ${id}`);
+          }
+          normalizedAuthors[id] = { name, email };
+        }
+        setAuthors(normalizedAuthors);
         // fetch likes per occurrence
         await Promise.all(
           list.map(async (occ) => {
@@ -66,7 +89,15 @@ export default function PicturesFeedPage() {
   }, []);
 
   const feed = useMemo(() => {
-    const flat: Array<{ src: string; occId: string; annId: string; idx: number; key: string; title?: string }> = [];
+    const flat: Array<{
+      src: string;
+      occId: string;
+      annId: string;
+      idx: number;
+      key: string;
+      title?: string;
+      creatorId: string;
+    }> = [];
     for (const occ of items) {
       const arr = Array.isArray(occ.images) ? occ.images : [];
       arr.forEach((src, i) => {
@@ -80,7 +111,19 @@ export default function PicturesFeedPage() {
           const dateText = js instanceof Date && !isNaN(js.getTime()) ? js.toLocaleDateString() : '';
           if (name || dateText) title = [name, dateText].filter(Boolean).join(' — ');
         }
-        flat.push({ src, occId: occ.id, annId: occ.eventId, idx: i, key: `${occ.id}:${i}`, title });
+        const creatorId = occ.createdBy;
+        if (!creatorId) {
+          throw new Error(`[PicturesFeedPage] missing creatorId for occurrence ${occ.id}`);
+        }
+        flat.push({
+          src,
+          occId: occ.id,
+          annId: occ.eventId,
+          idx: i,
+          key: `${occ.id}:${i}`,
+          title,
+          creatorId,
+        });
       });
     }
     return flat;
@@ -116,16 +159,21 @@ export default function PicturesFeedPage() {
 
   if (isMobile) {
     return (
-      <div className={mediaStyles.mobileContinuousContainer}>
-        <div className={mediaStyles.mobileContinuousList}>
+      <div className={feedStyles.mobileContinuousContainer}>
+        <div className={feedStyles.mobileContinuousList}>
           {feed.map((item) => {
             const meta = getLikeMeta(item.occId, item.idx);
+            const author = authors[item.creatorId];
+            if (!author) {
+              throw new Error(`[PicturesFeedPage] missing author data for creator ${item.creatorId}`);
+            }
             return (
               <MobileFeedItem
                 key={item.key}
                 item={item}
                 title={item.title}
                 meta={meta}
+                author={author}
                 onToggle={() => toggleLike(item.annId, item.occId, item.idx)}
                 t={t}
               />
@@ -137,7 +185,7 @@ export default function PicturesFeedPage() {
   }
 
   return (
-    <Card className={mediaStyles.container}>
+    <Card className={layoutStyles.container}>
       <CardHeader>
         <CardTitle>Pictures Feed</CardTitle>
       </CardHeader>
@@ -165,33 +213,50 @@ interface MobileFeedItemProps {
     key: string;
     src: string;
     title?: string;
+    creatorId: string;
   } & { occId: string; annId: string; idx: number };
   title?: string;
   meta: ImageLikeMeta;
+  author: AuthorInfo;
   onToggle: () => Promise<void> | void;
   t: TFunction;
 }
 
-function MobileFeedItem({ item, title, meta, onToggle, t }: MobileFeedItemProps) {
+function MobileFeedItem({ item, title, meta, author, onToggle, t }: MobileFeedItemProps) {
   const [loaded, setLoaded] = useState(false);
-  const wrapperClass = mediaStyles.mobileContinuousImageWrap;
+  const wrapperClass = feedStyles.mobileContinuousImageWrap;
   const likeClass =
-    mediaStyles.mobileContinuousLike +
-    (meta.likedByMe ? ' ' + mediaStyles.mobileContinuousLikeActive : '');
+    feedStyles.mobileContinuousLike +
+    (meta.likedByMe ? ' ' + feedStyles.mobileContinuousLikeActive : '');
+
+  const avatarUrl = useMemo(() => {
+    const email = author.email.trim().toLowerCase();
+    return `https://www.gravatar.com/avatar/${md5(email)}?s=64&d=identicon`;
+  }, [author.email]);
 
   return (
-    <article className={mediaStyles.mobileContinuousItem}>
-      {title ? <div className={mediaStyles.mobileContinuousTitle}>{title}</div> : null}
+    <article className={feedStyles.mobileContinuousItem}>
+      <div className={feedStyles.mobileMetaRow}>
+        <div className={feedStyles.mobileAuthorAvatar}>
+          <img src={avatarUrl} alt="" className={feedStyles.mobileAuthorAvatarImage} />
+        </div>
+        <div className={feedStyles.mobileAuthorInfo}>
+          <span className={feedStyles.mobileAuthorName}>
+            {author.name}
+          </span>
+          {title ? <span className={feedStyles.mobileContinuousTitle}>{title}</span> : null}
+        </div>
+      </div>
       <ShimmerImage
         src={item.src}
         alt={title || ''}
         useDefaultStyles={false}
         wrapperClassName={wrapperClass}
-        imageClassName={mediaStyles.mobileContinuousImage}
-        loadingClassName={mediaStyles.mobileContinuousImageWrapLoading}
-        hiddenClassName={mediaStyles.mobileContinuousImageHidden}
-        visibleClassName={mediaStyles.mobileContinuousImageVisible}
-        shimmerClassName={mediaStyles.mobileShimmer}
+        imageClassName={feedStyles.mobileContinuousImage}
+        loadingClassName={feedStyles.mobileContinuousImageWrapLoading}
+        hiddenClassName={feedStyles.mobileContinuousImageHidden}
+        visibleClassName={feedStyles.mobileContinuousImageVisible}
+        shimmerClassName={feedStyles.mobileShimmer}
         onLoadStateChange={setLoaded}
       />
       {loaded ? (
@@ -207,7 +272,7 @@ function MobileFeedItem({ item, title, meta, onToggle, t }: MobileFeedItemProps)
           <span>{meta.count}</span>
         </button>
       ) : (
-        <div className={mediaStyles.mobileContinuousLikePlaceholder} aria-hidden="true" />
+        <div className={feedStyles.mobileContinuousLikePlaceholder} aria-hidden="true" />
       )}
     </article>
   );

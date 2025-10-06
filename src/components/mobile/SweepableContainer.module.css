@@ -16,30 +16,33 @@
 .slideWrapper {
   width: 100%;
   min-height: 100vh;
+  height: 100%;
   position: absolute;
   inset: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .swipeSlide {
   min-height: 100vh;
+  height: 100%;
   width: 100%;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   display: flex;
   flex-direction: column;
+  flex: 1;
 }
 
 .slideContent {
   flex: 1;
   min-height: 100vh;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: white;
-  text-align: center;
-  padding: 2rem;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .swipeIndicators {

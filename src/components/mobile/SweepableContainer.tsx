@@ -14,6 +14,8 @@ export default function SweepableContainer({ children, indicatorLabel }: Sweepab
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const touchStartX = useRef<number | null>(null);
   const touchEndX = useRef<number | null>(null);
+  const touchStartY = useRef<number | null>(null);
+  const touchEndY = useRef<number | null>(null);
   const hasInteractedRef = useRef(false);
 
   const slides = useMemo(
@@ -63,26 +65,42 @@ export default function SweepableContainer({ children, indicatorLabel }: Sweepab
   };
 
   const handleTouchStart: React.TouchEventHandler<HTMLDivElement> = (event) => {
-    touchStartX.current = event.touches[0]?.clientX ?? null;
+    const touch = event.touches[0];
+    touchStartX.current = touch?.clientX ?? null;
+    touchStartY.current = touch?.clientY ?? null;
     touchEndX.current = null;
+    touchEndY.current = null;
   };
 
   const handleTouchMove: React.TouchEventHandler<HTMLDivElement> = (event) => {
-    touchEndX.current = event.touches[0]?.clientX ?? null;
+    const touch = event.touches[0];
+    touchEndX.current = touch?.clientX ?? null;
+    touchEndY.current = touch?.clientY ?? null;
   };
 
   const handleTouchEnd: React.TouchEventHandler<HTMLDivElement> = () => {
     if (touchStartX.current === null || touchEndX.current === null) return;
-    const delta = touchEndX.current - touchStartX.current;
+    const deltaX = touchEndX.current - touchStartX.current;
+    const deltaY = (touchEndY.current ?? touchStartY.current ?? 0) - (touchStartY.current ?? 0);
     const threshold = 40;
 
-    if (Math.abs(delta) < threshold) {
+    if (Math.abs(deltaY) > Math.abs(deltaX)) {
       touchStartX.current = null;
       touchEndX.current = null;
+      touchStartY.current = null;
+      touchEndY.current = null;
       return;
     }
 
-    if (delta < 0) {
+    if (Math.abs(deltaX) < threshold) {
+      touchStartX.current = null;
+      touchEndX.current = null;
+      touchStartY.current = null;
+      touchEndY.current = null;
+      return;
+    }
+
+    if (deltaX < 0) {
       goToIndex(activeIndex + 1);
     } else {
       goToIndex(activeIndex - 1);
@@ -90,26 +108,33 @@ export default function SweepableContainer({ children, indicatorLabel }: Sweepab
 
     touchStartX.current = null;
     touchEndX.current = null;
+    touchStartY.current = null;
+    touchEndY.current = null;
   };
 
   const handleMouseDown: React.MouseEventHandler<HTMLDivElement> = (event) => {
     touchStartX.current = event.clientX;
+    touchStartY.current = event.clientY;
     touchEndX.current = null;
+    touchEndY.current = null;
     window.addEventListener('mouseup', handleMouseUp);
     window.addEventListener('mousemove', handleMouseMove);
   };
 
   const handleMouseMove = (event: MouseEvent) => {
     touchEndX.current = event.clientX;
+    touchEndY.current = event.clientY;
   };
 
   const handleMouseUp = (event: MouseEvent) => {
     touchEndX.current = event.clientX;
-    const delta = touchEndX.current - (touchStartX.current ?? touchEndX.current);
+    touchEndY.current = event.clientY;
+    const deltaX = touchEndX.current - (touchStartX.current ?? touchEndX.current);
+    const deltaY = touchEndY.current - (touchStartY.current ?? touchEndY.current);
     const threshold = 40;
 
-    if (Math.abs(delta) >= threshold) {
-      if (delta < 0) {
+    if (Math.abs(deltaY) <= Math.abs(deltaX) && Math.abs(deltaX) >= threshold) {
+      if (deltaX < 0) {
         goToIndex(activeIndex + 1);
       } else {
         goToIndex(activeIndex - 1);
@@ -118,6 +143,8 @@ export default function SweepableContainer({ children, indicatorLabel }: Sweepab
 
     touchStartX.current = null;
     touchEndX.current = null;
+    touchStartY.current = null;
+    touchEndY.current = null;
     window.removeEventListener('mouseup', handleMouseUp);
     window.removeEventListener('mousemove', handleMouseMove);
   };
