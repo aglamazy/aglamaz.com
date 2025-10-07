@@ -256,5 +256,17 @@
   "credentialSetupGoogleHint": "נעביר אותך לגוגל להשלמת האישור.",
   "credentialSetupGoogleFailed": "לא הצלחנו לקשר את Google. נסו שוב.",
   "credentialSetupGoogleAlreadyUsed": "חשבון Google זה משויך כבר למשתמש אחר.",
-  "credentialSetupFirebaseUserMissing": "לא הצלחנו לזהות את ההתחברות. רעננו את הדף ונסו שוב."
+  "credentialSetupFirebaseUserMissing": "לא הצלחנו לזהות את ההתחברות. רעננו את הדף ונסו שוב.",
+  "languageNames": {
+    "he": "עברית",
+    "en": "אנגלית",
+    "tr": "טורקית"
+  },
+  "footer": {
+    "language": "שפה",
+    "navigation": "ניווט תחתון",
+    "blog": "בלוג",
+    "photo": "תמונות",
+    "calendar": "לוח שנה"
+  }
 }
