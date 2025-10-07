@@ -18,6 +18,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="en">
       <body>
+        <div id="modal-root" />
         {/* Inject siteInfo for client-side access */}
         <script
           id="__SITE_INFO__"
