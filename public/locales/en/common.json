@@ -256,5 +256,17 @@
   "credentialSetupGoogleHint": "We'll redirect you to Google for a quick confirmation.",
   "credentialSetupGoogleFailed": "We couldn't link Google. Please try again.",
   "credentialSetupGoogleAlreadyUsed": "This Google account is already linked to another member.",
-  "credentialSetupFirebaseUserMissing": "We couldn't find your session. Please reload and try again."
+  "credentialSetupFirebaseUserMissing": "We couldn't find your session. Please reload and try again.",
+  "languageNames": {
+    "he": "Hebrew",
+    "en": "English",
+    "tr": "Turkish"
+  },
+  "footer": {
+    "language": "Language",
+    "navigation": "Footer navigation",
+    "blog": "Blog",
+    "photo": "Photos",
+    "calendar": "Calendar"
+  }
 }
