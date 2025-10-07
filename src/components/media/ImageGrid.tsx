@@ -10,6 +10,7 @@ export interface GridItem {
   src: string;
   title?: string;
   meta?: Record<string, unknown>;
+  dir?: 'ltr' | 'rtl' | 'auto';
 }
 
 export interface LikeMeta { count: number; likedByMe: boolean; }
@@ -251,6 +252,7 @@ export default function ImageGrid({ items, getMeta, onToggle, onTitleClick }: Im
                 const meta = getMeta(item);
                 const metaInfo = item.meta as { canEdit?: boolean } | undefined;
                 const clickable = Boolean(onTitleClick && metaInfo?.canEdit);
+                const titleDir = (item as GridItem).dir as ('ltr' | 'rtl' | 'auto') | undefined;
                 return (
                   <div
                     key={item.key}
@@ -264,11 +266,12 @@ export default function ImageGrid({ items, getMeta, onToggle, onTitleClick }: Im
                           className={styles.presentationTitle + ' ' + styles.presentationTitleButton}
                           title={item.title}
                           onClick={() => { onTitleClick?.(item); }}
+                          dir={titleDir}
                         >
                           {item.title}
                         </button>
                       ) : (
-                        <div className={styles.presentationTitle} title={item.title}>{item.title}</div>
+                        <div className={styles.presentationTitle} title={item.title} dir={titleDir}>{item.title}</div>
                       )
                     )}
                     <div className={styles.presentationImageWrap}>
@@ -308,6 +311,7 @@ export default function ImageGrid({ items, getMeta, onToggle, onTitleClick }: Im
               {currentItem.title && (() => {
                 const metaInfo = currentItem.meta as { canEdit?: boolean } | undefined;
                 const clickable = Boolean(onTitleClick && metaInfo?.canEdit);
+                const titleDir = (currentItem as GridItem).dir as ('ltr' | 'rtl' | 'auto') | undefined;
                 if (clickable) {
                   return (
                     <button
@@ -315,13 +319,14 @@ export default function ImageGrid({ items, getMeta, onToggle, onTitleClick }: Im
                       className={styles.mobileTitle + ' ' + styles.mobileTitleButton}
                       title={currentItem.title}
                       onClick={(e) => { e.stopPropagation(); onTitleClick?.(currentItem); }}
+                      dir={titleDir}
                     >
                       {currentItem.title}
                     </button>
                   );
                 }
                 return (
-                  <div className={styles.mobileTitle} title={currentItem.title}>{currentItem.title}</div>
+                  <div className={styles.mobileTitle} title={currentItem.title} dir={titleDir}>{currentItem.title}</div>
                 );
               })()}
               {currentMeta && (
@@ -360,6 +365,7 @@ export default function ImageGrid({ items, getMeta, onToggle, onTitleClick }: Im
           const meta = getMeta(it);
           const metaInfo = it.meta as { canEdit?: boolean } | undefined;
           const clickable = Boolean(onTitleClick && metaInfo?.canEdit);
+          const titleDir = (it as GridItem).dir as ('ltr' | 'rtl' | 'auto') | undefined;
           return (
             <div key={it.key} className={styles.thumbWrap}>
               <img
@@ -375,11 +381,12 @@ export default function ImageGrid({ items, getMeta, onToggle, onTitleClick }: Im
                     className={styles.titleBadge + ' ' + styles.titleBadgeButton}
                     title={it.title}
                     onClick={(e) => { e.stopPropagation(); onTitleClick?.(it); }}
+                    dir={titleDir}
                   >
                     {it.title}
                   </button>
                 ) : (
-                  <div className={styles.titleBadge} title={it.title}>{it.title}</div>
+                  <div className={styles.titleBadge} title={it.title} dir={titleDir}>{it.title}</div>
                 )
               )}
               <button

@@ -22,6 +22,7 @@ type Occurrence = {
   date: any;
   images?: string[];
   createdBy?: string;
+  description?: string;
 };
 
 type ImageLikeMeta = { index: number; count: number; likedByMe: boolean };
@@ -139,24 +140,25 @@ export default function PicturesFeedPage() {
       annId: string;
       idx: number;
       key: string;
-      title?: string;
       creatorId: string;
       dir: 'ltr' | 'rtl';
       canEdit: boolean;
+      eventName: string;
+      occDescription: string;
+      dateText: string;
+      showHeader: boolean;
     }> = [];
     for (const occ of items) {
       const arr = Array.isArray(occ.images) ? occ.images : [];
+      const occDescriptionRaw = typeof occ.description === 'string' ? occ.description : '';
+      const occDescription = occDescriptionRaw.trim();
+      const eventNameRaw = eventNames[occ.eventId]?.name;
+      const eventName = typeof eventNameRaw === 'string' ? eventNameRaw.trim() : '';
+      const d = occ.date as any;
+      const sec = d?._seconds ?? d?.seconds;
+      const js = typeof sec === 'number' ? new Date(sec * 1000) : (d?.toDate ? d.toDate() : new Date(d));
+      const dateText = js instanceof Date && !isNaN(js.getTime()) ? js.toLocaleDateString() : '';
       arr.forEach((src, i) => {
-        // Compute title only on first image per occurrence
-        let title: string | undefined = undefined;
-        if (i === 0) {
-          const name = eventNames[occ.eventId]?.name || '';
-          const d = occ.date as any;
-          const sec = d?._seconds ?? d?.seconds;
-          const js = typeof sec === 'number' ? new Date(sec * 1000) : (d?.toDate ? d.toDate() : new Date(d));
-          const dateText = js instanceof Date && !isNaN(js.getTime()) ? js.toLocaleDateString() : '';
-          if (name || dateText) title = [name, dateText].filter(Boolean).join(' — ');
-        }
         const creatorId = occ.createdBy;
         if (!creatorId) {
           throw new Error(`[PicturesFeedPage] missing creatorId for occurrence ${occ.id}`);
@@ -168,10 +170,13 @@ export default function PicturesFeedPage() {
           annId: occ.eventId,
           idx: i,
           key: `${occ.id}:${i}`,
-          title,
           creatorId,
           dir: textDirection,
           canEdit,
+          eventName,
+          occDescription,
+          dateText,
+          showHeader: i === 0,
         });
       });
     }
@@ -245,16 +250,18 @@ export default function PicturesFeedPage() {
             if (!author) {
               throw new Error(`[PicturesFeedPage] missing author data for creator ${item.creatorId}`);
             }
+            const baseLabel = item.occDescription || item.eventName;
+            const headerText = item.showHeader ? [baseLabel, item.dateText].filter(Boolean).join(' — ') : undefined;
             return (
               <MobileFeedItem
                 key={item.key}
                 item={item}
-                title={item.title}
+                title={headerText}
                 meta={meta}
                 author={author}
                 onToggle={() => toggleLike(item.annId, item.occId, item.idx)}
                 t={t}
-                onTitleClick={item.title && item.canEdit ? () => openOccurrenceModal(item.annId, item.occId, item.creatorId) : undefined}
+                onTitleClick={headerText && item.canEdit ? () => openOccurrenceModal(item.annId, item.occId, item.creatorId) : undefined}
                 canEdit={item.canEdit}
                 titleDir={item.dir}
               />
@@ -275,13 +282,17 @@ export default function PicturesFeedPage() {
         </CardHeader>
       <CardContent>
         <ImageGrid
-          items={feed.map((f) => ({
-            key: f.key,
-            src: f.src,
-            title: f.title,
-            dir: f.dir,
-            meta: { annId: f.annId, occId: f.occId, creatorId: f.creatorId, canEdit: f.canEdit },
-          }))}
+          items={feed.map((f) => {
+            const baseLabel = f.occDescription || f.eventName;
+            const title = f.showHeader ? [baseLabel, f.dateText].filter(Boolean).join(' — ') : undefined;
+            return {
+              key: f.key,
+              src: f.src,
+              title,
+              dir: f.dir,
+              meta: { annId: f.annId, occId: f.occId, creatorId: f.creatorId, canEdit: f.canEdit },
+            };
+          })}
           getMeta={(item) => {
             const f = feed.find((x) => x.key === item.key)!;
             return getLikeMeta(f.occId, f.idx);
@@ -310,8 +321,11 @@ interface MobileFeedItemProps {
   item: {
     key: string;
     src: string;
-    title?: string;
     creatorId: string;
+    occDescription: string;
+    eventName: string;
+    dateText: string;
+    showHeader: boolean;
   } & { occId: string; annId: string; idx: number };
   title?: string;
   meta: ImageLikeMeta;
