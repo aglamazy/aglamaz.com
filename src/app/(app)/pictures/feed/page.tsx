@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import I18nText from '@/components/I18nText';
 import ImageGrid from '@/components/media/ImageGrid';
@@ -11,6 +11,10 @@ import type { TFunction } from 'i18next';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { ShimmerImage } from "@/components/mobile/ShimmerImagePreview";
 import md5 from 'blueimp-md5';
+import OccurrenceEditModal, { OccurrenceForEdit } from '@/components/anniversaries/OccurrenceEditModal';
+import { apiFetch } from '@/utils/apiFetch';
+import { useUserStore } from '@/store/UserStore';
+import { useMemberStore } from '@/store/MemberStore';
 
 type Occurrence = {
   id: string; // occurrence id
@@ -24,7 +28,9 @@ type ImageLikeMeta = { index: number; count: number; likedByMe: boolean };
 type AuthorInfo = { displayName: string; email: string };
 
 export default function PicturesFeedPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const user = useUserStore((state) => state.user);
+  const memberRole = useMemberStore((state) => state.member?.role);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [items, setItems] = useState<Occurrence[]>([]);
@@ -32,60 +38,99 @@ export default function PicturesFeedPage() {
   const [likes, setLikes] = useState<Record<string, ImageLikeMeta[]>>({}); // key: occId
   const isMobile = useIsMobile();
   const [authors, setAuthors] = useState<Record<string, AuthorInfo>>({});
+  const [editTarget, setEditTarget] = useState<{ annId: string; occId: string } | null>(null);
+  const mountedRef = useRef(true);
+  const currentUserId = user?.user_id ?? '';
+  const isAdmin = memberRole === 'admin';
+  const textDirection: 'ltr' | 'rtl' = i18n.dir() === 'rtl' ? 'rtl' : 'ltr';
+
+  const canEditOccurrence = useCallback(
+    (creatorId?: string) => {
+      if (!creatorId) return false;
+      if (isAdmin) return true;
+      if (!currentUserId) return false;
+      return creatorId === currentUserId;
+    },
+    [isAdmin, currentUserId]
+  );
 
   useEffect(() => {
-    let mounted = true;
-    (async () => {
-      setLoading(true);
-      setError('');
-      try {
-        const res = await fetch('/api/pictures', { cache: 'no-store' });
-        if (!res.ok) throw new Error('fetch');
-        const data = await res.json();
-        if (!mounted) return;
-        const list: Occurrence[] = Array.isArray(data.items) ? data.items : [];
-        setItems(list);
-        setEventNames(data.events || {});
-        const rawAuthors = data.authors as Record<string, { displayName: string; email: string }> | undefined;
-        if (!rawAuthors || typeof rawAuthors !== 'object') {
-          throw new Error('[PicturesFeedPage] authors payload missing');
-        }
-        const normalizedAuthors: Record<string, AuthorInfo> = {};
-        for (const [id, info] of Object.entries(rawAuthors)) {
-          if (!info || typeof info !== 'object') {
-            throw new Error(`[PicturesFeedPage] invalid author payload for ${id}`);
-          }
-          const displayName = (info as any).displayName?.trim();
-          const email = (info as any).email?.trim();
-          if (!displayName || !email) {
-            throw new Error(`[PicturesFeedPage] incomplete author data for ${id}`);
-          }
-          normalizedAuthors[id] = { displayName, email };
-        }
-        setAuthors(normalizedAuthors);
-        // fetch likes per occurrence
-        await Promise.all(
-          list.map(async (occ) => {
-            try {
-              const r = await fetch(`/api/anniversaries/${occ.eventId}/events/${occ.id}/image-likes`, { cache: 'no-store' });
-              if (!r.ok) return;
-              const d = await r.json();
-              if (!mounted) return;
-              setLikes((cur) => ({ ...cur, [occ.id]: d.items || [] }));
-            } catch {}
-          })
-        );
-      } catch (e) {
-        console.error('[feed] load error', e);
-        if (mounted) setError('load');
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    })();
+    mountedRef.current = true;
     return () => {
-      mounted = false;
+      mountedRef.current = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!editTarget) return;
+    const occ = items.find((item) => item.id === editTarget.occId);
+    if (!occ || !canEditOccurrence(occ.createdBy)) {
+      setEditTarget(null);
+    }
+  }, [editTarget, items, canEditOccurrence]);
+
+  const loadFeed = useCallback(async (): Promise<boolean> => {
+    if (!mountedRef.current) return false;
+    setLoading(true);
+    setError('');
+    try {
+      const data = await apiFetch<{
+        items: Occurrence[];
+        events?: Record<string, { name: string }>;
+        authors?: Record<string, { displayName: string; email: string }>;
+      }>('/api/pictures', { cache: 'no-store' });
+      if (!mountedRef.current) return false;
+      const list: Occurrence[] = Array.isArray(data.items) ? data.items : [];
+      setItems(list);
+      setEventNames(data.events || {});
+      const rawAuthors = data.authors;
+      if (!rawAuthors || typeof rawAuthors !== 'object') {
+        throw new Error('[PicturesFeedPage] authors payload missing');
+      }
+      const normalizedAuthors: Record<string, AuthorInfo> = {};
+      for (const [id, info] of Object.entries(rawAuthors)) {
+        if (!info || typeof info !== 'object') {
+          throw new Error(`[PicturesFeedPage] invalid author payload for ${id}`);
+        }
+        const displayName = (info as any).displayName?.trim();
+        const email = (info as any).email?.trim();
+        if (!displayName || !email) {
+          throw new Error(`[PicturesFeedPage] incomplete author data for ${id}`);
+        }
+        normalizedAuthors[id] = { displayName, email };
+      }
+      if (!mountedRef.current) return true;
+      setAuthors(normalizedAuthors);
+
+      const likesMap: Record<string, ImageLikeMeta[]> = {};
+      await Promise.all(
+        list.map(async (occ) => {
+          try {
+            const likeResponse = await apiFetch<{ items: ImageLikeMeta[] }>(
+              `/api/anniversaries/${occ.eventId}/events/${occ.id}/image-likes`,
+              { cache: 'no-store' }
+            );
+            likesMap[occ.id] = Array.isArray(likeResponse.items) ? likeResponse.items : [];
+          } catch (err) {
+            console.error('[feed] like fetch failed', err);
+          }
+        })
+      );
+      if (!mountedRef.current) return true;
+      setLikes(likesMap);
+      return true;
+    } catch (e) {
+      console.error('[feed] load error', e);
+      if (mountedRef.current) setError('load');
+      return false;
+    } finally {
+      if (mountedRef.current) setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadFeed();
+  }, [loadFeed]);
 
   const feed = useMemo(() => {
     const flat: Array<{
@@ -96,6 +141,8 @@ export default function PicturesFeedPage() {
       key: string;
       title?: string;
       creatorId: string;
+      dir: 'ltr' | 'rtl';
+      canEdit: boolean;
     }> = [];
     for (const occ of items) {
       const arr = Array.isArray(occ.images) ? occ.images : [];
@@ -114,6 +161,7 @@ export default function PicturesFeedPage() {
         if (!creatorId) {
           throw new Error(`[PicturesFeedPage] missing creatorId for occurrence ${occ.id}`);
         }
+        const canEdit = canEditOccurrence(creatorId);
         flat.push({
           src,
           occId: occ.id,
@@ -122,29 +170,59 @@ export default function PicturesFeedPage() {
           key: `${occ.id}:${i}`,
           title,
           creatorId,
+          dir: textDirection,
+          canEdit,
         });
       });
     }
     return flat;
-  }, [items]);
+  }, [items, eventNames, textDirection, canEditOccurrence]);
 
   function getLikeMeta(occId: string, idx: number): ImageLikeMeta {
     const arr = likes[occId] || [];
     return arr.find((l) => l.index === idx) || { index: idx, count: 0, likedByMe: false };
   }
 
+  const openOccurrenceModal = (annId: string, occId: string, creatorId?: string) => {
+    if (!canEditOccurrence(creatorId)) return;
+    setEditTarget({ annId, occId });
+  };
+
+  const handleOccurrenceUpdated = (updated: OccurrenceForEdit) => {
+    setItems((prev) => prev.map((occ) => (occ.id === updated.id ? { ...occ, ...updated } : occ)));
+  };
+
+  const currentOccurrence = useMemo(() => {
+    if (!editTarget) return null;
+    return items.find((occ) => occ.id === editTarget.occId) ?? null;
+  }, [editTarget, items]);
+
+  const canEditCurrent = editTarget && currentOccurrence ? canEditOccurrence(currentOccurrence.createdBy) : false;
+
+  const occurrenceModal = editTarget && currentOccurrence && canEditCurrent ? (
+    <OccurrenceEditModal
+      anniversaryId={editTarget.annId}
+      occurrenceId={editTarget.occId}
+      isOpen={true}
+      onClose={() => setEditTarget(null)}
+      onUpdated={handleOccurrenceUpdated}
+      initialOccurrence={currentOccurrence as OccurrenceForEdit | null}
+    />
+  ) : null;
+
   async function toggleLike(annId: string, occId: string, idx: number) {
     const meta = getLikeMeta(occId, idx);
     const next = { ...meta, likedByMe: !meta.likedByMe, count: meta.count + (meta.likedByMe ? -1 : 1) };
     setLikes((cur) => ({ ...cur, [occId]: [...(cur[occId] || []).filter((l) => l.index !== idx), next].sort((a, b) => a.index - b.index) }));
     try {
-      const res = await fetch(`/api/anniversaries/${annId}/events/${occId}/image-likes`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageIndex: idx, like: !meta.likedByMe }),
-      });
-      if (!res.ok) throw new Error('like');
-      const data = await res.json();
+      const data = await apiFetch<{ index: number; count: number; likedByMe: boolean }>(
+        `/api/anniversaries/${annId}/events/${occId}/image-likes`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ imageIndex: idx, like: !meta.likedByMe }),
+        }
+      );
       setLikes((cur) => ({ ...cur, [occId]: [...(cur[occId] || []).filter((l) => l.index !== idx), data].sort((a, b) => a.index - b.index) }));
     } catch (e) {
       console.error('[feed] like toggle failed', e);
@@ -158,8 +236,9 @@ export default function PicturesFeedPage() {
 
   if (isMobile) {
     return (
-      <div className={feedStyles.mobileContinuousContainer}>
-        <div className={feedStyles.mobileContinuousList}>
+      <>
+        <div className={feedStyles.mobileContinuousContainer}>
+          <div className={feedStyles.mobileContinuousList}>
           {feed.map((item) => {
             const meta = getLikeMeta(item.occId, item.idx);
             const author = authors[item.creatorId];
@@ -175,22 +254,34 @@ export default function PicturesFeedPage() {
                 author={author}
                 onToggle={() => toggleLike(item.annId, item.occId, item.idx)}
                 t={t}
+                onTitleClick={item.title && item.canEdit ? () => openOccurrenceModal(item.annId, item.occId, item.creatorId) : undefined}
+                canEdit={item.canEdit}
+                titleDir={item.dir}
               />
             );
           })}
+          </div>
         </div>
-      </div>
+        {occurrenceModal}
+      </>
     );
   }
 
   return (
-    <Card className={layoutStyles.container}>
-      <CardHeader>
-        <CardTitle>Pictures Feed</CardTitle>
-      </CardHeader>
+    <>
+      <Card className={layoutStyles.container}>
+        <CardHeader>
+          <CardTitle>Pictures Feed</CardTitle>
+        </CardHeader>
       <CardContent>
         <ImageGrid
-          items={feed.map((f) => ({ key: f.key, src: f.src, title: f.title }))}
+          items={feed.map((f) => ({
+            key: f.key,
+            src: f.src,
+            title: f.title,
+            dir: f.dir,
+            meta: { annId: f.annId, occId: f.occId, creatorId: f.creatorId, canEdit: f.canEdit },
+          }))}
           getMeta={(item) => {
             const f = feed.find((x) => x.key === item.key)!;
             return getLikeMeta(f.occId, f.idx);
@@ -199,11 +290,19 @@ export default function PicturesFeedPage() {
             const f = feed.find((x) => x.key === item.key)!;
             return toggleLike(f.annId, f.occId, f.idx);
           }}
+          onTitleClick={(item) => {
+            const meta = (item.meta || {}) as { annId?: string; occId?: string; creatorId?: string; canEdit?: boolean };
+            if (!meta.canEdit) return;
+            if (!meta.annId || !meta.occId) return;
+            openOccurrenceModal(meta.annId, meta.occId, meta.creatorId);
+          }}
         />
       </CardContent>
 
-      {/* Lightbox handled inside ImageGrid */}
-    </Card>
+        {/* Lightbox handled inside ImageGrid */}
+      </Card>
+      {occurrenceModal}
+    </>
   );
 }
 
@@ -219,9 +318,12 @@ interface MobileFeedItemProps {
   author: AuthorInfo;
   onToggle: () => Promise<void> | void;
   t: TFunction;
+  onTitleClick?: () => void;
+  canEdit: boolean;
+  titleDir: 'ltr' | 'rtl';
 }
 
-function MobileFeedItem({ item, title, meta, author, onToggle, t }: MobileFeedItemProps) {
+function MobileFeedItem({ item, title, meta, author, onToggle, t, onTitleClick, canEdit, titleDir }: MobileFeedItemProps) {
   const [loaded, setLoaded] = useState(false);
   const wrapperClass = feedStyles.mobileContinuousImageWrap;
   const likeClass =
@@ -235,7 +337,20 @@ function MobileFeedItem({ item, title, meta, author, onToggle, t }: MobileFeedIt
 
   return (
     <article className={feedStyles.mobileContinuousItem}>
-      {title ? <div className={feedStyles.mobileEventHeader}>{title}</div> : null}
+      {title ? (
+        canEdit && onTitleClick ? (
+          <button
+            type="button"
+            className={feedStyles.mobileEventHeader + ' ' + feedStyles.mobileEventHeaderButton}
+            onClick={onTitleClick}
+            dir={titleDir}
+          >
+            {title}
+          </button>
+        ) : (
+          <div className={feedStyles.mobileEventHeader} dir={titleDir}>{title}</div>
+        )
+      ) : null}
       <div className={feedStyles.mobileMetaRow}>
         <div className={feedStyles.mobileAuthorAvatar}>
           <img src={avatarUrl} alt="" className={feedStyles.mobileAuthorAvatarImage} />

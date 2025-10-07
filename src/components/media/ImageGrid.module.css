@@ -79,6 +79,17 @@
   text-align: center;
 }
 
+.titleBadgeButton {
+  border: none;
+  background: rgba(255,255,255,0.9);
+  cursor: pointer;
+}
+
+.titleBadgeButton:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
 .mobileViewer {
   position: relative;
   display: flex;
@@ -129,6 +140,17 @@
   max-width: 90%;
   text-align: center;
   backdrop-filter: blur(2px);
+}
+
+.mobileTitleButton {
+  border: none;
+  background: rgba(17,24,39,0.6);
+  cursor: pointer;
+}
+
+.mobileTitleButton:focus-visible {
+  outline: 2px solid #f9fafb;
+  outline-offset: 2px;
 }
 
 .mobileLikeBadge {
@@ -258,6 +280,19 @@
   padding: 0 0.25rem;
 }
 
+.presentationTitleButton {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  padding: 0 0.25rem;
+}
+
+.presentationTitleButton:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
 .presentationImageWrap {
   position: relative;
   border-radius: 1rem;
@@ -374,6 +409,20 @@
   font-size: 1rem;
   color: #1f2937;
   background: rgba(17, 24, 39, 0.03);
+}
+
+.mobileEventHeaderButton {
+  border: none;
+  background: transparent;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  padding: 0;
+}
+
+.mobileEventHeaderButton:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
 }
 
 .mobileContinuousTitle {

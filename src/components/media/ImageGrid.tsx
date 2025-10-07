@@ -9,6 +9,7 @@ export interface GridItem {
   key: string;
   src: string;
   title?: string;
+  meta?: Record<string, unknown>;
 }
 
 export interface LikeMeta { count: number; likedByMe: boolean; }
@@ -17,9 +18,10 @@ interface ImageGridProps {
   items: GridItem[];
   getMeta: (item: GridItem) => LikeMeta;
   onToggle: (item: GridItem) => Promise<void> | void;
+  onTitleClick?: (item: GridItem) => void;
 }
 
-export default function ImageGrid({ items, getMeta, onToggle }: ImageGridProps) {
+export default function ImageGrid({ items, getMeta, onToggle, onTitleClick }: ImageGridProps) {
   const { t } = useTranslation();
   const [isMobile, setIsMobile] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -247,6 +249,8 @@ export default function ImageGrid({ items, getMeta, onToggle }: ImageGridProps) 
             <div className={styles.presentationList} ref={presentationListRef}>
               {items.map((item, index) => {
                 const meta = getMeta(item);
+                const metaInfo = item.meta as { canEdit?: boolean } | undefined;
+                const clickable = Boolean(onTitleClick && metaInfo?.canEdit);
                 return (
                   <div
                     key={item.key}
@@ -254,7 +258,18 @@ export default function ImageGrid({ items, getMeta, onToggle }: ImageGridProps) 
                     data-presentation-index={index}
                   >
                     {item.title && (
-                      <div className={styles.presentationTitle} title={item.title}>{item.title}</div>
+                      clickable ? (
+                        <button
+                          type="button"
+                          className={styles.presentationTitle + ' ' + styles.presentationTitleButton}
+                          title={item.title}
+                          onClick={() => { onTitleClick?.(item); }}
+                        >
+                          {item.title}
+                        </button>
+                      ) : (
+                        <div className={styles.presentationTitle} title={item.title}>{item.title}</div>
+                      )
                     )}
                     <div className={styles.presentationImageWrap}>
                       <img
@@ -290,9 +305,25 @@ export default function ImageGrid({ items, getMeta, onToggle }: ImageGridProps) 
               onTouchCancel={handleTouchCancel}
             >
               <img src={currentItem.src} alt="" className={styles.mobileImage} />
-              {currentItem.title && (
-                <div className={styles.mobileTitle} title={currentItem.title}>{currentItem.title}</div>
-              )}
+              {currentItem.title && (() => {
+                const metaInfo = currentItem.meta as { canEdit?: boolean } | undefined;
+                const clickable = Boolean(onTitleClick && metaInfo?.canEdit);
+                if (clickable) {
+                  return (
+                    <button
+                      type="button"
+                      className={styles.mobileTitle + ' ' + styles.mobileTitleButton}
+                      title={currentItem.title}
+                      onClick={(e) => { e.stopPropagation(); onTitleClick?.(currentItem); }}
+                    >
+                      {currentItem.title}
+                    </button>
+                  );
+                }
+                return (
+                  <div className={styles.mobileTitle} title={currentItem.title}>{currentItem.title}</div>
+                );
+              })()}
               {currentMeta && (
                 <button
                   type="button"
@@ -327,6 +358,8 @@ export default function ImageGrid({ items, getMeta, onToggle }: ImageGridProps) 
       <div className={styles.imagesGrid}>
         {items.map((it, i) => {
           const meta = getMeta(it);
+          const metaInfo = it.meta as { canEdit?: boolean } | undefined;
+          const clickable = Boolean(onTitleClick && metaInfo?.canEdit);
           return (
             <div key={it.key} className={styles.thumbWrap}>
               <img
@@ -336,7 +369,18 @@ export default function ImageGrid({ items, getMeta, onToggle }: ImageGridProps) 
                 onClick={() => { setLightboxIndex(i); setLightboxOpen(true); }}
               />
               {it.title && (
-                <div className={styles.titleBadge} title={it.title}>{it.title}</div>
+                clickable ? (
+                  <button
+                    type="button"
+                    className={styles.titleBadge + ' ' + styles.titleBadgeButton}
+                    title={it.title}
+                    onClick={(e) => { e.stopPropagation(); onTitleClick?.(it); }}
+                  >
+                    {it.title}
+                  </button>
+                ) : (
+                  <div className={styles.titleBadge} title={it.title}>{it.title}</div>
+                )
               )}
               <button
                 type="button"

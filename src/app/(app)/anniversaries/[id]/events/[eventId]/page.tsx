@@ -13,6 +13,7 @@ import styles from './page.module.css';
 import ImageGrid, { LikeMeta } from '@/components/media/ImageGrid';
 import mediaStyles from '@/components/media/MediaLayout.module.css';
 import { useTranslation } from 'react-i18next';
+import OccurrenceEditModal from '@/components/anniversaries/OccurrenceEditModal';
 
 interface OccurrenceDoc {
   id: string;
@@ -39,10 +40,6 @@ export default function OccurrenceDetailsPage({ params }: { params: { id: string
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
   const [likes, setLikes] = useState<Array<{ index: number; count: number; likedByMe: boolean }>>([]);
-  const [dateEdit, setDateEdit] = useState('');
-  const [dateSaving, setDateSaving] = useState(false);
-  const [dateError, setDateError] = useState('');
-  const [descEdit, setDescEdit] = useState('');
   const [showEditModal, setShowEditModal] = useState(false);
 
   useEffect(() => {
@@ -87,30 +84,6 @@ export default function OccurrenceDetailsPage({ params }: { params: { id: string
       }
     })();
   }, [occ?.id, params.id, params.eventId]);
-
-  // Initialize date editor whenever occurrence date changes
-  useEffect(() => {
-    try {
-      const raw: any = occ?.date;
-      if (!raw) return;
-      const js = raw?.toDate
-        ? raw.toDate()
-        : typeof raw?._seconds === 'number'
-          ? new Date(raw._seconds * 1000)
-          : typeof raw?.seconds === 'number'
-            ? new Date(raw.seconds * 1000)
-            : new Date(raw);
-      if (js instanceof Date && !isNaN(js.getTime())) {
-        const yyyy = js.getFullYear();
-        const mm = String(js.getMonth() + 1).padStart(2, '0');
-        const dd = String(js.getDate()).padStart(2, '0');
-        setDateEdit(`${yyyy}-${mm}-${dd}`);
-      }
-    } catch {}
-  }, [occ?.date]);
-  useEffect(() => {
-    setDescEdit((occ as any)?.description || '');
-  }, [occ?.id]);
 
   const visibleImages = Array.isArray(occ?.images) ? (occ?.images as string[]) : [];
 
@@ -325,48 +298,16 @@ export default function OccurrenceDetailsPage({ params }: { params: { id: string
       </div>
     </Modal>
 
-    {/* Edit occurrence details modal */}
-    <Modal isOpen={showEditModal} onClose={() => setShowEditModal(false)}>
-      <div className="space-y-3 max-w-md">
-        <div>
-          <label className="block mb-1 text-sm text-text">{t('date')}</label>
-          <input
-            type="date"
-            className="border rounded w-full px-3 py-2"
-            value={dateEdit}
-            onChange={(e) => setDateEdit(e.target.value)}
-          />
-        </div>
-        <div>
-          <label className="block mb-1 text-sm text-text">{t('description')}</label>
-          <textarea
-            className="border rounded w-full px-3 py-2"
-            value={descEdit}
-            onChange={(e) => setDescEdit(e.target.value)}
-            rows={3}
-          />
-        </div>
-        {dateError && <div className="text-red-600 text-sm"><I18nText k="somethingWentWrong" /></div>}
-        <div className="flex gap-2 justify-end">
-          <Button onClick={() => setShowEditModal(false)} className="bg-gray-200 text-gray-800 hover:bg-gray-300">{t('close')}</Button>
-          <Button onClick={async () => {
-            try {
-              setDateSaving(true); setDateError('');
-              await apiFetch(`/api/anniversaries/${params.id}/events/${params.eventId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ date: dateEdit, description: descEdit }) });
-              const refreshed = await apiFetch<{ event: OccurrenceDoc }>(`/api/anniversaries/${params.id}/events/${params.eventId}`);
-              setOcc(refreshed.event as any);
-              setShowEditModal(false);
-            } catch (e) {
-              console.error(e);
-              setDateError('save');
-              throw e;
-            } finally {
-              setDateSaving(false);
-            }
-          }} disabled={dateSaving}>{dateSaving ? t('saving') : t('save')}</Button>
-        </div>
-      </div>
-    </Modal>
+    <OccurrenceEditModal
+      anniversaryId={params.id}
+      occurrenceId={params.eventId}
+      isOpen={showEditModal}
+      onClose={() => setShowEditModal(false)}
+      onUpdated={(updated) => {
+        setOcc((prev) => ({ ...(prev as any), ...updated }));
+      }}
+      initialOccurrence={occ as any}
+    />
 
     {/* Lightbox handled by ImageGrid */}
     </>
