@@ -1,9 +1,9 @@
 export interface IMember {
   id: string;
+  displayName: string;
   uid: string;
   siteId: string;
   role: 'admin' | 'member' | 'pending';
-  displayName: string;
   firstName: string;
   email: string;
   blogEnabled?: boolean;

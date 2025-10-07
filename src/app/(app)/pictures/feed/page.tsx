@@ -21,7 +21,7 @@ type Occurrence = {
 };
 
 type ImageLikeMeta = { index: number; count: number; likedByMe: boolean };
-type AuthorInfo = { name: string; email: string };
+type AuthorInfo = { displayName: string; email: string };
 
 export default function PicturesFeedPage() {
   const { t } = useTranslation();
@@ -46,7 +46,7 @@ export default function PicturesFeedPage() {
         const list: Occurrence[] = Array.isArray(data.items) ? data.items : [];
         setItems(list);
         setEventNames(data.events || {});
-        const rawAuthors = data.authors;
+        const rawAuthors = data.authors as Record<string, { displayName: string; email: string }> | undefined;
         if (!rawAuthors || typeof rawAuthors !== 'object') {
           throw new Error('[PicturesFeedPage] authors payload missing');
         }
@@ -55,13 +55,12 @@ export default function PicturesFeedPage() {
           if (!info || typeof info !== 'object') {
             throw new Error(`[PicturesFeedPage] invalid author payload for ${id}`);
           }
-          const maybeAuthor = info as Partial<AuthorInfo> & { name?: string; email?: string };
-          const name = maybeAuthor.name?.trim();
-          const email = maybeAuthor.email?.trim();
-          if (!name || !email) {
+          const displayName = (info as any).displayName?.trim();
+          const email = (info as any).email?.trim();
+          if (!displayName || !email) {
             throw new Error(`[PicturesFeedPage] incomplete author data for ${id}`);
           }
-          normalizedAuthors[id] = { name, email };
+          normalizedAuthors[id] = { displayName, email };
         }
         setAuthors(normalizedAuthors);
         // fetch likes per occurrence
@@ -236,15 +235,15 @@ function MobileFeedItem({ item, title, meta, author, onToggle, t }: MobileFeedIt
 
   return (
     <article className={feedStyles.mobileContinuousItem}>
+      {title ? <div className={feedStyles.mobileEventHeader}>{title}</div> : null}
       <div className={feedStyles.mobileMetaRow}>
         <div className={feedStyles.mobileAuthorAvatar}>
           <img src={avatarUrl} alt="" className={feedStyles.mobileAuthorAvatarImage} />
         </div>
         <div className={feedStyles.mobileAuthorInfo}>
           <span className={feedStyles.mobileAuthorName}>
-            {author.name}
+            {author.displayName}
           </span>
-          {title ? <span className={feedStyles.mobileContinuousTitle}>{title}</span> : null}
         </div>
       </div>
       <ShimmerImage

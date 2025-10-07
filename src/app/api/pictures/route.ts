@@ -23,14 +23,20 @@ const getHandler = async (_req: Request, context: GuardContext) => {
       } catch {}
     }
     const authorIds = Array.from(new Set(items.map((i: any) => i.createdBy).filter(Boolean)));
-    const authors: Record<string, { name: string; email?: string }> = {};
+    const authors: Record<string, { displayName: string; email: string }> = {};
     for (const id of authorIds) {
       try {
         const authorMember = await familyRepo.getMemberByUserId(id, member.siteId);
         if (!authorMember) continue;
-        const fullName = [authorMember.firstName, authorMember.lastName].filter(Boolean).join(' ').trim();
+        const displayName = (authorMember.displayName || authorMember.firstName || authorMember.email || '').trim();
+        if (!displayName) {
+          throw new Error('missing_display_name');
+        }
+        if (!authorMember.email) {
+          throw new Error('missing_email');
+        }
         authors[id] = {
-          name: fullName || authorMember.email || 'Unknown',
+          displayName,
           email: authorMember.email,
         };
       } catch (err) {

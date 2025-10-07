@@ -14,6 +14,7 @@ export class InviteError extends Error {
 
 export interface FamilyMember {
   id: string;
+  displayName: string;
   firstName: string;
   lastName?: string;
   email: string;
