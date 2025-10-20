@@ -3,6 +3,8 @@ import { fetchGeniImmediateFamily, fetchGeniFocusGuid, fetchGeniMe, GENI_ACCESS 
 import { initAdmin } from '@/firebase/admin';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: NextRequest) {
   try {
     const token = req.cookies.get(GENI_ACCESS)?.value;

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAuthUrl, GENI_STATE, getOrigin } from '@/integrations/geni';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: NextRequest) {
   try {
     const origin = getOrigin(req);

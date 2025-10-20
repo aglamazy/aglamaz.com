@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fetchGeniMe, GENI_ACCESS } from '@/integrations/geni';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: NextRequest) {
   try {
     const token = req.cookies.get(GENI_ACCESS)?.value;
@@ -15,4 +17,3 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Failed to fetch Geni profile' }, { status: 500 });
   }
 }
-
