@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from "react";
 import Navigation from "@/components/Navigation";
 import { useTranslation } from 'react-i18next';
 import { LogOut, Users, MessageCircle, Home as HomeIcon, BookOpen, User } from 'lucide-react';
-import { useRouter, usePathname, useSearchParams } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { IUser } from "@/entities/User";
 import { IMember } from "@/entities/Member";
 import { ISite } from "@/entities/Site";
@@ -34,7 +34,6 @@ export default function Header({ user, member, onLogout, siteInfo }: HeaderProps
   const userMenuRef = useRef(null);
   const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const openLogin = useLoginModalStore((s) => s.open);
   const openEdit = useEditUserModalStore((s) => s.open);
   const localizedName = getLocalizedSiteName(siteInfo, i18n.language);
@@ -60,12 +59,15 @@ export default function Header({ user, member, onLogout, siteInfo }: HeaderProps
     }
     // Reflect selection in URL so server components (public pages) render the chosen language
     try {
-      const params = new URLSearchParams(searchParams?.toString() || '');
+      const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
       params.set('lang', lang);
-      const newUrl = `${pathname}?${params.toString()}`;
+      const qs = params.toString();
+      const newUrl = qs ? `${pathname}?${qs}` : pathname;
       router.replace(newUrl, { scroll: false });
       router.refresh();
-    } catch {}
+    } catch (error) {
+      console.error('[Header] failed to update lang param', error);
+    }
     setIsLangMenuOpen(false);
   };
 
