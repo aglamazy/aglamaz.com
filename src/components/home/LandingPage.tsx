@@ -1,107 +1,146 @@
-'use client';
-
-import React from 'react';
-import WelcomeHero from './WelcomeHero';
 import Link from 'next/link';
-import { useTranslation } from 'react-i18next';
-import { useSiteStore } from '@/store/SiteStore';
-import { MessageCircle, BookOpen, Images, Link as LinkIcon, ArrowRight } from 'lucide-react';
+import { ArrowRight, BookOpen, Images, Link as LinkIcon, MessageCircle } from 'lucide-react';
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
 import { createPageUrl } from '../../utils/createPageUrl';
+import type { ISite } from '@/entities/Site';
+import i18n from '@/i18n';
 
-export default function LandingPage() {
-  const { t } = useTranslation();
-  const site = useSiteStore((s) => s.siteInfo);
+interface LandingPageProps {
+  siteInfo: ISite | null;
+  lang: string;
+  baseUrl: string | null;
+}
+
+export default function LandingPage({ siteInfo, lang, baseUrl }: LandingPageProps) {
+  const baseLang = lang.split('-')[0]?.toLowerCase() || lang.toLowerCase();
+  const t = i18n.getFixedT(baseLang, 'common');
+  const translations = siteInfo?.translations || {};
+  const siteName =
+    translations[lang] ||
+    translations[baseLang] ||
+    siteInfo?.name ||
+    'FamilyCircle';
+
+  const heroTitle = t('welcomeToSite', { name: siteName }) as string;
+  const heroSubtitle = t('stayConnected') as string;
+  const secondarySubtitle = t('createYourFamilySite') as string;
+
+  const spotlight = [
+    {
+      href: '/blog/family',
+      icon: BookOpen,
+      title: t('familyBlog') as string,
+      description: t('catchUpOnFamilyNews') as string,
+      cta: t('openBlog') as string,
+      gradient: 'from-blue-500 to-blue-600',
+    },
+    {
+      href: '/contact',
+      icon: MessageCircle,
+      title: t('contactUs') as string,
+      description: t('getInTouch') as string,
+      cta: t('contactUs') as string,
+      gradient: 'from-slate-800 to-slate-900',
+    },
+  ];
+
+  const features = [
+    {
+      href: createPageUrl('pictures/feed'),
+      icon: Images,
+      title: t('browsePhotos') as string,
+      description: t('explorePhotoAlbums') as string,
+      gradient: 'from-purple-500 to-purple-600',
+    },
+    {
+      href: createPageUrl('Links'),
+      icon: LinkIcon,
+      title: t('familyLinks') as string,
+      description: t('accessFamilyResources') as string,
+      gradient: 'from-green-500 to-green-600',
+    },
+  ];
+
+  const structuredData = {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: siteName,
+    url: baseUrl || undefined,
+    description: heroSubtitle,
+    potentialAction: [
+      {
+        '@type': 'ViewAction',
+        target: baseUrl ? `${baseUrl}/blog/family` : '/blog/family',
+        name: t('openBlog') as string,
+      },
+      {
+        '@type': 'ContactAction',
+        target: baseUrl ? `${baseUrl}/contact` : '/contact',
+        name: t('contactUs') as string,
+      },
+    ],
+  };
 
   return (
-    <div>
-      {/* Hero: Welcome + platform */}
-      <WelcomeHero
-        user={null}
-        title={t('welcomeToSite', { name: site?.name || '' }) as string}
-        subtitle={t('poweredByFamilyCircle') as string}
-        actions={[]}
-      />
+    <div className="bg-cream-50">
+      <section className="border-b border-sage-100">
+        <div className="max-w-6xl mx-auto px-4 py-16 text-center">
+          <h1 className="text-4xl md:text-5xl font-bold text-charcoal mb-4">{heroTitle}</h1>
+          <p className="text-lg md:text-xl text-sage-600 mx-auto max-w-2xl leading-relaxed">{heroSubtitle}</p>
+        </div>
+      </section>
 
-      {/* Content */}
-      <div className="max-w-6xl mx-auto px-4">
-        {/* Public content (2 boxes): Blog + Contact */}
+      <section className="max-w-6xl mx-auto px-4 py-12">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-14">
-          {/* Family Blog card - restored previous style */}
-          <Link href="/blog/family" className="block">
-            <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2 bg-white/80 backdrop-blur-sm">
-              <CardContent className="p-8 text-center">
-                <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                  <BookOpen className="w-8 h-8 text-white" />
-                </div>
-                <h3 className="text-xl font-bold text-charcoal mb-3">{t('familyBlog')}</h3>
-                <p className="text-sage-600 mb-6 leading-relaxed">{t('catchUpOnFamilyNews') as string}</p>
-                <Button className="border-sage-200 hover:border-sage-300 hover:bg-sage-50 group">
-                  {t('openBlog')}
-                  <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform duration-200" />
-                </Button>
-              </CardContent>
-            </Card>
-          </Link>
-          <Link href="/contact" className="block">
-            <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2 bg-white/80 backdrop-blur-sm">
-              <CardContent className="p-8 text-center">
-                <div className="w-16 h-16 bg-gradient-to-r from-slate-800 to-slate-900 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                  <MessageCircle className="w-8 h-8 text-white" />
-                </div>
-                <h3 className="text-xl font-bold text-charcoal mb-3">{t('contactUs')}</h3>
-                <p className="text-sage-600 mb-6 leading-relaxed">{t('getInTouch') as string}</p>
-                <Button className="border-sage-200 hover:border-sage-300 hover:bg-sage-50 group">
-                  {t('contactUs')}
-                  <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform duration-200" />
-                </Button>
-              </CardContent>
-            </Card>
-          </Link>
+          {spotlight.map(({ href, icon: Icon, title, description, cta, gradient }) => (
+            <Link key={href} href={href} className="block">
+              <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-2 bg-white/80 backdrop-blur-sm">
+                <CardContent className="p-8 text-center">
+                  <div className={`w-16 h-16 bg-gradient-to-r ${gradient} rounded-2xl flex items-center justify-center mx-auto mb-6`}>
+                    <Icon className="w-8 h-8 text-white" />
+                  </div>
+                  <h3 className="text-xl font-bold text-charcoal mb-3">{title}</h3>
+                  <p className="text-sage-600 mb-6 leading-relaxed">{description}</p>
+                  <Button className="border-sage-200 hover:border-sage-300 hover:bg-sage-50 group">
+                    {cta}
+                    <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform duration-200" />
+                  </Button>
+                </CardContent>
+              </Card>
+            </Link>
+          ))}
         </div>
 
-        {/* Pitch text */}
         <div className="text-center mt-6 mb-6 text-sage-700 font-semibold">
-          {t('createYourFamilySite')}
+          {secondarySubtitle}
         </div>
 
-        {/* Feature showcase (2 cards): Photos + Links (original style) */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
-          {/* Photos */}
-          <Link href={createPageUrl('/pictures/feed')} className="block">
-            <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2 bg-white/80 backdrop-blur-sm text-center">
-              <CardContent className="p-8">
-                <div className="mx-auto w-16 h-16 rounded-2xl bg-gradient-to-r from-purple-500 to-purple-600 flex items-center justify-center mb-6">
-                  <Images className="w-8 h-8 text-white" />
-                </div>
-                <h3 className="text-xl font-bold text-charcoal mb-3">{t('browsePhotos')}</h3>
-                <p className="text-sage-600 mb-6 leading-relaxed">{t('explorePhotoAlbums') as string}</p>
-                <Button className="border-sage-200 hover:border-sage-300 hover:bg-sage-50 group">
-                  {t('explore')}
-                  <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform duration-200" />
-                </Button>
-              </CardContent>
-            </Card>
-          </Link>
-          {/* Links */}
-          <Link href={createPageUrl('Links')} className="block">
-            <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2 bg-white/80 backdrop-blur-sm text-center">
-              <CardContent className="p-8">
-                <div className="mx-auto w-16 h-16 rounded-2xl bg-gradient-to-r from-green-500 to-green-600 flex items-center justify-center mb-6">
-                  <LinkIcon className="w-8 h-8 text-white" />
-                </div>
-                <h3 className="text-xl font-bold text-charcoal mb-3">{t('familyLinks')}</h3>
-                <p className="text-sage-600 mb-6 leading-relaxed">{t('accessFamilyResources') as string}</p>
-                <Button className="border-sage-200 hover:border-sage-300 hover:bg-sage-50 group">
-                  {t('explore')}
-                  <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform duration-200" />
-                </Button>
-              </CardContent>
-            </Card>
-          </Link>
+          {features.map(({ href, icon: Icon, title, description, gradient }) => (
+            <Link key={href} href={href} className="block">
+              <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-2 bg-white/80 backdrop-blur-sm text-center">
+                <CardContent className="p-8">
+                  <div className={`mx-auto w-16 h-16 rounded-2xl bg-gradient-to-r ${gradient} flex items-center justify-center mb-6`}>
+                    <Icon className="w-8 h-8 text-white" />
+                  </div>
+                  <h3 className="text-xl font-bold text-charcoal mb-3">{title}</h3>
+                  <p className="text-sage-600 mb-6 leading-relaxed">{description}</p>
+                  <Button className="border-sage-200 hover:border-sage-300 hover:bg-sage-50 group">
+                    {t('explore')}
+                    <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform duration-200" />
+                  </Button>
+                </CardContent>
+              </Card>
+            </Link>
+          ))}
         </div>
-      </div>
+      </section>
+
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+      />
     </div>
   );
 }
