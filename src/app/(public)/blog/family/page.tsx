@@ -10,12 +10,49 @@ import I18nText from '@/components/I18nText';
 import TranslationTrigger from '@/components/blog/TranslationTrigger';
 import { headers } from 'next/headers';
 import blogStyles from '@/components/blog/PublicPost.module.css';
+import { stripScriptTags, cleanJsonLd } from '@/utils/jsonld';
+import { fetchSiteInfo } from '@/firebase/admin';
+import { getServerT } from '@/utils/serverTranslations';
 
 export const dynamic = 'force-dynamic';
 
 export const metadata = {
   title: 'Family Blog – Recent Posts',
 };
+
+function resolveBaseUrl() {
+  const raw = (process.env.NEXT_PUBLIC_APP_URL || '').trim();
+  if (!raw) return null;
+  return raw.replace(/\/+$/, '');
+}
+
+function toIsoDate(value: unknown) {
+  if (!value) return undefined;
+  if (typeof value === 'object' && value !== null && typeof (value as any).toDate === 'function') {
+    try {
+      return (value as any).toDate().toISOString();
+    } catch {
+      return undefined;
+    }
+  }
+  const date = new Date(String(value));
+  if (Number.isNaN(date.getTime())) return undefined;
+  return date.toISOString();
+}
+
+function toPlainText(html: string) {
+  return html
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function findFirstImage(html: string) {
+  const match = html.match(/<img[^>]+src=["']([^"']+)["']/i);
+  return match ? match[1] : undefined;
+}
 
 export default async function FamilyBlogPage({ searchParams }: { searchParams?: Record<string, string | string[] | undefined> }) {
   const siteId = process.env.NEXT_SITE_ID || '';
@@ -27,6 +64,16 @@ export default async function FamilyBlogPage({ searchParams }: { searchParams?: 
   const accept = h.get('accept-language') || '';
   const qp = (searchParams?.lang as string | undefined)?.toString();
   const lang = (qp && qp.split('-')[0]) || accept.split(',')[0]?.split('-')[0] || process.env.NEXT_DEFAULT_LANG || 'en';
+  const baseLang = lang.split('-')[0]?.toLowerCase() || lang.toLowerCase();
+  const t = await getServerT(baseLang);
+
+  let siteInfo: Record<string, unknown> | null = null;
+  try {
+    siteInfo = (await fetchSiteInfo()) as Record<string, unknown> | null;
+  } catch (error) {
+    console.error('[blog/family] failed to fetch site info', error);
+    throw error;
+  }
 
   const choose = (p: IBlogPost) => {
     if (!lang || lang === p.sourceLang) return p;
@@ -66,6 +113,58 @@ export default async function FamilyBlogPage({ searchParams }: { searchParams?: 
     ) as Record<string, { title: string; content: string }>,
   }));
 
+  const baseUrl = resolveBaseUrl();
+  const siteName =
+    (siteInfo?.translations && typeof (siteInfo.translations as any)?.[baseLang] === 'string'
+      ? String((siteInfo.translations as any)[baseLang])
+      : typeof siteInfo?.name === 'string'
+        ? String(siteInfo.name)
+        : 'FamilyCircle');
+
+  const blogUrl = baseUrl ? `${baseUrl}/blog/family` : undefined;
+  const blogSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'Blog',
+    '@id': blogUrl ? `${blogUrl}#blog` : undefined,
+    url: blogUrl,
+    name: `${siteName} – ${t('familyBlog') as string}`,
+    description: t('catchUpOnFamilyNews') as string,
+    inLanguage: baseLang,
+    publisher: baseUrl ? { '@id': `${baseUrl}/#organization` } : undefined,
+  };
+
+  const postSchemas = posts.map((rawPost, index) => {
+    const { post, name, handle, avatar } = enriched[index];
+    const content = post.content || '';
+    const summary = toPlainText(content).slice(0, 280);
+    const articleUrlBase = baseUrl ? `${baseUrl}/blog/author/${encodeURIComponent(handle)}` : `/blog/author/${handle}`;
+    const articleUrl = lang ? `${articleUrlBase}?lang=${lang}` : articleUrlBase;
+    const image = findFirstImage(content);
+    return {
+      '@type': 'BlogPosting',
+      '@id': baseUrl ? `${articleUrlBase}#post-${post.id}` : undefined,
+      headline: post.title,
+      description: summary || undefined,
+      url: articleUrl,
+      datePublished: toIsoDate((rawPost as any).createdAt ?? post.createdAt),
+      dateModified: toIsoDate((rawPost as any).updatedAt ?? post.updatedAt ?? rawPost?.createdAt),
+      isAccessibleForFree: true,
+      mainEntityOfPage: articleUrl,
+      wordCount: summary ? summary.split(/\s+/).length : undefined,
+      image: image,
+      inLanguage: post.sourceLang || baseLang,
+      author: {
+        '@type': 'Person',
+        name,
+        url: articleUrl,
+        image: avatar,
+      },
+      publisher: baseUrl ? { '@id': `${baseUrl}/#organization` } : undefined,
+    };
+  });
+
+  const structuredData = stripScriptTags(JSON.stringify([blogSchema, ...postSchemas].map(cleanJsonLd)));
+
   return (
     <div className={`space-y-4 p-4 ${styles.blobBg}`}>
       <TranslationTrigger posts={clientPosts} lang={lang} />
@@ -80,7 +179,7 @@ export default async function FamilyBlogPage({ searchParams }: { searchParams?: 
                 <img src={avatar} alt="" className="h-10 w-10 rounded-full" />
               </a>
               <div>
-                <CardTitle className="m-0 p-0">{post.title}</CardTitle>
+                <h1 className="text-2xl font-semibold text-charcoal m-0">{post.title}</h1>
                 <div className="text-xs text-gray-500">
                   <a className="hover:underline" href={`/blog/author/${handle}?lang=${lang}`}>{name}</a>
                 </div>
@@ -100,6 +199,7 @@ export default async function FamilyBlogPage({ searchParams }: { searchParams?: 
         </Card>
       ))}
       {posts.length === 0 && <div><I18nText k="noPublicPostsYet" /></div>}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: structuredData }} />
     </div>
   );
 }

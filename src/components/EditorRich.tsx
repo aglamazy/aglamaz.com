@@ -37,13 +37,14 @@ export default function EditorRich({ value, onChange }: EditorRichProps) {
         height: 400,
         plugins: 'lists link code directionality',
         toolbar:
-          'undo redo | formatselect | bold italic underline | bullist numlist | link | ltr rtl | code',
+          'undo redo | blocks | bold italic underline | bullist numlist | link | ltr rtl | code',
+        block_formats: 'Paragraph=p; Heading 1=h1; Heading 2=h2; Heading 3=h3; Quote=blockquote',
         directionality: 'auto',
         // Disable Tiny's own external skin/content CSS loading (we import CSS via bundler)
         skin: false,
         content_css: false,
         content_style: 'body { font-family: Arial,Helvetica,sans-serif; font-size:14px }',
-        license_key: 'gpl'
+        license_key: 'gpl',
       }}
     />
   );

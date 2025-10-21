@@ -6,6 +6,7 @@ import { headers, cookies } from 'next/headers';
 import TranslationTrigger from '@/components/blog/TranslationTrigger';
 import I18nText from '@/components/I18nText';
 import blogStyles from '@/components/blog/PublicPost.module.css';
+import AuthorPostActions from '@/components/blog/AuthorPostActions';
 
 export const dynamic = 'force-dynamic';
 
@@ -69,7 +70,10 @@ export default async function AuthorBlogPage({ params, searchParams }: { params:
       {localized.map((post) => (
         <Card key={post.id}>
           <CardHeader>
-            <CardTitle>{post.title}</CardTitle>
+            <div className="flex items-start justify-between gap-3">
+              <h1 className="text-2xl font-semibold text-charcoal m-0">{post.title}</h1>
+              <AuthorPostActions postId={post.id} authorId={post.authorId} />
+            </div>
           </CardHeader>
           <CardContent>
             <div

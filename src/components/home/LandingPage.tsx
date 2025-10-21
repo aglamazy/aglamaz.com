@@ -4,7 +4,8 @@ import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
 import { createPageUrl } from '../../utils/createPageUrl';
 import type { ISite } from '@/entities/Site';
-import i18n from '@/i18n';
+import { getServerT } from '@/utils/serverTranslations';
+import { cleanJsonLd, stripScriptTags } from '@/utils/jsonld';
 
 interface LandingPageProps {
   siteInfo: ISite | null;
@@ -12,15 +13,39 @@ interface LandingPageProps {
   baseUrl: string | null;
 }
 
-export default function LandingPage({ siteInfo, lang, baseUrl }: LandingPageProps) {
+function resolveIsoDate(value: unknown): string | undefined {
+  if (!value) return undefined;
+  const date = new Date(String(value));
+  return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
+}
+
+function resolveLogo(baseUrl: string | null) {
+  if (!baseUrl) return undefined;
+  return `${baseUrl}/favicon.svg`;
+}
+
+export default async function LandingPage({ siteInfo, lang, baseUrl }: LandingPageProps) {
   const baseLang = lang.split('-')[0]?.toLowerCase() || lang.toLowerCase();
-  const t = i18n.getFixedT(baseLang, 'common');
+  const t = await getServerT(baseLang);
   const translations = siteInfo?.translations || {};
+  const siteInfoRecord = (siteInfo ?? {}) as Record<string, unknown>;
   const siteName =
     translations[lang] ||
     translations[baseLang] ||
     siteInfo?.name ||
     'FamilyCircle';
+
+  const alternateNames = Array.from(
+    new Set(
+      Object.values(translations)
+        .map((value) => (typeof value === 'string' ? value.trim() : null))
+        .filter((value): value is string => Boolean(value && value !== siteName))
+    )
+  );
+  const sameAs = Array.isArray(siteInfoRecord.sameAs)
+    ? (siteInfoRecord.sameAs as unknown[])
+        .filter((value): value is string => typeof value === 'string' && /^https?:\/\//.test(value))
+    : [];
 
   const heroTitle = t('welcomeToSite', { name: siteName }) as string;
   const heroSubtitle = t('stayConnected') as string;
@@ -62,25 +87,32 @@ export default function LandingPage({ siteInfo, lang, baseUrl }: LandingPageProp
     },
   ];
 
-  const structuredData = {
+  const organization: Record<string, unknown> = {
     '@context': 'https://schema.org',
     '@type': 'Organization',
+    '@id': baseUrl ? `${baseUrl}/#organization` : undefined,
     name: siteName,
     url: baseUrl || undefined,
+    alternateName: alternateNames.length ? alternateNames : undefined,
     description: heroSubtitle,
-    potentialAction: [
-      {
-        '@type': 'ViewAction',
-        target: baseUrl ? `${baseUrl}/blog/family` : '/blog/family',
-        name: t('openBlog') as string,
-      },
-      {
-        '@type': 'ContactAction',
-        target: baseUrl ? `${baseUrl}/contact` : '/contact',
-        name: t('contactUs') as string,
-      },
-    ],
+    sameAs: sameAs.length ? sameAs : undefined,
+    foundingDate: resolveIsoDate(siteInfoRecord.createdAt),
+    logo: resolveLogo(baseUrl),
   };
+
+  const website: Record<string, unknown> = {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    '@id': baseUrl ? `${baseUrl}/#website` : undefined,
+    url: baseUrl || undefined,
+    name: siteName,
+    alternateName: alternateNames.length ? alternateNames : undefined,
+    description: heroSubtitle,
+    inLanguage: baseLang,
+    publisher: baseUrl ? { '@id': `${baseUrl}/#organization` } : undefined,
+  };
+
+  const structuredData = stripScriptTags(JSON.stringify([organization, website].map(cleanJsonLd)));
 
   return (
     <div className="bg-cream-50">
@@ -137,10 +169,7 @@ export default function LandingPage({ siteInfo, lang, baseUrl }: LandingPageProp
         </div>
       </section>
 
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
-      />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: structuredData }} />
     </div>
   );
 }
