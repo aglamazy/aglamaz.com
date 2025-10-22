@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "tsx tests/auth.test.ts && tsx tests/middleware.test.ts"
+    "test": "tsx tests/auth.test.ts && tsx tests/middleware.test.ts",
+    "test:e2e": "tsx tests/e2e.ts"
   },
   "dependencies": {
     "@tinymce/tinymce-react": "^6.3.0",
