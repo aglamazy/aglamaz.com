@@ -42,8 +42,8 @@ export default function PublicLayoutShell({ siteInfo, children }: PublicLayoutSh
       try {
         await checkAuth();
       } catch (error) {
-        console.error('Failed to check auth inside PublicLayoutShell', error);
-        throw error;
+        // Silently fail - this is a public page, auth is optional
+        console.debug('Auth check failed in PublicLayoutShell (expected for logged-out users)');
       }
     };
 
@@ -59,8 +59,8 @@ export default function PublicLayoutShell({ siteInfo, children }: PublicLayoutSh
       try {
         await fetchMember(uid, sid);
       } catch (error) {
-        console.error('Failed to fetch member in PublicLayoutShell', error);
-        throw error;
+        // Silently fail - member info is optional for public pages
+        console.debug('Failed to fetch member in PublicLayoutShell (expected for non-members)');
       }
     };
 
