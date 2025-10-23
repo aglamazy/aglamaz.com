@@ -1,4 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import type { IBlogPost } from '@/entities/BlogPost';
 import { BlogRepository } from '@/repositories/BlogRepository';
 import { FamilyRepository } from '@/repositories/FamilyRepository';
@@ -13,6 +13,7 @@ import blogStyles from '@/components/blog/PublicPost.module.css';
 import { stripScriptTags, cleanJsonLd } from '@/utils/jsonld';
 import { fetchSiteInfo } from '@/firebase/admin';
 import { getServerT } from '@/utils/serverTranslations';
+import { createBlogSchema, createBlogPostingSchema, type AuthorInfo } from '@/utils/blogSchema';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,34 +25,6 @@ function resolveBaseUrl() {
   const raw = (process.env.NEXT_PUBLIC_APP_URL || '').trim();
   if (!raw) return null;
   return raw.replace(/\/+$/, '');
-}
-
-function toIsoDate(value: unknown) {
-  if (!value) return undefined;
-  if (typeof value === 'object' && value !== null && typeof (value as any).toDate === 'function') {
-    try {
-      return (value as any).toDate().toISOString();
-    } catch {
-      return undefined;
-    }
-  }
-  const date = new Date(String(value));
-  if (Number.isNaN(date.getTime())) return undefined;
-  return date.toISOString();
-}
-
-function toPlainText(html: string) {
-  return html
-    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, ' ')
-    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, ' ')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-function findFirstImage(html: string) {
-  const match = html.match(/<img[^>]+src=["']([^"']+)["']/i);
-  return match ? match[1] : undefined;
 }
 
 export default async function FamilyBlogPage({ searchParams }: { searchParams?: Record<string, string | string[] | undefined> }) {
@@ -113,7 +86,7 @@ export default async function FamilyBlogPage({ searchParams }: { searchParams?: 
     ) as Record<string, { title: string; content: string }>,
   }));
 
-  const baseUrl = resolveBaseUrl();
+  const baseUrl = resolveBaseUrl() || undefined;
   const siteName =
     (siteInfo?.translations && typeof (siteInfo.translations as any)?.[baseLang] === 'string'
       ? String((siteInfo.translations as any)[baseLang])
@@ -121,46 +94,19 @@ export default async function FamilyBlogPage({ searchParams }: { searchParams?: 
         ? String(siteInfo.name)
         : 'FamilyCircle');
 
-  const blogUrl = baseUrl ? `${baseUrl}/blog` : undefined;
-  const blogSchema = {
-    '@context': 'https://schema.org',
-    '@type': 'Blog',
-    '@id': blogUrl ? `${blogUrl}#blog` : undefined,
-    url: blogUrl,
-    name: `${siteName} – ${t('familyBlog') as string}`,
-    description: t('catchUpOnFamilyNews') as string,
-    inLanguage: baseLang,
-    publisher: baseUrl ? { '@id': `${baseUrl}/#organization` } : undefined,
-  };
+  const blogSchema = createBlogSchema(
+    t('catchUpOnFamilyNews') as string,
+    {
+      baseUrl,
+      siteName: `${siteName} – ${t('familyBlog') as string}`,
+      lang: baseLang,
+    }
+  );
 
   const postSchemas = posts.map((rawPost, index) => {
     const { post, name, handle, avatar } = enriched[index];
-    const content = post.content || '';
-    const summary = toPlainText(content).slice(0, 280);
-    const articleUrlBase = baseUrl ? `${baseUrl}/blog/author/${encodeURIComponent(handle)}` : `/blog/author/${handle}`;
-    const articleUrl = lang ? `${articleUrlBase}?lang=${lang}` : articleUrlBase;
-    const image = findFirstImage(content);
-    return {
-      '@type': 'BlogPosting',
-      '@id': baseUrl ? `${articleUrlBase}#post-${post.id}` : undefined,
-      headline: post.title,
-      description: summary || undefined,
-      url: articleUrl,
-      datePublished: toIsoDate((rawPost as any).createdAt ?? post.createdAt),
-      dateModified: toIsoDate((rawPost as any).updatedAt ?? post.updatedAt ?? rawPost?.createdAt),
-      isAccessibleForFree: true,
-      mainEntityOfPage: articleUrl,
-      wordCount: summary ? summary.split(/\s+/).length : undefined,
-      image: image,
-      inLanguage: post.sourceLang || baseLang,
-      author: {
-        '@type': 'Person',
-        name,
-        url: articleUrl,
-        image: avatar,
-      },
-      publisher: baseUrl ? { '@id': `${baseUrl}/#organization` } : undefined,
-    };
+    const author: AuthorInfo = { name, handle, avatar };
+    return createBlogPostingSchema(post, author, { baseUrl, siteName, lang: baseLang });
   });
 
   const structuredData = stripScriptTags(JSON.stringify([blogSchema, ...postSchemas].map(cleanJsonLd)));

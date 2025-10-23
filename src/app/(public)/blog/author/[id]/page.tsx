@@ -1,4 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import type { IBlogPost } from '@/entities/BlogPost';
 import { BlogRepository } from '@/repositories/BlogRepository';
 import { FamilyRepository } from '@/repositories/FamilyRepository';
@@ -10,6 +10,8 @@ import AuthorPostActions from '@/components/blog/AuthorPostActions';
 import { stripScriptTags, cleanJsonLd } from '@/utils/jsonld';
 import { fetchSiteInfo } from '@/firebase/admin';
 import { getServerT } from '@/utils/serverTranslations';
+import { createProfilePageSchema, createBlogPostListSchema, type AuthorInfo } from '@/utils/blogSchema';
+import crypto from 'crypto';
 
 export const dynamic = 'force-dynamic';
 
@@ -86,46 +88,36 @@ export default async function AuthorBlogPage({ params, searchParams }: { params:
         ? String(siteInfo.name)
         : 'FamilyCircle');
 
-  const authorUrl = baseUrl ? `${baseUrl}/blog/author/${encodeURIComponent(params.id)}` : undefined;
+  const authorName =
+    (member as any)?.displayName ||
+    (member as any)?.firstName ||
+    (member as any)?.email ||
+    params.id;
 
-  const profileSchema = cleanJsonLd({
-    '@context': 'https://schema.org',
-    '@type': 'ProfilePage',
-    name: siteName,
-    inLanguage: baseLang,
-    url: authorUrl,
-    mainEntity: {
-      '@type': 'Person',
-      name:
-        (member as any)?.displayName ||
-        (member as any)?.firstName ||
-        (member as any)?.email ||
-        params.id,
-      url: authorUrl,
-    },
-    publisher: baseUrl ? { '@id': `${baseUrl}/#organization` } : undefined,
+  const authorEmail = (member as any)?.email || '';
+  const hash = crypto.createHash('md5').update(authorEmail.trim().toLowerCase()).digest('hex');
+  const authorAvatar = `https://www.gravatar.com/avatar/${hash}?s=48&d=identicon`;
+
+  const author: AuthorInfo = {
+    name: authorName,
+    handle: params.id,
+    avatar: authorAvatar,
+    email: authorEmail,
+  };
+
+  const profileSchema = createProfilePageSchema(author, {
+    baseUrl,
+    siteName,
+    lang: baseLang,
   });
 
-  const postsJsonLd = cleanJsonLd({
-    '@context': 'https://schema.org',
-    '@type': 'ItemList',
-    url: authorUrl,
-    numberOfItems: localized.length,
-    itemListElement: localized.map((post, index) => ({
-      '@type': 'ListItem',
-      position: index + 1,
-      item: {
-        '@type': 'BlogPosting',
-        headline: post.title,
-        url: authorUrl ? `${authorUrl}?post=${post.id}` : undefined,
-        datePublished: post.createdAt,
-        dateModified: post.updatedAt || post.createdAt,
-        inLanguage: post.sourceLang || baseLang,
-      },
-    })),
-  });
+  const postsListSchema = createBlogPostListSchema(
+    localized,
+    localized.map(() => author),
+    { baseUrl, siteName, lang: baseLang }
+  );
 
-  const structuredData = stripScriptTags(JSON.stringify([profileSchema, postsJsonLd]));
+  const structuredData = stripScriptTags(JSON.stringify([profileSchema, postsListSchema].map(cleanJsonLd)));
 
   return (
     <div className="space-y-4 p-4">

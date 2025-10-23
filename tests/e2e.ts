@@ -7,7 +7,7 @@ type Scenario = 'local' | 'preview' | 'production';
 type EnvKey = 'TARGET_URL' // Site address
   | 'DEV_TEST_USER' // User to login with
   | 'DEV_TEST_PASSWORD' // User's password
-  | 'VERCEL_DEPLOYMENT_PROTECTION_BYPASS' // token to acces preview env
+  | 'VERCEL_DEPLOYMENT_PROTECTION_BYPASS' // token to access preview env
   | 'FIREBASE_API_KEY' // API key for login using firebase
 
 interface CliArgs {
