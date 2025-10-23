@@ -89,7 +89,7 @@ export default function Header({ user, member, onLogout, siteInfo }: HeaderProps
                 <a className="hover:underline flex items-center gap-1" href="/">
                   {isRTL ? (<><span>{t('home') as string}</span><HomeIcon size={18} /></>) : (<><HomeIcon size={18} /><span>{t('home') as string}</span></>)}
                 </a>
-                <a className="hover:underline flex items-center gap-1" href="/blog/family">
+                <a className="hover:underline flex items-center gap-1" href="/blog">
                   {isRTL ? (<><span>{t('blog') as string}</span><BookOpen size={18} /></>) : (<><BookOpen size={18} /><span>{t('blog') as string}</span></>)}
                 </a>
                 <a className="hover:underline flex items-center gap-1" href="/contact">

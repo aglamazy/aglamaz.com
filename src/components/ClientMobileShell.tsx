@@ -10,7 +10,7 @@ import SweepableContainer from '@/components/mobile/SweepableContainer';
 import SweepableElement from '@/components/mobile/SweepableElement';
 import PicturesFeedPage from '@/app/(app)/pictures/feed/page';
 import CalendarPage from '@/app/(app)/calendar/page';
-import BlogPage from '@/app/(app)/blog/page';
+import BlogPage from '@/app/(app)/app/blog/page';
 import ShimmerImagePreview from '@/components/mobile/ShimmerImagePreview';
 import styles from './ClientLayoutShell.module.css';
 import type { TFunction } from 'i18next';

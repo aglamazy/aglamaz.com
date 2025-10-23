@@ -28,7 +28,7 @@ export default function NewPostPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ authorId: user.user_id, title, content, isPublic, lang: i18n.language })
       });
-      router.push('/blog');
+      router.push('/app/blog');
     } catch (error) {
       console.error(error);
     } finally {

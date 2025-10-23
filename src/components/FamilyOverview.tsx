@@ -55,7 +55,7 @@ export default function FamilyOverview() {
       icon: MessageCircle,
       color: "text-green-600",
       bg: "bg-green-100",
-      href: '/blog/family'
+      href: '/blog'
     },
     {
       title: t('photoAlbums') as string,

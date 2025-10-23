@@ -53,7 +53,7 @@ export default async function LandingPage({ siteInfo, lang, baseUrl }: LandingPa
 
   const spotlight = [
     {
-      href: '/blog/family',
+      href: '/blog',
       icon: BookOpen,
       title: t('familyBlog') as string,
       description: t('catchUpOnFamilyNews') as string,

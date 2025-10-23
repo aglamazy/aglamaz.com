@@ -56,7 +56,7 @@ export default function BlogPage() {
 
   return (
     <div className={styles.container}>
-      <AddFab ariaLabel={t('add') as string} onClick={() => router.push('/blog/new')} />
+      <AddFab ariaLabel={t('add') as string} onClick={() => router.push('/app/blog/new')} />
       <header className={styles.header}>
         <h1 className={styles.headerTitle}>{headerTitle}</h1>
       </header>
@@ -77,7 +77,7 @@ export default function BlogPage() {
                 dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(post.content || '') }}
               />
               <div className={styles.cardActions}>
-                <Link href={`/blog/${post.id}/edit`}>
+                <Link href={`/app/blog/${post.id}/edit`}>
                   <Button className={styles.editButton}>{t('edit')}</Button>
                 </Link>
               </div>

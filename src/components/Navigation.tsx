@@ -47,7 +47,7 @@ export default function Navigation({ user, onLogout, setMobileMenuOpen }: Naviga
   const navigationItems = [
     { name: t('home'), href: '/app', icon: Home },
     { name: t('family'), href: '/family', icon: Users },
-    { name: t('readFamilyBlog'), href: '/blog/family', icon: BookOpen },
+    { name: t('readFamilyBlog'), href: '/app/blog', icon: BookOpen },
     { name: t('familyCalendar') as string, href: '/calendar', icon: Calendar },
   ];
 

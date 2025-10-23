@@ -66,6 +66,10 @@ export default async function AuthorBlogPage({ params, searchParams }: { params:
 
   return (
     <div className="space-y-4 p-4">
+      <script
+        id="__INITIAL_LANG__"
+        dangerouslySetInnerHTML={{ __html: `window.__INITIAL_LANG__=${JSON.stringify(lang.split('-')[0]?.toLowerCase() || lang.toLowerCase())};` }}
+      />
       <TranslationTrigger posts={clientPosts} lang={lang} />
       {localized.map((post) => (
         <Card key={post.id}>

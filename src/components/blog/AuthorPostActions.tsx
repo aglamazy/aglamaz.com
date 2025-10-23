@@ -21,10 +21,7 @@ export default function AuthorPostActions({ postId, authorId }: AuthorPostAction
   if (!isOwner && !isAdmin) return null;
 
   return (
-    <Link
-      href={`/blog/${postId}/edit`}
-      className="text-sm text-blue-600 hover:underline"
-    >
+    <Link href={`/app/blog/${postId}/edit`} className="text-sm text-blue-600 hover:underline">
       {t('edit') as string}
     </Link>
   );

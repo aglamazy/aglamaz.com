@@ -48,5 +48,15 @@ export default async function HomePage({
   const resolvedLang = queryLang || cookieLang || headerLang || DEFAULT_LANG;
   const baseUrl = resolveBaseUrl();
 
-  return <LandingPage siteInfo={siteInfo} lang={resolvedLang} baseUrl={baseUrl} />;
+  return (
+    <>
+      <script
+        id="__INITIAL_LANG__"
+        dangerouslySetInnerHTML={{
+          __html: `window.__INITIAL_LANG__=${JSON.stringify(resolvedLang)};`,
+        }}
+      />
+      <LandingPage siteInfo={siteInfo} lang={resolvedLang} baseUrl={baseUrl} />
+    </>
+  );
 }

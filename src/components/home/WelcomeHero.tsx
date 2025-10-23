@@ -37,7 +37,7 @@ export default function WelcomeHero({ user, title, subtitle, actions }: WelcomeH
       title: t('readFamilyBlog') as string,
       description: t('catchUpOnFamilyNews') as string,
       icon: BookOpen,
-      url: '/blog/family',
+          url: '/blog',
       color: "from-blue-500 to-blue-600",
     },
     {

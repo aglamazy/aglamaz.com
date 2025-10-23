@@ -46,7 +46,7 @@ export default function EditPostPage() {
     const authorId = post.authorId;
     const canEdit = user?.user_id === authorId || member?.role === 'admin';
     if (!canEdit) {
-      router.replace('/blog');
+      router.replace('/app/blog');
     }
   }, [post, user?.user_id, member?.role, router]);
 
@@ -66,7 +66,7 @@ export default function EditPostPage() {
           lang: i18n.language,
         }),
       });
-      router.push('/blog/family');
+      router.push('/app/blog');
     } catch (err) {
       console.error('[blog-edit] failed to save post', err);
       setError(t('failedToLoadBlogPosts') as string);

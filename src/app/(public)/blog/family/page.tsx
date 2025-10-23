@@ -121,7 +121,7 @@ export default async function FamilyBlogPage({ searchParams }: { searchParams?: 
         ? String(siteInfo.name)
         : 'FamilyCircle');
 
-  const blogUrl = baseUrl ? `${baseUrl}/blog/family` : undefined;
+  const blogUrl = baseUrl ? `${baseUrl}/blog` : undefined;
   const blogSchema = {
     '@context': 'https://schema.org',
     '@type': 'Blog',
@@ -167,6 +167,10 @@ export default async function FamilyBlogPage({ searchParams }: { searchParams?: 
 
   return (
     <div className={`space-y-4 p-4 ${styles.blobBg}`}>
+      <script
+        id="__INITIAL_LANG__"
+        dangerouslySetInnerHTML={{ __html: `window.__INITIAL_LANG__=${JSON.stringify(baseLang)};` }}
+      />
       <TranslationTrigger posts={clientPosts} lang={lang} />
       {/* For users with blogs: FAB to add post. For others: CTA to start a blog */}
       <AddPostFab />

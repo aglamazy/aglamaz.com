@@ -15,7 +15,6 @@ export default function AddPostFab() {
   if (!user || !member?.blogEnabled) return null;
 
   return (
-    <AddFab ariaLabel={t('add') as string} onClick={() => router.push('/blog/new')} />
+    <AddFab ariaLabel={t('add') as string} onClick={() => router.push('/app/blog/new')} />
   );
 }
-
