@@ -27,8 +27,9 @@ export async function middleware(request: NextRequest) {
   const token = request.cookies.get(ACCESS_TOKEN)?.value;
   const isPublic = PUBLIC_PATHS.some(p => pathname === p || pathname.startsWith(p + '/'));
 
-  // Only skip auth for public paths when no token is present
-  if (!token && isPublic) {
+  // Allow public paths regardless of auth status
+  if (isPublic) {
+    console.log('[middleware] Public path accessed:', pathname, 'token:', !!token);
     return NextResponse.next();
   }
 
