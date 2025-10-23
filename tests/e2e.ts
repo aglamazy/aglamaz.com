@@ -50,7 +50,7 @@ const bypassToken =
 
 if ((!username || !password) && !bypassToken) {
   console.error(
-    'Missing credentials: set VERCEL_PROTECTION_USER/VERCEL_PROTECTION_PASSWORD (or DEV_TEST_* / BASIC_AUTH_*) or provide VERCEL_DEPLOYMENT_PROTECTION_BYPASS.'
+    'Missing credentials: set VERCEL_PROTECTION_USER/VERCEL_PROTECTION_PASSWORD (or DEV_TEST_* / BASIC_AUTH_*). Optional: VERCEL_DEPLOYMENT_PROTECTION_BYPASS.'
   );
   process.exitCode = 1;
   process.exit();
