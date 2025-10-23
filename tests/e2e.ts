@@ -90,6 +90,16 @@ async function checkRoot(url: string) {
   console.log(`✅ Root OK: ${res.status} ${res.statusText} – site title: ${siteName}`);
 }
 
+async function checkSitemap(base: URL) {
+  const sitemapUrl = new URL('/sitemap.xml', base).toString();
+  console.log(`Fetching sitemap ${sitemapUrl}`);
+  const res = await fetchWithHeaders(sitemapUrl, { method: 'GET', redirect: 'manual' });
+  assert.ok(res.ok, `sitemap.xml expected 200-range, received ${res.status} ${res.statusText}`);
+  const xml = await res.text();
+  const urlCount = (xml.match(/<url>/g) || []).length;
+  console.log(`✅ sitemap.xml OK: ${res.status} ${res.statusText} – contains ${urlCount} url entries`);
+}
+
 async function signInToFirebase(email: string, pass: string) {
   const apiKey =
     process.env.FIREBASE_API_KEY ||
@@ -163,6 +173,7 @@ async function run() {
   const base = new URL(normalized);
 
   await checkRoot(base.toString());
+  await checkSitemap(base);
 
   const loginEmail = process.env.DEV_TEST_EMAIL || process.env.TEST_EMAIL || '';
   const loginPassword = process.env.DEV_TEST_PASSWORD || process.env.TEST_PASSWORD || '';
