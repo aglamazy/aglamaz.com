@@ -98,6 +98,31 @@ async function checkSitemap(base: URL) {
   const xml = await res.text();
   const urlCount = (xml.match(/<url>/g) || []).length;
   console.log(`✅ sitemap.xml OK: ${res.status} ${res.statusText} – contains ${urlCount} url entries`);
+
+  // Extract all <loc> values
+  const locMatches = Array.from(xml.matchAll(/<loc>([^<]+)<\/loc>/g)).map((m) => m[1]);
+  const missingJsonLd: string[] = [];
+
+  for (const loc of locMatches) {
+    try {
+      const pageRes = await fetchWithHeaders(loc, { method: 'GET', redirect: 'manual' });
+      if (!pageRes.ok) {
+        missingJsonLd.push(`${loc} (status ${pageRes.status})`);
+        continue;
+      }
+      const body = await pageRes.text();
+      if (!body.includes('type="application/ld+json"')) {
+        missingJsonLd.push(loc);
+      }
+    } catch (error) {
+      missingJsonLd.push(`${loc} (fetch error: ${(error as Error).message})`);
+    }
+  }
+
+  if (missingJsonLd.length) {
+    throw new Error(`Pages missing JSON-LD: ${missingJsonLd.join(', ')}`);
+  }
+  console.log('✅ All sitemap pages contain JSON-LD');
 }
 
 async function signInToFirebase(email: string, pass: string) {

@@ -7,6 +7,9 @@ import TranslationTrigger from '@/components/blog/TranslationTrigger';
 import I18nText from '@/components/I18nText';
 import blogStyles from '@/components/blog/PublicPost.module.css';
 import AuthorPostActions from '@/components/blog/AuthorPostActions';
+import { stripScriptTags, cleanJsonLd } from '@/utils/jsonld';
+import { fetchSiteInfo } from '@/firebase/admin';
+import { getServerT } from '@/utils/serverTranslations';
 
 export const dynamic = 'force-dynamic';
 
@@ -38,6 +41,17 @@ export default async function AuthorBlogPage({ params, searchParams }: { params:
   const cookieLang = cookies().get('ux_lang')?.value || '';
   const lang = (qp && qp.split('-')[0]) || (cookieLang && cookieLang.split('-')[0]) || accept.split(',')[0]?.split('-')[0] || process.env.NEXT_DEFAULT_LANG || 'en';
 
+  const baseLang = lang.split('-')[0]?.toLowerCase() || lang.toLowerCase();
+  const t = await getServerT(baseLang);
+
+  let siteInfo: Record<string, unknown> | null = null;
+  try {
+    siteInfo = (await fetchSiteInfo()) as Record<string, unknown> | null;
+  } catch (error) {
+    console.error('[blog/author] failed to fetch site info', error);
+    throw error;
+  }
+
   const choose = (p: IBlogPost) => {
     if (!lang || lang === p.sourceLang) return p;
     const translations = p.translations || {};
@@ -64,12 +78,62 @@ export default async function AuthorBlogPage({ params, searchParams }: { params:
     ) as Record<string, { title: string; content: string }>,
   }));
 
+  const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || '').trim().replace(/\/+$/, '') || undefined;
+  const siteName =
+    (siteInfo?.translations && typeof (siteInfo.translations as any)?.[baseLang] === 'string'
+      ? String((siteInfo.translations as any)[baseLang])
+      : typeof siteInfo?.name === 'string'
+        ? String(siteInfo.name)
+        : 'FamilyCircle');
+
+  const authorUrl = baseUrl ? `${baseUrl}/blog/author/${encodeURIComponent(params.id)}` : undefined;
+
+  const profileSchema = cleanJsonLd({
+    '@context': 'https://schema.org',
+    '@type': 'ProfilePage',
+    name: siteName,
+    inLanguage: baseLang,
+    url: authorUrl,
+    mainEntity: {
+      '@type': 'Person',
+      name:
+        (member as any)?.displayName ||
+        (member as any)?.firstName ||
+        (member as any)?.email ||
+        params.id,
+      url: authorUrl,
+    },
+    publisher: baseUrl ? { '@id': `${baseUrl}/#organization` } : undefined,
+  });
+
+  const postsJsonLd = cleanJsonLd({
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    url: authorUrl,
+    numberOfItems: localized.length,
+    itemListElement: localized.map((post, index) => ({
+      '@type': 'ListItem',
+      position: index + 1,
+      item: {
+        '@type': 'BlogPosting',
+        headline: post.title,
+        url: authorUrl ? `${authorUrl}?post=${post.id}` : undefined,
+        datePublished: post.createdAt,
+        dateModified: post.updatedAt || post.createdAt,
+        inLanguage: post.sourceLang || baseLang,
+      },
+    })),
+  });
+
+  const structuredData = stripScriptTags(JSON.stringify([profileSchema, postsJsonLd]));
+
   return (
     <div className="space-y-4 p-4">
       <script
         id="__INITIAL_LANG__"
         dangerouslySetInnerHTML={{ __html: `window.__INITIAL_LANG__=${JSON.stringify(lang.split('-')[0]?.toLowerCase() || lang.toLowerCase())};` }}
       />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: structuredData }} />
       <TranslationTrigger posts={clientPosts} lang={lang} />
       {localized.map((post) => (
         <Card key={post.id}>
