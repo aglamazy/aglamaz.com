@@ -5,3 +5,5 @@ node_modules
 .idea/ 
 tsconfig.tsbuildinfo
 
+/firebase-debug.log
+/.codex
