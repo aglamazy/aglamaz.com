@@ -12,8 +12,11 @@ import { headers } from 'next/headers';
 import blogStyles from '@/components/blog/PublicPost.module.css';
 import { stripScriptTags, cleanJsonLd } from '@/utils/jsonld';
 import { fetchSiteInfo } from '@/firebase/admin';
+import { resolveSiteId } from '@/utils/resolveSiteId';
 import { getServerT } from '@/utils/serverTranslations';
+import { getPlatformName } from '@/utils/platformName';
 import { createBlogSchema, createBlogPostingSchema, type AuthorInfo } from '@/utils/blogSchema';
+import UnderConstruction from '@/components/UnderConstruction';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,7 +31,16 @@ function resolveBaseUrl() {
 }
 
 export default async function FamilyBlogPage({ searchParams }: { searchParams?: Record<string, string | string[] | undefined> }) {
-  const siteId = process.env.NEXT_SITE_ID || '';
+  // Resolve site ID
+  const siteId = await resolveSiteId();
+
+  // If no site configured, show Under Construction
+  if (!siteId) {
+    const h = headers();
+    const host = h.get('host') || 'unknown';
+    return <UnderConstruction domain={host} />;
+  }
+
   const repo = new BlogRepository();
   const fam = new FamilyRepository();
   const posts: IBlogPost[] = await repo.getPublicBySite(siteId, 30);
@@ -42,10 +54,10 @@ export default async function FamilyBlogPage({ searchParams }: { searchParams?: 
 
   let siteInfo: Record<string, unknown> | null = null;
   try {
-    siteInfo = (await fetchSiteInfo()) as Record<string, unknown> | null;
+    siteInfo = (await fetchSiteInfo(siteId)) as Record<string, unknown> | null;
   } catch (error) {
     console.error('[blog/family] failed to fetch site info', error);
-    throw error;
+    // Continue with null siteInfo
   }
 
   const choose = (p: IBlogPost) => {
@@ -92,7 +104,7 @@ export default async function FamilyBlogPage({ searchParams }: { searchParams?: 
       ? String((siteInfo.translations as any)[baseLang])
       : typeof siteInfo?.name === 'string'
         ? String(siteInfo.name)
-        : 'FamilyCircle');
+        : getPlatformName(siteInfo));
 
   const blogSchema = createBlogSchema(
     t('catchUpOnFamilyNews') as string,

@@ -18,11 +18,12 @@ export class AdminNotificationService {
     return notificationRepository.addNotification({ eventType, payload: payloadWithUrl });
   }
 
-  private async getAdminEmail(): Promise<string | null> {
-    const siteInfo = await fetchSiteInfo();
+  private async getAdminEmail(siteId?: string): Promise<string | null> {
+    // Use provided siteId or fall back to env variable
+    const siteInfo = await fetchSiteInfo(siteId);
     const ownerUid = (siteInfo as any)?.ownerUid;
     if (!ownerUid) {
-      console.warn('Site owner UID not found, skipping email');
+      console.warn('[AdminNotificationService] Site owner UID not found, skipping email');
       return null;
     }
     try {

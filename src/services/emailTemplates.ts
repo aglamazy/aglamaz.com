@@ -8,6 +8,8 @@ export interface EmailNote {
   lines: string[];
 }
 
+import { DEFAULT_PLATFORM_NAME } from '@/constants/platform';
+
 export interface EmailTemplateOptions {
   subject: string;
   lang?: string;
@@ -23,7 +25,7 @@ export interface EmailTemplateOptions {
   footerLines?: string[];
 }
 
-const DEFAULT_HEADING = '🌳 FamilyCircle';
+const DEFAULT_HEADING = `🌳 ${DEFAULT_PLATFORM_NAME}`;
 
 function escapeHtml(value: string): string {
   return value

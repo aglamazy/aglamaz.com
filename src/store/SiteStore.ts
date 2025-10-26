@@ -5,6 +5,7 @@ import { ISite } from "@/entities/Site";
 export interface SiteStore {
   siteInfo: ISite | null;
   setSiteInfo: (info: ISite | null) => void;
+  hydrateFromWindow: () => void;
 }
 
 const readBootstrapSiteInfo = (): ISite | null => {
@@ -16,6 +17,10 @@ const readBootstrapSiteInfo = (): ISite | null => {
 };
 
 export const useSiteStore = create<SiteStore>((set) => ({
-  siteInfo: readBootstrapSiteInfo(),   // ✅ set once, synchronously
+  siteInfo: null,
   setSiteInfo: (info) => set({ siteInfo: info }),
+  hydrateFromWindow: () => {
+    const info = readBootstrapSiteInfo();
+    set((state) => (state.siteInfo === info ? state : { siteInfo: info }));
+  },
 }));

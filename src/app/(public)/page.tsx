@@ -1,5 +1,7 @@
 import LandingPage from '@/components/home/LandingPage';
-import { fetchSiteInfo } from '@/firebase/admin';
+import UnderConstruction from '@/components/UnderConstruction';
+import { fetchSiteInfo, fetchPlatformDescription } from '@/firebase/admin';
+import { resolveSiteId, resolveSiteIdWithOverride } from '@/utils/resolveSiteId';
 import nextI18NextConfig from '../../../next-i18next.config.js';
 import { cookies, headers } from 'next/headers';
 
@@ -27,11 +29,28 @@ export default async function HomePage({
 }: {
   searchParams?: Record<string, string | string[] | undefined>;
 }) {
+  // Resolve site ID based on hostname or query param (for local dev)
+  const overrideSiteId = resolveSiteIdWithOverride(searchParams);
+  const siteId = overrideSiteId || await resolveSiteId();
+
+  // If no site ID is resolved, show "Under Construction" page
+  if (!siteId) {
+    const h = headers();
+    const host = h.get('host') || 'unknown';
+    return <UnderConstruction domain={host} />;
+  }
+
   let siteInfo = null;
+  let platformDescription = null;
+
   try {
-    siteInfo = await fetchSiteInfo();
+    // Fetch both site info and platform description in parallel
+    [siteInfo, platformDescription] = await Promise.all([
+      fetchSiteInfo(siteId),
+      fetchPlatformDescription(),
+    ]);
   } catch (error) {
-    console.error('Failed to fetch site info for home page:', error);
+    console.error('Failed to fetch data for home page:', error);
     throw error;
   }
 
@@ -56,7 +75,12 @@ export default async function HomePage({
           __html: `window.__INITIAL_LANG__=${JSON.stringify(resolvedLang)};`,
         }}
       />
-      <LandingPage siteInfo={siteInfo} lang={resolvedLang} baseUrl={baseUrl} />
+      <LandingPage
+        siteInfo={siteInfo}
+        platformDescription={platformDescription}
+        lang={resolvedLang}
+        baseUrl={baseUrl}
+      />
     </>
   );
 }

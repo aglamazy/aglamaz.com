@@ -1,5 +1,7 @@
 import { google } from 'googleapis';
 import { EmailTemplateOptions, renderEmailHtml, renderPlainTextEmail } from './emailTemplates';
+import { getPlatformName } from '@/utils/platformName';
+import type { ISite } from '@/entities/Site';
 
 export interface EmailData {
   to: string;
@@ -102,17 +104,19 @@ export class GmailService {
     }
   }
 
-  async sendVerificationEmail(to: string, firstName: string, verificationUrl: string): Promise<void> {
+  async sendVerificationEmail(to: string, firstName: string, verificationUrl: string, siteInfo?: ISite | Record<string, any> | null): Promise<void> {
     const name = firstName?.trim().split(' ')[0];
     const year = new Date().getFullYear();
+    const platformName = getPlatformName(siteInfo);
+
     const template: EmailTemplateOptions = {
-      subject: 'אימות הרשמה למערכת - FamilyCircle',
+      subject: `אימות הרשמה למערכת - ${platformName}`,
       lang: 'he',
       dir: 'rtl',
-      preheader: 'אמת את ההרשמה שלך ל-FamilyCircle',
+      preheader: `אמת את ההרשמה שלך ל-${platformName}`,
       greeting: `שלום${name ? ` ${name}` : ''},`,
       paragraphs: [
-        'תודה שנרשמת ל-FamilyCircle. כדי להשלים את ההרשמה, לחץ על הכפתור למטה.',
+        `תודה שנרשמת ל-${platformName}. כדי להשלים את ההרשמה, לחץ על הכפתור למטה.`,
       ],
       button: { label: 'אמת את האימייל שלך', url: verificationUrl },
       note: {
@@ -125,7 +129,7 @@ export class GmailService {
       linkList: [verificationUrl],
       footerLines: [
         'זהו אימייל אוטומטי, אנא אל תשיבו לו.',
-        `© ${year} FamilyCircle. כל הזכויות שמורות.`,
+        `© ${year} ${platformName}. כל הזכויות שמורות.`,
       ],
     };
     const html = renderEmailHtml(template);
@@ -133,21 +137,22 @@ export class GmailService {
     await this.sendEmail({ to, subject: template.subject, html, text });
   }
 
-  async sendInviteVerificationEmail(to: string, firstName: string, verificationUrl: string, language = 'he'): Promise<void> {
+  async sendInviteVerificationEmail(to: string, firstName: string, verificationUrl: string, language = 'he', siteInfo?: ISite | Record<string, any> | null): Promise<void> {
     const langKey = (language || '').split('-')[0].toLowerCase();
     const name = (firstName || '').trim();
     const year = new Date().getFullYear();
+    const platformName = getPlatformName(siteInfo);
 
     type InvitePayload = { name: string; url: string };
     const builders: Record<string, (payload: InvitePayload) => EmailTemplateOptions> = {
       he: ({ name, url }) => ({
-        subject: 'הצטרפות לקהילה - FamilyCircle',
+        subject: `הצטרפות לקהילה - ${platformName}`,
         lang: 'he',
         dir: 'rtl',
-        preheader: 'אשר את ההזמנה שלך ל-FamilyCircle',
+        preheader: `אשר את ההזמנה שלך ל-${platformName}`,
         greeting: `שלום${name ? ` ${name}` : ''},`,
         paragraphs: [
-          'קיבלת הזמנה להצטרף ל-FamilyCircle. כדי להשלים את ההצטרפות, לחץ על הכפתור למטה.',
+          `קיבלת הזמנה להצטרף ל-${platformName}. כדי להשלים את ההצטרפות, לחץ על הכפתור למטה.`,
         ],
         button: { label: 'אישור הצטרפות', url },
         note: {
@@ -160,40 +165,40 @@ export class GmailService {
         linkList: [url],
         footerLines: [
           'זהו אימייל אוטומטי, אנא אל תשיבו לו.',
-          `© ${year} FamilyCircle. כל הזכויות שמורות.`,
+          `© ${year} ${platformName}. כל הזכויות שמורות.`,
         ],
       }),
       en: ({ name, url }) => ({
-        subject: 'Confirm your FamilyCircle invitation',
+        subject: `Confirm your ${platformName} invitation`,
         lang: 'en',
         dir: 'ltr',
-        preheader: 'Confirm your invitation to join FamilyCircle',
+        preheader: `Confirm your invitation to join ${platformName}`,
         greeting: `Hello${name ? ` ${name}` : ''},`,
         paragraphs: [
-          'You’ve been invited to join the FamilyCircle space. Click the button below to finish joining.',
+          `You've been invited to join the ${platformName} space. Click the button below to finish joining.`,
         ],
         button: { label: 'Confirm invitation', url },
         note: {
           title: 'The link expires in 24 hours.',
-          lines: ['If you weren’t expecting this invitation, you can ignore this email.'],
+          lines: ['If you weren\'t expecting this invitation, you can ignore this email.'],
         },
         secondary: [
-          'If the button doesn’t work, copy this link into your browser:',
+          'If the button doesn\'t work, copy this link into your browser:',
         ],
         linkList: [url],
         footerLines: [
           'This email was sent automatically — no reply is needed.',
-          `© ${year} FamilyCircle. All rights reserved.`,
+          `© ${year} ${platformName}. All rights reserved.`,
         ],
       }),
       tr: ({ name, url }) => ({
-        subject: 'FamilyCircle davetinizi onaylayın',
+        subject: `${platformName} davetinizi onaylayın`,
         lang: 'tr',
         dir: 'ltr',
-        preheader: 'FamilyCircle davetinizi onaylayın',
+        preheader: `${platformName} davetinizi onaylayın`,
         greeting: `Merhaba${name ? ` ${name}` : ''},`,
         paragraphs: [
-          'FamilyCircle aile alanına davet edildiniz. Katılımı tamamlamak için aşağıdaki düğmeye tıklayın.',
+          `${platformName} aile alanına davet edildiniz. Katılımı tamamlamak için aşağıdaki düğmeye tıklayın.`,
         ],
         button: { label: 'Daveti onayla', url },
         note: {
@@ -206,7 +211,7 @@ export class GmailService {
         linkList: [url],
         footerLines: [
           'Bu e-posta otomatik olarak gönderildi — yanıt vermenize gerek yok.',
-          `© ${year} FamilyCircle. Tüm hakları saklıdır.`,
+          `© ${year} ${platformName}. Tüm hakları saklıdır.`,
         ],
       }),
     };
@@ -218,19 +223,20 @@ export class GmailService {
     await this.sendEmail({ to, subject: template.subject, html, text });
   }
 
-  async sendPasswordResetEmail(params: { to: string; resetUrl: string; firstName?: string; language?: string }): Promise<void> {
-    const { to, resetUrl, firstName, language } = params;
+  async sendPasswordResetEmail(params: { to: string; resetUrl: string; firstName?: string; language?: string; siteInfo?: ISite | Record<string, any> | null }): Promise<void> {
+    const { to, resetUrl, firstName, language, siteInfo } = params;
     const langKey = (language || '').split('-')[0].toLowerCase();
     const name = firstName?.trim().split(' ')[0] || '';
     const year = new Date().getFullYear();
+    const platformName = getPlatformName(siteInfo);
 
-    type ResetPayload = { name: string; url: string };
+    type ResetPayload = { name: string; url: string; platformName: string };
     const builders: Record<string, (payload: ResetPayload) => EmailTemplateOptions> = {
-      he: ({ name, url }) => ({
-        subject: 'איפוס סיסמה - FamilyCircle',
+      he: ({ name, url, platformName }) => ({
+        subject: `איפוס סיסמה - ${platformName}`,
         lang: 'he',
         dir: 'rtl',
-        preheader: 'אפס סיסמה לחשבון FamilyCircle שלך',
+        preheader: `אפס סיסמה לחשבון ${platformName} שלך`,
         greeting: `שלום${name ? ` ${name}` : ''},`,
         paragraphs: [
           'קיבלנו בקשה לאיפוס הסיסמה שלך. אם זו הייתה אתה, לחץ על הכפתור למטה כדי לבחור סיסמה חדשה.',
@@ -246,14 +252,14 @@ export class GmailService {
         linkList: [url],
         footerLines: [
           'האימייל נשלח אליך אוטומטית - אין צורך להשיב אליו.',
-          `© ${year} FamilyCircle`,
+          `© ${year} ${platformName}`,
         ],
       }),
-      en: ({ name, url }) => ({
-        subject: 'Reset your FamilyCircle password',
+      en: ({ name, url, platformName }) => ({
+        subject: `Reset your ${platformName} password`,
         lang: 'en',
         dir: 'ltr',
-        preheader: 'Choose a new password for your FamilyCircle account',
+        preheader: `Choose a new password for your ${platformName} account`,
         greeting: `Hello${name ? ` ${name}` : ''},`,
         paragraphs: [
           'We received a request to reset your password. If this was you, click the button below to pick a new one.',
@@ -261,22 +267,22 @@ export class GmailService {
         button: { label: 'Reset password', url },
         note: {
           title: 'This link is valid for one hour.',
-          lines: ['If you didn’t request a reset, you can safely ignore this email.'],
+          lines: ['If you didn\'t request a reset, you can safely ignore this email.'],
         },
         secondary: [
-          'If the button doesn’t work, copy this link into your browser:',
+          'If the button doesn\'t work, copy this link into your browser:',
         ],
         linkList: [url],
         footerLines: [
           'This email was sent automatically — no reply is needed.',
-          `© ${year} FamilyCircle`,
+          `© ${year} ${platformName}`,
         ],
       }),
-      tr: ({ name, url }) => ({
-        subject: 'FamilyCircle şifrenizi sıfırlayın',
+      tr: ({ name, url, platformName }) => ({
+        subject: `${platformName} şifrenizi sıfırlayın`,
         lang: 'tr',
         dir: 'ltr',
-        preheader: 'FamilyCircle şifrenizi sıfırlayın',
+        preheader: `${platformName} şifrenizi sıfırlayın`,
         greeting: `Merhaba${name ? ` ${name}` : ''},`,
         paragraphs: [
           'Şifrenizi sıfırlamak için bir istek aldık. Eğer bu işlem size aitse, yeni bir şifre seçmek için aşağıdaki düğmeye tıklayın.',
@@ -292,13 +298,13 @@ export class GmailService {
         linkList: [url],
         footerLines: [
           'Bu e-posta otomatik olarak gönderildi — yanıt vermenize gerek yok.',
-          `© ${year} FamilyCircle`,
+          `© ${year} ${platformName}`,
         ],
       }),
     };
 
     const buildTemplate = builders[langKey] ?? builders.he;
-    const template = buildTemplate({ name, url: resetUrl });
+    const template = buildTemplate({ name, url: resetUrl, platformName });
     const html = renderEmailHtml(template);
     const text = renderPlainTextEmail(template);
     await this.sendEmail({ to, subject: template.subject, html, text });

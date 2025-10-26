@@ -2,13 +2,18 @@ import './globals.css';
 import I18nProvider from '../components/I18nProvider';
 import I18nGate from '../components/I18nGate';
 import { fetchSiteInfo } from '../firebase/admin';
+import { resolveSiteId } from '../utils/resolveSiteId';
+import { getPlatformName } from '../utils/platformName';
 import type { Metadata } from 'next';
 
 const GOOGLE_VERIFICATION = process.env.GOOGLE_SITE_VERIFICATION || '';
+
 export async function generateMetadata(): Promise<Metadata> {
   try {
-    const siteInfo = await fetchSiteInfo();
-    const siteName = (siteInfo as any).name;
+    const siteId = await resolveSiteId();
+    const siteInfo = siteId ? await fetchSiteInfo(siteId) : null;
+    const siteName = (siteInfo as any)?.name || getPlatformName(siteInfo);
+
     return {
       title: {
         default: siteName,
@@ -23,17 +28,28 @@ export async function generateMetadata(): Promise<Metadata> {
     };
   } catch (error) {
     console.error('Failed to generate metadata:', error);
-    throw error;
+    const siteInfo = null;
+    // Return default metadata instead of throwing
+    return {
+      title: {
+        default: getPlatformName(siteInfo),
+        template: `%s | ${getPlatformName(siteInfo)}`,
+      },
+      icons: {
+        icon: '/favicon.svg',
+      },
+    };
   }
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   let siteInfo = null;
   try {
-    siteInfo = await fetchSiteInfo();
+    const siteId = await resolveSiteId();
+    siteInfo = siteId ? await fetchSiteInfo(siteId) : null;
   } catch (error) {
     console.error('Failed to fetch site info:', error);
-    throw error;
+    // Don't throw - let the app render with null siteInfo
   }
 
   return (
@@ -43,7 +59,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <script
           id="__SITE_INFO__"
           dangerouslySetInnerHTML={{
-            __html: `window.__SITE_INFO__=${JSON.stringify(siteInfo || {})};`,
+            __html: `window.__SITE_INFO__=${JSON.stringify(siteInfo ?? null)};`,
           }}
         />
         <I18nProvider>

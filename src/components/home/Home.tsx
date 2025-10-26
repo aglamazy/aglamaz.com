@@ -10,14 +10,19 @@ import { apiFetch } from "@/utils/apiFetch";
 import { useUserStore } from "@/store/UserStore";
 import { useTranslation } from 'react-i18next';
 import { useLoginModalStore } from '@/store/LoginModalStore';
+import { getLocalizedSiteName } from '@/utils/siteName';
+import { getPlatformName } from '@/utils/platformName';
 
 export default function Home() {
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
     const { user, loading } = useUserStore();
     const member = useMemberStore((s) => s.member);
     const site = useSiteStore((s) => s.siteInfo);
     const openLogin = useLoginModalStore((s) => s.open);
     const searchParams = useSearchParams();
+    const localizedSiteName = getLocalizedSiteName(site, i18n.language);
+    const siteDisplayName: string = localizedSiteName || site?.name || getPlatformName(site);
+    const heroTitle = t('welcomeToSite', { name: siteDisplayName }) as string;
 
     useEffect(() => {
         if (searchParams.get('login') === '1') {
@@ -35,7 +40,7 @@ export default function Home() {
 
     return (
         <div className="min-h-screen">
-            <WelcomeHero user={user} title={t('welcomeToFamilyCircle')} subtitle={t('stayConnected')} />
+            <WelcomeHero user={user} title={heroTitle} subtitle={t('stayConnected') as string} />
             {!user && (
                 <div className="text-center mt-8">
                     <p className="text-sage-700 mb-4">{t('signInToContinue')}</p>

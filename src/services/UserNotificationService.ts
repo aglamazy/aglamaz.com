@@ -2,6 +2,10 @@ import { GmailService } from './GmailService';
 import path from 'path';
 import pug from 'pug';
 import type { IMember } from '@/entities/Member';
+import type { ISite } from '@/entities/Site';
+import { fetchSiteInfo } from '@/firebase/admin';
+import { getLocalizedSiteName } from '@/utils/siteName';
+import { getPlatformName } from '@/utils/platformName';
 
 export class UserNotificationService {
   private renderTemplate(template: string, data: any) {
@@ -13,16 +17,35 @@ export class UserNotificationService {
     return pug.renderFile(file, { ...data, siteUrl, appUrl });
   }
 
-  async sendWelcomeEmail(member: Pick<IMember, 'firstName' | 'email'>) {
+  async sendWelcomeEmail(member: Pick<IMember, 'firstName' | 'email' | 'siteId'> & { locale?: string }) {
     if (!member.email) {
       console.warn('Member email missing, skipping welcome email');
       return;
     }
-    const html = this.renderTemplate('welcome', { firstName: member.firstName });
+
+    let siteInfo: ISite | null = null;
+    if (member.siteId) {
+      try {
+        const fetched = await fetchSiteInfo(member.siteId);
+        siteInfo = (fetched as ISite) ?? null;
+      } catch (error) {
+        console.error('[UserNotificationService] failed to fetch site info for welcome email', error);
+      }
+    }
+
+    const locale = member.locale || 'en';
+    const localizedName = getLocalizedSiteName(siteInfo, locale);
+    const fallbackName = siteInfo?.name?.trim();
+    const siteName = localizedName?.trim() || fallbackName || getPlatformName(siteInfo);
+
+    const html = this.renderTemplate('welcome', {
+      firstName: member.firstName,
+      siteName,
+    });
     const gmail = await GmailService.init();
     await gmail.sendEmail({
       to: member.email,
-      subject: 'Welcome to FamilyCircle',
+      subject: `Welcome to ${siteName}`,
       html,
     });
   }

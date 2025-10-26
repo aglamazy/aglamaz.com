@@ -20,8 +20,8 @@ import ClientMobileShell from '@/components/ClientMobileShell';
 
 export default function ClientLayoutShell({ children }) {
   const { user, loading, logout, checkAuth } = useUserStore();
-  const setSiteInfo = useSiteStore((state) => state.setSiteInfo);
   const siteInfo = useSiteStore((state) => state.siteInfo);
+  const hydrateSiteInfo = useSiteStore((state) => state.hydrateFromWindow);
   const member = useMemberStore((state) => state.member);
   const router = useRouter();
   const { t, i18n } = useTranslation();
@@ -71,10 +71,9 @@ export default function ClientLayoutShell({ children }) {
   // Ensure site info is available on the client after hydration
   useEffect(() => {
     if (!siteInfo) {
-      const w = window as any;
-      if (w.__SITE_INFO__) setSiteInfo(w.__SITE_INFO__);
+      hydrateSiteInfo();
     }
-  }, [siteInfo, setSiteInfo]);
+  }, [siteInfo, hydrateSiteInfo]);
 
   const headerReady = mounted && !!siteInfo;
 

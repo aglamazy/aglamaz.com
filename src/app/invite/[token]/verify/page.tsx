@@ -1,6 +1,7 @@
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { fetchSiteInfo } from '@/firebase/admin';
+import { resolveSiteId } from '@/utils/resolveSiteId';
 import InviteVerifyClient from './InviteVerifyClient';
 
 interface InviteVerifyPageParams {
@@ -11,13 +12,14 @@ interface InviteVerifyPageParams {
 
 export default async function InviteVerifyPage({ params }: InviteVerifyPageParams) {
   const { token } = params;
+  const siteId = await resolveSiteId();
 
   let siteInfo = null;
   try {
-    siteInfo = await fetchSiteInfo();
+    siteInfo = siteId ? await fetchSiteInfo(siteId) : null;
   } catch (error) {
     console.error('[invite][verify-page] failed to load site info', error);
-    throw error;
+    // Don't throw - continue with null
   }
 
   if (!siteInfo) {

@@ -6,9 +6,17 @@ import { createPageUrl } from '../../utils/createPageUrl';
 import type { ISite } from '@/entities/Site';
 import { getServerT } from '@/utils/serverTranslations';
 import { cleanJsonLd, stripScriptTags } from '@/utils/jsonld';
+import { getPlatformName } from '@/utils/platformName';
+
+interface PlatformDescription {
+  content: string;
+  title: string;
+  translations: Record<string, { title: string; content: string }>;
+}
 
 interface LandingPageProps {
   siteInfo: ISite | null;
+  platformDescription: PlatformDescription | null;
   lang: string;
   baseUrl: string | null;
 }
@@ -24,7 +32,7 @@ function resolveLogo(baseUrl: string | null) {
   return `${baseUrl}/favicon.svg`;
 }
 
-export default async function LandingPage({ siteInfo, lang, baseUrl }: LandingPageProps) {
+export default async function LandingPage({ siteInfo, platformDescription, lang, baseUrl }: LandingPageProps) {
   const baseLang = lang.split('-')[0]?.toLowerCase() || lang.toLowerCase();
   const t = await getServerT(baseLang);
   const translations = siteInfo?.translations || {};
@@ -33,7 +41,12 @@ export default async function LandingPage({ siteInfo, lang, baseUrl }: LandingPa
     translations[lang] ||
     translations[baseLang] ||
     siteInfo?.name ||
-    'FamilyCircle';
+    getPlatformName(siteInfo);
+
+  // Get platform description for current language
+  const platformTranslation = platformDescription?.translations?.[lang] || platformDescription?.translations?.[baseLang];
+  const platformTitle = platformTranslation?.title || platformDescription?.title || '';
+  const platformContent = platformTranslation?.content || platformDescription?.content || '';
 
   const alternateNames = Array.from(
     new Set(
@@ -122,6 +135,23 @@ export default async function LandingPage({ siteInfo, lang, baseUrl }: LandingPa
           <p className="text-lg md:text-xl text-sage-600 mx-auto max-w-2xl leading-relaxed">{heroSubtitle}</p>
         </div>
       </section>
+
+      {/* Platform Description Section */}
+      {platformContent && (
+        <section className="border-b border-sage-100 bg-gradient-to-br from-sage-50 to-cream-100">
+          <div className="max-w-4xl mx-auto px-4 py-12">
+            {platformTitle && (
+              <h2 className="text-3xl md:text-4xl font-bold text-charcoal mb-6 text-center">
+                {platformTitle}
+              </h2>
+            )}
+            <div
+              className="prose prose-sage max-w-none text-sage-700 leading-relaxed"
+              dangerouslySetInnerHTML={{ __html: platformContent }}
+            />
+          </div>
+        </section>
+      )}
 
       <section className="max-w-6xl mx-auto px-4 py-12">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-14">

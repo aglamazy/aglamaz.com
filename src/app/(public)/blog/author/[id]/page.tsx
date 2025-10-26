@@ -9,8 +9,11 @@ import blogStyles from '@/components/blog/PublicPost.module.css';
 import AuthorPostActions from '@/components/blog/AuthorPostActions';
 import { stripScriptTags, cleanJsonLd } from '@/utils/jsonld';
 import { fetchSiteInfo } from '@/firebase/admin';
+import { resolveSiteId } from '@/utils/resolveSiteId';
 import { getServerT } from '@/utils/serverTranslations';
+import { getPlatformName } from '@/utils/platformName';
 import { createProfilePageSchema, createBlogPostListSchema, type AuthorInfo } from '@/utils/blogSchema';
+import UnderConstruction from '@/components/UnderConstruction';
 import crypto from 'crypto';
 
 export const dynamic = 'force-dynamic';
@@ -23,7 +26,16 @@ export async function generateMetadata({ params }: { params: { id: string } }) {
 }
 
 export default async function AuthorBlogPage({ params, searchParams }: { params: { id: string }, searchParams?: Record<string, string | string[] | undefined> }) {
-  const siteId = process.env.NEXT_SITE_ID || '';
+  // Resolve site ID
+  const siteId = await resolveSiteId();
+
+  // If no site configured, show Under Construction
+  if (!siteId) {
+    const h = headers();
+    const host = h.get('host') || 'unknown';
+    return <UnderConstruction domain={host} />;
+  }
+
   const fam = new FamilyRepository();
   const member = await fam.getMemberByHandle(params.id, siteId);
   const uid = (member as any)?.userId || (member as any)?.uid || '';
@@ -48,10 +60,10 @@ export default async function AuthorBlogPage({ params, searchParams }: { params:
 
   let siteInfo: Record<string, unknown> | null = null;
   try {
-    siteInfo = (await fetchSiteInfo()) as Record<string, unknown> | null;
+    siteInfo = (await fetchSiteInfo(siteId)) as Record<string, unknown> | null;
   } catch (error) {
     console.error('[blog/author] failed to fetch site info', error);
-    throw error;
+    // Continue with null siteInfo
   }
 
   const choose = (p: IBlogPost) => {
@@ -86,7 +98,7 @@ export default async function AuthorBlogPage({ params, searchParams }: { params:
       ? String((siteInfo.translations as any)[baseLang])
       : typeof siteInfo?.name === 'string'
         ? String(siteInfo.name)
-        : 'FamilyCircle');
+        : getPlatformName(siteInfo));
 
   const authorName =
     (member as any)?.displayName ||

@@ -29,7 +29,6 @@ export async function middleware(request: NextRequest) {
 
   // Allow public paths regardless of auth status
   if (isPublic) {
-    console.log('[middleware] Public path accessed:', pathname, 'token:', !!token);
     return NextResponse.next();
   }
 

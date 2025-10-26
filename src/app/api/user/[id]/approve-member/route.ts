@@ -36,6 +36,8 @@ const handler = async (request: Request, context: GuardContext) => {
     await userNotificationService.sendWelcomeEmail({
       firstName: created.firstName,
       email: created.email,
+      siteId: created.siteId,
+      locale: signupRequest.language || undefined,
     });
     return Response.json({ member: created });
   } catch (error) {
