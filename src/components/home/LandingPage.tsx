@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ArrowRight, BookOpen, Images, Link as LinkIcon, MessageCircle } from 'lucide-react';
+import { ArrowRight, BookOpen, Images, Link as LinkIcon, MessageCircle, Calendar } from 'lucide-react';
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
 import { createPageUrl } from '../../utils/createPageUrl';
@@ -85,18 +85,22 @@ export default async function LandingPage({ siteInfo, platformDescription, lang,
 
   const features = [
     {
-      href: createPageUrl('pictures/feed'),
       icon: Images,
       title: t('browsePhotos') as string,
       description: t('explorePhotoAlbums') as string,
       gradient: 'from-purple-500 to-purple-600',
     },
     {
-      href: createPageUrl('Links'),
       icon: LinkIcon,
       title: t('familyLinks') as string,
       description: t('accessFamilyResources') as string,
       gradient: 'from-green-500 to-green-600',
+    },
+    {
+      icon: Calendar,
+      title: t('familyCalendar') as string,
+      description: t('upcomingFamilyGatherings') as string,
+      gradient: 'from-amber-500 to-amber-600',
     },
   ];
 
@@ -178,25 +182,21 @@ export default async function LandingPage({ siteInfo, platformDescription, lang,
           {secondarySubtitle}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
-          {features.map(({ href, icon: Icon, title, description, gradient }) => (
-            <Link key={href} href={href} className="block">
-              <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-2 bg-white/80 backdrop-blur-sm text-center">
-                <CardContent className="p-8">
-                  <div className={`mx-auto w-16 h-16 rounded-2xl bg-gradient-to-r ${gradient} flex items-center justify-center mb-6`}>
-                    <Icon className="w-8 h-8 text-white" />
-                  </div>
-                  <h3 className="text-xl font-bold text-charcoal mb-3">{title}</h3>
-                  <p className="text-sage-600 mb-6 leading-relaxed">{description}</p>
-                  <Button className="border-sage-200 hover:border-sage-300 hover:bg-sage-50 group">
-                    {t('explore')}
-                    <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform duration-200" />
-                  </Button>
-                </CardContent>
-              </Card>
-            </Link>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+          {features.map(({ icon: Icon, title, description, gradient }) => (
+            <Card key={title} className="border-0 shadow-lg bg-white/80 backdrop-blur-sm text-center">
+              <CardContent className="p-8">
+                <div className={`mx-auto w-16 h-16 rounded-2xl bg-gradient-to-r ${gradient} flex items-center justify-center mb-6`}>
+                  <Icon className="w-8 h-8 text-white" />
+                </div>
+                <h3 className="text-xl font-bold text-charcoal mb-3">{title}</h3>
+                <p className="text-sage-600 leading-relaxed">{description}</p>
+              </CardContent>
+            </Card>
           ))}
         </div>
+
+        {/* TODO: Add "Get Started" CTA button here */}
       </section>
 
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: structuredData }} />
