@@ -185,7 +185,7 @@ async function fetchWithHeaders(url: string, defaultHeaders: Record<string, stri
 
 async function checkRoot(url: string, headers: Record<string, string>) {
   console.log(`Checking ${url}`);
-  const res = await fetchWithHeaders(url, headers, { method: 'GET', redirect: 'manual' });
+  const res = await fetchWithHeaders(url, headers, { method: 'GET', redirect: 'follow' });
   assert.ok(res.ok, `Root response expected 200-range, received ${res.status} ${res.statusText}`);
 
   const html = await res.text();
@@ -330,6 +330,19 @@ async function run() {
   const idToken = await signInToFirebase(apiKey, login.email, login.password);
   const cookieHeader = await createSession(base, scenarioConfig.headers, idToken);
   await verifyApp(base, scenarioConfig.headers, cookieHeader);
+
+  // Run link checker
+  console.log('\n' + '='.repeat(80));
+  console.log('Running link checker...');
+  console.log('='.repeat(80));
+  const { execSync } = await import('child_process');
+  try {
+    const linkCheckCmd = `npm run test:links:auth -- --base-url=${normalizedTarget}`;
+    execSync(linkCheckCmd, { stdio: 'inherit', cwd: process.cwd() });
+    console.log('✅ Link checker passed');
+  } catch (error) {
+    throw new Error('Link checker failed');
+  }
 }
 
 run().catch((error) => {

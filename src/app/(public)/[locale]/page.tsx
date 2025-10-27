@@ -1,34 +1,56 @@
+import type { Metadata } from 'next';
 import LandingPage from '@/components/home/LandingPage';
 import UnderConstruction from '@/components/UnderConstruction';
 import { fetchSiteInfo, fetchPlatformDescription } from '@/firebase/admin';
 import { resolveSiteId, resolveSiteIdWithOverride } from '@/utils/resolveSiteId';
-import nextI18NextConfig from '../../../next-i18next.config.js';
-import { cookies, headers } from 'next/headers';
+import { headers } from 'next/headers';
+import { DEFAULT_LOCALE, SUPPORTED_LOCALES } from '@/i18n';
 
-const DEFAULT_LANG =
-  process.env.NEXT_DEFAULT_LANG ||
-  (typeof nextI18NextConfig?.i18n?.defaultLocale === 'string'
-    ? nextI18NextConfig.i18n.defaultLocale
-    : 'en');
-
-function normalizeLang(value?: string | null) {
-  if (!value) return '';
-  const [first] = value.split(',');
-  if (!first) return '';
-  return first.split('-')[0]?.trim().toLowerCase() || '';
-}
+export const dynamic = 'force-dynamic';
 
 function resolveBaseUrl() {
-  const raw = (process.env.NEXT_PUBLIC_APP_URL || '').trim();
-  if (!raw) return null;
-  return raw.replace(/\/+$/, '');
+  const configured = (process.env.NEXT_PUBLIC_APP_URL || '').trim();
+  if (configured) {
+    return configured.replace(/\/+$/, '');
+  }
+
+  try {
+    const headerStore = headers();
+    const host = headerStore.get('host');
+    if (!host) return null;
+    const proto = headerStore.get('x-forwarded-proto') || 'https';
+    return `${proto}://${host}`.replace(/\/+$/, '');
+  } catch {
+    return null;
+  }
 }
 
-export default async function HomePage({
-  searchParams,
-}: {
+interface HomePageProps {
+  params: { locale: string };
   searchParams?: Record<string, string | string[] | undefined>;
-}) {
+}
+
+export async function generateMetadata({ params }: { params: { locale: string } }): Promise<Metadata> {
+  const locale = SUPPORTED_LOCALES.includes(params.locale) ? params.locale : DEFAULT_LOCALE;
+  const baseUrl = resolveBaseUrl();
+  const canonical = baseUrl ? `${baseUrl}/${locale}` : undefined;
+
+  return {
+    alternates: baseUrl
+      ? {
+          canonical,
+          languages: {
+            en: `${baseUrl}/en`,
+            he: `${baseUrl}/he`,
+            'x-default': `${baseUrl}/en`,
+          },
+        }
+      : undefined,
+  } satisfies Metadata;
+}
+
+export default async function HomePage({ params, searchParams }: HomePageProps) {
+  const locale = SUPPORTED_LOCALES.includes(params.locale) ? params.locale : DEFAULT_LOCALE;
   // Resolve site ID based on hostname or query param (for local dev)
   const overrideSiteId = resolveSiteIdWithOverride(searchParams);
   const siteId = overrideSiteId || await resolveSiteId();
@@ -55,32 +77,14 @@ export default async function HomePage({
   }
 
   const h = headers();
-  const cookieStore = cookies();
-
-  const queryLangRaw = Array.isArray(searchParams?.lang)
-    ? searchParams?.lang[0]
-    : searchParams?.lang;
-  const queryLang = normalizeLang(queryLangRaw?.toString());
-  const cookieLang = normalizeLang(cookieStore.get('i18next')?.value || '');
-  const headerLang = normalizeLang(h.get('accept-language'));
-
-  const resolvedLang = queryLang || cookieLang || headerLang || DEFAULT_LANG;
   const baseUrl = resolveBaseUrl();
 
   return (
-    <>
-      <script
-        id="__INITIAL_LANG__"
-        dangerouslySetInnerHTML={{
-          __html: `window.__INITIAL_LANG__=${JSON.stringify(resolvedLang)};`,
-        }}
-      />
-      <LandingPage
-        siteInfo={siteInfo}
-        platformDescription={platformDescription}
-        lang={resolvedLang}
-        baseUrl={baseUrl}
-      />
-    </>
+    <LandingPage
+      siteInfo={siteInfo}
+      platformDescription={platformDescription}
+      lang={locale}
+      baseUrl={baseUrl}
+    />
   );
 }
