@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import LandingPage from '@/components/home/LandingPage';
 import UnderConstruction from '@/components/UnderConstruction';
-import { fetchSiteInfo, fetchPlatformDescription } from '@/firebase/admin';
+import { fetchSiteInfo, fetchPlatformDescription, fetchSiteDescription } from '@/firebase/admin';
 import { resolveSiteId, resolveSiteIdWithOverride } from '@/utils/resolveSiteId';
 import { headers } from 'next/headers';
 import { DEFAULT_LOCALE, SUPPORTED_LOCALES } from '@/i18n';
@@ -64,11 +64,13 @@ export default async function HomePage({ params, searchParams }: HomePageProps) 
 
   let siteInfo = null;
   let platformDescription = null;
+  let siteDescription = null;
 
   try {
-    // Fetch both site info and platform description in parallel
-    [siteInfo, platformDescription] = await Promise.all([
+    // Fetch site info, site description, and platform description in parallel
+    [siteInfo, siteDescription, platformDescription] = await Promise.all([
       fetchSiteInfo(siteId),
+      fetchSiteDescription(siteId),
       fetchPlatformDescription(),
     ]);
   } catch (error) {
@@ -82,6 +84,7 @@ export default async function HomePage({ params, searchParams }: HomePageProps) 
   return (
     <LandingPage
       siteInfo={siteInfo}
+      siteDescription={siteDescription}
       platformDescription={platformDescription}
       lang={locale}
       baseUrl={baseUrl}
