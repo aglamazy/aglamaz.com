@@ -1,11 +1,21 @@
 import { NextRequest } from 'next/server';
 import { BlogRepository } from '@/repositories/BlogRepository';
 import { FamilyRepository } from '@/repositories/FamilyRepository';
+import { SUPPORTED_LOCALES } from '@/constants/i18n';
 
 export const dynamic = 'force-dynamic';
 
 function xmlEscape(s: string) {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function generateAlternateLinks(base: string, path: string) {
+  const normalized = path.replace(/^\/+/, '');
+  const entries = SUPPORTED_LOCALES.map((locale) =>
+    `    <xhtml:link rel="alternate" hreflang="${locale}" href="${xmlEscape(`${base}/${locale}${normalized ? `/${normalized}` : ''}`)}" />`
+  );
+  entries.push(`    <xhtml:link rel="alternate" hreflang="x-default" href="${xmlEscape(`${base}/en${normalized ? `/${normalized}` : ''}`)}" />`);
+  return entries;
 }
 
 export async function GET(req: NextRequest) {
@@ -19,12 +29,9 @@ export async function GET(req: NextRequest) {
 
     const repo = new BlogRepository();
 
-    const urls: { loc: string; lastmod?: string }[] = [];
-    // Home-like entries
-    urls.push({ loc: `${base}/` });
-    urls.push({ loc: `${base}/blog` });
+    type RouteEntry = { path: string; lastmod?: string };
+    const routes: RouteEntry[] = [{ path: '' }, { path: 'blog' }];
 
-    // Author pages and best-effort lastmod from latest public post
     for (const m of blogAuthors as any[]) {
       const handle = m.blogHandle;
       const uid = m.uid || m.userId;
@@ -32,35 +39,45 @@ export async function GET(req: NextRequest) {
       let lastmod: string | undefined;
       try {
         const posts = await repo.getByAuthor(uid);
-        const pub = posts.filter(p => (p as any).siteId === siteId && p.isPublic);
+        const pub = posts.filter((p) => (p as any).siteId === siteId && p.isPublic);
         if (pub.length) {
           const max = pub.reduce((acc, p) => {
-            const t = (p.createdAt as any)?.toMillis ? (p.createdAt as any).toMillis() : Date.parse(String(p.createdAt));
-            return Math.max(acc, isNaN(t) ? 0 : t);
+            const t = (p.createdAt as any)?.toMillis
+              ? (p.createdAt as any).toMillis()
+              : Date.parse(String(p.createdAt));
+            return Math.max(acc, Number.isNaN(t) ? 0 : t);
           }, 0);
           if (max > 0) lastmod = new Date(max).toISOString();
         }
       } catch {}
-      urls.push({ loc: `${base}/blog/author/${encodeURIComponent(handle)}`, lastmod });
+      routes.push({ path: `blog/author/${encodeURIComponent(handle)}`, lastmod });
     }
 
     const body = [
       '<?xml version="1.0" encoding="UTF-8"?>',
-      '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
-      ...urls.map(u => {
-        const lines = [`  <url>`, `    <loc>${xmlEscape(u.loc)}</loc>`];
-        if (u.lastmod) lines.push(`    <lastmod>${u.lastmod}</lastmod>`);
-        lines.push('  </url>');
-        return lines.join('\n');
-      }),
-      '</urlset>'
+      '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">',
+      ...routes.flatMap((route) =>
+        SUPPORTED_LOCALES.map((locale) => {
+          const normalized = route.path.replace(/^\/+/, '');
+          const localizedPath = normalized ? `/${locale}/${normalized}` : `/${locale}`;
+          const loc = `${base}${localizedPath}`;
+          const lines = [`  <url>`, `    <loc>${xmlEscape(loc)}</loc>`];
+          if (route.lastmod) {
+            lines.push(`    <lastmod>${route.lastmod}</lastmod>`);
+          }
+          lines.push(...generateAlternateLinks(base, route.path));
+          lines.push('  </url>');
+          return lines.join('\n');
+        })
+      ),
+      '</urlset>',
     ].join('\n');
 
     return new Response(body, {
       headers: {
         'Content-Type': 'application/xml; charset=utf-8',
-        'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400'
-      }
+        'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400',
+      },
     });
   } catch (e) {
     console.error('sitemap error', e);
@@ -70,4 +87,3 @@ export async function GET(req: NextRequest) {
     });
   }
 }
-
