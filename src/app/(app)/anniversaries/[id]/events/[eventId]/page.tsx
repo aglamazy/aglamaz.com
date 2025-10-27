@@ -266,7 +266,7 @@ export default function OccurrenceDetailsPage({ params }: { params: { id: string
             <Button onClick={() => setShowEditModal(true)}>{t('edit')}</Button>
           </div>
           <div>
-            <a className="text-blue-600 hover:underline" href="/calendar">
+            <a className="text-blue-600 hover:underline" href="/app/calendar">
               <I18nText k="familyCalendar" />
             </a>
           </div>

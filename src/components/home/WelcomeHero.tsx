@@ -29,7 +29,7 @@ export default function WelcomeHero({ user, title, subtitle, actions }: WelcomeH
           title: t('familyCalendar') as string,
           description: t('upcomingFamilyGatherings') as string,
           icon: Calendar,
-          url: '/calendar',
+          url: '/app/calendar',
           color: 'from-amber-500 to-amber-600',
         }]
       : []),
@@ -44,7 +44,7 @@ export default function WelcomeHero({ user, title, subtitle, actions }: WelcomeH
       title: t('browsePhotos') as string,
       description: t('explorePhotoAlbums') as string,
       icon: Images,
-      url: '/pictures/feed',
+      url: '/app/pictures/feed',
       color: "from-purple-500 to-purple-600",
     },
     // {
