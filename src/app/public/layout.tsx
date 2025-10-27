@@ -12,5 +12,5 @@ export default async function PublicLayout({ children }: { children: React.React
     // Don't throw - let children handle null siteInfo
   }
 
-  return <PublicLayoutShell siteInfo={siteInfo}>{children}</PublicLayoutShell>;
+  return <PublicLayoutShell siteInfo={siteInfo} locale="en">{children}</PublicLayoutShell>;
 }

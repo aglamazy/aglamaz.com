@@ -14,13 +14,15 @@ import { landingPage } from '@/app/settings';
 import type { ISite } from '@/entities/Site';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import styles from './PublicLayoutShell.module.css';
+import { SUPPORTED_LOCALES } from '@/i18n';
 
 interface PublicLayoutShellProps {
   siteInfo: ISite | null;
   children: React.ReactNode;
+  locale: string;
 }
 
-export default function PublicLayoutShell({ siteInfo, children }: PublicLayoutShellProps) {
+export default function PublicLayoutShell({ siteInfo, children, locale }: PublicLayoutShellProps) {
   const { isOpen, close } = useLoginModalStore();
   const setSiteInfo = useSiteStore((s) => s.setSiteInfo);
   const site = useSiteStore((s) => s.siteInfo);
@@ -29,6 +31,12 @@ export default function PublicLayoutShell({ siteInfo, children }: PublicLayoutSh
   const fetchMember = useMemberStore((s) => s.fetchMember);
   const router = useRouter();
   const isMobile = useIsMobile();
+
+  useEffect(() => {
+    if (SUPPORTED_LOCALES.includes(locale)) {
+      document.cookie = `NEXT_LOCALE=${locale}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax`;
+    }
+  }, [locale]);
 
   useEffect(() => {
     if (siteInfo) {

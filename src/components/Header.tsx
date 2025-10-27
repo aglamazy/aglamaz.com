@@ -12,6 +12,7 @@ import { useLoginModalStore } from '@/store/LoginModalStore';
 import { useEditUserModalStore } from '@/store/EditUserModalStore';
 import { getLocalizedSiteName } from '@/utils/siteName';
 import MemberAvatar from '@/components/MemberAvatar';
+import { DEFAULT_LOCALE, SUPPORTED_LOCALES } from '@/i18n';
 
 const LANGS = [
   { code: 'he', label: 'עברית', flag: '🇮🇱' },
@@ -53,21 +54,41 @@ export default function Header({ user, member, onLogout, siteInfo }: HeaderProps
     };
   }, [isUserMenuOpen]);
 
+  const normalizedLocale = (i18n.language || '').split('-')[0];
+  const currentLocale = SUPPORTED_LOCALES.includes(normalizedLocale) ? normalizedLocale : DEFAULT_LOCALE;
+
   const handleLangChange = (lang: string) => {
-    if (i18n.language !== lang) {
-      i18n.changeLanguage(lang);
+    const targetLocale = SUPPORTED_LOCALES.includes(lang) ? lang : DEFAULT_LOCALE;
+    if (i18n.language !== targetLocale) {
+      i18n.changeLanguage(targetLocale);
     }
-    // Reflect selection in URL so server components (public pages) render the chosen language
+
     try {
-      const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
-      params.set('lang', lang);
-      const qs = params.toString();
-      const newUrl = qs ? `${pathname}?${qs}` : pathname;
-      router.replace(newUrl, { scroll: false });
+      if (typeof document !== 'undefined') {
+        document.cookie = `NEXT_LOCALE=${targetLocale}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax`;
+      }
+
+      const currentPath = pathname || '/';
+      const segments = currentPath.split('/').filter(Boolean);
+      let nextPath = currentPath;
+
+      if (segments.length > 0 && SUPPORTED_LOCALES.includes(segments[0])) {
+        const rest = segments.slice(1).join('/');
+        nextPath = `/${targetLocale}${rest ? `/${rest}` : ''}`;
+      } else if (segments.length === 0) {
+        nextPath = `/${targetLocale}`;
+      }
+
+      if (nextPath !== currentPath) {
+        router.replace(nextPath, { scroll: false });
+      } else {
+        router.replace(currentPath, { scroll: false });
+      }
       router.refresh();
     } catch (error) {
-      console.error('[Header] failed to update lang param', error);
+      console.error('[Header] failed to update locale path', error);
     }
+
     setIsLangMenuOpen(false);
   };
 
@@ -86,10 +107,10 @@ export default function Header({ user, member, onLogout, siteInfo }: HeaderProps
           <nav className="hidden md:flex items-center gap-6 text-sage-700">
             {(() => { const isRTL = (i18n.language || '').startsWith('he'); return (
               <>
-                <a className="hover:underline flex items-center gap-1" href="/">
+                <a className="hover:underline flex items-center gap-1" href={`/${currentLocale}`}>
                   {isRTL ? (<><span>{t('home') as string}</span><HomeIcon size={18} /></>) : (<><HomeIcon size={18} /><span>{t('home') as string}</span></>)}
                 </a>
-                <a className="hover:underline flex items-center gap-1" href="/blog">
+                <a className="hover:underline flex items-center gap-1" href={`/${currentLocale}/blog`}>
                   {isRTL ? (<><span>{t('blog') as string}</span><BookOpen size={18} /></>) : (<><BookOpen size={18} /><span>{t('blog') as string}</span></>)}
                 </a>
                 <a className="hover:underline flex items-center gap-1" href="/contact">

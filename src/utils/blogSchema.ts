@@ -53,9 +53,9 @@ export function createBlogPostingSchema(
   const content = post.content || '';
   const summary = toPlainText(content).slice(0, 280);
   const articleUrlBase = baseUrl
-    ? `${baseUrl}/blog/author/${encodeURIComponent(author.handle)}`
-    : `/blog/author/${author.handle}`;
-  const articleUrl = lang ? `${articleUrlBase}?lang=${lang}` : articleUrlBase;
+    ? `${baseUrl}/${lang}/blog/author/${encodeURIComponent(author.handle)}`
+    : `/${lang}/blog/author/${author.handle}`;
+  const articleUrl = articleUrlBase;
   const image = findFirstImage(content);
 
   return {
@@ -89,7 +89,7 @@ export function createBlogSchema(
   options: BlogSchemaOptions
 ) {
   const { baseUrl, siteName, lang } = options;
-  const blogUrl = baseUrl ? `${baseUrl}/blog` : undefined;
+  const blogUrl = baseUrl ? `${baseUrl}/${lang}/blog` : undefined;
 
   return {
     '@context': 'https://schema.org',
@@ -112,7 +112,7 @@ export function createProfilePageSchema(
 ) {
   const { baseUrl, siteName, lang } = options;
   const authorUrl = baseUrl
-    ? `${baseUrl}/blog/author/${encodeURIComponent(author.handle)}`
+    ? `${baseUrl}/${lang}/blog/author/${encodeURIComponent(author.handle)}`
     : undefined;
 
   return {
@@ -140,7 +140,7 @@ export function createBlogPostListSchema(
   options: BlogSchemaOptions
 ) {
   const { baseUrl, lang } = options;
-  const listUrl = baseUrl ? `${baseUrl}/blog` : undefined;
+  const listUrl = baseUrl ? `${baseUrl}/${lang}/blog` : undefined;
 
   return {
     '@context': 'https://schema.org',
@@ -152,9 +152,9 @@ export function createBlogPostListSchema(
       const content = post.content || '';
       const summary = toPlainText(content).slice(0, 280);
       const articleUrlBase = baseUrl
-        ? `${baseUrl}/blog/author/${encodeURIComponent(author.handle)}`
-        : `/blog/author/${author.handle}`;
-      const articleUrl = lang ? `${articleUrlBase}?lang=${lang}` : articleUrlBase;
+        ? `${baseUrl}/${lang}/blog/author/${encodeURIComponent(author.handle)}`
+        : `/${lang}/blog/author/${author.handle}`;
+      const articleUrl = articleUrlBase;
       const image = findFirstImage(content);
 
       return {

@@ -100,7 +100,7 @@ export default function ClientLayoutShell({ children }) {
   }
 
   return (
-    <I18nProvider>
+    <I18nProvider initialLocale="en">
       <I18nGate>
         {isMobile ? (
           <ClientMobileShell

@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import type { IBlogPost } from '@/entities/BlogPost';
 import { BlogRepository } from '@/repositories/BlogRepository';
 import { FamilyRepository } from '@/repositories/FamilyRepository';
-import { headers, cookies } from 'next/headers';
+import { headers } from 'next/headers';
 import TranslationTrigger from '@/components/blog/TranslationTrigger';
 import I18nText from '@/components/I18nText';
 import blogStyles from '@/components/blog/PublicPost.module.css';
@@ -15,21 +15,57 @@ import { getPlatformName } from '@/utils/platformName';
 import { createProfilePageSchema, createBlogPostListSchema, type AuthorInfo } from '@/utils/blogSchema';
 import UnderConstruction from '@/components/UnderConstruction';
 import crypto from 'crypto';
+import { DEFAULT_LOCALE, SUPPORTED_LOCALES } from '@/i18n';
+import type { Metadata } from 'next';
 
 export const dynamic = 'force-dynamic';
 
-export async function generateMetadata({ params }: { params: { id: string } }) {
-  const handle = params.id;
-  return {
-    title: `Family Blog – ${handle}`,
-  };
+function resolveBaseUrl() {
+  const configured = (process.env.NEXT_PUBLIC_APP_URL || '').trim();
+  if (configured) {
+    return configured.replace(/\/+$/, '');
+  }
+
+  try {
+    const headerStore = headers();
+    const host = headerStore.get('host');
+    if (!host) return null;
+    const proto = headerStore.get('x-forwarded-proto') || 'https';
+    return `${proto}://${host}`.replace(/\/+$/, '');
+  } catch {
+    return null;
+  }
 }
 
-export default async function AuthorBlogPage({ params, searchParams }: { params: { id: string }, searchParams?: Record<string, string | string[] | undefined> }) {
-  // Resolve site ID
-  const siteId = await resolveSiteId();
+interface AuthorPageParams {
+  locale: string;
+  id: string;
+}
 
-  // If no site configured, show Under Construction
+export async function generateMetadata({ params }: { params: AuthorPageParams }): Promise<Metadata> {
+  const locale = SUPPORTED_LOCALES.includes(params.locale) ? params.locale : DEFAULT_LOCALE;
+  const baseUrl = resolveBaseUrl();
+  const canonical = baseUrl ? `${baseUrl}/${locale}/blog/author/${params.id}` : undefined;
+
+  return {
+    title: `Family Blog – ${params.id}`,
+    alternates: baseUrl
+      ? {
+          canonical,
+          languages: {
+            en: `${baseUrl}/en/blog/author/${params.id}`,
+            he: `${baseUrl}/he/blog/author/${params.id}`,
+            'x-default': `${baseUrl}/en/blog/author/${params.id}`,
+          },
+        }
+      : undefined,
+  } satisfies Metadata;
+}
+
+export default async function AuthorBlogPage({ params }: { params: AuthorPageParams }) {
+  const locale = SUPPORTED_LOCALES.includes(params.locale) ? params.locale : DEFAULT_LOCALE;
+
+  const siteId = await resolveSiteId();
   if (!siteId) {
     const h = headers();
     const host = h.get('host') || 'unknown';
@@ -42,20 +78,14 @@ export default async function AuthorBlogPage({ params, searchParams }: { params:
   const repo = new BlogRepository();
   const list = uid ? await repo.getByAuthor(uid) : [];
   const posts: IBlogPost[] = (list || [])
-    .filter(p => (p as any).siteId === siteId && p.isPublic)
+    .filter((p) => (p as any).siteId === siteId && p.isPublic)
     .sort((a, b) => {
       const at = (a.createdAt as any)?.toMillis ? (a.createdAt as any).toMillis() : new Date(a.createdAt).getTime();
       const bt = (b.createdAt as any)?.toMillis ? (b.createdAt as any).toMillis() : new Date(b.createdAt).getTime();
       return bt - at;
     });
 
-  const h = headers();
-  const accept = h.get('accept-language') || '';
-  const qp = (searchParams?.lang as string | undefined)?.toString();
-  const cookieLang = cookies().get('ux_lang')?.value || '';
-  const lang = (qp && qp.split('-')[0]) || (cookieLang && cookieLang.split('-')[0]) || accept.split(',')[0]?.split('-')[0] || process.env.NEXT_DEFAULT_LANG || 'en';
-
-  const baseLang = lang.split('-')[0]?.toLowerCase() || lang.toLowerCase();
+  const baseLang = locale.split('-')[0]?.toLowerCase() || locale.toLowerCase();
   const t = await getServerT(baseLang);
 
   let siteInfo: Record<string, unknown> | null = null;
@@ -63,23 +93,22 @@ export default async function AuthorBlogPage({ params, searchParams }: { params:
     siteInfo = (await fetchSiteInfo(siteId)) as Record<string, unknown> | null;
   } catch (error) {
     console.error('[blog/author] failed to fetch site info', error);
-    // Continue with null siteInfo
   }
 
   const choose = (p: IBlogPost) => {
-    if (!lang || lang === p.sourceLang) return p;
+    if (!locale || locale === p.sourceLang) return p;
     const translations = p.translations || {};
-    const base = lang.split('-')[0]?.toLowerCase();
-    let t = translations[lang] as any;
-    if (!t && base) {
-      const key = Object.keys(translations).find(k => {
+    const base = locale.split('-')[0]?.toLowerCase();
+    let translated = translations[locale] as any;
+    if (!translated && base) {
+      const key = Object.keys(translations).find((k) => {
         const kb = k.split('-')[0]?.toLowerCase();
-        return k.toLowerCase() === lang.toLowerCase() || kb === base;
+        return k.toLowerCase() === locale.toLowerCase() || kb === base;
       });
-      if (key) t = (translations as any)[key];
+      if (key) translated = (translations as any)[key];
     }
-    if (!t) return p;
-    return { ...p, title: t.title || p.title, content: t.content || p.content };
+    if (!translated) return p;
+    return { ...p, title: translated.title || p.title, content: translated.content || p.content };
   };
 
   const localized = posts.map((p) => choose(p));
@@ -92,7 +121,7 @@ export default async function AuthorBlogPage({ params, searchParams }: { params:
     ) as Record<string, { title: string; content: string }>,
   }));
 
-  const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || '').trim().replace(/\/+$/, '') || undefined;
+  const baseUrl = resolveBaseUrl() || undefined;
   const siteName =
     (siteInfo?.translations && typeof (siteInfo.translations as any)?.[baseLang] === 'string'
       ? String((siteInfo.translations as any)[baseLang])
@@ -133,12 +162,8 @@ export default async function AuthorBlogPage({ params, searchParams }: { params:
 
   return (
     <div className="space-y-4 p-4">
-      <script
-        id="__INITIAL_LANG__"
-        dangerouslySetInnerHTML={{ __html: `window.__INITIAL_LANG__=${JSON.stringify(lang.split('-')[0]?.toLowerCase() || lang.toLowerCase())};` }}
-      />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: structuredData }} />
-      <TranslationTrigger posts={clientPosts} lang={lang} />
+      <TranslationTrigger posts={clientPosts} lang={locale} />
       {localized.map((post) => (
         <Card key={post.id}>
           <CardHeader>
@@ -155,7 +180,11 @@ export default async function AuthorBlogPage({ params, searchParams }: { params:
           </CardContent>
         </Card>
       ))}
-      {posts.length === 0 && <div><I18nText k="noPostsYet" /></div>}
+      {posts.length === 0 && (
+        <div>
+          <I18nText k="noPostsYet" />
+        </div>
+      )}
     </div>
   );
 }

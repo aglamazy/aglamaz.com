@@ -17,20 +17,56 @@ import { getServerT } from '@/utils/serverTranslations';
 import { getPlatformName } from '@/utils/platformName';
 import { createBlogSchema, createBlogPostingSchema, type AuthorInfo } from '@/utils/blogSchema';
 import UnderConstruction from '@/components/UnderConstruction';
+import { DEFAULT_LOCALE, SUPPORTED_LOCALES } from '@/i18n';
+import type { Metadata } from 'next';
 
 export const dynamic = 'force-dynamic';
 
-export const metadata = {
-  title: 'Family Blog – Recent Posts',
-};
+const SUPPORTED = SUPPORTED_LOCALES.length ? SUPPORTED_LOCALES : ['en', 'he'];
 
 function resolveBaseUrl() {
-  const raw = (process.env.NEXT_PUBLIC_APP_URL || '').trim();
-  if (!raw) return null;
-  return raw.replace(/\/+$/, '');
+  const configured = (process.env.NEXT_PUBLIC_APP_URL || '').trim();
+  if (configured) {
+    return configured.replace(/\/+$/, '');
+  }
+
+  try {
+    const headerStore = headers();
+    const host = headerStore.get('host');
+    if (!host) return null;
+    const proto = headerStore.get('x-forwarded-proto') || 'https';
+    return `${proto}://${host}`.replace(/\/+$/, '');
+  } catch {
+    return null;
+  }
 }
 
-export default async function FamilyBlogPage({ searchParams }: { searchParams?: Record<string, string | string[] | undefined> }) {
+interface FamilyBlogPageProps {
+  params: { locale: string };
+}
+
+export async function generateMetadata({ params }: FamilyBlogPageProps): Promise<Metadata> {
+  const locale = SUPPORTED.includes(params.locale) ? params.locale : DEFAULT_LOCALE;
+  const baseUrl = resolveBaseUrl();
+  const canonical = baseUrl ? `${baseUrl}/${locale}/blog` : undefined;
+
+  return {
+    title: 'Family Blog – Recent Posts',
+    alternates: baseUrl
+      ? {
+          canonical,
+          languages: {
+            en: `${baseUrl}/en/blog`,
+            he: `${baseUrl}/he/blog`,
+            'x-default': `${baseUrl}/en/blog`,
+          },
+        }
+      : undefined,
+  } satisfies Metadata;
+}
+
+export default async function FamilyBlogPage({ params }: FamilyBlogPageProps) {
+  const locale = SUPPORTED.includes(params.locale) ? params.locale : DEFAULT_LOCALE;
   // Resolve site ID
   const siteId = await resolveSiteId();
 
@@ -46,9 +82,7 @@ export default async function FamilyBlogPage({ searchParams }: { searchParams?: 
   const posts: IBlogPost[] = await repo.getPublicBySite(siteId, 30);
 
   const h = headers();
-  const accept = h.get('accept-language') || '';
-  const qp = (searchParams?.lang as string | undefined)?.toString();
-  const lang = (qp && qp.split('-')[0]) || accept.split(',')[0]?.split('-')[0] || process.env.NEXT_DEFAULT_LANG || 'en';
+  const lang = locale;
   const baseLang = lang.split('-')[0]?.toLowerCase() || lang.toLowerCase();
   const t = await getServerT(baseLang);
 
@@ -125,10 +159,6 @@ export default async function FamilyBlogPage({ searchParams }: { searchParams?: 
 
   return (
     <div className={`space-y-4 p-4 ${styles.blobBg}`}>
-      <script
-        id="__INITIAL_LANG__"
-        dangerouslySetInnerHTML={{ __html: `window.__INITIAL_LANG__=${JSON.stringify(baseLang)};` }}
-      />
       <TranslationTrigger posts={clientPosts} lang={lang} />
       {/* For users with blogs: FAB to add post. For others: CTA to start a blog */}
       <AddPostFab />
@@ -137,13 +167,13 @@ export default async function FamilyBlogPage({ searchParams }: { searchParams?: 
         <Card key={post.id} className="border-0 shadow-lg bg-white/90">
           <CardHeader>
             <div className="flex items-center gap-3">
-              <a href={`/blog/author/${handle}?lang=${lang}`}>
+              <a href={`/${locale}/blog/author/${handle}`}>
                 <img src={avatar} alt="" className="h-10 w-10 rounded-full" />
               </a>
               <div>
                 <h1 className="text-2xl font-semibold text-charcoal m-0">{post.title}</h1>
                 <div className="text-xs text-gray-500">
-                  <a className="hover:underline" href={`/blog/author/${handle}?lang=${lang}`}>{name}</a>
+                  <a className="hover:underline" href={`/${locale}/blog/author/${handle}`}>{name}</a>
                 </div>
               </div>
             </div>
@@ -153,7 +183,7 @@ export default async function FamilyBlogPage({ searchParams }: { searchParams?: 
               <div className={`text-sm text-gray-700 ${styles.clamp3} ${blogStyles.content}`} dangerouslySetInnerHTML={{ __html: post.content || '' }} />
             </div>
             <div className="mt-2">
-              <a className="text-blue-600 hover:underline text-sm" href={`/blog/author/${handle}?lang=${lang}`}>
+              <a className="text-blue-600 hover:underline text-sm" href={`/${locale}/blog/author/${handle}`}>
                 <I18nText k="readMoreInBlog" options={{ name }} />
               </a>
             </div>

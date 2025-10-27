@@ -1,5 +1,3 @@
-import {PRODUCT_NAME} from "@/constants";
-
 export interface JwtRegisteredClaims {
   iss?: string;
   sub?: string;
@@ -39,7 +37,7 @@ export function buildAccessClaims(app: AppClaims, ttlSec: number): TokenClaims {
 /** Build claims for refresh tokens. */
 export function buildRefreshClaims(app: AppClaims, days = 30, jti: string): TokenClaims {
   return {
-    iss: process.env.JWT_ISSUER || PRODUCT_NAME,
+    iss: process.env.JWT_ISSUER,
     sub: app.userId,
     aud: "refresh",
     iat: nowSeconds(),
