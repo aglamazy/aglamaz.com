@@ -106,6 +106,26 @@ export class BlogRepository {
       .get();
     return snap.size;
   }
+
+  private async incrementCounter(id: string, field: 'shareCount' | 'likeCount'): Promise<number> {
+    const db = this.getDb();
+    const ref = db.collection(this.collection).doc(id);
+    await ref.update({ [field]: FieldValue.increment(1) });
+    const snap = await ref.get();
+    const data = snap.data();
+    if (!data) {
+      throw new Error(`Blog post ${id} not found while incrementing ${field}`);
+    }
+    return data[field] ?? 0;
+  }
+
+  async incrementShare(id: string): Promise<number> {
+    return this.incrementCounter(id, 'shareCount');
+  }
+
+  async incrementLike(id: string): Promise<number> {
+    return this.incrementCounter(id, 'likeCount');
+  }
 }
 
 export const blogRepository = new BlogRepository();
