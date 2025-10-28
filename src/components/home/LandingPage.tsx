@@ -2,11 +2,16 @@ import Link from 'next/link';
 import { ArrowRight, BookOpen, Images, Link as LinkIcon, MessageCircle, Calendar } from 'lucide-react';
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
-import { createPageUrl } from '../../utils/createPageUrl';
 import type { ISite } from '@/entities/Site';
 import { getServerT } from '@/utils/serverTranslations';
 import { cleanJsonLd, stripScriptTags } from '@/utils/jsonld';
 import { getPlatformName } from '@/utils/platformName';
+import {
+  getLocalizedDocument,
+  normalizeLang,
+  type LocalizableDocument,
+  type TranslationEntry,
+} from '@/services/LocalizationService';
 
 interface PlatformDescription {
   content: string;
@@ -33,31 +38,71 @@ function resolveLogo(baseUrl: string | null) {
   return `${baseUrl}/favicon.svg`;
 }
 
+type RichTextFields = { title: string; content: string };
+type RichTextDoc = LocalizableDocument<RichTextFields> & RichTextFields;
+type SiteLocalizedFields = Pick<ISite, 'name' | 'aboutFamily' | 'platformName'>;
+type SiteWithLocalization = ISite & LocalizableDocument<SiteLocalizedFields>;
+
+function toRichTextDoc(
+  input: PlatformDescription | null | undefined,
+  sourceLang: string
+): RichTextDoc | null {
+  if (!input) return null;
+
+  const normalizedTranslations: Record<string, RichTextFields & TranslationEntry> = {};
+
+  for (const [locale, value] of Object.entries(input.translations ?? {})) {
+    normalizedTranslations[locale] = {
+      title: value?.title ?? '',
+      content: value?.content ?? '',
+      translatedAt: null,
+      engine: 'manual',
+    };
+  }
+
+  return {
+    title: input.title ?? '',
+    content: input.content ?? '',
+    sourceLang: sourceLang ?? 'en',
+    translations: normalizedTranslations,
+  };
+}
+
 export default async function LandingPage({ siteInfo, siteDescription, platformDescription, lang, baseUrl }: LandingPageProps) {
-  const baseLang = lang.split('-')[0]?.toLowerCase() || lang.toLowerCase();
-  const t = await getServerT(baseLang);
-  const translations = siteInfo?.translations || {};
+  const normalizedLang = normalizeLang(lang) ?? lang.toLowerCase();
+  const t = await getServerT(normalizedLang);
+  const translations = siteInfo?.translations ?? {};
   const siteInfoRecord = (siteInfo ?? {}) as Record<string, unknown>;
-  const siteName =
-    translations[lang] ||
-    translations[baseLang] ||
-    siteInfo?.name ||
-    getPlatformName(siteInfo);
 
-  // Get site description for current language
-  const siteDescTranslation = siteDescription?.translations?.[lang] || siteDescription?.translations?.[baseLang];
-  const siteDescTitle = siteDescTranslation?.title || siteDescription?.title || '';
-  const siteDescContent = siteDescTranslation?.content || siteDescription?.content || '';
+  const localizedSite = getLocalizedDocument<SiteWithLocalization, SiteLocalizedFields>(
+        siteInfo as SiteWithLocalization,
+        lang,
+        ['name', 'aboutFamily', 'platformName']
+      );
+  console.log(localizedSite);
+  const siteName = localizedSite?.name ?? siteInfo?.name ?? getPlatformName(siteInfo);
 
-  // Get platform description for current language
-  const platformTranslation = platformDescription?.translations?.[lang] || platformDescription?.translations?.[baseLang];
-  const platformTitle = platformTranslation?.title || platformDescription?.title || '';
-  const platformContent = platformTranslation?.content || platformDescription?.content || '';
+  const siteDescriptionBase = toRichTextDoc(
+    siteDescription,
+    siteInfo?.sourceLang ?? 'en'
+  );
+  const siteDescriptionDoc = siteDescriptionBase
+    ? getLocalizedDocument<RichTextDoc, RichTextFields>(siteDescriptionBase, lang, ['title', 'content'])
+    : null;
+  const siteDescTitle = siteDescriptionDoc?.title ?? '';
+  const siteDescContent = siteDescriptionDoc?.content ?? '';
+
+  const platformDescriptionBase = toRichTextDoc(platformDescription, 'en');
+  const platformDescriptionDoc = platformDescriptionBase
+    ? getLocalizedDocument<RichTextDoc, RichTextFields>(platformDescriptionBase, lang, ['title', 'content'])
+    : null;
+  const platformTitle = platformDescriptionDoc?.title ?? '';
+  const platformContent = platformDescriptionDoc?.content ?? '';
 
   const alternateNames = Array.from(
     new Set(
       Object.values(translations)
-        .map((value) => (typeof value === 'string' ? value.trim() : null))
+        .map((trans) => (trans?.name ? trans.name.trim() : null))
         .filter((value): value is string => Boolean(value && value !== siteName))
     )
   );
@@ -110,29 +155,31 @@ export default async function LandingPage({ siteInfo, siteDescription, platformD
     },
   ];
 
+  const resolvedBaseUrl = baseUrl ?? undefined;
+
   const organization: Record<string, unknown> = {
     '@context': 'https://schema.org',
     '@type': 'Organization',
-    '@id': baseUrl ? `${baseUrl}/#organization` : undefined,
+    '@id': resolvedBaseUrl ? `${resolvedBaseUrl}/#organization` : undefined,
     name: siteName,
-    url: baseUrl || undefined,
+    url: resolvedBaseUrl,
     alternateName: alternateNames.length ? alternateNames : undefined,
     description: heroSubtitle,
     sameAs: sameAs.length ? sameAs : undefined,
     foundingDate: resolveIsoDate(siteInfoRecord.createdAt),
-    logo: resolveLogo(baseUrl),
+    logo: resolveLogo(resolvedBaseUrl ?? null),
   };
 
   const website: Record<string, unknown> = {
     '@context': 'https://schema.org',
     '@type': 'WebSite',
-    '@id': baseUrl ? `${baseUrl}/#website` : undefined,
-    url: baseUrl || undefined,
+    '@id': resolvedBaseUrl ? `${resolvedBaseUrl}/#website` : undefined,
+    url: resolvedBaseUrl,
     name: siteName,
     alternateName: alternateNames.length ? alternateNames : undefined,
     description: heroSubtitle,
-    inLanguage: baseLang,
-    publisher: baseUrl ? { '@id': `${baseUrl}/#organization` } : undefined,
+    inLanguage: normalizedLang,
+    publisher: resolvedBaseUrl ? { '@id': `${resolvedBaseUrl}/#organization` } : undefined,
   };
 
   const structuredData = stripScriptTags(JSON.stringify([organization, website].map(cleanJsonLd)));

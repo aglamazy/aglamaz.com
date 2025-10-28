@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,9 +30,35 @@ interface SiteResponse {
   site: SiteInfo;
 }
 
+const normalizeLocale = (locale: string) => {
+  try {
+    return (locale || '').split('-')[0]?.toLowerCase() || '';
+  } catch {
+    return '';
+  }
+};
+
+const findTranslation = (info: SiteInfo | null, locale: string) => {
+  if (!info || !info.translations) return null;
+  const translations = info.translations;
+
+  const direct = translations[locale];
+  if (direct) return direct;
+
+  const lowered = locale.toLowerCase();
+  const exactKey = Object.keys(translations).find((key) => key.toLowerCase() === lowered);
+  if (exactKey) return translations[exactKey];
+
+  const base = normalizeLocale(locale);
+  if (!base) return null;
+
+  const baseEntry = Object.entries(translations).find(([key]) => normalizeLocale(key) === base);
+  return baseEntry ? baseEntry[1] : null;
+};
+
 export default function SiteDescriptionEditor() {
   const { t, i18n } = useTranslation();
-  const [currentLocale, setCurrentLocale] = useState(() => (i18n.language || 'en').split('-')[0]);
+  const [currentLocale, setCurrentLocale] = useState(() => normalizeLocale(i18n.language || 'en') || 'en');
   const [siteInfo, setSiteInfo] = useState<SiteInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -45,22 +71,23 @@ export default function SiteDescriptionEditor() {
   const [platformName, setPlatformName] = useState('');
 
   useEffect(() => {
-    loadSiteInfo();
-  }, []);
+    loadSiteInfo(currentLocale);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentLocale]);
 
   useEffect(() => {
-    const locale = (i18n.language || 'en').split('-')[0];
+    const locale = normalizeLocale(i18n.language || 'en') || 'en';
     setCurrentLocale(locale);
-    updateFormFields(locale);
   }, [i18n.language]);
 
-  const loadSiteInfo = async () => {
+  const loadSiteInfo = async (locale: string) => {
+    if (!locale) return;
     try {
       setLoading(true);
       setError('');
-      const data = await apiFetch<SiteResponse>('/api/admin/site-description');
+      const data = await apiFetch<SiteResponse>(`/api/admin/site-description?locale=${encodeURIComponent(locale)}`);
       setSiteInfo(data.site);
-      updateFormFields((i18n.language || 'en').split('-')[0], data.site);
+      updateFormFields(locale, data.site);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -73,15 +100,17 @@ export default function SiteDescriptionEditor() {
     if (!info) return;
 
     const sourceLang = info.sourceLang || 'en';
+    const normalizedLocale = normalizeLocale(locale) || 'en';
+    const normalizedSource = normalizeLocale(sourceLang) || sourceLang;
 
-    if (locale === sourceLang) {
+    if (normalizedLocale === normalizedSource) {
       // Editing source language
       setName(info.name || '');
       setAboutFamily(info.aboutFamily || '');
       setPlatformName(info.platformName || '');
     } else {
       // Editing translation
-      const translation = info.translations?.[locale];
+      const translation = findTranslation(info, normalizedLocale);
       if (translation) {
         setName(translation.name || info.name);
         setAboutFamily(translation.aboutFamily || info.aboutFamily);
@@ -93,6 +122,7 @@ export default function SiteDescriptionEditor() {
         setPlatformName(info.platformName || '');
       }
     }
+
   };
 
   const handleSave = async (requestTranslations = false) => {
@@ -116,7 +146,7 @@ export default function SiteDescriptionEditor() {
       });
 
       // Reload site info
-      await loadSiteInfo();
+      await loadSiteInfo(currentLocale);
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (err) {
@@ -147,20 +177,15 @@ export default function SiteDescriptionEditor() {
   }
 
   const sourceLang = siteInfo.sourceLang || 'en';
-  const isEditingSource = currentLocale === sourceLang;
-  const hasTranslation = Boolean(siteInfo.translations?.[currentLocale]);
-
+  const normalizedSource = normalizeLocale(sourceLang) || sourceLang;
+  const normalizedCurrent = normalizeLocale(currentLocale) || currentLocale;
+  const isEditingSource = normalizedCurrent === normalizedSource;
   return (
     <div className="container mx-auto px-4 py-8 max-w-5xl">
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
             <span>{t('editSiteDescription') || 'Edit Site Information'}</span>
-            {!isEditingSource && !hasTranslation && (
-              <span className="text-sm font-normal text-gray-500">
-                ({t('noTranslation') || 'No translation yet'})
-              </span>
-            )}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -208,18 +233,6 @@ export default function SiteDescriptionEditor() {
           </div>
 
           <div className="flex justify-end gap-3">
-            {isEditingSource && (
-              <Button
-                onClick={() => handleSave(true)}
-                disabled={saving || saved}
-                variant="outline"
-                className="flex items-center gap-2"
-              >
-                {saving && <Loader2 className="w-4 h-4 animate-spin" />}
-                <Languages className="w-4 h-4" />
-                {t('saveAndTranslate') || 'Save & Auto-translate'}
-              </Button>
-            )}
             <Button
               onClick={() => handleSave(false)}
               disabled={saving || saved}
@@ -231,12 +244,6 @@ export default function SiteDescriptionEditor() {
               {saved ? (t('saved') || 'Saved!') : (t('save') || 'Save')}
             </Button>
           </div>
-
-          {isEditingSource && (
-            <div className="text-sm text-gray-600 bg-blue-50 p-4 rounded">
-              <strong>{t('note') || 'Note'}:</strong> {t('editingSourceLanguage') || `You are editing the source language (${sourceLang}). Changes will update the original content.`}
-            </div>
-          )}
         </CardContent>
       </Card>
     </div>

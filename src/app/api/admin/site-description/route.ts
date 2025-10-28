@@ -8,6 +8,8 @@ import { SUPPORTED_LOCALES as CONFIG_LOCALES } from '@/constants/i18n';
 import { TranslationService } from '@/services/TranslationService';
 import { normalizeLang } from '@/services/LocalizationService';
 import type { ISite } from '@/entities/Site';
+import { withAdminGuard } from '@/lib/withAdminGuard';
+import { GuardContext } from '@/app/api/types';
 
 const SUPPORTED_LOCALES = CONFIG_LOCALES.map((locale) => locale as string);
 
@@ -19,6 +21,9 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET(request: NextRequest) {
   try {
+    const requestedLocaleRaw = request.nextUrl.searchParams.get('locale');
+    const requestedLocale = normalizeLang(requestedLocaleRaw);
+
     const token = request.cookies.get(ACCESS_TOKEN)?.value;
     if (!token) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -36,13 +41,80 @@ export async function GET(request: NextRequest) {
 
     initAdmin();
     const db = getFirestore();
-    const doc = await db.collection('sites').doc(siteId).get();
+    const siteRef = db.collection('sites').doc(siteId);
+    const doc = await siteRef.get();
 
     if (!doc.exists) {
       return NextResponse.json({ error: 'Site not found' }, { status: 404 });
     }
 
     const site = doc.data() as ISite;
+    const sourceLang = site.sourceLang || 'en';
+    const normalizedSource = normalizeLang(sourceLang) || sourceLang;
+
+    if (
+      requestedLocale &&
+      requestedLocale !== normalizedSource &&
+      site.name
+    ) {
+      const translations = site.translations || {};
+      const existingTranslation = translations[requestedLocale];
+      const needsTranslation = !existingTranslation || !existingTranslation.name;
+
+      if (needsTranslation) {
+        if (!TranslationService.isEnabled()) {
+          return NextResponse.json(
+            { error: 'Translation service disabled' },
+            { status: 503 }
+          );
+        }
+
+        const now = Timestamp.now();
+        const translatedName = await TranslationService.translateHtml({
+          title: site.name || '',
+          content: '',
+          from: sourceLang,
+          to: requestedLocale,
+        });
+
+        const updatedTranslation = {
+          ...(existingTranslation || {
+            name: '',
+            aboutFamily: '',
+            platformName: '',
+            translatedAt: now,
+            engine: 'gpt' as const,
+          }),
+          name: translatedName.title || site.name,
+          translatedAt: now,
+          engine: 'gpt' as const,
+        };
+
+        const translationMeta = site.translationMeta || {};
+        const requestedMap = { ...(translationMeta.requested || {}) };
+        requestedMap[requestedLocale] = now;
+
+        await siteRef.update({
+          [`translations.${requestedLocale}`]: updatedTranslation,
+          translationMeta: {
+            ...translationMeta,
+            requested: requestedMap,
+          },
+          updatedAt: now,
+        });
+
+        revalidateTag(`site-${siteId}`);
+
+        site.translations = {
+          ...translations,
+          [requestedLocale]: updatedTranslation,
+        };
+        site.translationMeta = {
+          ...translationMeta,
+          requested: requestedMap,
+        };
+      }
+    }
 
     return NextResponse.json({
       site: {
@@ -67,61 +139,34 @@ export async function GET(request: NextRequest) {
  * POST /api/admin/site-description
  * Saves site information with translations (requires admin role)
  */
-export async function POST(request: NextRequest) {
+const postHandler = async (request: Request, context: GuardContext) => {
   try {
-    const token = request.cookies.get(ACCESS_TOKEN)?.value;
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const siteId = context.member?.siteId || process.env.NEXT_SITE_ID;
 
-    const payload = verifyAccessToken(token);
-    if (!payload || !payload.sub) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const userId = payload.sub;
-    const siteId = process.env.NEXT_SITE_ID;
     if (!siteId) {
-      return NextResponse.json({ error: 'Site ID not configured' }, { status: 500 });
+      return Response.json({ error: 'Site ID not configured' }, { status: 500 });
     }
 
-    // Verify user is admin for this site
     initAdmin();
     const db = getFirestore();
-
-    const memberQuery = await db
-      .collection('members')
-      .where('siteId', '==', siteId)
-      .where('userId', '==', userId)
-      .limit(1)
-      .get();
-
-    if (memberQuery.empty) {
-      return NextResponse.json({ error: 'Not a member of this site' }, { status: 403 });
-    }
-
-    const memberData = memberQuery.docs[0].data();
-    if (memberData.role !== 'admin') {
-      return NextResponse.json({ error: 'Admin role required' }, { status: 403 });
-    }
 
     // Parse request body
     const body = await request.json();
     const { locale, name, aboutFamily, platformName, requestTranslations } = body;
 
     if (!locale) {
-      return NextResponse.json({ error: 'locale is required' }, { status: 400 });
+      return Response.json({ error: 'locale is required' }, { status: 400 });
     }
 
     const normalizedLocale = normalizeLang(locale);
     if (!normalizedLocale) {
-      return NextResponse.json({ error: 'Invalid locale' }, { status: 400 });
+      return Response.json({ error: 'Invalid locale' }, { status: 400 });
     }
 
     // Get current site data
     const siteDoc = await db.collection('sites').doc(siteId).get();
     if (!siteDoc.exists) {
-      return NextResponse.json({ error: 'Site not found' }, { status: 404 });
+      return Response.json({ error: 'Site not found' }, { status: 404 });
     }
 
     const currentSite = siteDoc.data() as ISite;
@@ -235,12 +280,14 @@ export async function POST(request: NextRequest) {
     // Revalidate cache
     revalidateTag(`site-${siteId}`);
 
-    return NextResponse.json({ success: true });
+    return Response.json({ success: true });
   } catch (error) {
     console.error('[site-description] POST error:', error);
-    return NextResponse.json(
+    return Response.json(
       { error: 'Failed to save site info' },
       { status: 500 }
     );
   }
-}
+};
+
+export const POST = withAdminGuard(postHandler);
