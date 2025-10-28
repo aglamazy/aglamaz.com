@@ -14,7 +14,8 @@ import { landingPage } from '@/app/settings';
 import type { ISite } from '@/entities/Site';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import styles from './PublicLayoutShell.module.css';
-import { SUPPORTED_LOCALES } from '@/i18n';
+import { SUPPORTED_LOCALES as CONFIG_LOCALES } from '@/constants/i18n';
+import { useTranslation } from 'react-i18next';
 
 interface PublicLayoutShellProps {
   siteInfo: ISite | null;
@@ -23,6 +24,7 @@ interface PublicLayoutShellProps {
 }
 
 export default function PublicLayoutShell({ siteInfo, children, locale }: PublicLayoutShellProps) {
+  const { i18n } = useTranslation();
   const { isOpen, close } = useLoginModalStore();
   const setSiteInfo = useSiteStore((s) => s.setSiteInfo);
   const site = useSiteStore((s) => s.siteInfo);
@@ -33,10 +35,13 @@ export default function PublicLayoutShell({ siteInfo, children, locale }: Public
   const isMobile = useIsMobile();
 
   useEffect(() => {
-    if (SUPPORTED_LOCALES.includes(locale)) {
+    if (CONFIG_LOCALES.includes(locale as any)) {
       document.cookie = `NEXT_LOCALE=${locale}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax`;
+      if (i18n.language !== locale) {
+        void i18n.changeLanguage(locale);
+      }
     }
-  }, [locale]);
+  }, [locale, i18n]);
 
   useEffect(() => {
     if (siteInfo) {

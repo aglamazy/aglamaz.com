@@ -100,7 +100,11 @@ export default function EditPostPage() {
             className="w-full border border-sage-200 rounded-md px-3 py-2"
             placeholder={t('title') as string}
           />
-          <EditorRich value={post.content} onChange={(html) => setPost({ ...post, content: html })} />
+          <EditorRich
+            value={post.content}
+            locale={(i18n.language || 'en').split('-')[0]}
+            onChange={(html) => setPost({ ...post, content: html })}
+          />
           <label className="flex items-center gap-2 text-sage-700">
             <input
               type="checkbox"

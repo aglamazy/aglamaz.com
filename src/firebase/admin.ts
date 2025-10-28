@@ -213,3 +213,63 @@ export const fetchPlatformDescription = unstable_cache(
     tags: ['platform-description'],
   }
 );
+
+/**
+ * Fetches site description for a specific site from Firebase with caching.
+ * This content is editable by the site admin.
+ * Cache survives cold starts and works across Vercel instances.
+ *
+ * @param siteId - The site ID to fetch description for
+ * @returns Site description object with title, content, and translations
+ */
+export async function fetchSiteDescription(siteId: string | null) {
+  if (!siteId) {
+    return {
+      content: '',
+      title: '',
+      translations: {} as Record<string, { title: string; content: string }>,
+    };
+  }
+
+  const getCachedDescription = unstable_cache(
+    async () => {
+      initAdmin();
+      const db = getFirestore();
+
+      try {
+        const doc = await db.collection('sites').doc(siteId).get();
+
+        if (!doc.exists) {
+          return {
+            content: '',
+            title: '',
+            translations: {} as Record<string, { title: string; content: string }>,
+          };
+        }
+
+        const data = doc.data() || {};
+        const description = data.description || {};
+
+        return {
+          content: (description.content as string) || '',
+          title: (description.title as string) || '',
+          translations: (description.translations as Record<string, { title: string; content: string }>) || {},
+        };
+      } catch (error) {
+        console.error(`[site] failed to fetch site description for ${siteId}`, error);
+        return {
+          content: '',
+          title: '',
+          translations: {} as Record<string, { title: string; content: string }>,
+        };
+      }
+    },
+    [`site-description-${siteId}`],
+    {
+      revalidate: 3600, // Revalidate every hour
+      tags: ['site-description', `site-${siteId}`],
+    }
+  );
+
+  return getCachedDescription();
+}

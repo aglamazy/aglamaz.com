@@ -49,7 +49,11 @@ export default function NewPostPage() {
             className="w-full border p-2"
             placeholder={t('title') as string}
           />
-          <EditorRich value={content} onChange={setContent} />
+          <EditorRich
+            value={content}
+            locale={(i18n.language || 'en').split('-')[0]}
+            onChange={setContent}
+          />
           <label className="flex items-center space-x-2">
             <input
               type="checkbox"

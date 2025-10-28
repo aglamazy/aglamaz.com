@@ -16,6 +16,7 @@ interface PlatformDescription {
 
 interface LandingPageProps {
   siteInfo: ISite | null;
+  siteDescription: any;
   platformDescription: PlatformDescription | null;
   lang: string;
   baseUrl: string | null;
@@ -32,7 +33,7 @@ function resolveLogo(baseUrl: string | null) {
   return `${baseUrl}/favicon.svg`;
 }
 
-export default async function LandingPage({ siteInfo, platformDescription, lang, baseUrl }: LandingPageProps) {
+export default async function LandingPage({ siteInfo, siteDescription, platformDescription, lang, baseUrl }: LandingPageProps) {
   const baseLang = lang.split('-')[0]?.toLowerCase() || lang.toLowerCase();
   const t = await getServerT(baseLang);
   const translations = siteInfo?.translations || {};
@@ -42,6 +43,11 @@ export default async function LandingPage({ siteInfo, platformDescription, lang,
     translations[baseLang] ||
     siteInfo?.name ||
     getPlatformName(siteInfo);
+
+  // Get site description for current language
+  const siteDescTranslation = siteDescription?.translations?.[lang] || siteDescription?.translations?.[baseLang];
+  const siteDescTitle = siteDescTranslation?.title || siteDescription?.title || '';
+  const siteDescContent = siteDescTranslation?.content || siteDescription?.content || '';
 
   // Get platform description for current language
   const platformTranslation = platformDescription?.translations?.[lang] || platformDescription?.translations?.[baseLang];
@@ -139,6 +145,23 @@ export default async function LandingPage({ siteInfo, platformDescription, lang,
           <p className="text-lg md:text-xl text-sage-600 mx-auto max-w-2xl leading-relaxed">{heroSubtitle}</p>
         </div>
       </section>
+
+      {/* Site Description Section - Editable by site admin */}
+      {siteDescContent && (
+        <section className="border-b border-sage-100">
+          <div className="max-w-4xl mx-auto px-4 py-12">
+            {siteDescTitle && (
+              <h2 className="text-3xl md:text-4xl font-bold text-charcoal mb-6 text-center">
+                {siteDescTitle}
+              </h2>
+            )}
+            <div
+              className="prose prose-sage max-w-none text-sage-700 leading-relaxed"
+              dangerouslySetInnerHTML={{ __html: siteDescContent }}
+            />
+          </div>
+        </section>
+      )}
 
       {/* Platform Description Section */}
       {platformContent && (

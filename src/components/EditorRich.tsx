@@ -25,9 +25,10 @@ const TinyMCEEditor = dynamic(async () => (await import('@tinymce/tinymce-react'
 interface EditorRichProps {
   value: string;
   onChange: (html: string) => void;
+  locale?: string;
 }
 
-export default function EditorRich({ value, onChange }: EditorRichProps) {
+export default function EditorRich({ value, onChange, locale = 'en' }: EditorRichProps) {
   return (
     <TinyMCEEditor
       value={value}
@@ -39,7 +40,7 @@ export default function EditorRich({ value, onChange }: EditorRichProps) {
         toolbar:
           'undo redo | blocks | bold italic underline | bullist numlist | link | ltr rtl | code',
         block_formats: 'Paragraph=p; Heading 1=h1; Heading 2=h2; Heading 3=h3; Quote=blockquote',
-        directionality: 'auto',
+        directionality: locale === 'he' ? 'rtl' : 'ltr',
         // Disable Tiny's own external skin/content CSS loading (we import CSS via bundler)
         skin: false,
         content_css: false,

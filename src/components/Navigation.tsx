@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Menu, X, User, LogOut, Home, Users, Heart, Settings, MessageCircle, Calendar, BookOpen } from 'lucide-react';
+import { Menu, X, User, LogOut, Home, Users, Calendar, BookOpen, Shield } from 'lucide-react';
 import { useMemberStore } from '@/store/MemberStore';
 import { useTranslation } from 'react-i18next';
 import { useEditUserModalStore } from '@/store/EditUserModalStore';
@@ -51,12 +51,8 @@ export default function Navigation({ user, onLogout, setMobileMenuOpen }: Naviga
     { name: t('familyCalendar') as string, href: '/app/calendar', icon: Calendar },
   ];
 
-  // Add admin link if user is admin
-  const adminItems = [
-    { name: t('pendingMembers'), href: '/admin/pending-members', icon: Users },
-    { name: t('siteMembers'), href: '/admin/site-members', icon: Users },
-    { name: t('contactMessages'), href: '/admin/contact-messages', icon: MessageCircle },
-  ];
+  // Admin dashboard link
+  const adminLink = { name: t('adminDashboard') || 'Admin Dashboard', href: '/admin/dashboard', icon: Shield };
 
   const handleLogout = () => {
     setIsUserMenuOpen(false);
@@ -95,20 +91,16 @@ export default function Navigation({ user, onLogout, setMobileMenuOpen }: Naviga
                 );
               })}
               
-              {/* Admin links */}
-              {user?.isAdmin && adminItems.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <button
-                    key={item.name}
-                    onClick={() => router.push(item.href)}
-                    className="text-red-600 hover:text-red-700 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 flex items-center gap-2"
-                  >
-                    <Icon size={16} />
-                    {item.name}
-                  </button>
-                );
-              })}
+              {/* Admin link */}
+              {member?.role === 'admin' && (
+                <button
+                  onClick={() => router.push(adminLink.href)}
+                  className="text-red-600 hover:text-red-700 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 flex items-center gap-2"
+                >
+                  <adminLink.icon size={16} />
+                  {adminLink.name}
+                </button>
+              )}
             </div>
           </div>
 
@@ -126,22 +118,18 @@ export default function Navigation({ user, onLogout, setMobileMenuOpen }: Naviga
                   <div className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-50">
                     <div className="py-1">
                       {/* Admin menu items if member is admin */}
-                      {member?.role === 'admin' && adminItems.map((item) => {
-                        const Icon = item.icon;
-                        return (
-                          <button
-                            key={item.name}
-                    onClick={() => {
-                              setIsUserMenuOpen(false);
-                              router.push(item.href);
-                            }}
-                            className="flex items-center w-full px-4 py-2 text-sm text-green-700 hover:bg-green-50 transition-colors duration-200"
-                          >
-                            <Icon size={16} className="mr-3" />
-                            {item.name}
-                          </button>
-                        );
-                      })}
+                      {member?.role === 'admin' && (
+                        <button
+                          onClick={() => {
+                            setIsUserMenuOpen(false);
+                            router.push(adminLink.href);
+                          }}
+                          className="flex items-center w-full px-4 py-2 text-sm text-green-700 hover:bg-green-50 transition-colors duration-200"
+                        >
+                          <adminLink.icon size={16} className="mr-3" />
+                          {adminLink.name}
+                        </button>
+                      )}
                       <button
                         onClick={() => {
                           setIsUserMenuOpen(false);
@@ -205,22 +193,18 @@ export default function Navigation({ user, onLogout, setMobileMenuOpen }: Naviga
             })}
             
             {/* Admin links */}
-            { adminItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <button
-                  key={item.name}
-                  onClick={() => {
-                    router.push(item.href);
-                    setIsMobileMenuOpenState(false);
-                  }}
-                  className="text-red-600 hover:text-red-700 hover:bg-red-50 block px-3 py-2 rounded-md text-base font-medium transition-colors duration-200 flex items-center gap-3 w-full text-left"
-                >
-                  <Icon size={20} />
-                  {item.name}
-                </button>
-              );
-            })}
+            {member?.role === 'admin' && (
+              <button
+                onClick={() => {
+                  router.push(adminLink.href);
+                  setIsMobileMenuOpenState(false);
+                }}
+                className="text-red-600 hover:text-red-700 hover:bg-red-50 block px-3 py-2 rounded-md text-base font-medium transition-colors duration-200 flex items-center gap-3 w-full text-left"
+              >
+                <adminLink.icon size={20} />
+                {adminLink.name}
+              </button>
+            )}
             
             {/* Mobile User Info and Logout */}
             <div className="border-t border-sage-200 pt-4 mt-4">
