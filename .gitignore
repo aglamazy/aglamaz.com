@@ -2,8 +2,11 @@
 node_modules
 .env.local
 .env.local.backup
-.idea/ 
+.idea/
 tsconfig.tsbuildinfo
 
 /firebase-debug.log
 /.codex
+/test-results
+/playwright-report
+sitemap.xml
