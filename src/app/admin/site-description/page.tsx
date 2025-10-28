@@ -3,57 +3,64 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { apiFetch } from '@/utils/apiFetch';
-import { Loader2, Save, Check } from 'lucide-react';
+import { Loader2, Save, Check, Languages } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import dynamic from 'next/dynamic';
 
 const EditorRich = dynamic(() => import('@/components/EditorRich'), { ssr: false });
 
-interface SiteDescription {
-  title: string;
-  content: string;
-  translations: Record<string, { title: string; content: string }>;
+interface SiteInfo {
+  id: string;
+  name: string;
+  aboutFamily: string;
+  platformName: string;
+  sourceLang: string;
+  translations: Record<string, {
+    name: string;
+    aboutFamily: string;
+    platformName: string;
+    translatedAt: any;
+    engine: 'gpt' | 'manual' | 'other';
+  }>;
 }
 
-interface SiteDescriptionResponse {
-  description: SiteDescription;
-  siteName: string;
-  siteNameTranslations: Record<string, string>;
+interface SiteResponse {
+  site: SiteInfo;
 }
 
 export default function SiteDescriptionEditor() {
   const { t, i18n } = useTranslation();
   const [currentLocale, setCurrentLocale] = useState(() => (i18n.language || 'en').split('-')[0]);
-  const [description, setDescription] = useState<SiteDescription>({
-    title: '',
-    content: '',
-    translations: {},
-  });
-  const [siteName, setSiteName] = useState('');
-  const [siteNameTranslations, setSiteNameTranslations] = useState<Record<string, string>>({});
+  const [siteInfo, setSiteInfo] = useState<SiteInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
 
+  // Form state
+  const [name, setName] = useState('');
+  const [aboutFamily, setAboutFamily] = useState('');
+  const [platformName, setPlatformName] = useState('');
+
   useEffect(() => {
-    loadDescription();
+    loadSiteInfo();
   }, []);
 
   useEffect(() => {
     const locale = (i18n.language || 'en').split('-')[0];
     setCurrentLocale(locale);
+    updateFormFields(locale);
   }, [i18n.language]);
 
-  const loadDescription = async () => {
+  const loadSiteInfo = async () => {
     try {
       setLoading(true);
       setError('');
-      const data = await apiFetch<SiteDescriptionResponse>('/api/admin/site-description');
-      setDescription(data.description || { title: '', content: '', translations: {} });
-      setSiteName(data.siteName || '');
-      setSiteNameTranslations(data.siteNameTranslations || {});
+      const data = await apiFetch<SiteResponse>('/api/admin/site-description');
+      setSiteInfo(data.site);
+      updateFormFields((i18n.language || 'en').split('-')[0], data.site);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -61,23 +68,55 @@ export default function SiteDescriptionEditor() {
     }
   };
 
-  const handleSave = async () => {
+  const updateFormFields = (locale: string, site?: SiteInfo) => {
+    const info = site || siteInfo;
+    if (!info) return;
+
+    const sourceLang = info.sourceLang || 'en';
+
+    if (locale === sourceLang) {
+      // Editing source language
+      setName(info.name || '');
+      setAboutFamily(info.aboutFamily || '');
+      setPlatformName(info.platformName || '');
+    } else {
+      // Editing translation
+      const translation = info.translations?.[locale];
+      if (translation) {
+        setName(translation.name || info.name);
+        setAboutFamily(translation.aboutFamily || info.aboutFamily);
+        setPlatformName(translation.platformName || info.platformName);
+      } else {
+        // No translation yet, show source as fallback
+        setName(info.name || '');
+        setAboutFamily(info.aboutFamily || '');
+        setPlatformName(info.platformName || '');
+      }
+    }
+  };
+
+  const handleSave = async (requestTranslations = false) => {
+    if (!siteInfo) return;
+
     try {
       setSaving(true);
       setError('');
       setSaved(false);
-      const payload: SiteDescription = {
-        ...description,
-        title: siteName || description.title || '',
-      };
 
       await apiFetch('/api/admin/site-description', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ description: payload }),
+        body: JSON.stringify({
+          locale: currentLocale,
+          name,
+          aboutFamily,
+          platformName,
+          requestTranslations,
+        }),
       });
 
-      setDescription(payload);
+      // Reload site info
+      await loadSiteInfo();
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (err) {
@@ -85,47 +124,6 @@ export default function SiteDescriptionEditor() {
     } finally {
       setSaving(false);
     }
-  };
-
-  const getCurrentTitle = () => {
-    if (currentLocale === 'en') {
-      return siteName || description.title || '';
-    }
-
-    return (
-      siteNameTranslations[currentLocale] ||
-      description.translations[currentLocale]?.title ||
-      siteName ||
-      description.title ||
-      ''
-    );
-  };
-
-  const getCurrentContent = () => {
-    const localized = description.translations[currentLocale]?.content;
-    if (localized && localized.trim().length > 0) {
-      return localized;
-    }
-    return description.content || '';
-  };
-
-  const updateCurrentTranslation = (field: 'title' | 'content', value: string) => {
-    setDescription((prev) => {
-      const updated = { ...prev };
-
-      if (currentLocale === 'en' || !updated.translations.en) {
-        // Update default
-        updated[field] = value;
-      }
-
-      // Update translation
-      if (!updated.translations[currentLocale]) {
-        updated.translations[currentLocale] = { title: '', content: '' };
-      }
-      updated.translations[currentLocale][field] = value;
-
-      return updated;
-    });
   };
 
   if (loading) {
@@ -136,12 +134,33 @@ export default function SiteDescriptionEditor() {
     );
   }
 
+  if (!siteInfo) {
+    return (
+      <div className="container mx-auto px-4 py-8 max-w-5xl">
+        <Card>
+          <CardContent className="py-8">
+            <p className="text-red-600">{error || 'Failed to load site information'}</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const sourceLang = siteInfo.sourceLang || 'en';
+  const isEditingSource = currentLocale === sourceLang;
+  const hasTranslation = Boolean(siteInfo.translations?.[currentLocale]);
+
   return (
     <div className="container mx-auto px-4 py-8 max-w-5xl">
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
-            <span>{t('editSiteDescription') || 'Edit Site Description'}</span>
+            <span>{t('editSiteDescription') || 'Edit Site Information'}</span>
+            {!isEditingSource && !hasTranslation && (
+              <span className="text-sm font-normal text-gray-500">
+                ({t('noTranslation') || 'No translation yet'})
+              </span>
+            )}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -152,33 +171,57 @@ export default function SiteDescriptionEditor() {
           )}
 
           <div>
-            <label htmlFor="title" className="block text-sm font-medium text-sage-700 mb-2">
-              {t('title') || 'Title'}
+            <label htmlFor="name" className="block text-sm font-medium text-sage-700 mb-2">
+              {t('siteName') || 'Site Name'}
             </label>
-            <input
-              id="title"
+            <Input
+              id="name"
               type="text"
-              value={getCurrentTitle()}
-              onChange={(e) => updateCurrentTranslation('title', e.target.value)}
-              className="w-full px-3 py-2 border border-sage-200 rounded-md focus:ring-2 focus:ring-sage-500 focus:border-transparent"
-              placeholder={t('enterTitle') || 'Enter title'}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder={t('enterSiteName') || 'Enter site name'}
             />
           </div>
 
           <div>
-            <label htmlFor="content" className="block text-sm font-medium text-sage-700 mb-2">
-              {t('content') || 'Content'}
+            <label htmlFor="platformName" className="block text-sm font-medium text-sage-700 mb-2">
+              {t('platformName') || 'Platform Name'}
+            </label>
+            <Input
+              id="platformName"
+              type="text"
+              value={platformName}
+              onChange={(e) => setPlatformName(e.target.value)}
+              placeholder={t('enterPlatformName') || 'Enter platform name (e.g., FamCircle)'}
+            />
+          </div>
+
+          <div>
+            <label htmlFor="aboutFamily" className="block text-sm font-medium text-sage-700 mb-2">
+              {t('aboutFamily') || 'About Family'}
             </label>
             <EditorRich
-              value={getCurrentContent()}
+              value={aboutFamily}
               locale={currentLocale}
-              onChange={(content) => updateCurrentTranslation('content', content)}
+              onChange={setAboutFamily}
             />
           </div>
 
           <div className="flex justify-end gap-3">
+            {isEditingSource && (
+              <Button
+                onClick={() => handleSave(true)}
+                disabled={saving || saved}
+                variant="outline"
+                className="flex items-center gap-2"
+              >
+                {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+                <Languages className="w-4 h-4" />
+                {t('saveAndTranslate') || 'Save & Auto-translate'}
+              </Button>
+            )}
             <Button
-              onClick={handleSave}
+              onClick={() => handleSave(false)}
               disabled={saving || saved}
               className="flex items-center gap-2"
             >
@@ -188,6 +231,12 @@ export default function SiteDescriptionEditor() {
               {saved ? (t('saved') || 'Saved!') : (t('save') || 'Save')}
             </Button>
           </div>
+
+          {isEditingSource && (
+            <div className="text-sm text-gray-600 bg-blue-50 p-4 rounded">
+              <strong>{t('note') || 'Note'}:</strong> {t('editingSourceLanguage') || `You are editing the source language (${sourceLang}). Changes will update the original content.`}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

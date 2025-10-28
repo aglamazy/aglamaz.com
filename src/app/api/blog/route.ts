@@ -2,66 +2,51 @@ import { withMemberGuard } from '@/lib/withMemberGuard';
 import { BlogRepository } from '@/repositories/BlogRepository';
 import { GuardContext } from '@/app/api/types';
 import { TranslationService } from '@/services/TranslationService';
+import {
+  normalizeLang,
+  getLocalizedDocument,
+  shouldRequestTranslation
+} from '@/services/LocalizationService';
 import type { IBlogPost } from '@/entities/BlogPost';
 import { Timestamp } from 'firebase-admin/firestore';
 
 export const dynamic = 'force-dynamic';
 
-function normalizeLang(input?: string | null): string | null {
-  if (!input) return null;
-  try {
-    const code = input.split(',')[0]?.trim().split(';')[0] || '';
-    const base = code.split('-')[0]?.toLowerCase();
-    return base || null;
-  } catch {
-    return null;
-  }
-}
-
 function pickPostForLang(post: IBlogPost, lang: string): IBlogPost {
-  if (!lang || lang === post.sourceLang) return post;
-  const translations = post.translations || {};
-  const base = lang.split('-')[0]?.toLowerCase();
-  let t = translations[lang] as any;
-  if (!t && base) {
-    const key = Object.keys(translations).find(k => {
-      const kb = k.split('-')[0]?.toLowerCase();
-      return k.toLowerCase() === lang.toLowerCase() || kb === base;
-    });
-    if (key) t = (translations as any)[key];
-  }
-  if (!t) return post;
-  return { ...post, title: t.title || post.title, content: t.content || post.content };
+  return getLocalizedDocument(post, lang, ['title', 'content']);
 }
 
 async function maybeEnqueueTranslation(post: IBlogPost, lang: string, repo: BlogRepository) {
-  if (!lang || lang === post.sourceLang) return;
-  if (post.translations?.[lang]) return;
-  // Debounce: only request once per hour
-  const lastReq = post.translationMeta?.requested?.[lang] as any;
-  const lastMs = lastReq?.toMillis ? lastReq.toMillis() : (lastReq ? new Date(lastReq).getTime() : 0);
-  const now = Date.now();
-  const oneHour = 60 * 60 * 1000;
-  if (lastMs && now - lastMs < oneHour) return;
+  if (!shouldRequestTranslation(post, lang)) return;
+
+  const normalizedLang = normalizeLang(lang);
+  if (!normalizedLang) return;
+
   try {
-    await repo.markTranslationRequested(post.id, lang);
+    await repo.markTranslationRequested(post.id, normalizedLang);
   } catch (e) {
     console.error('Failed to mark translation requested', e);
     // Still attempt translation to avoid user being stuck without it
   }
+
   if (!TranslationService.isEnabled()) return;
+
   (async () => {
     try {
-      console.log('[translate] start', { postId: post.id, to: lang });
+      console.log('[translate] start', { postId: post.id, to: normalizedLang });
       const res = await TranslationService.translateHtml({
         title: post.title,
         content: post.content,
         from: post.sourceLang,
-        to: lang,
+        to: normalizedLang,
       });
-      await repo.addTranslation(post.id, lang, { title: res.title, content: res.content, engine: 'gpt' });
+      await repo.addTranslation(post.id, normalizedLang, {
+        title: res.title,
+        content: res.content,
+        engine: 'gpt'
+      });
     } catch (err) {
-      console.error(`Background translation failed for post ${post.id} to ${lang}:`, err);
+      console.error(`Background translation failed for post ${post.id} to ${normalizedLang}:`, err);
     }
   })();
 }

@@ -1,10 +1,13 @@
 import type { ISite } from '@/entities/Site';
+import { getLocalizedFields } from '@/services/LocalizationService';
 
-export function getLocalizedSiteName  (site: ISite | null | undefined, locale: string | undefined): string | null | undefined{
+export function getLocalizedSiteName(
+  site: ISite | null | undefined,
+  locale: string | undefined
+): string | null | undefined {
   if (!site) return undefined;
-  const translations = site.translations || {};
-  if (locale && translations[locale]) {
-    return translations[locale];
-  }
-  return site.name;
+
+  const localized = getLocalizedFields(site, locale, ['name']);
+
+  return localized.name || site.name;
 }
