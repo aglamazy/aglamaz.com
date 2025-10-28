@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fetchGeniImmediateFamily, fetchGeniFocusGuid, fetchGeniMe, GENI_ACCESS } from '@/integrations/geni';
-import { initAdmin } from '@/firebase/admin';
-import { getFirestore, Timestamp } from 'firebase-admin/firestore';
+import { GeniCacheRepository } from '@/repositories/GeniCacheRepository';
 
 export const dynamic = 'force-dynamic';
+
+const geniCacheRepository = new GeniCacheRepository();
+const FAMILY_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+
+interface GeniFamilyCachePayload {
+  me: unknown;
+  family: unknown;
+}
 
 export async function GET(req: NextRequest) {
   try {
@@ -21,26 +28,25 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Geni GUID not found' }, { status: 400 });
     }
 
-    // Firestore caching for 24h
-    initAdmin();
-    const db = getFirestore();
-    const docRef = db.collection('geni_cache').doc(`family_${guid}`);
-    if (!forceRefresh) {
-      const snap = await docRef.get();
-      if (snap.exists) {
-        const data = snap.data() as any;
-        const ts: Timestamp | undefined = data?.updatedAt;
-        const updatedAt = ts ? ts.toDate().getTime() : 0;
-        const ageMs = Date.now() - updatedAt;
-        const dayMs = 24 * 60 * 60 * 1000;
-        if (ageMs < dayMs) {
-          return NextResponse.json({ me: data.me || me, family: data.family, cached: true, updatedAt: updatedAt });
-        }
-      }
+    const cacheKey = `family_${guid}`;
+    const cachedEntry = forceRefresh
+      ? null
+      : await geniCacheRepository.get<GeniFamilyCachePayload>(cacheKey, {
+          ttlMs: FAMILY_CACHE_TTL_MS,
+        });
+
+    if (cachedEntry && !cachedEntry.stale) {
+      const cachedData = cachedEntry.data;
+      return NextResponse.json({
+        me: cachedData.me || me,
+        family: cachedData.family,
+        cached: true,
+        updatedAt: cachedEntry.updatedAt ? cachedEntry.updatedAt.getTime() : undefined,
+      });
     }
 
     const family = await fetchGeniImmediateFamily(token, String(guid));
-    await docRef.set({ me, family, updatedAt: Timestamp.now() }, { merge: true });
+    await geniCacheRepository.upsert(cacheKey, { me, family });
     return NextResponse.json({ me, family, cached: false });
   } catch (err) {
     console.error('[GENI] family error', err);
