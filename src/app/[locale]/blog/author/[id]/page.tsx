@@ -88,9 +88,9 @@ export default async function AuthorBlogPage({ params }: { params: AuthorPagePar
   const baseLang = locale.split('-')[0]?.toLowerCase() || locale.toLowerCase();
   const t = await getServerT(baseLang);
 
-  let siteInfo: Record<string, unknown> | null = null;
+  let siteInfo: Awaited<ReturnType<typeof fetchSiteInfo>> = null;
   try {
-    siteInfo = (await fetchSiteInfo(siteId)) as Record<string, unknown> | null;
+    siteInfo = await fetchSiteInfo(siteId);
   } catch (error) {
     console.error('[blog/author] failed to fetch site info', error);
   }

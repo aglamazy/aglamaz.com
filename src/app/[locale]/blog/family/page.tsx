@@ -86,9 +86,9 @@ export default async function FamilyBlogPage({ params }: FamilyBlogPageProps) {
   const baseLang = lang.split('-')[0]?.toLowerCase() || lang.toLowerCase();
   const t = await getServerT(baseLang);
 
-  let siteInfo: Record<string, unknown> | null = null;
+  let siteInfo: Awaited<ReturnType<typeof fetchSiteInfo>> = null;
   try {
-    siteInfo = (await fetchSiteInfo(siteId)) as Record<string, unknown> | null;
+    siteInfo = await fetchSiteInfo(siteId);
   } catch (error) {
     console.error('[blog/family] failed to fetch site info', error);
     // Continue with null siteInfo

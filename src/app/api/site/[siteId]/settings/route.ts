@@ -1,8 +1,6 @@
 import { withAdminGuard } from '@/lib/withAdminGuard';
 import { GuardContext } from '@/app/api/types';
-import { getFirestore } from 'firebase-admin/firestore';
-import { initAdmin } from '@/firebase/admin';
-import { TranslationService } from '@/services/TranslationService';
+import { SiteRepository, SiteNotFoundError } from '@/repositories/SiteRepository';
 import nextI18NextConfig from '../../../../../../next-i18next.config.js';
 
 export const dynamic = 'force-dynamic';
@@ -21,56 +19,21 @@ const putHandler = async (request: Request, context: GuardContext & { params: { 
       return Response.json({ error: 'Invalid aboutFamily' }, { status: 400 });
     }
 
-    initAdmin();
-    const db = getFirestore();
-    const siteRef = db.collection('sites').doc(siteId);
-    const siteDoc = await siteRef.get();
-
-    if (!siteDoc.exists) {
-      return Response.json({ error: 'Site not found' }, { status: 404 });
-    }
-
-    // Determine source language (default to 'he' if not provided)
+    const repository = new SiteRepository();
     const lang = sourceLang || 'he';
 
-    // Update site with new aboutFamily and clear old translations
-    await siteRef.update({
-      aboutFamily,
-      sourceLang: lang,
-      aboutTranslations: {},
-      updatedAt: new Date().toISOString(),
-    });
-
-    // Trigger translation for all supported locales (if translation service is enabled)
-    if (TranslationService.isEnabled() && aboutFamily.trim()) {
-      const aboutTranslations: Record<string, string> = {};
-
-      for (const locale of SUPPORTED_LOCALES) {
-        // Skip translating to source language
-        if (locale === lang) {
-          aboutTranslations[locale] = aboutFamily;
-          continue;
-        }
-
-        try {
-          const result = await TranslationService.translateHtml({
-            title: '',
-            content: aboutFamily,
-            from: lang,
-            to: locale,
-          });
-          aboutTranslations[locale] = result.content;
-        } catch (error) {
-          console.error(`Failed to translate aboutFamily to ${locale}`, error);
-          // Fallback to original text
-          aboutTranslations[locale] = aboutFamily;
-        }
-      }
-
-      // Update with all translations
-      await siteRef.update({
-        aboutTranslations,
+    try {
+      await repository.updateAbout({
+        siteId,
+        aboutFamily,
+        sourceLang: lang,
+        supportedLocales: SUPPORTED_LOCALES,
       });
+    } catch (error) {
+      if (error instanceof SiteNotFoundError) {
+        return Response.json({ error: 'Site not found' }, { status: 404 });
+      }
+      throw error;
     }
 
     return Response.json({ ok: true });
@@ -84,20 +47,16 @@ const getHandler = async (_request: Request, context: GuardContext & { params: {
   try {
     const { siteId } = context.params!;
 
-    initAdmin();
-    const db = getFirestore();
-    const siteDoc = await db.collection('sites').doc(siteId).get();
-
-    if (!siteDoc.exists) {
-      return Response.json({ error: 'Site not found' }, { status: 404 });
+    const repository = new SiteRepository();
+    try {
+      const settings = await repository.getSettings(siteId);
+      return Response.json(settings);
+    } catch (error) {
+      if (error instanceof SiteNotFoundError) {
+        return Response.json({ error: 'Site not found' }, { status: 404 });
+      }
+      throw error;
     }
-
-    const data = siteDoc.data();
-    return Response.json({
-      aboutFamily: data?.aboutFamily || '',
-      sourceLang: data?.sourceLang || 'he',
-      aboutTranslations: data?.aboutTranslations || {},
-    });
   } catch (error) {
     console.error('Failed to get site settings', error);
     return Response.json({ error: 'Failed to get site settings' }, { status: 500 });
