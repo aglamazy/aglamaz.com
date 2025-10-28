@@ -22,11 +22,12 @@ const claims = {
 
 let withMemberGuard: any;
 let __setMockCookies: any;
-let __setMockDb: any;
+let __setMockMemberRepository: any;
 
 async function testExpiredToken() {
   const token = signAccessToken(claims, -5); // expired
   __setMockCookies(() => ({ get: () => ({ value: token }) }));
+  __setMockMemberRepository({ getByUid: async () => null });
   let called = false;
   const handler = () => { called = true; return NextResponse.json({ ok: true }); };
   const guarded = withMemberGuard(handler);
@@ -41,17 +42,20 @@ async function testExpiredToken() {
 async function testValidToken() {
   const token = signAccessToken(claims); // valid
   __setMockCookies(() => ({ get: () => ({ value: token }) }));
-  const memberSnap = {
-    empty: false,
-    docs: [{ data: () => ({ uid: 'user1', role: 'member' }) }],
+  const repo = {
+    getByUid: async () => ({
+      id: 'member1',
+      uid: 'user1',
+      siteId: 'site1',
+      role: 'member',
+      displayName: 'Test User',
+      firstName: 'Test',
+      email: 'test@example.com',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }),
   };
-  const members: any = {
-    where: () => members,
-    limit: () => members,
-    get: async () => memberSnap,
-    withConverter: () => members,
-  };
-  __setMockDb({ collection: () => members });
+  __setMockMemberRepository(repo);
   let called = false;
   let capturedUser: any;
   let capturedMember: any;
@@ -76,7 +80,7 @@ async function run() {
   const mod = await import('../src/lib/withMemberGuard');
   withMemberGuard = mod.withMemberGuard;
   __setMockCookies = mod.__setMockCookies;
-  __setMockDb = mod.__setMockDb;
+  __setMockMemberRepository = mod.__setMockMemberRepository;
   await testExpiredToken();
   await testValidToken();
 }

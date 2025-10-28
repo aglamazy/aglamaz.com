@@ -1,7 +1,14 @@
-import { getFirestore, Timestamp, FieldValue } from 'firebase-admin/firestore';
-import {initAdmin} from '../firebase/admin';
-import type {IMember} from '@/entities/Member';
-import {adminNotificationService} from '@/services/AdminNotificationService';
+import { getFirestore, Timestamp } from 'firebase-admin/firestore';
+import { initAdmin } from '../firebase/admin';
+import type { IMember } from '@/entities/Member';
+import { adminNotificationService } from '@/services/AdminNotificationService';
+import {
+  MemberRepository,
+  type MemberQueryOptions,
+  type MemberRecord,
+  type LocalizedMemberRecord,
+} from './MemberRepository';
+import { SiteRepository, type SiteRecord } from './SiteRepository';
 
 export type InviteStatus = 'pending' | 'used' | 'expired' | 'revoked';
 
@@ -12,39 +19,8 @@ export class InviteError extends Error {
   }
 }
 
-export interface FamilyMember {
-  id: string;
-  displayName: string;
-  firstName: string;
-  lastName?: string;
-  email: string;
-  role: 'admin' | 'member' | 'pending';
-  siteId: string;
-  userId: string;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
-  approvedAt?: Timestamp;
-  approvedBy?: string;
-  rejectedAt?: Timestamp;
-  rejectedBy?: string;
-  rejectionReason?: string;
-  avatarUrl?: string | null;
-  avatarStoragePath?: string | null;
-}
-
-export interface FamilySite {
-  id: string;
-  name: string;
-  description?: string;
-  ownerId: string;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
-  settings?: {
-    allowMemberInvites: boolean;
-    requireApproval: boolean;
-    maxMembers: number;
-  };
-}
+export type FamilyMember = LocalizedMemberRecord;
+export type FamilySite = SiteRecord;
 
 export interface SignupRequest {
   id: string;
@@ -90,10 +66,13 @@ export interface SiteInvite {
 }
 
 export class FamilyRepository {
-  private readonly membersCollection = 'members';
-  private readonly sitesCollection = 'sites';
   private readonly signupRequestsCollection = 'signupRequests';
   private readonly invitesCollection = 'invites';
+
+  constructor(
+    private readonly members = new MemberRepository(),
+    private readonly sites = new SiteRepository(),
+  ) {}
 
   private isTimestamp(value: unknown): value is Timestamp {
     return value instanceof Timestamp ||
@@ -112,17 +91,7 @@ export class FamilyRepository {
   // Site Management
   async getSite(siteId: string): Promise<FamilySite | null> {
     try {
-      const db = this.getDb();
-      const siteDoc = await db.collection(this.sitesCollection).doc(siteId).get();
-      
-      if (!siteDoc.exists) {
-        return null;
-      }
-
-      return {
-        id: siteDoc.id,
-        ...siteDoc.data()
-      } as FamilySite;
+      return await this.sites.get(siteId);
     } catch (error) {
       console.error('Error getting site:', error);
       throw new Error('Failed to get site');
@@ -130,90 +99,45 @@ export class FamilyRepository {
   }
 
   // Member Management
-  async getMemberById(memberId: string): Promise<FamilyMember | null> {
+  async getMemberById(memberId: string, opts?: MemberQueryOptions): Promise<FamilyMember | null> {
     try {
-      const db = this.getDb();
-      const doc = await db.collection(this.membersCollection).doc(memberId).get();
-      if (!doc.exists) return null;
-      return { id: doc.id, ...(doc.data() as any) } as FamilyMember;
+      return await this.members.getById(memberId, opts);
     } catch (error) {
       console.error('Error getting member by id:', error);
       throw new Error('Failed to get member by id');
     }
   }
-  async getMemberByUserId(userId: string, siteId: string): Promise<FamilyMember | null> {
-    try {
-      const db = this.getDb();
-      
-      const querySnapshot = await db.collection(this.membersCollection)
-        .where('uid', '==', userId)
-        .where('siteId', '==', siteId)
-        .get();
-      
-      if (querySnapshot.empty) {
-        return null;
-      }
 
-      const memberDoc = querySnapshot.docs[0];
-      return {
-        id: memberDoc.id,
-        ...memberDoc.data()
-      } as FamilyMember;
+  async getMemberByUserId(userId: string, siteId: string, opts?: MemberQueryOptions): Promise<FamilyMember | null> {
+    try {
+      return await this.members.getByUid(siteId, userId, opts);
     } catch (error) {
       console.error('Error getting member by user ID:', error);
       throw new Error('Failed to get member');
     }
   }
 
-  async getSiteMembers(siteId: string): Promise<FamilyMember[]> {
+  async getSiteMembers(siteId: string, opts?: MemberQueryOptions): Promise<FamilyMember[]> {
     try {
-      const db = this.getDb();
-      const querySnapshot = await db.collection(this.membersCollection)
-        .where('siteId', '==', siteId)
-        .where('role', 'in', ['admin', 'member'])
-        .orderBy('createdAt', 'asc')
-        .get();
-      
-      return querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as FamilyMember[];
+      return await this.members.listActiveMembers(siteId, opts);
     } catch (error) {
       console.error('Error getting site members:', error);
       throw new Error('Failed to get site members');
     }
   }
 
-  async getPendingMembers(siteId: string): Promise<FamilyMember[]> {
+  async getPendingMembers(siteId: string, opts?: MemberQueryOptions): Promise<FamilyMember[]> {
     try {
-      const db = this.getDb();
-      const querySnapshot = await db.collection(this.membersCollection)
-        .where('siteId', '==', siteId)
-        .where('role', '==', 'pending')
-        .orderBy('createdAt', 'asc')
-        .get();
-      
-      return querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as FamilyMember[];
+      return await this.members.listPendingMembers(siteId, opts);
     } catch (error) {
       console.error('Error getting pending members:', error);
       throw new Error('Failed to get pending members');
     }
   }
 
-  async createMember(memberData: Partial<IMember>): Promise<IMember> {
+  async createMember(memberData: Partial<IMember>): Promise<MemberRecord> {
     try {
-      const db = this.getDb();
-      const now = Timestamp.now();
-      const ref = await db.collection(this.membersCollection).add({
-        ...memberData,
-        createdAt: now,
-        updatedAt: now,
-      });
-      const doc = await ref.get();
-      return { id: doc.id, ...doc.data() } as IMember;
+      return await this.members.create(memberData as Partial<MemberRecord>);
     } catch (error) {
       console.error('Error creating member:', error);
       throw new Error('Failed to create member');
@@ -222,17 +146,7 @@ export class FamilyRepository {
 
   async updateMember(memberId: string, updates: Partial<FamilyMember>): Promise<void> {
     try {
-      const db = this.getDb();
-      const payload: Record<string, unknown> = {
-        ...updates,
-        updatedAt: Timestamp.now(),
-      };
-      for (const [key, value] of Object.entries(payload)) {
-        if (value === null) {
-          payload[key] = FieldValue.delete();
-        }
-      }
-      await db.collection(this.membersCollection).doc(memberId).update(payload);
+      await this.members.update(memberId, updates as Partial<MemberRecord>);
     } catch (error) {
       console.error('Error updating member:', error);
       throw new Error('Failed to update member');
@@ -241,8 +155,7 @@ export class FamilyRepository {
 
   async deleteMember(memberId: string): Promise<void> {
     try {
-      const db = this.getDb();
-      await db.collection(this.membersCollection).doc(memberId).delete();
+      await this.members.delete(memberId);
     } catch (error) {
       console.error('Error deleting member:', error);
       throw new Error('Failed to delete member');
@@ -251,15 +164,7 @@ export class FamilyRepository {
 
   async approveMember(memberId: string, approvedBy: string): Promise<void> {
     try {
-      const db = this.getDb();
-      const now = Timestamp.now();
-      
-      await db.collection(this.membersCollection).doc(memberId).update({
-        role: 'member',
-        approvedAt: now,
-        approvedBy,
-        updatedAt: now
-      });
+      await this.members.approve(memberId, approvedBy);
     } catch (error) {
       console.error('Error approving member:', error);
       throw new Error('Failed to approve member');
@@ -268,16 +173,7 @@ export class FamilyRepository {
 
   async rejectMember(memberId: string, rejectedBy: string, reason?: string): Promise<void> {
     try {
-      const db = this.getDb();
-      const now = Timestamp.now();
-      
-      await db.collection(this.membersCollection).doc(memberId).update({
-        role: 'rejected',
-        rejectedAt: now,
-        rejectedBy,
-        rejectionReason: reason,
-        updatedAt: now
-      });
+      await this.members.reject(memberId, rejectedBy, reason);
     } catch (error) {
       console.error('Error rejecting member:', error);
       throw new Error('Failed to reject member');
@@ -339,7 +235,6 @@ export class FamilyRepository {
   async acceptInvite(token: string, user: { uid: string; siteId: string; email: string; displayName?: string; firstName?: string }): Promise<IMember> {
     const db = this.getDb();
     const inviteRef = db.collection(this.invitesCollection).doc(token);
-    const membersRef = db.collection(this.membersCollection);
     const now = Timestamp.now();
 
     try {
@@ -362,9 +257,6 @@ export class FamilyRepository {
           tx.update(inviteRef, { status: 'expired', updatedAt: now });
           throw new InviteError('invite/expired', 'Invite has expired');
         }
-        if (invite.siteId !== user.siteId) {
-          throw new InviteError('invite/wrong-site', 'Invite does not belong to this site');
-        }
         if (invite.status === 'expired') {
           throw new InviteError('invite/expired', 'Invite has expired');
         }
@@ -372,44 +264,29 @@ export class FamilyRepository {
           throw new InviteError('invite/revoked', 'Invite has been revoked');
         }
 
-        const existingByUid = await tx.get(
-          membersRef
-            .where('siteId', '==', invite.siteId)
-            .where('uid', '==', user.uid)
-            .limit(1)
-        );
+        let existingMember = await this.members.findByUidForUpdate(tx, invite.siteId, user.uid);
 
-        let existingMemberDoc = !existingByUid.empty ? existingByUid.docs[0] : undefined;
-
-        if (existingMemberDoc) {
+        if (existingMember) {
           console.info('[invite][repo] found member by uid', {
             token,
-            memberId: existingMemberDoc.id,
+            memberId: existingMember.id,
           });
         }
 
-        if (!existingMemberDoc && user.email) {
-          const existingByEmail = await tx.get(
-            membersRef
-              .where('siteId', '==', invite.siteId)
-              .where('email', '==', user.email)
-              .limit(1)
-          );
-          if (!existingByEmail.empty) {
-            existingMemberDoc = existingByEmail.docs[0];
+        if (!existingMember && user.email) {
+          const existingByEmail = await this.members.findByEmailForUpdate(tx, invite.siteId, user.email);
+          if (existingByEmail) {
+            existingMember = existingByEmail;
             console.info('[invite][repo] found member by email', {
               token,
-              memberId: existingMemberDoc.id,
+              memberId: existingByEmail.id,
             });
           }
         }
 
-        if (existingMemberDoc) {
-          const current = existingMemberDoc.data() as IMember;
-          const memberRef = existingMemberDoc.ref;
-          const updates: Partial<IMember> & { updatedAt: Timestamp } = {
-            updatedAt: now,
-          };
+        if (existingMember) {
+          const current = existingMember.data;
+          const updates: Partial<MemberRecord> = {};
           if (!current.uid) updates.uid = user.uid;
           if (current.email !== user.email && user.email) updates.email = user.email;
           const displayCandidate = user.displayName || user.firstName || user.email;
@@ -417,7 +294,7 @@ export class FamilyRepository {
           if (!current.firstName && displayCandidate) updates.firstName = displayCandidate;
           if (current.role === 'pending') updates.role = 'member';
 
-          tx.update(memberRef, updates);
+          this.members.txUpdate(tx, existingMember.id, updates, { updatedAt: now });
           tx.update(inviteRef, {
             lastUsedAt: now,
             lastUsedBy: user.uid,
@@ -427,32 +304,28 @@ export class FamilyRepository {
 
           console.info('[invite][repo] updated existing member', {
             token,
-            memberId: memberRef.id,
+            memberId: existingMember.id,
             updates,
           });
 
-          return { id: memberRef.id, ...current, ...updates } as IMember;
+          return { ...current, ...updates, id: existingMember.id, updatedAt: now } as IMember;
         }
 
         if (!user.email) {
           throw new InviteError('invite/missing-email', 'User email is required');
         }
 
-        const memberDoc = {
+        const memberDoc: Partial<MemberRecord> = {
           uid: user.uid,
           siteId: invite.siteId,
           role: 'member',
           displayName: user.displayName || user.firstName || user.email,
           firstName: user.firstName || user.displayName || user.email,
           email: user.email,
-          createdAt: now,
-          updatedAt: now,
-        } satisfies Omit<IMember, 'id'>;
+        };
 
-        const memberRef = membersRef.doc();
-        tx.set(memberRef, memberDoc);
+        const created = this.members.txCreate(tx, memberDoc, { timestamp: now });
 
-        // Record usage metadata but keep status pending so the link can be reused.
         tx.update(inviteRef, {
           lastUsedAt: now,
           lastUsedBy: user.uid,
@@ -462,10 +335,10 @@ export class FamilyRepository {
 
         console.info('[invite][repo] created new member from invite', {
           token,
-          memberId: memberRef.id,
+          memberId: created.id,
         });
 
-        return { id: memberRef.id, ...memberDoc } as IMember;
+        return created.data as IMember;
       });
     } catch (error) {
       if (error instanceof InviteError) {
@@ -622,51 +495,48 @@ export class FamilyRepository {
   async processSignupRequest(requestId: string, approvedBy: string, approve: boolean, reason?: string, rejectedBy?: string): Promise<void> {
     try {
       const db = this.getDb();
-      const batch = db.batch();
-      
-      const requestRef = db.collection(this.signupRequestsCollection).doc(requestId);
-      const requestDoc = await requestRef.get();
-      
-      if (!requestDoc.exists) {
-        throw new Error('Signup request not found');
-      }
+      await db.runTransaction(async (tx) => {
+        const requestRef = db.collection(this.signupRequestsCollection).doc(requestId);
+        const requestDoc = await tx.get(requestRef);
 
-      const request = requestDoc.data() as SignupRequest;
+        if (!requestDoc.exists) {
+          throw new Error('Signup request not found');
+        }
 
-      if (approve) {
-        // Approve the request
-        batch.update(requestRef, {
-          status: 'approved',
-          approvedAt: Timestamp.now(),
-          approvedBy,
-          updatedAt: Timestamp.now()
-        });
+        const request = requestDoc.data() as SignupRequest;
+        const now = Timestamp.now();
 
-        // Create a new member
-        const memberRef = db.collection(this.membersCollection).doc();
-        batch.set(memberRef, {
-          firstName: request.firstName,
-          email: request.email,
-          role: 'member',
-          siteId: request.siteId,
-          userId: request.userId,
-          createdAt: Timestamp.now(),
-          updatedAt: Timestamp.now(),
-          approvedAt: Timestamp.now(),
-          approvedBy
-        });
-      } else {
-        // Reject the request
-        batch.update(requestRef, {
-          status: 'rejected',
-          rejectedAt: Timestamp.now(),
-          rejectedBy: rejectedBy,
-          rejectionReason: reason,
-          updatedAt: Timestamp.now()
-        });
-      }
+        if (approve) {
+          tx.update(requestRef, {
+            status: 'approved',
+            approvedAt: now,
+            approvedBy,
+            updatedAt: now,
+          });
 
-      await batch.commit();
+          const memberDoc: Partial<MemberRecord> = {
+            uid: request.userId || '',
+            userId: request.userId || '',
+            siteId: request.siteId,
+            role: 'member',
+            firstName: request.firstName || '',
+            displayName: request.firstName || request.email || '',
+            email: request.email,
+            approvedAt: now,
+            approvedBy,
+          };
+
+          this.members.txCreate(tx, memberDoc, { timestamp: now });
+        } else {
+          tx.update(requestRef, {
+            status: 'rejected',
+            rejectedAt: now,
+            rejectedBy: rejectedBy ?? approvedBy,
+            rejectionReason: reason,
+            updatedAt: now,
+          });
+        }
+      });
     } catch (error) {
       console.error('Error processing signup request:', error);
       throw new Error('Failed to process signup request');
@@ -676,8 +546,7 @@ export class FamilyRepository {
   // Utility Methods
   async isUserMember(userId: string, siteId: string): Promise<boolean> {
     try {
-      const member = await this.getMemberByUserId(userId, siteId);
-      return member !== null && member.role === 'member';
+      return await this.members.isUserMember(userId, siteId);
     } catch (error) {
       console.error('Error checking if user is member:', error);
       return false;
@@ -686,8 +555,7 @@ export class FamilyRepository {
 
   async isUserAdmin(userId: string, siteId: string): Promise<boolean> {
     try {
-      const member = await this.getMemberByUserId(userId, siteId);
-      return member !== null && member.role === 'admin';
+      return await this.members.isUserAdmin(userId, siteId);
     } catch (error) {
       console.error('Error checking if user is admin:', error);
       return false;
@@ -697,26 +565,7 @@ export class FamilyRepository {
   // Member prefs
   async setMemberBlogEnabled(userId: string, siteId: string, enabled: boolean): Promise<void> {
     try {
-      const db = this.getDb();
-      const querySnapshot = await db.collection(this.membersCollection)
-        .where('uid', '==', userId)
-        .where('siteId', '==', siteId)
-        .limit(1)
-        .get();
-      if (querySnapshot.empty) throw new Error('Member not found');
-      const docSnap = querySnapshot.docs[0];
-      const docRef = docSnap.ref;
-      const data: any = { blogEnabled: !!enabled, updatedAt: Timestamp.now() };
-      // If enabling and no handle exists, generate one from email prefix
-      if (enabled && !docSnap.data().blogHandle) {
-        const base = (docSnap.data().email || 'user').toString().split('@')[0]
-          .toLowerCase()
-          .replace(/[^a-z0-9]+/g, '-')
-          .replace(/-+/g, '-')
-          .replace(/^-|-$/g, '') || 'user';
-        data.blogHandle = await this.generateUniqueBlogHandle(base, siteId);
-      }
-      await docRef.update(data);
+      await this.members.setBlogEnabled(userId, siteId, enabled);
     } catch (error) {
       console.error('Error updating member blogEnabled:', error);
       throw new Error('Failed to update member');
@@ -725,14 +574,7 @@ export class FamilyRepository {
 
   async getMembersWithBlog(siteId: string): Promise<FamilyMember[]> {
     try {
-      const db = this.getDb();
-      const snap = await db.collection(this.membersCollection)
-        .where('siteId', '==', siteId)
-        .where('blogEnabled', '==', true)
-        .get();
-      return snap.docs
-        .map(d => ({ id: d.id, ...d.data() }))
-        .filter((m: any) => !!m.blogHandle) as FamilyMember[];
+      return await this.members.listMembersWithBlog(siteId);
     } catch (e) {
       console.error('Error getMembersWithBlog', e);
       throw new Error('Failed to fetch members with blog');
@@ -741,41 +583,16 @@ export class FamilyRepository {
 
   async getMemberByHandle(handle: string, siteId: string): Promise<FamilyMember | null> {
     try {
-      const db = this.getDb();
-      const qs = await db.collection(this.membersCollection)
-        .where('siteId', '==', siteId)
-        .where('blogHandle', '==', handle)
-        .limit(1)
-        .get();
-      if (qs.empty) return null;
-      const doc = qs.docs[0];
-      return { id: doc.id, ...doc.data() } as FamilyMember;
+      return await this.members.getByHandle(handle, siteId);
     } catch (e) {
       console.error('Error getMemberByHandle', e);
       throw new Error('Failed to get member by handle');
     }
   }
 
-  private async generateUniqueBlogHandle(base: string, siteId: string): Promise<string> {
-    const db = this.getDb();
-    let attempt = 0;
-    while (attempt < 50) {
-      const candidate = attempt === 0 ? base : `${base}-${attempt+1}`;
-      const qs = await db.collection(this.membersCollection)
-        .where('siteId', '==', siteId)
-        .where('blogHandle', '==', candidate)
-        .limit(1)
-        .get();
-      if (qs.empty) return candidate;
-      attempt++;
-    }
-    return `${base}-${Math.random().toString(36).slice(2, 6)}`;
-  }
-
   async isUserPending(userId: string, siteId: string): Promise<boolean> {
     try {
-      const member = await this.getMemberByUserId(userId, siteId);
-      return member !== null && member.role === 'pending';
+      return await this.members.isUserPending(userId, siteId);
     } catch (error) {
       console.error('Error checking if user is pending:', error);
       return false;
