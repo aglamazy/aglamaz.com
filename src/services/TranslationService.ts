@@ -106,7 +106,10 @@ Output ONLY the translated text, no labels or extra commentary.`;
       }
 
       const data = await res.json();
-      const result: string = (data.choices?.[0]?.message?.content || '').trim();
+      let result: string = (data.choices?.[0]?.message?.content || '').trim();
+
+      // Remove dir attributes from HTML - we control direction at component level
+      result = result.replace(/\s+dir=["'][^"']*["']/gi, '');
 
       // Log the successful call
       await this.logGptCall({

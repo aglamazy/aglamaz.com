@@ -12,7 +12,6 @@ import type { IBlogPost } from '@/entities/BlogPost';
 import { apiFetch } from '@/utils/apiFetch';
 import { useUserStore } from '@/store/UserStore';
 import { useSiteStore } from '@/store/SiteStore';
-import { getLocalizedSiteName } from '@/utils/siteName';
 import styles from './BlogPage.module.css';
 
 export default function BlogPage() {
@@ -42,21 +41,15 @@ export default function BlogPage() {
     fetchPosts();
   }, [user?.user_id, i18n.language]);
 
-  const localizedSiteName = getLocalizedSiteName(siteInfo, i18n.language);
-
   const headerTitle = useMemo(() => {
-    const siteName = (localizedSiteName || siteInfo?.name || '').trim();
-    if (siteName) {
-      return t('familyBlogHeader', { site: siteName, defaultValue: '{{site}} Family Blog' }) as string;
-    }
-    return t('familyBlog') as string;
-  }, [localizedSiteName, siteInfo?.name, t]);
+    return siteInfo!.name;
+  }, [siteInfo, t]);
 
   const loadError = error ? (t('failedToLoadBlogPosts', { defaultValue: 'Failed to load blog posts' }) as string) : '';
 
   return (
     <div className={styles.container}>
-      <AddFab ariaLabel={t('add') as string} onClick={() => router.push('/app/blog/new')} />
+      <AddFab ariaLabel={t('add') as string} onClick={() => router.push('/app/blog/new')}/>
       <header className={styles.header}>
         <h1 className={styles.headerTitle}>{headerTitle}</h1>
       </header>
@@ -68,20 +61,20 @@ export default function BlogPage() {
           const tintClass = tintPalette[index % tintPalette.length];
           return (
             <Card key={post.id} className={styles.card}>
-            <CardHeader className={styles.cardHeader}>
-              <CardTitle className={styles.cardTitle}>{post.title}</CardTitle>
-            </CardHeader>
-            <CardContent className={styles.cardContent}>
-              <div
-                className={`${styles.cardTint} ${tintClass} prose max-w-none`}
-                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(post.content || '') }}
-              />
-              <div className={styles.cardActions}>
-                <Link href={`/app/blog/${post.id}/edit`}>
-                  <Button className={styles.editButton}>{t('edit')}</Button>
-                </Link>
-              </div>
-            </CardContent>
+              <CardHeader className={styles.cardHeader}>
+                <CardTitle className={styles.cardTitle}>{post.title}</CardTitle>
+              </CardHeader>
+              <CardContent className={styles.cardContent}>
+                <div
+                  className={`${styles.cardTint} ${tintClass} prose max-w-none`}
+                  dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(post.content || '') }}
+                />
+                <div className={styles.cardActions}>
+                  <Link href={`/app/blog/${post.id}/edit`}>
+                    <Button className={styles.editButton}>{t('edit')}</Button>
+                  </Link>
+                </div>
+              </CardContent>
             </Card>
           );
         })}

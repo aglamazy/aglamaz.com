@@ -2,22 +2,40 @@ import { withMemberGuard } from '@/lib/withMemberGuard';
 import { BlogRepository } from '@/repositories/BlogRepository';
 import { GuardContext } from '@/app/api/types';
 import { TranslationService } from '@/services/TranslationService';
-import {
-  normalizeLang,
-  getLocalizedDocument,
-  shouldRequestTranslation
-} from '@/services/LocalizationService';
+import { normalizeLang } from '@/services/LocalizationService';
 import type { IBlogPost } from '@/entities/BlogPost';
 import { Timestamp } from 'firebase-admin/firestore';
 
 export const dynamic = 'force-dynamic';
 
 function pickPostForLang(post: IBlogPost, lang: string): IBlogPost {
-  return getLocalizedDocument(post, lang, ['title', 'content']);
+  // Blog posts still use old translations structure
+  if (!lang || lang === post.sourceLang) return post;
+
+  const translations = post.translations || {};
+  const normalizedLang = normalizeLang(lang);
+  const translation = normalizedLang ? translations[normalizedLang] : null;
+
+  if (!translation) return post;
+
+  return {
+    ...post,
+    title: translation.title || post.title,
+    content: translation.content || post.content,
+  };
+}
+
+function shouldRequestBlogTranslation(post: IBlogPost, lang: string): boolean {
+  const normalizedLang = normalizeLang(lang);
+  if (!normalizedLang || normalizedLang === post.sourceLang) return false;
+
+  // Check if translation already exists
+  const translations = post.translations || {};
+  return !translations[normalizedLang];
 }
 
 async function maybeEnqueueTranslation(post: IBlogPost, lang: string, repo: BlogRepository) {
-  if (!shouldRequestTranslation(post, lang)) return;
+  if (!shouldRequestBlogTranslation(post, lang)) return;
 
   const normalizedLang = normalizeLang(lang);
   if (!normalizedLang) return;

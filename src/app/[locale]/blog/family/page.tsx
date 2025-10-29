@@ -133,12 +133,7 @@ export default async function FamilyBlogPage({ params }: FamilyBlogPageProps) {
   }));
 
   const baseUrl = resolveBaseUrl() || undefined;
-  const siteName =
-    (siteInfo?.translations && typeof (siteInfo.translations as any)?.[baseLang] === 'string'
-      ? String((siteInfo.translations as any)[baseLang])
-      : typeof siteInfo?.name === 'string'
-        ? String(siteInfo.name)
-        : getPlatformName(siteInfo));
+  const siteName = siteInfo!.name;
 
   const blogSchema = createBlogSchema(
     t('catchUpOnFamilyNews') as string,

@@ -8,7 +8,8 @@ import {
   type MemberRecord,
   type LocalizedMemberRecord,
 } from './MemberRepository';
-import { SiteRepository, type SiteRecord } from './SiteRepository';
+import { SiteRepository } from './SiteRepository';
+import type { ISite } from '@/entities/Site';
 
 export type InviteStatus = 'pending' | 'used' | 'expired' | 'revoked';
 
@@ -20,7 +21,7 @@ export class InviteError extends Error {
 }
 
 export type FamilyMember = LocalizedMemberRecord;
-export type FamilySite = SiteRecord;
+export type FamilySite = ISite;
 
 export interface SignupRequest {
   id: string;

@@ -9,5 +9,5 @@ export function getLocalizedSiteName(
 
   const localized = getLocalizedFields(site, locale, ['name']);
 
-  return localized.name || site.name;
+  return localized.name;
 }

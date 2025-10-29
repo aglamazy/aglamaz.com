@@ -18,11 +18,13 @@ interface WelcomeHeroProps {
   user: any;
   title?: string;
   subtitle?: string;
+  aboutFamily?: string;
   actions?: ActionDef[];
 }
 
-export default function WelcomeHero({ user, title, subtitle, actions }: WelcomeHeroProps) {
-  const { t } = useTranslation();
+export default function WelcomeHero({ user, title, subtitle, aboutFamily, actions }: WelcomeHeroProps) {
+  const { t, i18n } = useTranslation();
+  const isRTL = i18n.language?.startsWith('he') || i18n.language?.startsWith('ar');
   const defaultActions: ActionDef[] = [
     ...(user
       ? [{
@@ -65,13 +67,17 @@ export default function WelcomeHero({ user, title, subtitle, actions }: WelcomeH
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
           className="text-center mb-12"
+          dir={isRTL ? 'rtl' : 'ltr'}
         >
           <h1 className="text-5xl font-bold text-charcoal mb-4">
             {title || (t('welcomeBack', { name: user?.full_name?.split(' ')[0] || t('familyMember') }) as string)}
           </h1>
-          <p className="text-xl text-sage-600 max-w-2xl mx-auto leading-relaxed">
-            {subtitle || (t('stayConnected') as string)}
-          </p>
+          {aboutFamily && (
+            <div
+              className={`text-xl text-sage-600 max-w-2xl mx-auto leading-relaxed prose prose-sage ${isRTL ? 'text-right' : 'text-left'}`}
+              dangerouslySetInnerHTML={{ __html: aboutFamily }}
+            />
+          )}
         </motion.div>
 
         {quickActions.length > 0 && (

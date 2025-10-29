@@ -11,7 +11,6 @@ import { stripScriptTags, cleanJsonLd } from '@/utils/jsonld';
 import { fetchSiteInfo } from '@/firebase/admin';
 import { resolveSiteId } from '@/utils/resolveSiteId';
 import { getServerT } from '@/utils/serverTranslations';
-import { getPlatformName } from '@/utils/platformName';
 import { createProfilePageSchema, createBlogPostListSchema, type AuthorInfo } from '@/utils/blogSchema';
 import UnderConstruction from '@/components/UnderConstruction';
 import crypto from 'crypto';
@@ -122,12 +121,7 @@ export default async function AuthorBlogPage({ params }: { params: AuthorPagePar
   }));
 
   const baseUrl = resolveBaseUrl() || undefined;
-  const siteName =
-    (siteInfo?.translations && typeof (siteInfo.translations as any)?.[baseLang] === 'string'
-      ? String((siteInfo.translations as any)[baseLang])
-      : typeof siteInfo?.name === 'string'
-        ? String(siteInfo.name)
-        : getPlatformName(siteInfo));
+  const siteName = siteInfo!.name;
 
   const authorName =
     (member as any)?.displayName ||

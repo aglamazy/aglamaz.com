@@ -10,13 +10,17 @@ import {
   getLocalizedDocument,
   normalizeLang,
   type LocalizableDocument,
-  type TranslationEntry,
 } from '@/services/LocalizationService';
 
 interface PlatformDescription {
   content: string;
   title: string;
   translations: Record<string, { title: string; content: string }>;
+}
+
+interface TranslationEntry {
+  translatedAt: any;
+  engine: 'manual' | 'gpt' | 'other';
 }
 
 interface LandingPageProps {
@@ -39,9 +43,7 @@ function resolveLogo(baseUrl: string | null) {
 }
 
 type RichTextFields = { title: string; content: string };
-type RichTextDoc = LocalizableDocument<RichTextFields> & RichTextFields;
-type SiteLocalizedFields = Pick<ISite, 'name' | 'aboutFamily' | 'platformName'>;
-type SiteWithLocalization = ISite & LocalizableDocument<SiteLocalizedFields>;
+type RichTextDoc = { locales: Record<string, RichTextFields> } & RichTextFields;
 
 function toRichTextDoc(
   input: PlatformDescription | null | undefined,
@@ -49,60 +51,59 @@ function toRichTextDoc(
 ): RichTextDoc | null {
   if (!input) return null;
 
-  const normalizedTranslations: Record<string, RichTextFields & TranslationEntry> = {};
+  const locales: Record<string, RichTextFields> = {};
 
+  // Add source content
+  locales[sourceLang] = {
+    title: input.title ?? '',
+    content: input.content ?? '',
+  };
+
+  // Add translations
   for (const [locale, value] of Object.entries(input.translations ?? {})) {
-    normalizedTranslations[locale] = {
+    locales[locale] = {
       title: value?.title ?? '',
       content: value?.content ?? '',
-      translatedAt: null,
-      engine: 'manual',
     };
   }
 
   return {
     title: input.title ?? '',
     content: input.content ?? '',
-    sourceLang: sourceLang ?? 'en',
-    translations: normalizedTranslations,
+    locales,
   };
 }
 
 export default async function LandingPage({ siteInfo, siteDescription, platformDescription, lang, baseUrl }: LandingPageProps) {
   const normalizedLang = normalizeLang(lang) ?? lang.toLowerCase();
   const t = await getServerT(normalizedLang);
-  const translations = siteInfo?.translations ?? {};
+  const isRTL = normalizedLang === 'he' || normalizedLang === 'ar';
   const siteInfoRecord = (siteInfo ?? {}) as Record<string, unknown>;
 
-  const localizedSite = getLocalizedDocument<SiteWithLocalization, SiteLocalizedFields>(
-        siteInfo as SiteWithLocalization,
-        lang,
-        ['name', 'aboutFamily', 'platformName']
-      );
-  console.log(localizedSite);
-  const siteName = localizedSite?.name ?? siteInfo?.name ?? getPlatformName(siteInfo);
+  // ISite already has flattened fields for convenient access
+  const siteName = siteInfo?.name;
 
   const siteDescriptionBase = toRichTextDoc(
     siteDescription,
-    siteInfo?.sourceLang ?? 'en'
+    siteInfo?.locales?.[normalizedLang]?.name ? normalizedLang : 'en'
   );
   const siteDescriptionDoc = siteDescriptionBase
-    ? getLocalizedDocument<RichTextDoc, RichTextFields>(siteDescriptionBase, lang, ['title', 'content'])
+    ? getLocalizedDocument(siteDescriptionBase, lang, ['title', 'content'])
     : null;
   const siteDescTitle = siteDescriptionDoc?.title ?? '';
   const siteDescContent = siteDescriptionDoc?.content ?? '';
 
   const platformDescriptionBase = toRichTextDoc(platformDescription, 'en');
   const platformDescriptionDoc = platformDescriptionBase
-    ? getLocalizedDocument<RichTextDoc, RichTextFields>(platformDescriptionBase, lang, ['title', 'content'])
+    ? getLocalizedDocument(platformDescriptionBase, lang, ['title', 'content'])
     : null;
   const platformTitle = platformDescriptionDoc?.title ?? '';
   const platformContent = platformDescriptionDoc?.content ?? '';
 
   const alternateNames = Array.from(
     new Set(
-      Object.values(translations)
-        .map((trans) => (trans?.name ? trans.name.trim() : null))
+      Object.values(siteInfo?.locales ?? {})
+        .map((locale) => (locale?.name ? locale.name.trim() : null))
         .filter((value): value is string => Boolean(value && value !== siteName))
     )
   );
@@ -112,7 +113,13 @@ export default async function LandingPage({ siteInfo, siteDescription, platformD
     : [];
 
   const heroTitle = t('welcomeToSite', { name: siteName }) as string;
-  const heroSubtitle = t('stayConnected') as string;
+
+  // ISite already has flattened aboutFamily for convenient access
+  const aboutFamily = siteInfo?.aboutFamily;
+  if (!aboutFamily) {
+    throw new Error(`aboutFamily is missing for locale: ${normalizedLang}`);
+  }
+
   const secondarySubtitle = t('createYourFamilySite') as string;
 
   const spotlight = [
@@ -164,7 +171,7 @@ export default async function LandingPage({ siteInfo, siteDescription, platformD
     name: siteName,
     url: resolvedBaseUrl,
     alternateName: alternateNames.length ? alternateNames : undefined,
-    description: heroSubtitle,
+    description: aboutFamily,
     sameAs: sameAs.length ? sameAs : undefined,
     foundingDate: resolveIsoDate(siteInfoRecord.createdAt),
     logo: resolveLogo(resolvedBaseUrl ?? null),
@@ -177,7 +184,7 @@ export default async function LandingPage({ siteInfo, siteDescription, platformD
     url: resolvedBaseUrl,
     name: siteName,
     alternateName: alternateNames.length ? alternateNames : undefined,
-    description: heroSubtitle,
+    description: aboutFamily,
     inLanguage: normalizedLang,
     publisher: resolvedBaseUrl ? { '@id': `${resolvedBaseUrl}/#organization` } : undefined,
   };
@@ -187,9 +194,12 @@ export default async function LandingPage({ siteInfo, siteDescription, platformD
   return (
     <div className="bg-cream-50">
       <section className="border-b border-sage-100">
-        <div className="max-w-6xl mx-auto px-4 py-16 text-center">
+        <div className="max-w-6xl mx-auto px-4 py-16 text-center" dir={isRTL ? 'rtl' : 'ltr'}>
           <h1 className="text-4xl md:text-5xl font-bold text-charcoal mb-4">{heroTitle}</h1>
-          <p className="text-lg md:text-xl text-sage-600 mx-auto max-w-2xl leading-relaxed">{heroSubtitle}</p>
+          <div
+            className={`text-lg md:text-xl text-sage-600 mx-auto max-w-2xl leading-relaxed prose prose-sage ${isRTL ? 'text-right' : 'text-left'}`}
+            dangerouslySetInnerHTML={{ __html: aboutFamily }}
+          />
         </div>
       </section>
 

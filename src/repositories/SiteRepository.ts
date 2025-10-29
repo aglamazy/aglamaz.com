@@ -24,13 +24,6 @@ export class SiteNotFoundError extends Error {
   }
 }
 
-export interface SiteRecord extends ISite {
-  // Additional fields for runtime use (flattened from locales)
-  name?: string;
-  aboutFamily?: string;
-  platformName?: string;
-}
-
 interface GetOptions {
   cached?: boolean;
 }
@@ -66,7 +59,7 @@ export class SiteRepository {
     return this.getDb().collection('domain_mappings').doc(domain);
   }
 
-  async get(siteId: string, locale?: string | null, opts?: GetOptions): Promise<SiteRecord | null> {
+  async get(siteId: string, locale?: string | null, opts?: GetOptions): Promise<ISite | null> {
     const fetcher = async () => {
       let site = await this.fetchSite(siteId, locale ?? undefined);
       if (!site) return null;
@@ -288,7 +281,7 @@ export class SiteRepository {
     revalidateTag('site-description');
   }
 
-  private async fetchSite(siteId: string, locale?: string): Promise<SiteRecord | null> {
+  private async fetchSite(siteId: string, locale?: string): Promise<ISite | null> {
     const docRef = this.siteDocRef(siteId);
     const snap = await docRef.get();
     if (!snap.exists) {
@@ -310,7 +303,7 @@ export class SiteRepository {
     return site;
   }
 
-  private deserializeSite(id: string, data: FirebaseFirestore.DocumentData): SiteRecord {
+  private deserializeSite(id: string, data: FirebaseFirestore.DocumentData): ISite {
     const plain: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(data)) {
       if (value instanceof Timestamp) {
@@ -326,14 +319,14 @@ export class SiteRepository {
       createdAt: plain.createdAt,
       updatedAt: plain.updatedAt,
       locales: (plain.locales as ISite['locales']) || {},
-    } as SiteRecord;
+    } as ISite;
   }
 
   private async ensureLocale(
-    site: SiteRecord,
+    site: ISite,
     docRef: FirebaseFirestore.DocumentReference,
     locale: string,
-  ): Promise<SiteRecord> {
+  ): Promise<ISite> {
     const normalizedLocale = locale.trim();
 
     if (!normalizedLocale) {
@@ -411,7 +404,7 @@ export class SiteRepository {
     siteId: string;
     localeTargets: string[];
     docRef: FirebaseFirestore.DocumentReference;
-    updatedSite: SiteRecord;
+    updatedSite: ISite;
   }) {
     const { siteId, localeTargets, docRef, updatedSite } = params;
     const { getMostRecentFieldVersion } = await import('@/services/LocalizationService');

@@ -14,7 +14,7 @@ export interface FieldMeta {
 }
 
 export interface LocalizableDocument {
-  locales: Record<string, Record<string, any>>; // locale -> { field, field$meta, ... }
+  locales?: Record<string, Record<string, any>>; // locale -> { field, field$meta, ... }
 }
 
 /**

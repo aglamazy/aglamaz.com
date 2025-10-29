@@ -21,10 +21,22 @@ export interface SiteLocaleContent {
   platformName$meta?: FieldMeta;
 }
 
+/**
+ * ISite is the natural, convenient interface for working with sites.
+ * It has flattened fields (name, aboutFamily, platformName) for the current locale.
+ * The locales structure is also available for accessing other locales or metadata.
+ */
 export interface ISite {
   id: string;
   ownerUid: string;
   createdAt: any;
   updatedAt: any;
-  locales: Record<string, SiteLocaleContent>; // locale code -> content with metadata
+
+  // Flattened fields from current locale (for convenience)
+  name?: string;
+  aboutFamily?: string;
+  platformName?: string;
+
+  // Storage structure (for accessing other locales and metadata)
+  locales?: Record<string, SiteLocaleContent>;
 }

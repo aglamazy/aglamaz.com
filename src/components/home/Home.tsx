@@ -21,8 +21,21 @@ export default function Home() {
     const openLogin = useLoginModalStore((s) => s.open);
     const searchParams = useSearchParams();
     const localizedSiteName = getLocalizedSiteName(site, i18n.language);
-    const siteDisplayName: string = localizedSiteName || site?.name || getPlatformName(site);
+    const siteDisplayName: string = localizedSiteName;
     const heroTitle = t('welcomeToSite', { name: siteDisplayName }) as string;
+
+    // Get aboutFamily from the current locale
+    const currentLocale = i18n.language?.split('-')[0];
+    if (!currentLocale) {
+        throw new Error('Current locale is not set');
+    }
+    if (!site?.locales?.[currentLocale]) {
+        throw new Error(`Site data missing for locale: ${currentLocale}`);
+    }
+    const aboutFamily = site.locales[currentLocale].aboutFamily;
+    if (!aboutFamily) {
+        throw new Error(`aboutFamily is missing for locale: ${currentLocale}`);
+    }
 
     useEffect(() => {
         if (searchParams.get('login') === '1') {
@@ -40,7 +53,7 @@ export default function Home() {
 
     return (
         <div className="min-h-screen">
-            <WelcomeHero user={user} title={heroTitle} subtitle={t('stayConnected') as string} />
+            <WelcomeHero user={user} title={heroTitle} aboutFamily={aboutFamily} />
             {!user && (
                 <div className="text-center mt-8">
                     <p className="text-sage-700 mb-4">{t('signInToContinue')}</p>
