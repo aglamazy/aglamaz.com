@@ -1,21 +1,30 @@
+export interface FieldMeta {
+  source: 'manual' | 'gpt' | 'other';
+  updatedAt: any;
+}
+
+// Define all translatable fields for a site
+export const SITE_TRANSLATABLE_FIELDS = ['name', 'aboutFamily', 'platformName'] as const;
+export type SiteTranslatableField = typeof SITE_TRANSLATABLE_FIELDS[number];
+
+export interface SiteLocaleContent {
+  // Site name
+  name?: string;
+  name$meta?: FieldMeta;
+
+  // Family description
+  aboutFamily?: string;
+  aboutFamily$meta?: FieldMeta;
+
+  // White-label platform name (defaults to "FamCircle")
+  platformName?: string;
+  platformName$meta?: FieldMeta;
+}
+
 export interface ISite {
   id: string;
-  name: string;
   ownerUid: string;
   createdAt: any;
   updatedAt: any;
-  sourceLang: string; // Language of original content
-  translations?: Record<string, {
-    name: string;
-    aboutFamily: string;
-    platformName: string;
-    translatedAt: any;
-    engine: 'gpt' | 'manual' | 'other';
-  }>;
-  translationMeta?: {
-    requested?: Record<string, any>; // lang -> Timestamp
-    attempts?: number;
-  };
-  aboutFamily?: string; // Family description in original language
-  platformName?: string; // White-label platform name (defaults to "FamCircle")
+  locales: Record<string, SiteLocaleContent>; // locale code -> content with metadata
 }

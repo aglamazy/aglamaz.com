@@ -3,6 +3,7 @@ import { unstable_cache, revalidateTag } from 'next/cache';
 import nextI18NextConfig from '../../next-i18next.config.js';
 import { initAdmin } from '@/firebase/admin';
 import { TranslationService } from '@/services/TranslationService';
+import { saveLocalizedContent } from '@/services/LocalizationService';
 import type { ISite } from '@/entities/Site';
 
 const SUPPORTED_LOCALES: string[] = Array.isArray(nextI18NextConfig?.i18n?.locales)
@@ -23,15 +24,11 @@ export class SiteNotFoundError extends Error {
   }
 }
 
-export interface SiteDescription {
-  title: string;
-  content: string;
-  translations: Record<string, { title: string; content: string }>;
-}
-
 export interface SiteRecord extends ISite {
-  description?: SiteDescription;
-  aboutTranslations?: Record<string, string>;
+  // Additional fields for runtime use (flattened from locales)
+  name?: string;
+  aboutFamily?: string;
+  platformName?: string;
 }
 
 interface GetOptions {
@@ -70,7 +67,26 @@ export class SiteRepository {
   }
 
   async get(siteId: string, locale?: string | null, opts?: GetOptions): Promise<SiteRecord | null> {
-    const fetcher = async () => this.fetchSite(siteId, locale ?? undefined);
+    const fetcher = async () => {
+      let site = await this.fetchSite(siteId, locale ?? undefined);
+      if (!site) return null;
+
+      // If locale is specified, flatten the localized content to top-level
+      if (locale) {
+        const { getLocalizedFields } = await import('@/services/LocalizationService');
+        const { SITE_TRANSLATABLE_FIELDS } = await import('@/entities/Site');
+        const localizedFields = getLocalizedFields(site, locale, [...SITE_TRANSLATABLE_FIELDS]);
+
+        // Apply localized fields to the site
+        site = {
+          ...site,
+          ...localizedFields,
+        };
+      }
+
+      return site;
+    };
+
     if (opts?.cached) {
       const cacheKey = [`site-record-${siteId}`, locale ? `locale-${locale}` : 'default'];
       const cachedFn = unstable_cache(fetcher, cacheKey, {
@@ -83,19 +99,27 @@ export class SiteRepository {
     return fetcher();
   }
 
-  async getDescription(siteId: string, opts?: GetOptions): Promise<SiteDescription> {
+  async getDescription(siteId: string, opts?: GetOptions): Promise<{
+    locales: Record<string, { title?: string; content?: string }>;
+  }> {
     const fetcher = async () => {
       const site = await this.fetchSite(siteId);
       if (!site) {
         throw new SiteNotFoundError(siteId);
       }
-      return (
-        site.description || {
-          title: '',
-          content: '',
-          translations: {},
+
+      // Build description from locales (if description fields exist)
+      const locales: Record<string, { title?: string; content?: string }> = {};
+      for (const [locale, content] of Object.entries(site.locales || {})) {
+        const desc: { title?: string; content?: string } = {};
+        if ((content as any).descriptionTitle) desc.title = (content as any).descriptionTitle;
+        if ((content as any).descriptionContent) desc.content = (content as any).descriptionContent;
+        if (desc.title || desc.content) {
+          locales[locale] = desc;
         }
-      );
+      }
+
+      return { locales };
     };
 
     if (opts?.cached) {
@@ -118,83 +142,36 @@ export class SiteRepository {
     }
 
     const site = this.deserializeSite(snap.id, snap.data() || {});
-    const sourceLang = site.sourceLang || 'en';
     const now = Timestamp.now();
-    const updates: FirebaseFirestore.UpdateData<FirebaseFirestore.DocumentData> = { updatedAt: now };
 
-    const nextSite: SiteRecord = { ...site };
+    // Build content updates
+    const contentUpdates: Record<string, any> = {};
+    if (name !== undefined) contentUpdates.name = name;
+    if (aboutFamily !== undefined) contentUpdates.aboutFamily = aboutFamily;
+    if (platformName !== undefined) contentUpdates.platformName = platformName;
 
-    if (locale === sourceLang) {
-      if (name !== undefined) {
-        updates.name = name;
-        nextSite.name = name;
-      }
-      if (aboutFamily !== undefined) {
-        updates.aboutFamily = aboutFamily;
-        nextSite.aboutFamily = aboutFamily;
-      }
-      if (platformName !== undefined) {
-        updates.platformName = platformName;
-        nextSite.platformName = platformName;
-      }
-    } else {
-      const translations = { ...(site.translations || {}) };
-      const existing = translations[locale] || {
-        name: '',
-        aboutFamily: '',
-        platformName: '',
-        translatedAt: now,
-        engine: 'manual' as const,
-      };
+    // Save using generic LocalizationService and get updated state
+    const nextSite = await saveLocalizedContent(docRef, site, locale, contentUpdates, 'manual', now);
 
-      const updatedTranslation = {
-        ...existing,
-        name: name !== undefined ? name : existing.name,
-        aboutFamily: aboutFamily !== undefined ? aboutFamily : existing.aboutFamily,
-        platformName: platformName !== undefined ? platformName : existing.platformName,
-        translatedAt: now,
-        engine: 'manual' as const,
-      };
-
-      updates[`translations.${locale}`] = updatedTranslation;
-      translations[locale] = updatedTranslation;
-      nextSite.translations = translations;
-    }
-
-    if (Object.keys(updates).length > 1) {
-      await docRef.update(updates);
-      await this.revalidateSite(siteId);
-    }
+    // Invalidate cache
+    await this.revalidateSite(siteId);
 
     const localeTargetsSource = supportedLocales && supportedLocales.length ? supportedLocales : SUPPORTED_LOCALES;
 
     if (requestTranslations && TranslationService.isEnabled() && localeTargetsSource.length) {
-      const translationMeta = {
-        ...(site.translationMeta || {}),
-        requested: { ...(site.translationMeta?.requested || {}) },
-      };
       const targets: string[] = [];
       for (const targetLocale of localeTargetsSource) {
-        if (targetLocale === sourceLang) continue;
-        if (nextSite.translations?.[targetLocale]) continue;
-        translationMeta.requested[targetLocale] = now;
+        if (targetLocale === locale) continue; // Skip the locale we just updated
+        if (nextSite.locales?.[targetLocale]) continue; // Skip if already exists
         targets.push(targetLocale);
       }
 
       if (targets.length) {
-        await docRef.update({ translationMeta });
-        await this.revalidateSite(siteId);
-        const base = {
-          name: nextSite.name || site.name,
-          aboutFamily: nextSite.aboutFamily ?? site.aboutFamily ?? null,
-          platformName: nextSite.platformName ?? site.platformName ?? null,
-        };
         void this.translateMissingLocales({
           siteId,
           localeTargets: targets,
-          sourceLang,
           docRef,
-          base,
+          updatedSite: nextSite,
         });
       }
     }
@@ -208,46 +185,51 @@ export class SiteRepository {
       throw new SiteNotFoundError(siteId);
     }
 
+    const site = this.deserializeSite(snap.id, snap.data() || {});
     const trimmed = aboutFamily.trim();
-    const translations: Record<string, string> = {};
+    const now = Timestamp.now();
+
+    // Save the aboutFamily in the sourceLang locale
+    await saveLocalizedContent(
+      docRef,
+      site,
+      sourceLang,
+      { aboutFamily },
+      'manual',
+      now
+    );
 
     const localeList = supportedLocales && supportedLocales.length ? supportedLocales : SUPPORTED_LOCALES;
+    const translations: Record<string, string> = { [sourceLang]: aboutFamily };
 
+    // Translate to other locales if enabled
     if (TranslationService.isEnabled() && trimmed) {
       for (const locale of localeList) {
-        if (locale === sourceLang) {
-          translations[locale] = aboutFamily;
-          continue;
-        }
+        if (locale === sourceLang) continue;
 
         try {
-          const result = await TranslationService.translateHtml({
-            title: '',
-            content: aboutFamily,
+          translations[locale] = await TranslationService.translateText({
+            text: aboutFamily,
             from: sourceLang,
             to: locale,
           });
-          translations[locale] = result.content || aboutFamily;
+
+          await saveLocalizedContent(
+            docRef,
+            site,
+            locale,
+            { aboutFamily: translations[locale] },
+            'gpt',
+            now
+          );
         } catch (error) {
           console.error(`[site] failed to translate aboutFamily to ${locale}`, error);
           translations[locale] = aboutFamily;
         }
       }
-    } else {
-      for (const locale of localeList) {
-        translations[locale] = aboutFamily;
-      }
     }
 
-    const now = Timestamp.now();
-    await docRef.update({
-      aboutFamily,
-      sourceLang,
-      aboutTranslations: translations,
-      updatedAt: now,
-    });
     await this.revalidateSite(siteId);
-
     return { aboutTranslations: translations };
   }
 
@@ -260,10 +242,24 @@ export class SiteRepository {
     if (!site) {
       throw new SiteNotFoundError(siteId);
     }
+
+    // Build aboutTranslations from locales
+    const aboutTranslations: Record<string, string> = {};
+    for (const [locale, content] of Object.entries(site.locales || {})) {
+      if (content.aboutFamily) {
+        aboutTranslations[locale] = content.aboutFamily;
+      }
+    }
+
+    // Find which locale has the most recent aboutFamily (as pseudo "source")
+    const { getMostRecentFieldVersion } = await import('@/services/LocalizationService');
+    const mostRecent = getMostRecentFieldVersion(site, 'aboutFamily');
+    const sourceLang = mostRecent?.locale || 'he';
+
     return {
-      aboutFamily: site.aboutFamily || '',
-      sourceLang: site.sourceLang || 'he',
-      aboutTranslations: site.aboutTranslations || {},
+      aboutFamily: mostRecent?.value || '',
+      sourceLang,
+      aboutTranslations,
     };
   }
 
@@ -326,17 +322,10 @@ export class SiteRepository {
 
     return {
       id,
-      name: (plain.name as string) || '',
       ownerUid: (plain.ownerUid as string) || '',
       createdAt: plain.createdAt,
       updatedAt: plain.updatedAt,
-      sourceLang: (plain.sourceLang as string) || 'en',
-      translations: (plain.translations as SiteRecord['translations']) || {},
-      translationMeta: (plain.translationMeta as SiteRecord['translationMeta']) || {},
-      aboutFamily: (plain.aboutFamily as string) || '',
-      platformName: (plain.platformName as string) || '',
-      description: (plain.description as SiteDescription) || undefined,
-      aboutTranslations: (plain.aboutTranslations as Record<string, string>) || undefined,
+      locales: (plain.locales as ISite['locales']) || {},
     } as SiteRecord;
   }
 
@@ -346,14 +335,16 @@ export class SiteRepository {
     locale: string,
   ): Promise<SiteRecord> {
     const normalizedLocale = locale.trim();
-    const sourceLang = site.sourceLang || 'en';
-    if (!normalizedLocale || normalizedLocale === sourceLang) {
+
+    if (!normalizedLocale) {
       return site;
     }
 
-    const translations = { ...(site.translations || {}) };
-    const existing = translations[normalizedLocale];
-    if (existing && existing.name) {
+    const locales = { ...(site.locales || {}) };
+    const existing = locales[normalizedLocale];
+
+    // Check if locale already has content
+    if (existing && (existing.name || existing.aboutFamily || existing.platformName)) {
       return site;
     }
 
@@ -363,136 +354,107 @@ export class SiteRepository {
 
     const now = Timestamp.now();
 
+    // Find source content to translate from (most recent version of each field)
+    const { getMostRecentFieldVersion } = await import('@/services/LocalizationService');
+
+    const nameSource = getMostRecentFieldVersion(site, 'name');
+    const aboutSource = getMostRecentFieldVersion(site, 'aboutFamily');
+    const platformSource = getMostRecentFieldVersion(site, 'platformName');
+
+    if (!nameSource && !aboutSource && !platformSource) {
+      // No content to translate from
+      return site;
+    }
+
     try {
-      const [translatedName, translatedAbout, translatedPlatform] = await Promise.all([
-        TranslationService.translateHtml({
-          title: site.name || '',
-          content: '',
-          from: sourceLang,
-          to: normalizedLocale,
-        }),
-        site.aboutFamily
-          ? TranslationService.translateHtml({
-              title: '',
-              content: site.aboutFamily,
-              from: sourceLang,
-              to: normalizedLocale,
-            })
-          : Promise.resolve({ title: '', content: '' }),
-        site.platformName
-          ? TranslationService.translateHtml({
-              title: site.platformName,
-              content: '',
-              from: sourceLang,
-              to: normalizedLocale,
-            })
-          : Promise.resolve({ title: '', content: '' }),
-      ]);
+      const translatedFields: Record<string, any> = {};
 
-      const translation = {
-        name: translatedName.title || site.name || '',
-        aboutFamily: translatedAbout.content || site.aboutFamily || '',
-        platformName: translatedPlatform.title || site.platformName || '',
-        translatedAt: now,
-        engine: 'gpt' as const,
-      };
-
-      const translationMeta = {
-        ...(site.translationMeta || {}),
-        requested: { ...(site.translationMeta?.requested || {}) },
-      };
-      translationMeta.requested[normalizedLocale] = now;
-
-      await docRef.update({
-        [`translations.${normalizedLocale}`]: translation,
-        translationMeta,
-        updatedAt: now,
+      translatedFields.name = await TranslationService.translateText({
+        text: nameSource?.value,
+        from: nameSource?.locale,
+        to: normalizedLocale,
       });
+
+      translatedFields.aboutFamily = await TranslationService.translateText({
+        text: aboutSource?.value,
+        from: aboutSource?.locale,
+        to: normalizedLocale,
+      });
+
+      translatedFields.platformName = await TranslationService.translateText({
+        text: platformSource?.value,
+        from: platformSource?.locale,
+        to: normalizedLocale,
+      });
+
+      // Save translated content with 'gpt' source
+      const { saveLocalizedContent } = await import('@/services/LocalizationService');
+      const updatedSite = await saveLocalizedContent(
+        docRef,
+        site,
+        normalizedLocale,
+        translatedFields,
+        'gpt',
+        now
+      );
       await this.revalidateSite(site.id);
 
-      translations[normalizedLocale] = translation;
-      return {
-        ...site,
-        translations,
-        translationMeta,
-      };
+      return updatedSite;
     } catch (error) {
       console.error(`[site] failed to translate locale ${normalizedLocale} for site ${site.id}`, error);
-      const fallback = {
-        name: site.name || '',
-        aboutFamily: site.aboutFamily || '',
-        platformName: site.platformName || '',
-        translatedAt: now,
-        engine: 'manual' as const,
-      };
-
-      await docRef.update({
-        [`translations.${normalizedLocale}`]: fallback,
-        updatedAt: now,
-      });
-      await this.revalidateSite(site.id);
-
-      translations[normalizedLocale] = fallback;
-      return {
-        ...site,
-        translations,
-      };
+      // On error, don't create fallback content - just return original site
+      return site;
     }
   }
 
   private async translateMissingLocales(params: {
     siteId: string;
     localeTargets: string[];
-    sourceLang: string;
     docRef: FirebaseFirestore.DocumentReference;
-    base: {
-      name?: string | null;
-      aboutFamily?: string | null;
-      platformName?: string | null;
-    };
+    updatedSite: SiteRecord;
   }) {
-    const { siteId, localeTargets, sourceLang, docRef, base } = params;
+    const { siteId, localeTargets, docRef, updatedSite } = params;
+    const { getMostRecentFieldVersion } = await import('@/services/LocalizationService');
 
     for (const targetLocale of localeTargets) {
       try {
         console.log('[site-translation] start', { siteId, to: targetLocale });
-        const [translatedName, translatedAbout, translatedPlatform] = await Promise.all([
-          TranslationService.translateHtml({
-            title: base.name || '',
-            content: '',
-            from: sourceLang,
-            to: targetLocale,
-          }),
-          base.aboutFamily
-            ? TranslationService.translateHtml({
-                title: '',
-                content: base.aboutFamily,
-                from: sourceLang,
-                to: targetLocale,
-              })
-            : Promise.resolve({ title: '', content: '' }),
-          base.platformName
-            ? TranslationService.translateHtml({
-                title: base.platformName,
-                content: '',
-                from: sourceLang,
-                to: targetLocale,
-              })
-            : Promise.resolve({ title: '', content: '' }),
-        ]);
 
-        const translation = {
-          name: translatedName.title || base.name || '',
-          aboutFamily: translatedAbout.content || base.aboutFamily || '',
-          platformName: translatedPlatform.title || base.platformName || '',
-          translatedAt: Timestamp.now(),
-          engine: 'gpt' as const,
-        };
+        // For each field, find the most recent version to translate from
+        const nameSource = getMostRecentFieldVersion(updatedSite, 'name');
+        const aboutSource = getMostRecentFieldVersion(updatedSite, 'aboutFamily');
+        const platformSource = getMostRecentFieldVersion(updatedSite, 'platformName');
 
-        await docRef.update({
-          [`translations.${targetLocale}`]: translation,
-          updatedAt: Timestamp.now(),
+        const translatedFields: Record<string, any> = {};
+
+        translatedFields.name = await TranslationService.translateText({
+          text: nameSource?.value,
+          from: nameSource?.locale,
+          to: targetLocale,
         });
+
+        translatedFields.aboutFamily = await TranslationService.translateText({
+          text: aboutSource?.value,
+          from: aboutSource?.locale,
+          to: targetLocale,
+        });
+
+        translatedFields.platformName = await TranslationService.translateText({
+          text: platformSource?.value,
+          from: platformSource?.locale,
+          to: targetLocale,
+        });
+
+        // Save translated content with 'gpt' source
+        const { saveLocalizedContent } = await import('@/services/LocalizationService');
+        await saveLocalizedContent(
+          docRef,
+          updatedSite,
+          targetLocale,
+          translatedFields,
+          'gpt',
+          Timestamp.now()
+        );
         await this.revalidateSite(siteId);
         console.log('[site-translation] complete', { siteId, to: targetLocale });
       } catch (error) {

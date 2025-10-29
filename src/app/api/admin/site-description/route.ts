@@ -42,14 +42,17 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Site not found' }, { status: 404 });
     }
 
+    // Get most recent locale for each field (to determine "source" locale for backwards compatibility)
+    const { getMostRecentFieldVersion } = await import('@/services/LocalizationService');
+    const nameSource = getMostRecentFieldVersion(site, 'name');
+
     return NextResponse.json({
       site: {
         id: site.id,
         name: site.name,
         aboutFamily: site.aboutFamily || '',
         platformName: site.platformName || '',
-        sourceLang: site.sourceLang || 'en',
-        translations: site.translations || {},
+        locales: site.locales || {}, // Include all locales
       },
     });
   } catch (error) {

@@ -1,3 +1,6 @@
+import { getFirestore, Timestamp } from 'firebase-admin/firestore';
+import { initAdmin } from '@/firebase/admin';
+
 export interface TranslationResult {
   title: string;
   content: string;
@@ -8,52 +11,147 @@ export class TranslationService {
     return !!process.env.OPENAI_API_KEY;
   }
 
+  private static async logGptCall(params: {
+    sourceLocale: string;
+    targetLocale: string;
+    sourceText: string;
+    resultText: string;
+    success: boolean;
+    error?: string;
+  }) {
+    try {
+      initAdmin();
+      const db = getFirestore();
+
+      const logData: Record<string, any> = {
+        timestamp: Timestamp.now(),
+        sourceLocale: params.sourceLocale,
+        targetLocale: params.targetLocale,
+        sourceText: params.sourceText,
+        resultText: params.resultText,
+        success: params.success,
+      };
+
+      // Only include error field if it exists
+      if (params.error) {
+        logData.error = params.error;
+      }
+
+      await db.collection('gptCalls').add(logData);
+    } catch (err) {
+      // Don't let logging errors break the translation
+      console.error('[TranslationService] Failed to log GPT call:', err);
+    }
+  }
+
+  /**
+   * Translates a single text field from one locale to another
+   * Preserves undefined/empty - does not call GPT for empty input
+   */
+  static async translateText({
+    text,
+    from,
+    to,
+  }: { text?: string; from?: string; to: string }): Promise<string | undefined> {
+    // Preserve undefined/null
+    if (text === undefined || text === null) {
+      return undefined;
+    }
+
+    // Return empty string for empty input or missing locale
+    if (!text.trim() || !from) {
+      return text;
+    }
+
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) throw new Error('OPENAI_API_KEY not configured');
+
+    const model = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+    const sys = `You are a translation engine. Translate from ${from} to ${to}.
+Preserve HTML/Markdown structure; do not translate URLs, code, or proper names; keep the tone.
+Output ONLY the translated text, no labels or extra commentary.`;
+
+    try {
+      const res = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: 'system', content: sys },
+            { role: 'user', content: text }
+          ],
+          temperature: 0.2,
+        })
+      });
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        const error = `OpenAI error ${res.status}: ${errorText}`;
+
+        // Log the failed call
+        await this.logGptCall({
+          sourceLocale: from,
+          targetLocale: to,
+          sourceText: text,
+          resultText: '',
+          success: false,
+          error,
+        });
+
+        throw new Error(error);
+      }
+
+      const data = await res.json();
+      const result: string = (data.choices?.[0]?.message?.content || '').trim();
+
+      // Log the successful call
+      await this.logGptCall({
+        sourceLocale: from,
+        targetLocale: to,
+        sourceText: text,
+        resultText: result,
+        success: true,
+      });
+
+      return result || text;
+    } catch (error) {
+      // If error wasn't already logged, log it
+      if (error instanceof Error && !error.message.startsWith('OpenAI error')) {
+        await this.logGptCall({
+          sourceLocale: from,
+          targetLocale: to,
+          sourceText: text,
+          resultText: '',
+          success: false,
+          error: error.message,
+        });
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Legacy method for backwards compatibility with blog code
+   * @deprecated Use translateText instead
+   */
   static async translateHtml({
     title,
     content,
     from,
     to,
   }: { title: string; content: string; from?: string; to: string }): Promise<TranslationResult> {
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) throw new Error('OPENAI_API_KEY not configured');
+    const sourceLocale = from || 'auto';
 
-    const model = process.env.OPENAI_MODEL || 'gpt-4o-mini';
-    const sys = `You are a translation engine. Translate to ${to}.
-Preserve HTML/Markdown structure; do not translate URLs, code, or proper names; keep the tone; no extra commentary.
-Output format: first line is ONLY the translated title. Then a blank line. Then the translated body. Do not include labels like Title: or Content:.`;
-    const user = `Source language: ${from || 'auto'}\nTitle:\n${title}\n\n${content}`;
+    const translatedTitle = title ? await this.translateText({ text: title, from: sourceLocale, to }) : '';
+    const translatedContent = content ? await this.translateText({ text: content, from: sourceLocale, to }) : '';
 
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: 'system', content: sys },
-          { role: 'user', content: user }
-        ],
-        temperature: 0.2,
-      })
-    });
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(`OpenAI error ${res.status}: ${text}`);
-    }
-    const data = await res.json();
-    const raw: string = (data.choices?.[0]?.message?.content || '').trim();
-
-    // Simple rule: first non-empty line is the title; body is lines 2..end.
-    const norm = raw.replace(/\r\n/g, '\n');
-    const lines = norm.split('\n');
-    const firstIdx = lines.findIndex(l => l.trim().length > 0);
-    if (firstIdx === -1) {
-      return { title, content };
-    }
-    const newTitle = lines[firstIdx].trim();
-    const newContent = lines.slice(firstIdx + 1).join('\n').trim();
-    return { title: newTitle || title, content: newContent || content };
+    return {
+      title: translatedTitle,
+      content: translatedContent,
+    };
   }
 }

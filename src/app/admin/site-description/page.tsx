@@ -11,19 +11,22 @@ import dynamic from 'next/dynamic';
 
 const EditorRich = dynamic(() => import('@/components/EditorRich'), { ssr: false });
 
+interface SiteLocaleContent {
+  name?: string;
+  name$meta?: { source: string; updatedAt: any };
+  aboutFamily?: string;
+  aboutFamily$meta?: { source: string; updatedAt: any };
+  platformName?: string;
+  platformName$meta?: { source: string; updatedAt: any };
+}
+
 interface SiteInfo {
   id: string;
-  name: string;
-  aboutFamily: string;
-  platformName: string;
-  sourceLang: string;
-  translations: Record<string, {
-    name: string;
-    aboutFamily: string;
-    platformName: string;
-    translatedAt: any;
-    engine: 'gpt' | 'manual' | 'other';
-  }>;
+  name?: string;
+  aboutFamily?: string;
+  platformName?: string;
+  sourceLang: string; // For backwards compatibility (most recent locale)
+  locales: Record<string, SiteLocaleContent>;
 }
 
 interface SiteResponse {
@@ -38,21 +41,21 @@ const normalizeLocale = (locale: string) => {
   }
 };
 
-const findTranslation = (info: SiteInfo | null, locale: string) => {
-  if (!info || !info.translations) return null;
-  const translations = info.translations;
+const findLocaleContent = (info: SiteInfo | null, locale: string): SiteLocaleContent | null => {
+  if (!info || !info.locales) return null;
+  const locales = info.locales;
 
-  const direct = translations[locale];
+  const direct = locales[locale];
   if (direct) return direct;
 
   const lowered = locale.toLowerCase();
-  const exactKey = Object.keys(translations).find((key) => key.toLowerCase() === lowered);
-  if (exactKey) return translations[exactKey];
+  const exactKey = Object.keys(locales).find((key) => key.toLowerCase() === lowered);
+  if (exactKey) return locales[exactKey];
 
   const base = normalizeLocale(locale);
   if (!base) return null;
 
-  const baseEntry = Object.entries(translations).find(([key]) => normalizeLocale(key) === base);
+  const baseEntry = Object.entries(locales).find(([key]) => normalizeLocale(key) === base);
   return baseEntry ? baseEntry[1] : null;
 };
 
@@ -99,30 +102,22 @@ export default function SiteDescriptionEditor() {
     const info = site || siteInfo;
     if (!info) return;
 
-    const sourceLang = info.sourceLang || 'en';
     const normalizedLocale = normalizeLocale(locale) || 'en';
-    const normalizedSource = normalizeLocale(sourceLang) || sourceLang;
 
-    if (normalizedLocale === normalizedSource) {
-      // Editing source language
-      setName(info.name || '');
-      setAboutFamily(info.aboutFamily || '');
-      setPlatformName(info.platformName || '');
+    // Try to find content for this locale
+    const localeContent = findLocaleContent(info, normalizedLocale);
+
+    if (localeContent) {
+      // Found content for this locale
+      setName(localeContent.name || '');
+      setAboutFamily(localeContent.aboutFamily || '');
+      setPlatformName(localeContent.platformName || '');
     } else {
-      // Editing translation
-      const translation = findTranslation(info, normalizedLocale);
-      if (translation) {
-        setName(translation.name || info.name);
-        setAboutFamily(translation.aboutFamily || info.aboutFamily);
-        setPlatformName(translation.platformName || info.platformName);
-      } else {
-        // No translation yet, show source as fallback
-        setName(info.name || '');
-        setAboutFamily(info.aboutFamily || '');
-        setPlatformName(info.platformName || '');
-      }
+      // No content for this locale, show empty fields
+      setName('');
+      setAboutFamily('');
+      setPlatformName('');
     }
-
   };
 
   const handleSave = async (requestTranslations = false) => {
@@ -176,10 +171,6 @@ export default function SiteDescriptionEditor() {
     );
   }
 
-  const sourceLang = siteInfo.sourceLang || 'en';
-  const normalizedSource = normalizeLocale(sourceLang) || sourceLang;
-  const normalizedCurrent = normalizeLocale(currentLocale) || currentLocale;
-  const isEditingSource = normalizedCurrent === normalizedSource;
   return (
     <div className="container mx-auto px-4 py-8 max-w-5xl">
       <Card>
