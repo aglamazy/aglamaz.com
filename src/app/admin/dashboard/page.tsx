@@ -73,7 +73,7 @@ export default function AdminDashboard() {
                 </div>
                 <h3 className="text-xl font-bold text-charcoal mb-3">{title}</h3>
                 <p className="text-sage-600 mb-6 leading-relaxed">{description}</p>
-                <div className={`mt-auto flex ${isRTL ? 'justify-start' : 'justify-end'}`}>
+                <div className="mt-auto flex justify-end">
                   <Button className="border-sage-200 hover:border-sage-300 hover:bg-sage-50 group">
                     {t('manage') || 'Manage'}
                     <ArrowCTA isRTL={isRTL} />
