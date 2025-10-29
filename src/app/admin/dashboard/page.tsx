@@ -64,19 +64,21 @@ export default function AdminDashboard() {
           {adminFeatures.map(({ icon: Icon, title, description, href, gradient }) => (
             <Card
               key={href}
-              className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 bg-white/80 backdrop-blur-sm cursor-pointer"
+              className="h-full border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 bg-white/80 backdrop-blur-sm cursor-pointer"
               onClick={() => router.push(href)}
             >
-              <CardContent className="p-8">
+              <CardContent className="p-8 h-full flex flex-col">
                 <div className={`w-16 h-16 bg-gradient-to-r ${gradient} rounded-2xl flex items-center justify-center mb-6`}>
                   <Icon className="w-8 h-8 text-white" />
                 </div>
                 <h3 className="text-xl font-bold text-charcoal mb-3">{title}</h3>
                 <p className="text-sage-600 mb-6 leading-relaxed">{description}</p>
-                <Button className="border-sage-200 hover:border-sage-300 hover:bg-sage-50 group">
-                  {t('manage') || 'Manage'}
-                  <ArrowCTA isRTL={isRTL} />
-                </Button>
+                <div className={`mt-auto flex ${isRTL ? 'justify-start' : 'justify-end'}`}>
+                  <Button className="border-sage-200 hover:border-sage-300 hover:bg-sage-50 group">
+                    {t('manage') || 'Manage'}
+                    <ArrowCTA isRTL={isRTL} />
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           ))}
