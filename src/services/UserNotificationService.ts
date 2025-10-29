@@ -4,7 +4,6 @@ import pug from 'pug';
 import type { IMember } from '@/entities/Member';
 import type { ISite } from '@/entities/Site';
 import { fetchSiteInfo } from '@/firebase/admin';
-import { getLocalizedSiteName } from '@/utils/siteName';
 import { getPlatformName } from '@/utils/platformName';
 
 export class UserNotificationService {
@@ -26,17 +25,14 @@ export class UserNotificationService {
     let siteInfo: ISite | null = null;
     if (member.siteId) {
       try {
-        const fetched = await fetchSiteInfo(member.siteId);
+        const fetched = await fetchSiteInfo(member.siteId, member.locale);
         siteInfo = (fetched as ISite) ?? null;
       } catch (error) {
         console.error('[UserNotificationService] failed to fetch site info for welcome email', error);
       }
     }
 
-    const locale = member.locale || 'en';
-    const localizedName = getLocalizedSiteName(siteInfo, locale);
-    const fallbackName = siteInfo?.name?.trim();
-    const siteName = localizedName?.trim() || fallbackName || getPlatformName(siteInfo);
+    const siteName = siteInfo?.name?.trim() || getPlatformName(siteInfo);
 
     const html = this.renderTemplate('welcome', {
       firstName: member.firstName,

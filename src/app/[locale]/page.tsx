@@ -8,10 +8,15 @@ import { DEFAULT_LOCALE, SUPPORTED_LOCALES } from '@/i18n';
 
 export const dynamic = 'force-dynamic';
 
-function resolveBaseUrl() {
+function resolveConfiguredBaseUrl() {
   const configured = (process.env.NEXT_PUBLIC_APP_URL || '').trim();
+  return configured ? configured.replace(/\/+$/, '') : null;
+}
+
+function resolveRequestBaseUrl() {
+  const configured = resolveConfiguredBaseUrl();
   if (configured) {
-    return configured.replace(/\/+$/, '');
+    return configured;
   }
 
   try {
@@ -32,7 +37,7 @@ interface HomePageProps {
 
 export async function generateMetadata({ params }: { params: { locale: string } }): Promise<Metadata> {
   const locale = SUPPORTED_LOCALES.includes(params.locale) ? params.locale : DEFAULT_LOCALE;
-  const baseUrl = resolveBaseUrl();
+  const baseUrl = resolveConfiguredBaseUrl();
   const canonical = baseUrl ? `${baseUrl}/${locale}` : undefined;
 
   return {
@@ -69,7 +74,7 @@ export default async function HomePage({ params, searchParams }: HomePageProps) 
   try {
     // Fetch site info, site description, and platform description in parallel
     [siteInfo, siteDescription, platformDescription] = await Promise.all([
-      fetchSiteInfo(siteId),
+      fetchSiteInfo(siteId, locale),
       fetchSiteDescription(siteId),
       fetchPlatformDescription(),
     ]);
@@ -78,8 +83,7 @@ export default async function HomePage({ params, searchParams }: HomePageProps) 
     throw error;
   }
 
-  const h = headers();
-  const baseUrl = resolveBaseUrl();
+  const baseUrl = resolveRequestBaseUrl();
 
   return (
     <LandingPage

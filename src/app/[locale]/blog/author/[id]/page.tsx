@@ -11,6 +11,7 @@ import { stripScriptTags, cleanJsonLd } from '@/utils/jsonld';
 import { fetchSiteInfo } from '@/firebase/admin';
 import { resolveSiteId } from '@/utils/resolveSiteId';
 import { getServerT } from '@/utils/serverTranslations';
+import { getPlatformName } from '@/utils/platformName';
 import { createProfilePageSchema, createBlogPostListSchema, type AuthorInfo } from '@/utils/blogSchema';
 import UnderConstruction from '@/components/UnderConstruction';
 import crypto from 'crypto';
@@ -19,10 +20,15 @@ import type { Metadata } from 'next';
 
 export const dynamic = 'force-dynamic';
 
-function resolveBaseUrl() {
+function resolveConfiguredBaseUrl() {
   const configured = (process.env.NEXT_PUBLIC_APP_URL || '').trim();
+  return configured ? configured.replace(/\/+$/, '') : null;
+}
+
+function resolveRequestBaseUrl() {
+  const configured = resolveConfiguredBaseUrl();
   if (configured) {
-    return configured.replace(/\/+$/, '');
+    return configured;
   }
 
   try {
@@ -43,7 +49,7 @@ interface AuthorPageParams {
 
 export async function generateMetadata({ params }: { params: AuthorPageParams }): Promise<Metadata> {
   const locale = SUPPORTED_LOCALES.includes(params.locale) ? params.locale : DEFAULT_LOCALE;
-  const baseUrl = resolveBaseUrl();
+  const baseUrl = resolveConfiguredBaseUrl();
   const canonical = baseUrl ? `${baseUrl}/${locale}/blog/author/${params.id}` : undefined;
 
   return {
@@ -89,7 +95,7 @@ export default async function AuthorBlogPage({ params }: { params: AuthorPagePar
 
   let siteInfo: Awaited<ReturnType<typeof fetchSiteInfo>> = null;
   try {
-    siteInfo = await fetchSiteInfo(siteId);
+    siteInfo = await fetchSiteInfo(siteId, locale);
   } catch (error) {
     console.error('[blog/author] failed to fetch site info', error);
   }
@@ -120,8 +126,8 @@ export default async function AuthorBlogPage({ params }: { params: AuthorPagePar
     ) as Record<string, { title: string; content: string }>,
   }));
 
-  const baseUrl = resolveBaseUrl() || undefined;
-  const siteName = siteInfo!.name;
+  const baseUrl = resolveRequestBaseUrl() || undefined;
+  const siteName = siteInfo?.name?.trim() || getPlatformName(siteInfo);
 
   const authorName =
     (member as any)?.displayName ||

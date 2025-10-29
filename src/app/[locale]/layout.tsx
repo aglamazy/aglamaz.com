@@ -18,7 +18,7 @@ export default async function PublicLayout({ children, params }: LocaleLayoutPro
   let siteInfo = null;
   try {
     const siteId = await resolveSiteId();
-    siteInfo = siteId ? await fetchSiteInfo(siteId) : null;
+    siteInfo = siteId ? await fetchSiteInfo(siteId, locale) : null;
   } catch (error) {
     console.error('Failed to fetch site info:', error);
     // Don't throw - let children handle null siteInfo (e.g., UnderConstruction page)

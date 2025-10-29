@@ -12,9 +12,8 @@ const GOOGLE_VERIFICATION = process.env.GOOGLE_SITE_VERIFICATION || '';
 
 export async function generateMetadata(): Promise<Metadata> {
   try {
-    const siteId = await resolveSiteId();
-    const siteInfo = siteId ? await fetchSiteInfo(siteId) : null;
-    const siteName = (siteInfo as any)?.name || getPlatformName(siteInfo);
+    const siteInfo = await fetchSiteInfo(undefined, DEFAULT_LOCALE);
+    const siteName = siteInfo?.name?.trim() || getPlatformName(siteInfo);
 
     return {
       title: {
@@ -30,12 +29,11 @@ export async function generateMetadata(): Promise<Metadata> {
     };
   } catch (error) {
     console.error('Failed to generate metadata:', error);
-    const siteInfo = null;
     // Return default metadata instead of throwing
     return {
       title: {
-        default: getPlatformName(siteInfo),
-        template: `%s | ${getPlatformName(siteInfo)}`,
+        default: getPlatformName(null),
+        template: `%s | ${getPlatformName(null)}`,
       },
       icons: {
         icon: '/favicon.svg',
@@ -58,7 +56,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   let siteInfo = null;
   try {
     const siteId = await resolveSiteId();
-    siteInfo = siteId ? await fetchSiteInfo(siteId) : null;
+    siteInfo = siteId ? await fetchSiteInfo(siteId, initialLocale) : await fetchSiteInfo(undefined, initialLocale);
   } catch (error) {
     console.error('Failed to fetch site info:', error);
     // Don't throw - let the app render with null siteInfo

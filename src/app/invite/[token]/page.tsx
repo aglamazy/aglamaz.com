@@ -3,6 +3,7 @@ import Footer from '@/components/Footer';
 import { fetchSiteInfo } from '@/firebase/admin';
 import { resolveSiteId } from '@/utils/resolveSiteId';
 import InviteSignupModal from './InviteSignupModal';
+import { DEFAULT_LOCALE } from '@/i18n';
 
 interface InvitePageParams {
   params: {
@@ -16,7 +17,7 @@ export default async function InvitePage({ params }: InvitePageParams) {
 
   let siteInfo = null;
   try {
-    siteInfo = siteId ? await fetchSiteInfo(siteId) : null;
+    siteInfo = siteId ? await fetchSiteInfo(siteId, DEFAULT_LOCALE) : null;
   } catch (error) {
     console.error('[invite][page] failed to load site info', error);
     // Don't throw - continue with null

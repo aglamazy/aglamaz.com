@@ -14,7 +14,6 @@ import {
   type User,
 } from 'firebase/auth';
 import { useSiteStore } from '@/store/SiteStore';
-import { getLocalizedSiteName } from '@/utils/siteName';
 import { getPlatformName } from '@/utils/platformName';
 import { useUserStore } from '@/store/UserStore';
 import { useLoginModalStore } from '@/store/LoginModalStore';
@@ -37,8 +36,7 @@ export default function LoginPage({ redirectPath = '/app', onAuthenticated }: Lo
   const router = useRouter();
   const { siteInfo } = useSiteStore();
   const { t, i18n } = useTranslation();
-  const localizedSiteName = getLocalizedSiteName(siteInfo, i18n.language);
-  const siteDisplayName: string = localizedSiteName;
+  const siteDisplayName: string = siteInfo?.name?.trim() || getPlatformName(siteInfo);
   const { setUser } = useUserStore();
   const { close: closeLogin } = useLoginModalStore();
   const { open: openPending } = usePendingMemberModalStore();

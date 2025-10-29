@@ -10,7 +10,7 @@ import { IMember } from "@/entities/Member";
 import { ISite } from "@/entities/Site";
 import { useLoginModalStore } from '@/store/LoginModalStore';
 import { useEditUserModalStore } from '@/store/EditUserModalStore';
-import { getLocalizedSiteName } from '@/utils/siteName';
+import { getPlatformName } from '@/utils/platformName';
 import MemberAvatar from '@/components/MemberAvatar';
 import { DEFAULT_LOCALE, SUPPORTED_LOCALES } from '@/i18n';
 
@@ -37,7 +37,7 @@ export default function Header({ user, member, onLogout, siteInfo }: HeaderProps
   const pathname = usePathname();
   const openLogin = useLoginModalStore((s) => s.open);
   const openEdit = useEditUserModalStore((s) => s.open);
-  const localizedName = getLocalizedSiteName(siteInfo, i18n.language);
+  const siteDisplayName = siteInfo?.name?.trim() || getPlatformName(siteInfo);
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -97,7 +97,7 @@ export default function Header({ user, member, onLogout, siteInfo }: HeaderProps
     <header className="w-full flex items-center justify-between px-4 py-2 bg-white shadow-sm sticky top-0 z-50">
       {/* Left: Site title */}
       <div className="text-xl font-semibold text-sage-700">
-        {localizedName}
+        {siteDisplayName}
       </div>
       {/* Center: Navigation */}
       <div className="flex flex-row items-center">

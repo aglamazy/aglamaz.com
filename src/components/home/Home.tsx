@@ -10,7 +10,6 @@ import { apiFetch } from "@/utils/apiFetch";
 import { useUserStore } from "@/store/UserStore";
 import { useTranslation } from 'react-i18next';
 import { useLoginModalStore } from '@/store/LoginModalStore';
-import { getLocalizedSiteName } from '@/utils/siteName';
 import { getPlatformName } from '@/utils/platformName';
 
 export default function Home() {
@@ -20,19 +19,12 @@ export default function Home() {
     const site = useSiteStore((s) => s.siteInfo);
     const openLogin = useLoginModalStore((s) => s.open);
     const searchParams = useSearchParams();
-    const localizedSiteName = getLocalizedSiteName(site, i18n.language);
-    const siteDisplayName: string = localizedSiteName;
+    const siteDisplayName: string = site?.name?.trim() || getPlatformName(site);
     const heroTitle = t('welcomeToSite', { name: siteDisplayName }) as string;
 
     // Get aboutFamily from the current locale
-    const currentLocale = i18n.language?.split('-')[0];
-    if (!currentLocale) {
-        throw new Error('Current locale is not set');
-    }
-    if (!site?.locales?.[currentLocale]) {
-        throw new Error(`Site data missing for locale: ${currentLocale}`);
-    }
-    const aboutFamily = site.locales[currentLocale].aboutFamily;
+    const currentLocale = i18n.language?.split('-')[0] || '';
+    const aboutFamily = site?.aboutFamily;
     if (!aboutFamily) {
         throw new Error(`aboutFamily is missing for locale: ${currentLocale}`);
     }

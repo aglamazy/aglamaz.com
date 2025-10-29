@@ -24,10 +24,15 @@ export const dynamic = 'force-dynamic';
 
 const SUPPORTED = SUPPORTED_LOCALES.length ? SUPPORTED_LOCALES : ['en', 'he'];
 
-function resolveBaseUrl() {
+function resolveConfiguredBaseUrl() {
   const configured = (process.env.NEXT_PUBLIC_APP_URL || '').trim();
+  return configured ? configured.replace(/\/+$/, '') : null;
+}
+
+function resolveRequestBaseUrl() {
+  const configured = resolveConfiguredBaseUrl();
   if (configured) {
-    return configured.replace(/\/+$/, '');
+    return configured;
   }
 
   try {
@@ -47,7 +52,7 @@ interface FamilyBlogPageProps {
 
 export async function generateMetadata({ params }: FamilyBlogPageProps): Promise<Metadata> {
   const locale = SUPPORTED.includes(params.locale) ? params.locale : DEFAULT_LOCALE;
-  const baseUrl = resolveBaseUrl();
+  const baseUrl = resolveConfiguredBaseUrl();
   const canonical = baseUrl ? `${baseUrl}/${locale}/blog` : undefined;
 
   return {
@@ -88,7 +93,7 @@ export default async function FamilyBlogPage({ params }: FamilyBlogPageProps) {
 
   let siteInfo: Awaited<ReturnType<typeof fetchSiteInfo>> = null;
   try {
-    siteInfo = await fetchSiteInfo(siteId);
+    siteInfo = await fetchSiteInfo(siteId, locale);
   } catch (error) {
     console.error('[blog/family] failed to fetch site info', error);
     // Continue with null siteInfo
@@ -132,8 +137,8 @@ export default async function FamilyBlogPage({ params }: FamilyBlogPageProps) {
     ) as Record<string, { title: string; content: string }>,
   }));
 
-  const baseUrl = resolveBaseUrl() || undefined;
-  const siteName = siteInfo!.name;
+  const baseUrl = resolveRequestBaseUrl() || undefined;
+  const siteName = siteInfo?.name?.trim() || getPlatformName(siteInfo);
 
   const blogSchema = createBlogSchema(
     t('catchUpOnFamilyNews') as string,

@@ -3,6 +3,7 @@ import Footer from '@/components/Footer';
 import { fetchSiteInfo } from '@/firebase/admin';
 import { resolveSiteId } from '@/utils/resolveSiteId';
 import InviteVerifyClient from './InviteVerifyClient';
+import { DEFAULT_LOCALE } from '@/i18n';
 
 interface InviteVerifyPageParams {
   params: {
@@ -16,7 +17,7 @@ export default async function InviteVerifyPage({ params }: InviteVerifyPageParam
 
   let siteInfo = null;
   try {
-    siteInfo = siteId ? await fetchSiteInfo(siteId) : null;
+    siteInfo = siteId ? await fetchSiteInfo(siteId, DEFAULT_LOCALE) : null;
   } catch (error) {
     console.error('[invite][verify-page] failed to load site info', error);
     // Don't throw - continue with null

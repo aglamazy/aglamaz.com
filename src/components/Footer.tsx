@@ -3,7 +3,7 @@ import React from "react";
 import Link from 'next/link';
 import { ISite } from "@/entities/Site";
 import { useTranslation } from 'react-i18next';
-import { getLocalizedSiteName } from '@/utils/siteName';
+import { getPlatformName } from '@/utils/platformName';
 
 interface FooterProps {
   siteInfo: ISite;
@@ -12,11 +12,11 @@ interface FooterProps {
 export default function Footer({ siteInfo }: FooterProps) {
   const year = new Date().getFullYear();
   const { t, i18n } = useTranslation();
-  const localizedName = getLocalizedSiteName(siteInfo, i18n.language);
+  const siteDisplayName = siteInfo?.name?.trim() || getPlatformName(siteInfo);
 
   return (
     <footer className="w-full px-4 py-6 text-center text-sm text-sage-700 border-t border-sage-200">
-      <p className="mb-2">&copy; {year} {localizedName}. {t('allRightsReserved') as string}</p>
+      <p className="mb-2">&copy; {year} {siteDisplayName}. {t('allRightsReserved') as string}</p>
       <p>
         <Link href="/terms" className="underline hover:no-underline">
           {t('termsAndConditions')}

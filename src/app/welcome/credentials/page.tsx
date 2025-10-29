@@ -3,13 +3,14 @@ import Footer from '@/components/Footer';
 import { fetchSiteInfo } from '@/firebase/admin';
 import { resolveSiteId } from '@/utils/resolveSiteId';
 import CredentialSetupClient from './CredentialSetupClient';
+import { DEFAULT_LOCALE } from '@/i18n';
 
 export default async function CredentialSetupPage() {
   const siteId = await resolveSiteId();
   let siteInfo = null;
 
   try {
-    siteInfo = siteId ? await fetchSiteInfo(siteId) : null;
+    siteInfo = siteId ? await fetchSiteInfo(siteId, DEFAULT_LOCALE) : null;
   } catch (error) {
     console.error('[credentials-page] failed to load site info', error);
     // Don't throw - continue with null

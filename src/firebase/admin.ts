@@ -26,7 +26,7 @@ export const adminAuth = () => getAuth();
  *                 For multi-tenant deployments, this should be passed from resolveSiteId().
  * @returns Site info object or null if no valid site ID is provided
  */
-export async function fetchSiteInfo(siteId?: string | null) {
+export async function fetchSiteInfo(siteId?: string | null, locale?: string | null) {
   // Resolve siteId: use parameter if provided, otherwise fall back to env variable
   const resolvedSiteId = siteId || process.env.NEXT_SITE_ID;
 
@@ -36,7 +36,8 @@ export async function fetchSiteInfo(siteId?: string | null) {
   }
 
   const repo = new SiteRepository();
-  return repo.get(resolvedSiteId, undefined, { cached: true });
+  const normalizedLocale = locale?.trim();
+  return repo.get(resolvedSiteId, normalizedLocale || undefined, { cached: true });
 }
 
 /**

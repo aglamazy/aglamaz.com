@@ -1,6 +1,7 @@
 import { GmailService } from './GmailService';
 import { notificationRepository, AdminNotification } from '../repositories/NotificationRepository';
 import { fetchSiteInfo, adminAuth } from '../firebase/admin';
+import { DEFAULT_LOCALE } from '@/i18n';
 import path from 'path';
 import pug from 'pug';
 
@@ -20,7 +21,7 @@ export class AdminNotificationService {
 
   private async getAdminEmail(siteId?: string): Promise<string | null> {
     // Use provided siteId or fall back to env variable
-    const siteInfo = await fetchSiteInfo(siteId);
+    const siteInfo = await fetchSiteInfo(siteId, DEFAULT_LOCALE);
     const ownerUid = (siteInfo as any)?.ownerUid;
     if (!ownerUid) {
       console.warn('[AdminNotificationService] Site owner UID not found, skipping email');
