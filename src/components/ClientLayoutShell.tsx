@@ -106,6 +106,7 @@ export default function ClientLayoutShell({ children }) {
           <ClientMobileShell
             t={t}
             presentationModeActive={presentationModeActive}
+            siteInfo={siteInfo}
             isLoginOpen={isLoginOpen}
             closeLogin={closeLogin}
             isPendingOpen={isPendingOpen}

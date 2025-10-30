@@ -266,5 +266,17 @@
   "credentialSetupGoogleHint": "Onayı tamamlamak için sizi Google'a yönlendireceğiz.",
   "credentialSetupGoogleFailed": "Google bağlantısı kurulamadı. Lütfen tekrar deneyin.",
   "credentialSetupGoogleAlreadyUsed": "Bu Google hesabı başka bir üyeyle zaten bağlantılı.",
-  "credentialSetupFirebaseUserMissing": "Oturum bulunamadı. Lütfen sayfayı yenileyip tekrar deneyin."
+  "credentialSetupFirebaseUserMissing": "Oturum bulunamadı. Lütfen sayfayı yenileyip tekrar deneyin.",
+  "languageNames": {
+    "he": "İbranice",
+    "en": "İngilizce",
+    "tr": "Türkçe"
+  },
+  "footer": {
+    "language": "Dil",
+    "navigation": "Alt gezinme",
+    "blog": "Blog",
+    "photo": "Fotoğraflar",
+    "calendar": "Takvim"
+  }
 }

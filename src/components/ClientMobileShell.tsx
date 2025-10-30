@@ -12,8 +12,10 @@ import PicturesFeedPage from '@/app/app/pictures/feed/page';
 import CalendarPage from '@/app/app/calendar/page';
 import BlogPage from '@/app/app/blog/page';
 import ShimmerImagePreview from '@/components/mobile/ShimmerImagePreview';
+import Footer from '@/components/Footer';
 import styles from './ClientLayoutShell.module.css';
 import type { TFunction } from 'i18next';
+import type { ISite } from '@/entities/Site';
 
 interface ModalControls {
   isLoginOpen: boolean;
@@ -29,11 +31,13 @@ interface ModalControls {
 interface ClientMobileShellProps extends ModalControls {
   t: TFunction;
   presentationModeActive: boolean;
+  siteInfo: ISite | null;
 }
 
 export default function ClientMobileShell({
   t,
   presentationModeActive,
+  siteInfo,
   isLoginOpen,
   closeLogin,
   isPendingOpen,
@@ -71,6 +75,7 @@ export default function ClientMobileShell({
           </SweepableElement>
         </SweepableContainer>
       </main>
+      {siteInfo && !presentationModeActive ? <Footer siteInfo={siteInfo} /> : null}
       <Modal isOpen={isLoginOpen} onClose={closeLogin}>
         <LoginPage/>
       </Modal>
