@@ -36,7 +36,7 @@ const PUBLIC_PATHS = [
   '/terms',
 ];
 
-const PUBLIC_REDIRECT_PATHS = ['/', '/login'];
+const PUBLIC_REDIRECT_PATHS = ['/login'];
 
 function stripLocale(pathname: string) {
   const match = pathname.match(/^\/(\w{2})(\/.*)?$/);

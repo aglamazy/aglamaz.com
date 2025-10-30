@@ -70,9 +70,11 @@ export class SiteRepository {
         const { SITE_TRANSLATABLE_FIELDS } = await import('@/entities/Site');
         const localizedFields = getLocalizedFields(site, locale, [...SITE_TRANSLATABLE_FIELDS]);
 
-        // Apply localized fields to the site
+        // Apply localized fields to the site and remove locales to avoid sending
+        // unnecessary data to client (and prevent Timestamp serialization issues)
+        const { locales, ...siteWithoutLocales } = site;
         site = {
-          ...site,
+          ...siteWithoutLocales,
           ...localizedFields,
         };
       }

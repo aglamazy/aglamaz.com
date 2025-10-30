@@ -24,6 +24,7 @@ export const adminAuth = () => getAuth();
  *
  * @param siteId - Optional site ID. If not provided, falls back to NEXT_SITE_ID env variable.
  *                 For multi-tenant deployments, this should be passed from resolveSiteId().
+ * @param locale
  * @returns Site info object or null if no valid site ID is provided
  */
 export async function fetchSiteInfo(siteId?: string | null, locale?: string | null) {
