@@ -14,7 +14,6 @@ import { usePendingMemberModalStore } from '@/store/PendingMemberModalStore';
 import { useNotMemberModalStore } from '@/store/NotMemberModalStore';
 import { useEditUserModalStore } from '@/store/EditUserModalStore';
 import { usePresentationModeStore } from '@/store/PresentationModeStore';
-import { useIsMobile } from '@/hooks/useIsMobile';
 import ClientDesktopShell from '@/components/ClientDesktopShell';
 import ClientMobileShell from '@/components/ClientMobileShell';
 
@@ -32,7 +31,6 @@ export default function ClientLayoutShell({ children }) {
 
   const { fetchMember } = useMemberStore();
   const presentationModeActive = usePresentationModeStore((state) => state.active);
-  const isMobile = useIsMobile();
 
   useEffect(() => {
     checkAuth()
@@ -102,7 +100,8 @@ export default function ClientLayoutShell({ children }) {
   return (
     <I18nProvider initialLocale="en">
       <I18nGate>
-        {isMobile ? (
+        {/* Render both mobile and desktop shells, CSS controls visibility */}
+        <div className="mobile-only">
           <ClientMobileShell
             t={t}
             presentationModeActive={presentationModeActive}
@@ -117,7 +116,8 @@ export default function ClientLayoutShell({ children }) {
           >
             {children}
           </ClientMobileShell>
-        ) : (
+        </div>
+        <div className="desktop-only">
           <ClientDesktopShell
             headerReady={headerReady}
             presentationModeActive={presentationModeActive}
@@ -136,7 +136,7 @@ export default function ClientLayoutShell({ children }) {
           >
             {children}
           </ClientDesktopShell>
-        )}
+        </div>
       </I18nGate>
     </I18nProvider>
   );

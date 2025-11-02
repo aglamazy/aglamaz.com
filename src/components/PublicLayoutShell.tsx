@@ -12,7 +12,6 @@ import { useMemberStore } from '@/store/MemberStore';
 import { useRouter } from 'next/navigation';
 import { landingPage } from '@/app/settings';
 import type { ISite } from '@/entities/Site';
-import { useIsMobile } from '@/hooks/useIsMobile';
 import styles from './PublicLayoutShell.module.css';
 import { SUPPORTED_LOCALES as CONFIG_LOCALES } from '@/constants/i18n';
 import { useTranslation } from 'react-i18next';
@@ -32,7 +31,6 @@ export default function PublicLayoutShell({ siteInfo, children, locale }: Public
   const member = useMemberStore((s) => s.member);
   const fetchMember = useMemberStore((s) => s.fetchMember);
   const router = useRouter();
-  const isMobile = useIsMobile();
 
   useEffect(() => {
     if (CONFIG_LOCALES.includes(locale as any)) {
@@ -85,15 +83,12 @@ export default function PublicLayoutShell({ siteInfo, children, locale }: Public
     router.push(landingPage);
   };
 
-  const containerClass = isMobile ? styles.mobileContainer : styles.desktopContainer;
-  const mainClass = isMobile ? styles.mobileMain : styles.desktopMain;
-
   return (
-    <div className={containerClass}>
+    <div className={styles.container}>
       {siteInfo ? (
         <Header siteInfo={siteInfo} user={user} member={member} onLogout={handleLogout} />
       ) : null}
-      <main className={mainClass}>{children}</main>
+      <main className={styles.main}>{children}</main>
       {siteInfo ? <Footer siteInfo={siteInfo} /> : null}
       <Modal isOpen={isOpen} onClose={close}>
         <LoginPage />

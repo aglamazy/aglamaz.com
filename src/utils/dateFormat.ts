@@ -13,7 +13,7 @@
 function getLocale(i18nLanguage: string): string | string[] {
   return i18nLanguage.includes('-')
     ? i18nLanguage
-    : (typeof navigator !== 'undefined' ? navigator.languages : [i18nLanguage]);
+    : (typeof navigator !== 'undefined' ? Array.from(navigator.languages) : [i18nLanguage]);
 }
 
 /**

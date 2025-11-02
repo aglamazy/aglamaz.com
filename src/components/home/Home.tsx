@@ -11,7 +11,6 @@ import { useUserStore } from "@/store/UserStore";
 import { useTranslation } from 'react-i18next';
 import { useLoginModalStore } from '@/store/LoginModalStore';
 import { getPlatformName } from '@/utils/platformName';
-import { useIsMobile } from '@/hooks/useIsMobile';
 
 export default function Home() {
     const { t, i18n } = useTranslation();
@@ -21,16 +20,8 @@ export default function Home() {
     const openLogin = useLoginModalStore((s) => s.open);
     const searchParams = useSearchParams();
     const router = useRouter();
-    const isMobile = useIsMobile();
     const siteDisplayName: string = site?.name?.trim() || getPlatformName(site);
     const heroTitle = t('welcomeToSite', { name: siteDisplayName }) as string;
-
-    // Redirect mobile users to pictures feed
-    useEffect(() => {
-        if (isMobile && !loading) {
-            router.replace('/app/pictures/feed');
-        }
-    }, [isMobile, loading, router]);
 
     // Get aboutFamily from the current locale (optional)
     const aboutFamily = site?.aboutFamily;
@@ -50,7 +41,8 @@ export default function Home() {
     }
 
     return (
-        <div className="min-h-screen">
+        // Desktop only - mobile users see bottom tab bar and can navigate from there
+        <div className="min-h-screen desktop-only">
             {aboutFamily && <WelcomeHero user={user} title={heroTitle} aboutFamily={aboutFamily} />}
             {!user && (
                 <div className="text-center mt-8">

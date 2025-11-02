@@ -3,14 +3,12 @@
 import { useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import EditUserDetails from '@/components/EditUserDetails';
-import { useIsMobile } from '@/hooks/useIsMobile';
 import { useEffect } from 'react';
 import { useEditUserModalStore } from '@/store/EditUserModalStore';
 import styles from './profile.module.css';
 
 export default function ProfilePage() {
   const router = useRouter();
-  const isMobile = useIsMobile();
   const { open, close } = useEditUserModalStore();
 
   // Open the modal store when this page mounts (for EditUserDetails to work)
@@ -21,20 +19,9 @@ export default function ProfilePage() {
     };
   }, [open, close]);
 
-  // On desktop, redirect to home and let the modal handle it
-  useEffect(() => {
-    if (!isMobile) {
-      router.push('/app');
-      // The desktop layout will show the modal
-    }
-  }, [isMobile, router]);
-
-  if (!isMobile) {
-    return null; // Redirecting to /app
-  }
-
   return (
-    <div className={styles.container}>
+    // Mobile-only page - hidden on desktop via CSS
+    <div className={`${styles.container} mobile-only`}>
       <div className={styles.header}>
         <button
           onClick={() => router.back()}

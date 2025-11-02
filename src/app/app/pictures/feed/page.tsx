@@ -8,7 +8,6 @@ import layoutStyles from '@/components/media/MediaLayout.module.css';
 import feedStyles from '@/components/media/ImageGrid.module.css';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { useIsMobile } from '@/hooks/useIsMobile';
 import { ShimmerImage } from "@/components/mobile/ShimmerImagePreview";
 import md5 from 'blueimp-md5';
 import OccurrenceEditModal, { OccurrenceForEdit } from '@/components/anniversaries/OccurrenceEditModal';
@@ -38,7 +37,6 @@ export default function PicturesFeedPage() {
   const [items, setItems] = useState<Occurrence[]>([]);
   const [eventNames, setEventNames] = useState<Record<string, { name: string }>>({});
   const [likes, setLikes] = useState<Record<string, ImageLikeMeta[]>>({}); // key: occId
-  const isMobile = useIsMobile();
   const [authors, setAuthors] = useState<Record<string, AuthorInfo>>({});
   const [editTarget, setEditTarget] = useState<{ annId: string; occId: string } | null>(null);
   const mountedRef = useRef(true);
@@ -240,9 +238,10 @@ export default function PicturesFeedPage() {
   if (loading) return <div className="p-4"><I18nText k="loading" /></div>;
   if (error) return <div className="p-4"><I18nText k="somethingWentWrong" /></div>;
 
-  if (isMobile) {
-    return (
-      <>
+  return (
+    <>
+      {/* Mobile version - hidden on desktop */}
+      <div className="mobile-only">
         <div className={feedStyles.mobileContinuousContainer}>
           <div className={feedStyles.mobileContinuousList}>
           {feed.map((item) => {
@@ -270,49 +269,46 @@ export default function PicturesFeedPage() {
           })}
           </div>
         </div>
-        {occurrenceModal}
-      </>
-    );
-  }
+      </div>
 
-  return (
-    <>
-      <Card className={layoutStyles.container}>
+      {/* Desktop version - hidden on mobile */}
+      <Card className={`${layoutStyles.container} desktop-only`}>
         <CardHeader>
           <CardTitle>Pictures Feed</CardTitle>
         </CardHeader>
-      <CardContent>
-        <ImageGrid
-          items={feed.map((f) => {
-            const baseLabel = f.occDescription || f.eventName;
-            const title = f.showHeader ? [baseLabel, f.dateText].filter(Boolean).join(' — ') : undefined;
-            return {
-              key: f.key,
-              src: f.src,
-              title,
-              dir: f.dir,
-              meta: { annId: f.annId, occId: f.occId, creatorId: f.creatorId, canEdit: f.canEdit },
-            };
-          })}
-          getMeta={(item) => {
-            const f = feed.find((x) => x.key === item.key)!;
-            return getLikeMeta(f.occId, f.idx);
-          }}
-          onToggle={(item) => {
-            const f = feed.find((x) => x.key === item.key)!;
-            return toggleLike(f.annId, f.occId, f.idx);
-          }}
-          onTitleClick={(item) => {
-            const meta = (item.meta || {}) as { annId?: string; occId?: string; creatorId?: string; canEdit?: boolean };
-            if (!meta.canEdit) return;
-            if (!meta.annId || !meta.occId) return;
-            openOccurrenceModal(meta.annId, meta.occId, meta.creatorId);
-          }}
-        />
-      </CardContent>
+        <CardContent>
+          <ImageGrid
+            items={feed.map((f) => {
+              const baseLabel = f.occDescription || f.eventName;
+              const title = f.showHeader ? [baseLabel, f.dateText].filter(Boolean).join(' — ') : undefined;
+              return {
+                key: f.key,
+                src: f.src,
+                title,
+                dir: f.dir,
+                meta: { annId: f.annId, occId: f.occId, creatorId: f.creatorId, canEdit: f.canEdit },
+              };
+            })}
+            getMeta={(item) => {
+              const f = feed.find((x) => x.key === item.key)!;
+              return getLikeMeta(f.occId, f.idx);
+            }}
+            onToggle={(item) => {
+              const f = feed.find((x) => x.key === item.key)!;
+              return toggleLike(f.annId, f.occId, f.idx);
+            }}
+            onTitleClick={(item) => {
+              const meta = (item.meta || {}) as { annId?: string; occId?: string; creatorId?: string; canEdit?: boolean };
+              if (!meta.canEdit) return;
+              if (!meta.annId || !meta.occId) return;
+              openOccurrenceModal(meta.annId, meta.occId, meta.creatorId);
+            }}
+          />
+        </CardContent>
 
         {/* Lightbox handled inside ImageGrid */}
       </Card>
+
       {occurrenceModal}
     </>
   );

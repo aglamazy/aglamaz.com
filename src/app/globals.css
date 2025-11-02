@@ -63,3 +63,22 @@
 .border-sage-600 { border-color: var(--sage-600); }
 .hover\:bg-sage-700:hover { background-color: var(--sage-700); }
 .hover\:border-sage-300:hover { border-color: var(--sage-300); }
+
+/* Responsive visibility utilities - for SSR-safe mobile/desktop rendering */
+@media (max-width: 768px) {
+  .desktop-only {
+    display: none !important;
+  }
+  .mobile-only {
+    display: block;
+  }
+}
+
+@media (min-width: 769px) {
+  .desktop-only {
+    display: block;
+  }
+  .mobile-only {
+    display: none !important;
+  }
+}
