@@ -15,6 +15,7 @@ import OccurrenceEditModal, { OccurrenceForEdit } from '@/components/anniversari
 import { apiFetch } from '@/utils/apiFetch';
 import { useUserStore } from '@/store/UserStore';
 import { useMemberStore } from '@/store/MemberStore';
+import { formatLocalizedDate } from '@/utils/dateFormat';
 
 type Occurrence = {
   id: string; // occurrence id
@@ -157,7 +158,7 @@ export default function PicturesFeedPage() {
       const d = occ.date as any;
       const sec = d?._seconds ?? d?.seconds;
       const js = typeof sec === 'number' ? new Date(sec * 1000) : (d?.toDate ? d.toDate() : new Date(d));
-      const dateText = js instanceof Date && !isNaN(js.getTime()) ? js.toLocaleDateString() : '';
+      const dateText = formatLocalizedDate(js, i18n.language);
       arr.forEach((src, i) => {
         const creatorId = occ.createdBy;
         if (!creatorId) {

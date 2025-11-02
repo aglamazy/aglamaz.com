@@ -1,0 +1,109 @@
+/**
+ * Gets the appropriate locale for date/time formatting.
+ *
+ * @param i18nLanguage - The i18n language setting (e.g., 'en', 'he', 'en-US')
+ * @returns Locale string or array for toLocaleDateString/toLocaleString
+ *
+ * @remarks
+ * When the i18n language is a base language (e.g., 'en' without a region),
+ * this function uses the browser's locale preferences (navigator.languages)
+ * to determine the format. This allows users to read content in one
+ * language while seeing dates formatted according to their regional preferences.
+ */
+function getLocale(i18nLanguage: string): string | string[] {
+  return i18nLanguage.includes('-')
+    ? i18nLanguage
+    : (typeof navigator !== 'undefined' ? navigator.languages : [i18nLanguage]);
+}
+
+/**
+ * Firestore timestamp type (supports both formats)
+ */
+type FirestoreTimestamp = {
+  seconds?: number;
+  _seconds?: number;
+};
+
+/**
+ * Formats a date using localized formatting.
+ *
+ * @param date - The date to format (Date object, ISO string, or Firestore timestamp)
+ * @param i18nLanguage - The i18n language setting (e.g., 'en', 'he', 'en-US')
+ * @returns Formatted date string
+ *
+ * @remarks
+ * When the i18n language is a base language (e.g., 'en' without a region),
+ * this function uses the browser's locale preferences (navigator.languages)
+ * to determine the date format. This allows users to read content in one
+ * language while seeing dates formatted according to their regional preferences.
+ *
+ * For example:
+ * - User in Israel with browser set to 'en-IL' reading in English → d/m/y format
+ * - User in US with browser set to 'en-US' reading in English → m/d/y format
+ * - User reading in Hebrew ('he') → Hebrew date format regardless of browser settings
+ */
+export function formatLocalizedDate(
+  date: Date | string | FirestoreTimestamp | null | undefined,
+  i18nLanguage: string
+): string {
+  if (!date) return '';
+
+  let dateObj: Date;
+
+  if (typeof date === 'string') {
+    dateObj = new Date(date);
+  } else if (date instanceof Date) {
+    dateObj = date;
+  } else if (typeof date === 'object' && ('_seconds' in date || 'seconds' in date)) {
+    const seconds = (date as FirestoreTimestamp)._seconds ?? (date as FirestoreTimestamp).seconds;
+    if (!seconds) return '';
+    dateObj = new Date(seconds * 1000);
+  } else {
+    return '';
+  }
+
+  if (!(dateObj instanceof Date) || isNaN(dateObj.getTime())) {
+    return '';
+  }
+
+  return dateObj.toLocaleDateString(getLocale(i18nLanguage));
+}
+
+/**
+ * Formats a date and time using localized formatting.
+ *
+ * @param date - The date to format (Date object, ISO string, or Firestore timestamp)
+ * @param i18nLanguage - The i18n language setting (e.g., 'en', 'he', 'en-US')
+ * @returns Formatted date and time string
+ *
+ * @remarks
+ * Similar to formatLocalizedDate but includes time component.
+ * Uses browser's locale preferences when i18n language is a base language.
+ * Accepts Date objects, ISO date strings, or Firestore timestamps.
+ */
+export function formatLocalizedDateTime(
+  date: Date | string | FirestoreTimestamp | null | undefined,
+  i18nLanguage: string
+): string {
+  if (!date) return '';
+
+  let dateObj: Date;
+
+  if (typeof date === 'string') {
+    dateObj = new Date(date);
+  } else if (date instanceof Date) {
+    dateObj = date;
+  } else if (typeof date === 'object' && ('_seconds' in date || 'seconds' in date)) {
+    const seconds = (date as FirestoreTimestamp)._seconds ?? (date as FirestoreTimestamp).seconds;
+    if (!seconds) return '';
+    dateObj = new Date(seconds * 1000);
+  } else {
+    return '';
+  }
+
+  if (!(dateObj instanceof Date) || isNaN(dateObj.getTime())) {
+    return '';
+  }
+
+  return dateObj.toLocaleString(getLocale(i18nLanguage));
+}

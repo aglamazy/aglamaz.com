@@ -11,6 +11,7 @@ import type { IUser } from '@/entities/User';
 import type { ISite } from '@/entities/Site';
 import { useTranslation } from 'react-i18next';
 import { apiFetch } from '@/utils/apiFetch';
+import { formatLocalizedDate } from '@/utils/dateFormat';
 
 interface FirestoreTimestamp {
   seconds?: number;
@@ -92,15 +93,15 @@ export default function PendingMembersPage() {
 
   const formatDate = (timestamp?: FirestoreTimestamp | string) => {
     if (!timestamp) return '';
+    let date: Date;
     if (typeof timestamp === 'string') {
-      const date = new Date(timestamp);
-      return isNaN(date.getTime()) ? '' : date.toLocaleDateString();
+      date = new Date(timestamp);
+    } else {
+      const seconds = timestamp.seconds ?? timestamp._seconds;
+      if (!seconds) return '';
+      date = new Date(seconds * 1000);
     }
-    const seconds = timestamp.seconds ?? timestamp._seconds;
-    if (seconds) {
-      return new Date(seconds * 1000).toLocaleDateString();
-    }
-    return '';
+    return formatLocalizedDate(date, i18n.language);
   };
 
   if (loading) {

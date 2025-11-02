@@ -4,6 +4,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { useSiteStore } from '@/store/SiteStore';
 import { MessageCircle } from 'lucide-react';
 import { apiFetch } from '@/utils/apiFetch';
+import { useTranslation } from 'react-i18next';
+import { formatLocalizedDateTime } from '@/utils/dateFormat';
 
 interface ContactMessage {
   id: string;
@@ -13,15 +15,8 @@ interface ContactMessage {
   createdAt: any;
 }
 
-function formatDate(ts: any) {
-  if (!ts) return '';
-  if (typeof ts === 'string') return new Date(ts).toLocaleString();
-  if (typeof ts === 'object' && ts._seconds)
-    return new Date(ts._seconds * 1000).toLocaleString();
-  return '';
-}
-
 export default function ContactMessagesPage() {
+  const { i18n } = useTranslation();
   const site = useSiteStore(state => state.siteInfo);
   const [messages, setMessages] = useState<ContactMessage[]>([]);
 
@@ -57,7 +52,7 @@ export default function ContactMessagesPage() {
                       <p className="text-gray-600">{m.email}</p>
                       <p className="text-gray-800 mt-2 whitespace-pre-line">{m.message}</p>
                     </div>
-                    <div className="text-sm text-gray-500">{formatDate(m.createdAt)}</div>
+                    <div className="text-sm text-gray-500">{formatLocalizedDateTime(m.createdAt, i18n.language)}</div>
                   </div>
                 </CardContent>
               </Card>

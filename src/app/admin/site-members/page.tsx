@@ -10,16 +10,10 @@ import MemberAvatar from '@/components/MemberAvatar';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
-
-function formatDateTime(iso: string | null) {
-  if (!iso) return '';
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return '';
-  return date.toLocaleString();
-}
+import { formatLocalizedDate, formatLocalizedDateTime } from '@/utils/dateFormat';
 
 function InviteLinkGenerator() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const site = useSiteStore((state) => state.siteInfo) as ISite | null;
   const [inviteUrl, setInviteUrl] = useState('');
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
@@ -92,7 +86,7 @@ function InviteLinkGenerator() {
               {inviteUrl}
             </div>
             {expiresAt && (
-              <p className="text-sm text-sage-600">{t('linkExpiresAt', { time: formatDateTime(expiresAt) })}</p>
+              <p className="text-sm text-sage-600">{t('linkExpiresAt', { time: formatLocalizedDateTime(expiresAt, i18n.language) })}</p>
             )}
             {copied && <p className="text-sm text-emerald-600">{t('inviteLinkCopied')}</p>}
           </div>
@@ -103,16 +97,8 @@ function InviteLinkGenerator() {
   );
 }
 
-function formatDate(ts: any) {
-  if (!ts) return '';
-  if (typeof ts === 'string') return new Date(ts).toLocaleDateString();
-  if (typeof ts === 'object' && ts._seconds)
-    return new Date(ts._seconds * 1000).toLocaleDateString();
-  return '';
-}
-
 export default function SiteMembersPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const site = useSiteStore((state) => state.siteInfo) as ISite | null;
   const [members, setMembers] = useState<IMember[]>([]);
   const [nameFilter, setNameFilter] = useState("");
@@ -280,7 +266,7 @@ export default function SiteMembersPage() {
                           <option value="admin">admin</option>
                         </select>
                       </td>
-                      <td className="px-4 py-2">{formatDate(member.createdAt)}</td>
+                      <td className="px-4 py-2">{formatLocalizedDate(member.createdAt, i18n.language)}</td>
                       <td className="px-4 py-2">
                         {(member as any).blogEnabled && (member as any).blogHandle ? (
                           <a
