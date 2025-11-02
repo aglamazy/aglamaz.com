@@ -99,10 +99,15 @@ export default function Header({ user, member, onLogout, siteInfo }: HeaderProps
       <div className="text-xl font-semibold text-sage-700">
         {siteDisplayName}
       </div>
-      {/* Center: Navigation */}
+      {/* Center: CTA or Navigation */}
       <div className="flex flex-row items-center">
         {user && member && onLogout && member.role !== 'pending' ? (
-          <Navigation user={user} onLogout={onLogout} setMobileMenuOpen={setMobileMenuOpen}/>
+          <button
+            onClick={() => router.push('/app')}
+            className="px-6 py-2 bg-sage-600 hover:bg-sage-700 text-white rounded-lg font-semibold transition-colors duration-200"
+          >
+            {t('start') as string}
+          </button>
         ) : (
           <nav className="hidden md:flex items-center gap-6 text-sage-700">
             {(() => { const isRTL = (i18n.language || '').startsWith('he'); return (
