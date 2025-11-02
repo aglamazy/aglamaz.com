@@ -81,7 +81,7 @@ export default async function LandingPage({ siteInfo, siteDescription, platformD
   const siteInfoRecord = (siteInfo ?? {}) as Record<string, unknown>;
 
   // ISite already has flattened fields for convenient access
-  const siteName = siteInfo?.name?.trim() || getPlatformName(siteInfo);
+  const siteName = siteInfo?.name?.trim();
 
   const siteDescriptionBase = toRichTextDoc(
     siteDescription,

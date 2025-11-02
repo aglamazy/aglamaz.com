@@ -42,7 +42,7 @@ export default function BlogPage() {
   }, [user?.user_id, i18n.language]);
 
   const headerTitle = useMemo(() => {
-    return siteInfo!.name;
+    return siteInfo?.name;
   }, [siteInfo, t]);
 
   const loadError = error ? (t('failedToLoadBlogPosts', { defaultValue: 'Failed to load blog posts' }) as string) : '';

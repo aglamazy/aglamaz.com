@@ -5,10 +5,11 @@ import { Timestamp } from 'firebase-admin/firestore';
 
 export const dynamic = 'force-dynamic';
 
-const getHandler = async (_request: Request, { params }: GuardContext & { params: { siteId: string } }) => {
+const getHandler = async (_request: Request, context: GuardContext) => {
   try {
     const repo = new BlogRepository();
-    const siteId = params.siteId;
+    const params = context.params instanceof Promise ? await context.params : context.params;
+    const siteId = params?.siteId;
     const now = new Date();
     const since = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
     const count = await repo.countPublicSince(siteId, Timestamp.fromDate(since));

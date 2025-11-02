@@ -2,10 +2,11 @@ import { BlogRepository } from '@/repositories/BlogRepository';
 
 export const dynamic = 'force-dynamic';
 
-export const GET = async (_request: Request, { params }: { params: { postId: string } }) => {
+export const GET = async (_request: Request, { params }: { params: Promise<{ postId: string }> }) => {
   try {
+    const { postId } = await params;
     const repo = new BlogRepository();
-    const post = await repo.getById(params.postId);
+    const post = await repo.getById(postId);
     if (!post || !post.isPublic) {
       return Response.json({ error: 'Post not found' }, { status: 404 });
     }

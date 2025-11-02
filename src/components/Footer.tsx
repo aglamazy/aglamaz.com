@@ -12,7 +12,7 @@ interface FooterProps {
 export default function Footer({ siteInfo }: FooterProps) {
   const year = new Date().getFullYear();
   const { t, i18n } = useTranslation();
-  const siteDisplayName = siteInfo?.name?.trim() || getPlatformName(siteInfo);
+  const siteDisplayName = siteInfo?.name?.trim();
 
   return (
     <footer className="w-full px-4 py-6 text-center text-sm text-sage-700 border-t border-sage-200">

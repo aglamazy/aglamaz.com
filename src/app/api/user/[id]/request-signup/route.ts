@@ -3,9 +3,10 @@ import { FamilyRepository } from '@/repositories/FamilyRepository';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const body = await request.json();
     const { firstName, email, siteId } = body;
 
@@ -23,7 +24,7 @@ export async function POST(
       firstName,
       email,
       siteId,
-      userId: params.id,
+      userId: id,
       status: 'pending'
     }, origin);
 

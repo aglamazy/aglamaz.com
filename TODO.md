@@ -63,3 +63,16 @@
   - `source`: 'manual' | 'gpt' | 'other'
   - `updatedAt`: timestamp
 - Each field independently finds most recent version to translate from
+
+# Theming and Color System
+
+## Goals
+- Support dark/light mode theming
+- Centralized color palette management
+- Easy to extend for future themes
+
+## Tasks
+- [ ] Define complete sage color scale (50-900) in tailwind.config.js
+- [ ] Create centralized color palette file (src/styles/colors.ts) with semantic color names
+- [ ] Add theme configuration system for dark/light mode support
+- [ ] Refactor components to use semantic color names instead of hardcoded Tailwind classes

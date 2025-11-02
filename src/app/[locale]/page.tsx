@@ -13,14 +13,14 @@ function resolveConfiguredBaseUrl() {
   return configured ? configured.replace(/\/+$/, '') : null;
 }
 
-function resolveRequestBaseUrl() {
+async function resolveRequestBaseUrl() {
   const configured = resolveConfiguredBaseUrl();
   if (configured) {
     return configured;
   }
 
   try {
-    const headerStore = headers();
+    const headerStore = await headers();
     const host = headerStore.get('host');
     if (!host) return null;
     const proto = headerStore.get('x-forwarded-proto') || 'https';
@@ -62,7 +62,7 @@ export default async function HomePage({ params, searchParams }: HomePageProps) 
 
   // If no site ID is resolved, show "Under Construction" page
   if (!siteId) {
-    const h = headers();
+    const h = await headers();
     const host = h.get('host') || 'unknown';
     return <UnderConstruction domain={host} />;
   }
@@ -83,7 +83,7 @@ export default async function HomePage({ params, searchParams }: HomePageProps) 
     throw error;
   }
 
-  const baseUrl = resolveRequestBaseUrl();
+  const baseUrl = await resolveRequestBaseUrl();
 
   return (
     <LandingPage

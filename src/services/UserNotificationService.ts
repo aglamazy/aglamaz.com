@@ -32,7 +32,7 @@ export class UserNotificationService {
       }
     }
 
-    const siteName = siteInfo?.name?.trim() || getPlatformName(siteInfo);
+    const siteName = siteInfo?.name?.trim();
 
     const html = this.renderTemplate('welcome', {
       firstName: member.firstName,

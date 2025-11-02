@@ -37,7 +37,7 @@ export default function Header({ user, member, onLogout, siteInfo }: HeaderProps
   const pathname = usePathname();
   const openLogin = useLoginModalStore((s) => s.open);
   const openEdit = useEditUserModalStore((s) => s.open);
-  const siteDisplayName = siteInfo?.name?.trim() || getPlatformName(siteInfo);
+  const siteDisplayName = siteInfo?.name?.trim();
 
   useEffect(() => {
     function handleClickOutside(event) {

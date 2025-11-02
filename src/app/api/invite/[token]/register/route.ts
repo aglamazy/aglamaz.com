@@ -6,9 +6,9 @@ import { randomUUID } from 'crypto';
 
 export const dynamic = 'force-dynamic';
 
-export async function POST(request: Request, { params }: { params: { token: string } }) {
+export async function POST(request: Request, { params }: { params: Promise<{ token: string }> }) {
   try {
-    const token = params?.token;
+    const { token } = await params;
     if (!token) {
       return NextResponse.json({ error: 'Missing invite token' }, { status: 400 });
     }

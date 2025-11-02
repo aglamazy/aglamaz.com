@@ -1,0 +1,52 @@
+.container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(180deg, var(--cream-100) 0%, var(--cream-50) 80%);
+  padding-bottom: 80px; /* Space for bottom tab bar */
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background-color: white;
+  border-bottom: 1px solid var(--sage-200);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.backButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem;
+  background: none;
+  border: none;
+  color: var(--sage-700);
+  cursor: pointer;
+  transition: background-color 0.2s;
+  border-radius: 0.5rem;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.backButton:active {
+  background-color: var(--sage-100);
+}
+
+.title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--sage-700);
+}
+
+.content {
+  flex: 1;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow-y: auto;
+}

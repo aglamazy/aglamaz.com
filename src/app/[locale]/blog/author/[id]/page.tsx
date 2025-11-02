@@ -25,14 +25,14 @@ function resolveConfiguredBaseUrl() {
   return configured ? configured.replace(/\/+$/, '') : null;
 }
 
-function resolveRequestBaseUrl() {
+async function resolveRequestBaseUrl() {
   const configured = resolveConfiguredBaseUrl();
   if (configured) {
     return configured;
   }
 
   try {
-    const headerStore = headers();
+    const headerStore = await headers();
     const host = headerStore.get('host');
     if (!host) return null;
     const proto = headerStore.get('x-forwarded-proto') || 'https';
@@ -72,7 +72,7 @@ export default async function AuthorBlogPage({ params }: { params: AuthorPagePar
 
   const siteId = await resolveSiteId();
   if (!siteId) {
-    const h = headers();
+    const h = await headers();
     const host = h.get('host') || 'unknown';
     return <UnderConstruction domain={host} />;
   }
@@ -126,8 +126,8 @@ export default async function AuthorBlogPage({ params }: { params: AuthorPagePar
     ) as Record<string, { title: string; content: string }>,
   }));
 
-  const baseUrl = resolveRequestBaseUrl() || undefined;
-  const siteName = siteInfo?.name?.trim() || getPlatformName(siteInfo);
+  const baseUrl = await resolveRequestBaseUrl() || undefined;
+  const siteName = siteInfo?.name?.trim();
 
   const authorName =
     (member as any)?.displayName ||

@@ -13,13 +13,13 @@ const GOOGLE_VERIFICATION = process.env.GOOGLE_SITE_VERIFICATION || '';
 export async function generateMetadata(): Promise<Metadata> {
   try {
     const siteInfo = await fetchSiteInfo(undefined, DEFAULT_LOCALE);
-    const siteName = siteInfo?.name?.trim() || getPlatformName(siteInfo);
+    const siteName = siteInfo?.name?.trim();
 
     return {
-      title: {
+      title: siteName ? {
         default: siteName,
         template: `%s | ${siteName}`,
-      },
+      } : undefined,
       icons: {
         icon: '/favicon.svg',
       },
@@ -42,8 +42,8 @@ export async function generateMetadata(): Promise<Metadata> {
   }
 }
 
-function resolveInitialLocale(): string {
-  const headerStore = headers();
+async function resolveInitialLocale(): Promise<string> {
+  const headerStore = await headers();
   const headerLocale = headerStore.get('x-locale');
   if (headerLocale && SUPPORTED_LOCALES.includes(headerLocale)) {
     return headerLocale;
@@ -52,7 +52,7 @@ function resolveInitialLocale(): string {
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const initialLocale = resolveInitialLocale();
+  const initialLocale = await resolveInitialLocale();
   let siteInfo = null;
   try {
     const siteId = await resolveSiteId();

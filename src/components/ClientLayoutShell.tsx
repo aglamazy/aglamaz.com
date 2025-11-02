@@ -114,7 +114,9 @@ export default function ClientLayoutShell({ children }) {
             closeApply={closeApply}
             isEditOpen={isEditOpen}
             closeEdit={closeEdit}
-          />
+          >
+            {children}
+          </ClientMobileShell>
         ) : (
           <ClientDesktopShell
             headerReady={headerReady}

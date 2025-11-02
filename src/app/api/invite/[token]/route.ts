@@ -17,8 +17,8 @@ const statusByCode: Record<string, number> = {
   'invite/missing-email': 400,
 };
 
-export async function GET(request: Request, { params }: { params: { token: string } }) {
-  const token = params?.token;
+export async function GET(request: Request, { params }: { params: Promise<{ token: string }> }) {
+  const { token } = await params;
   if (!token) {
     console.warn('[invite][GET] missing token');
     return NextResponse.json({ error: 'Missing token', code: 'invite/missing-token' }, { status: 400 });
@@ -68,8 +68,8 @@ export async function GET(request: Request, { params }: { params: { token: strin
   }
 }
 
-export async function POST(request: Request, { params }: { params: { token: string } }) {
-  const token = params?.token;
+export async function POST(request: Request, { params }: { params: Promise<{ token: string }> }) {
+  const { token } = await params;
   if (!token) {
     console.warn('[invite][POST] missing token');
     return NextResponse.json({ error: 'Missing token', code: 'invite/missing-token' }, { status: 400 });

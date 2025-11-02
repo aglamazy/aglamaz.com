@@ -29,14 +29,14 @@ function resolveConfiguredBaseUrl() {
   return configured ? configured.replace(/\/+$/, '') : null;
 }
 
-function resolveRequestBaseUrl() {
+async function resolveRequestBaseUrl() {
   const configured = resolveConfiguredBaseUrl();
   if (configured) {
     return configured;
   }
 
   try {
-    const headerStore = headers();
+    const headerStore = await headers();
     const host = headerStore.get('host');
     if (!host) return null;
     const proto = headerStore.get('x-forwarded-proto') || 'https';
@@ -77,7 +77,7 @@ export default async function FamilyBlogPage({ params }: FamilyBlogPageProps) {
 
   // If no site configured, show Under Construction
   if (!siteId) {
-    const h = headers();
+    const h = await headers();
     const host = h.get('host') || 'unknown';
     return <UnderConstruction domain={host} />;
   }
@@ -86,7 +86,7 @@ export default async function FamilyBlogPage({ params }: FamilyBlogPageProps) {
   const fam = new FamilyRepository();
   const posts: IBlogPost[] = await repo.getPublicBySite(siteId, 30);
 
-  const h = headers();
+  const h = await headers();
   const lang = locale;
   const baseLang = lang.split('-')[0]?.toLowerCase() || lang.toLowerCase();
   const t = await getServerT(baseLang);
@@ -137,8 +137,8 @@ export default async function FamilyBlogPage({ params }: FamilyBlogPageProps) {
     ) as Record<string, { title: string; content: string }>,
   }));
 
-  const baseUrl = resolveRequestBaseUrl() || undefined;
-  const siteName = siteInfo?.name?.trim() || getPlatformName(siteInfo);
+  const baseUrl = await resolveRequestBaseUrl() || undefined;
+  const siteName = siteInfo?.name?.trim();
 
   const blogSchema = createBlogSchema(
     t('catchUpOnFamilyNews') as string,

@@ -15,7 +15,6 @@ interface LocaleLayoutProps {
 }
 
 export default async function PublicLayout({ children, params }: LocaleLayoutProps) {
-  console.log(params);
   const locale = SUPPORTED_LOCALES.includes(params.locale) ? params.locale : DEFAULT_LOCALE;
   let siteInfo = null;
   try {

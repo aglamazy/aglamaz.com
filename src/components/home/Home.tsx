@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect } from "react";
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import WelcomeHero from "./WelcomeHero";
 import FamilyOverview from "../FamilyOverview";
 import { useMemberStore } from "@/store/MemberStore";
@@ -11,6 +11,7 @@ import { useUserStore } from "@/store/UserStore";
 import { useTranslation } from 'react-i18next';
 import { useLoginModalStore } from '@/store/LoginModalStore';
 import { getPlatformName } from '@/utils/platformName';
+import { useIsMobile } from '@/hooks/useIsMobile';
 
 export default function Home() {
     const { t, i18n } = useTranslation();
@@ -19,15 +20,20 @@ export default function Home() {
     const site = useSiteStore((s) => s.siteInfo);
     const openLogin = useLoginModalStore((s) => s.open);
     const searchParams = useSearchParams();
+    const router = useRouter();
+    const isMobile = useIsMobile();
     const siteDisplayName: string = site?.name?.trim() || getPlatformName(site);
     const heroTitle = t('welcomeToSite', { name: siteDisplayName }) as string;
 
-    // Get aboutFamily from the current locale
-    const currentLocale = i18n.language?.split('-')[0] || '';
+    // Redirect mobile users to pictures feed
+    useEffect(() => {
+        if (isMobile && !loading) {
+            router.replace('/app/pictures/feed');
+        }
+    }, [isMobile, loading, router]);
+
+    // Get aboutFamily from the current locale (optional)
     const aboutFamily = site?.aboutFamily;
-    if (!aboutFamily) {
-        throw new Error(`aboutFamily is missing for locale: ${currentLocale}`);
-    }
 
     useEffect(() => {
         if (searchParams.get('login') === '1') {
@@ -45,7 +51,7 @@ export default function Home() {
 
     return (
         <div className="min-h-screen">
-            <WelcomeHero user={user} title={heroTitle} aboutFamily={aboutFamily} />
+            {aboutFamily && <WelcomeHero user={user} title={heroTitle} aboutFamily={aboutFamily} />}
             {!user && (
                 <div className="text-center mt-8">
                     <p className="text-sage-700 mb-4">{t('signInToContinue')}</p>
