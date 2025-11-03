@@ -37,11 +37,14 @@
 }
 
 .card {
+  /* Desktop styles */
   background: rgba(255, 255, 255, 0.94);
   border-radius: 0;
   box-shadow: 0 10px 25px rgba(17, 24, 39, 0.08);
   border-bottom: 1px solid rgba(17, 24, 39, 0.06);
 }
+
+/* Mobile responsive styles applied via Tailwind utilities in component */
 
 .card + .card {
   margin-top: 0;
@@ -103,29 +106,4 @@
   padding: 2rem 1rem;
   color: #9ca3af;
   font-size: 0.95rem;
-}
-
-@media (max-width: var(--mobile-breakpoint)) {
-  .card {
-    border-radius: 1rem;
-    overflow: hidden;
-    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.12);
-    border: none;
-    margin: 0.5rem 1rem;
-    background: rgba(255, 255, 255, 0.92);
-  }
-
-  .cardHeader {
-    padding: 0.9rem 1.1rem;
-    background: rgba(248, 250, 252, 0.85);
-    border-bottom: 1px solid rgba(148, 163, 184, 0.25);
-  }
-
-  .cardContent {
-    padding: 0;
-  }
-
-  .cardTint {
-    padding: 0.9rem 1.1rem;
-  }
 }

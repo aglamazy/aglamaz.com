@@ -48,9 +48,6 @@
   --sage-800: #373F2F;
   --sage-900: #2C3E36;
   --charcoal: #2C3E36;
-
-  /* Breakpoints */
-  --mobile-breakpoint: 767px;
 }
 
 .bg-cream-50 { background-color: var(--cream-50); }

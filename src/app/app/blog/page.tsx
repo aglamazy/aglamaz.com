@@ -67,12 +67,12 @@ export default function BlogPage() {
           const tintPalette = [styles.tintBlue, styles.tintGreen, styles.tintYellow, styles.tintPurple, styles.tintRose];
           const tintClass = tintPalette[index % tintPalette.length];
           return (
-            <Card key={post.id} className={styles.card}>
-              <CardHeader className={styles.cardHeader}>
+            <Card key={post.id} className={`${styles.card} rounded-none md:rounded-2xl overflow-hidden shadow-lg md:shadow-md border-none md:border-b mx-4 my-2 md:mx-0 md:my-0`} style={{ background: 'rgba(255, 255, 255, 0.92)' }}>
+              <CardHeader className={`${styles.cardHeader} p-4 md:p-3 bg-slate-50/85 md:bg-transparent border-b border-slate-400/25 md:border-gray-900/8`}>
                 <CardTitle className={styles.cardTitle}>{post.title}</CardTitle>
               </CardHeader>
-              <CardContent className={styles.cardContent}>
-                <div className={`${styles.cardTint} ${tintClass}`}>
+              <CardContent className={`${styles.cardContent} p-0 md:p-3 md:pb-4`}>
+                <div className={`${styles.cardTint} ${tintClass} p-4 md:p-3`}>
                   <div
                     className="prose prose-slate"
                     style={{ maxWidth: '100%', overflowWrap: 'break-word', wordBreak: 'break-word' }}
