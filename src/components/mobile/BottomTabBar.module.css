@@ -87,31 +87,7 @@
 }
 
 /* Avatar specific styles */
-.avatarImage {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  object-fit: cover;
-}
-
-.avatarFallback {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background-color: var(--sage-200);
-  color: var(--sage-700);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
-.tab.active .avatarFallback {
-  background-color: var(--sage-600);
-  color: white;
-}
-
-.tab.active .avatarImage {
+/* Apply active state ring to MemberAvatar when profile tab is active */
+.tab.active .iconWrapper > div {
   box-shadow: 0 0 0 2px var(--sage-600);
 }

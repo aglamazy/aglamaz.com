@@ -3,6 +3,8 @@
 import { usePathname, useRouter } from 'next/navigation';
 import { Calendar, Image, Plus, FileText, User } from 'lucide-react';
 import { useUserStore } from '@/store/UserStore';
+import { useMemberStore } from '@/store/MemberStore';
+import MemberAvatar from '@/components/MemberAvatar';
 import { useMemo } from 'react';
 import styles from './BottomTabBar.module.css';
 
@@ -18,14 +20,7 @@ export default function BottomTabBar() {
   const pathname = usePathname();
   const router = useRouter();
   const user = useUserStore((state) => state.user);
-
-  // Get user initials for avatar fallback
-  const userInitials = useMemo(() => {
-    if (!user?.name) return 'U';
-    const names = user.name.trim().split(' ');
-    if (names.length === 1) return names[0][0].toUpperCase();
-    return (names[0][0] + names[names.length - 1][0]).toUpperCase();
-  }, [user?.name]);
+  const member = useMemberStore((state) => state.member);
 
   // Determine what the Add button should do based on current page
   const handleAddClick = () => {
@@ -48,14 +43,13 @@ export default function BottomTabBar() {
   const tabs: TabItem[] = [
     {
       id: 'profile',
-      icon: user?.picture ? (
-        <img
-          src={user.picture}
-          alt=""
-          className={styles.avatarImage}
+      icon: (
+        <MemberAvatar
+          member={member}
+          fallbackName={user?.name}
+          fallbackEmail={member?.email || user?.email}
+          size={28}
         />
-      ) : (
-        <div className={styles.avatarFallback}>{userInitials}</div>
       ),
       label: 'Profile',
       path: '/app/profile',
