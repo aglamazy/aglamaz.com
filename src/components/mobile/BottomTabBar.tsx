@@ -34,9 +34,9 @@ export default function BottomTabBar() {
       router.push('/app/blog/new');
     } else if (pathname?.startsWith('/app/calendar')) {
       // TODO: Open add anniversary modal or navigate to add page
-      // For now, we can trigger an event or use a store
       console.log('Add anniversary/event');
-    } else if (pathname?.startsWith('/app/pictures')) {
+    } else if (pathname === '/app' || pathname?.startsWith('/app/')) {
+      // Main app page (pictures feed) - upload photo
       // TODO: Open photo upload
       console.log('Upload photo');
     } else {
@@ -64,7 +64,7 @@ export default function BottomTabBar() {
       id: 'gallery',
       icon: <Image size={24} />,
       label: 'Gallery',
-      path: '/app/pictures/feed',
+      path: '/app',
     },
     {
       id: 'add',
