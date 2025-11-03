@@ -1,6 +1,7 @@
 import { withUserGuard } from '@/lib/withUserGuard';
 import { GuardContext } from '@/app/api/types';
 import { FamilyRepository } from '@/repositories/FamilyRepository';
+import { SUPPORTED_LOCALES } from '@/i18n';
 
 export const dynamic = 'force-dynamic';
 
@@ -61,6 +62,15 @@ const putHandler = async (request: Request, context: GuardContext) => {
         return Response.json({ error: 'Display name is required' }, { status: 400 });
       }
       updates.displayName = displayName;
+    }
+
+    if (typeof body.defaultLocale === 'string') {
+      const locale = body.defaultLocale.trim();
+      if (locale && SUPPORTED_LOCALES.includes(locale)) {
+        updates.defaultLocale = locale;
+      } else if (locale) {
+        return Response.json({ error: 'Invalid locale' }, { status: 400 });
+      }
     }
 
     if (Object.keys(updates).length === 0) {

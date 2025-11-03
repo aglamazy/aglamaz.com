@@ -31,12 +31,13 @@ async function resolveRequestBaseUrl() {
 }
 
 interface HomePageProps {
-  params: { locale: string };
+  params: Promise<{ locale: string }>;
   searchParams?: Record<string, string | string[] | undefined>;
 }
 
-export async function generateMetadata({ params }: { params: { locale: string } }): Promise<Metadata> {
-  const locale = SUPPORTED_LOCALES.includes(params.locale) ? params.locale : DEFAULT_LOCALE;
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+  const { locale: paramLocale } = await params;
+  const locale = SUPPORTED_LOCALES.includes(paramLocale) ? paramLocale : DEFAULT_LOCALE;
   const baseUrl = resolveConfiguredBaseUrl();
   const canonical = baseUrl ? `${baseUrl}/${locale}` : undefined;
 
@@ -55,7 +56,8 @@ export async function generateMetadata({ params }: { params: { locale: string } 
 }
 
 export default async function HomePage({ params, searchParams }: HomePageProps) {
-  const locale = SUPPORTED_LOCALES.includes(params.locale) ? params.locale : DEFAULT_LOCALE;
+  const { locale: paramLocale } = await params;
+  const locale = SUPPORTED_LOCALES.includes(paramLocale) ? paramLocale : DEFAULT_LOCALE;
   // Resolve site ID based on hostname or query param (for local dev)
   const overrideSiteId = resolveSiteIdWithOverride(searchParams);
   const siteId = overrideSiteId || await resolveSiteId();

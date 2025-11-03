@@ -59,7 +59,7 @@ export default function ClientMobileShell({
         <NotMemberContent/>
       </Modal>
       <Modal isOpen={isEditOpen} onClose={closeEdit}>
-        <EditUserDetails/>
+        <EditUserDetails standalone={false} />
       </Modal>
     </div>
   );

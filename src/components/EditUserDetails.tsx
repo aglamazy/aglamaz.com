@@ -10,12 +10,15 @@ import type { IMember } from '@/entities/Member';
 import { useSiteStore } from '@/store/SiteStore';
 import { initFirebase, ensureFirebaseSignedIn, auth } from '@/firebase/client';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { SUPPORTED_LOCALES } from '@/i18n';
+import { LANGUAGES } from '@/constants/languages';
 
-export default function EditUserDetails() {
+export default function EditUserDetails({ standalone = false }: { standalone?: boolean }) {
   const { user, setUser } = useUserStore();
   const member = useMemberStore((state) => state.member);
   const setMember = useMemberStore((state) => state.setMember);
   const { isOpen, close } = useEditUserModalStore();
+  const effectiveIsOpen = standalone || isOpen;
   const siteInfo = useSiteStore((state) => state.siteInfo);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -27,6 +30,7 @@ export default function EditUserDetails() {
   const [avatarInitials, setAvatarInitials] = useState<string>('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [removeExisting, setRemoveExisting] = useState(false);
+  const [defaultLocale, setDefaultLocale] = useState<string>('en');
   const { t, i18n } = useTranslation();
 
   const MAX_AVATAR_SIZE = 4 * 1024 * 1024; // 4MB
@@ -53,7 +57,7 @@ export default function EditUserDetails() {
   };
 
   useEffect(() => {
-    if (!isOpen) {
+    if (!effectiveIsOpen) {
       if (avatarPreview && avatarPreview.startsWith('blob:')) {
         URL.revokeObjectURL(avatarPreview);
       }
@@ -63,7 +67,8 @@ export default function EditUserDetails() {
       return;
     }
     const currentSiteId = member?.siteId || siteInfo?.id;
-    if (!currentSiteId) {
+    // Guard: ensure we have a valid siteId (not placeholder or null)
+    if (!currentSiteId || currentSiteId === '__SITE_INFO__') {
       setName(fallbackName);
       setEmail(fallbackEmail);
       updateAvatarPreview(member);
@@ -77,6 +82,7 @@ export default function EditUserDetails() {
         const displayName = payload.displayName || payload.firstName || fallbackName;
         setName(displayName || '');
         setEmail(payload.email || fallbackEmail || '');
+        setDefaultLocale(payload.defaultLocale || 'en');
         setMember(payload);
         setSelectedFile(null);
         setRemoveExisting(false);
@@ -87,6 +93,7 @@ export default function EditUserDetails() {
         console.error('[edit-user] failed to load member profile', err);
         setName(member?.displayName || member?.firstName || fallbackName);
         setEmail(member?.email || fallbackEmail);
+        setDefaultLocale(member?.defaultLocale || 'en');
         setError(t('failedToLoadMemberProfile', { defaultValue: 'Failed to load profile details' }));
         updateAvatarPreview(member);
       })
@@ -94,12 +101,12 @@ export default function EditUserDetails() {
         setProfileLoading(false);
       });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen]);
+  }, [effectiveIsOpen, member?.siteId, siteInfo?.id]);
 
   useEffect(() => {
-    if (!isOpen || selectedFile) return;
+    if (!effectiveIsOpen || selectedFile) return;
     updateAvatarPreview(member, { includeUploaded: !removeExisting });
-  }, [member?.avatarUrl, member?.email, member?.displayName, removeExisting, isOpen, selectedFile]);
+  }, [member?.avatarUrl, member?.email, member?.displayName, removeExisting, effectiveIsOpen, selectedFile]);
 
   useEffect(() => () => {
     if (avatarPreview && avatarPreview.startsWith('blob:')) {
@@ -303,13 +310,15 @@ const mapAvatarError = (code: string) => {
       const payload = await apiFetch<{ member: IMember }>(`/api/user/profile?siteId=${currentSiteId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ displayName: name.trim() }),
+        body: JSON.stringify({ displayName: name.trim(), defaultLocale }),
       });
       if (user) {
         setUser({ ...user, name: name.trim() });
       }
       setMember(payload.member);
-      close();
+      if (!standalone) {
+        close();
+      }
     } catch (err) {
       console.error('[edit-user] save failed', err);
       if (err instanceof Error) {
@@ -412,15 +421,33 @@ const mapAvatarError = (code: string) => {
             disabled
           />
         </div>
-        <div className="flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={close}
-            className="px-4 py-2 rounded bg-gray-200"
-            disabled={isLoading}
+        <div>
+          <label className="block text-sm mb-1" htmlFor="defaultLocale">{t('language', { defaultValue: 'Language' })}</label>
+          <select
+            id="defaultLocale"
+            value={defaultLocale}
+            onChange={(e) => setDefaultLocale(e.target.value)}
+            className="w-full border border-gray-300 rounded px-3 py-2"
+            disabled={isLoading || profileLoading}
           >
-            {t('cancel')}
-          </button>
+            {LANGUAGES.map(({ code, label, flag }) => (
+              <option key={code} value={code}>
+                {flag} {label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="flex justify-end gap-2">
+          {!standalone && (
+            <button
+              type="button"
+              onClick={close}
+              className="px-4 py-2 rounded bg-gray-200"
+              disabled={isLoading}
+            >
+              {t('cancel')}
+            </button>
+          )}
           <button
             type="submit"
             className="px-4 py-2 rounded bg-sage-600 text-white disabled:opacity-50"

@@ -16,8 +16,10 @@ import { useEditUserModalStore } from '@/store/EditUserModalStore';
 import { usePresentationModeStore } from '@/store/PresentationModeStore';
 import ClientDesktopShell from '@/components/ClientDesktopShell';
 import ClientMobileShell from '@/components/ClientMobileShell';
+import { apiFetch } from '@/utils/apiFetch';
+import { SUPPORTED_LOCALES } from '@/i18n';
 
-export default function ClientLayoutShell({ children }) {
+export default function ClientLayoutShell({ children, initialLocale = 'en' }: { children: React.ReactNode; initialLocale?: string }) {
   const { user, loading, logout, checkAuth } = useUserStore();
   const siteInfo = useSiteStore((state) => state.siteInfo);
   const hydrateSiteInfo = useSiteStore((state) => state.hydrateFromWindow);
@@ -86,6 +88,35 @@ export default function ClientLayoutShell({ children }) {
     }
   }, [i18n.language]);
 
+  // Set defaultLocale on first visit if not already set
+  useEffect(() => {
+    if (!member || !siteInfo?.id || member.defaultLocale) return;
+
+    const setDefaultLocale = async () => {
+      try {
+        const currentLocale = i18n.language.split('-')[0];
+        if (!SUPPORTED_LOCALES.includes(currentLocale)) return;
+
+        await apiFetch(`/api/user/profile?siteId=${siteInfo.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ defaultLocale: currentLocale }),
+        });
+
+        // Refresh member data to get the updated defaultLocale
+        if (user?.user_id) {
+          await fetchMember(user.user_id, siteInfo.id);
+        }
+
+        console.log(`[ClientLayoutShell] Set defaultLocale to ${currentLocale}`);
+      } catch (error) {
+        console.error('[ClientLayoutShell] Failed to set defaultLocale', error);
+      }
+    };
+
+    void setDefaultLocale();
+  }, [member, siteInfo?.id, i18n.language, user?.user_id, fetchMember]);
+
   const handleLogout = async () => {
     await logout();
     router.push(landingPage);
@@ -98,7 +129,7 @@ export default function ClientLayoutShell({ children }) {
   }
 
   return (
-    <I18nProvider initialLocale="en">
+    <I18nProvider initialLocale={initialLocale}>
       <I18nGate>
         {/* Render both mobile and desktop shells, CSS controls visibility */}
         <div className="mobile-only">

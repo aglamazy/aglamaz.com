@@ -72,7 +72,7 @@ export default function ClientDesktopShell({
         <NotMemberContent/>
       </Modal>
       <Modal isOpen={isEditOpen} onClose={closeEdit}>
-        <EditUserDetails/>
+        <EditUserDetails standalone={false} />
       </Modal>
     </div>
   );

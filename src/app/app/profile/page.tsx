@@ -3,21 +3,10 @@
 import { useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import EditUserDetails from '@/components/EditUserDetails';
-import { useEffect } from 'react';
-import { useEditUserModalStore } from '@/store/EditUserModalStore';
 import styles from './profile.module.css';
 
 export default function ProfilePage() {
   const router = useRouter();
-  const { open, close } = useEditUserModalStore();
-
-  // Open the modal store when this page mounts (for EditUserDetails to work)
-  useEffect(() => {
-    open();
-    return () => {
-      close();
-    };
-  }, [open, close]);
 
   return (
     // Mobile-only page - hidden on desktop via CSS
@@ -33,7 +22,7 @@ export default function ProfilePage() {
         <h1 className={styles.title}>Profile</h1>
       </div>
       <div className={styles.content}>
-        <EditUserDetails />
+        <EditUserDetails standalone={true} />
       </div>
     </div>
   );

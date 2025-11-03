@@ -7,6 +7,7 @@ export interface IMember {
   firstName: string;
   email: string;
   blogEnabled?: boolean;
+  defaultLocale?: string; // User's preferred language (e.g., 'en', 'he', 'tr')
   avatarUrl?: string | null;
   avatarStoragePath?: string | null;
   createdAt: any;

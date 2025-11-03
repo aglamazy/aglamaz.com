@@ -13,12 +13,7 @@ import { useEditUserModalStore } from '@/store/EditUserModalStore';
 import { getPlatformName } from '@/utils/platformName';
 import MemberAvatar from '@/components/MemberAvatar';
 import { DEFAULT_LOCALE, SUPPORTED_LOCALES } from '@/i18n';
-
-const LANGS = [
-  { code: 'he', label: 'עברית', flag: '🇮🇱' },
-  { code: 'en', label: 'English', flag: '🇬🇧' },
-  { code: 'tr', label: 'Türkçe', flag: '🇹🇷' },
-];
+import { LANGUAGES } from '@/constants/languages';
 
 interface HeaderProps {
   user?: IUser;
@@ -103,7 +98,7 @@ export default function Header({ user, member, onLogout, siteInfo }: HeaderProps
       <div className="flex flex-row items-center">
         {user && member && onLogout && member.role !== 'pending' ? (
           <button
-            onClick={() => router.push('/app')}
+            onClick={() => router.push(`/app?locale=${i18n.language}`)}
             className="px-6 py-2 bg-sage-600 hover:bg-sage-700 text-white rounded-lg font-semibold transition-colors duration-200"
           >
             {t('start') as string}
@@ -135,12 +130,12 @@ export default function Header({ user, member, onLogout, siteInfo }: HeaderProps
             className="h-8 w-8 rounded-full flex items-center justify-center text-xl bg-gray-100 hover:bg-gray-200 border border-gray-300"
             aria-label={t('changeLanguage') as string}
           >
-            {LANGS.find(l => l.code === i18n.language)?.flag || '🌐'}
+            {LANGUAGES.find(l => l.code === i18n.language)?.flag || '🌐'}
           </button>
           {isLangMenuOpen && (
             <div className={`language-menu ${menuPosition}`}>
               <div className="py-1 flex flex-col">
-                {LANGS.map(({ code, label, flag }) => (
+                {LANGUAGES.map(({ code, label, flag }) => (
                   <button
                     key={code}
                     onClick={() => handleLangChange(code)}
