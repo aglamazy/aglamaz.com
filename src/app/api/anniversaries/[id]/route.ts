@@ -8,7 +8,8 @@ const getHandler = async (_request: Request, context: GuardContext) => {
   try {
     const repo = new AnniversaryRepository();
     const member = context.member!;
-    const { id } = context.params!;
+    const params = context.params instanceof Promise ? await context.params : context.params;
+    const { id } = params ?? {};
     const existing = await repo.getById(id!);
     if (!existing || existing.siteId !== member.siteId) {
       return Response.json({ error: 'Event not found' }, { status: 404 });
@@ -25,7 +26,8 @@ const putHandler = async (request: Request, context: GuardContext) => {
     const repo = new AnniversaryRepository();
     const member = context.member!;
     const user = context.user!;
-    const { id } = context.params!;
+    const params = context.params instanceof Promise ? await context.params : context.params;
+    const { id } = params ?? {};
     const existing = await repo.getById(id!);
     if (!existing || existing.siteId !== member.siteId) {
       return Response.json({ error: 'Event not found' }, { status: 404 });
@@ -57,7 +59,8 @@ const deleteHandler = async (request: Request, context: GuardContext) => {
     const repo = new AnniversaryRepository();
     const member = context.member!;
     const user = context.user!;
-    const { id } = context.params!;
+    const params = context.params instanceof Promise ? await context.params : context.params;
+    const { id } = params ?? {};
     const existing = await repo.getById(id!);
     if (!existing || existing.siteId !== member.siteId) {
       return Response.json({ error: 'Event not found' }, { status: 404 });

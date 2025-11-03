@@ -8,7 +8,8 @@ export const dynamic = 'force-dynamic';
 const getHandler = async (_request: Request, context: GuardContext) => {
   try {
     const member = context.member!;
-    const { id } = context.params!; // eventId
+    const params = context.params instanceof Promise ? await context.params : context.params;
+    const { id } = params ?? {}; // eventId
     const annRepo = new AnniversaryRepository();
     const occRepo = new AnniversaryOccurrenceRepository();
 
@@ -28,7 +29,8 @@ const postHandler = async (request: Request, context: GuardContext) => {
   try {
     const member = context.member!;
     const user = context.user!;
-    const { id } = context.params!; // eventId
+    const params = context.params instanceof Promise ? await context.params : context.params;
+    const { id } = params ?? {}; // eventId
     const body = await request.json();
     const { date, imageUrl, images, description } = body;
     if (!date) {

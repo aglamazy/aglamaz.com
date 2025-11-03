@@ -12,7 +12,7 @@ import { fetchSiteIdByDomain } from '@/firebase/admin';
  * @returns The resolved site ID, or null if no configuration exists
  */
 export async function resolveSiteId(): Promise<string | null> {
-  const headersList = headers();
+  const headersList = await headers();
   const host = headersList.get('host') || '';
   const hostname = host.split(':')[0]; // Remove port if present
 

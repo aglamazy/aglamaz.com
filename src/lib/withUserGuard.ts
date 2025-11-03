@@ -13,7 +13,7 @@ export function __setMockCookies(fn: typeof cookies) {
 export function withUserGuard(handler: RouteHandler): RouteHandler {
   return async (request: Request, context: GuardContext) => {
     try {
-      const cookieStore = getCookies();
+      const cookieStore = await getCookies();
       const token = cookieStore.get(ACCESS_TOKEN)?.value;
       const payload = token && verifyAccessToken(token);
       if (!payload) {

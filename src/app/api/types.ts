@@ -1,8 +1,12 @@
 import { TokenClaims } from '@/auth/tokens';
+
 export interface RouteParams {
   siteId?: string;
   id?: string;
   token?: string;
+  eventId?: string;
+  memberId?: string;
+  [key: string]: string | undefined;
 }
 
 export interface MemberDoc {
@@ -13,7 +17,7 @@ export interface MemberDoc {
 }
 
 export interface GuardContext {
-  params?: RouteParams;
+  params?: Promise<RouteParams> | RouteParams;
   user?: TokenClaims;
   member?: MemberDoc;
 }

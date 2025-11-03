@@ -6,7 +6,8 @@ export const dynamic = 'force-dynamic';
 
 const putHandler = async (request: Request, context: GuardContext & { params: { siteId: string; memberId: string } }) => {
   try {
-    const { siteId, memberId } = context.params!;
+    const params = context.params instanceof Promise ? await context.params : context.params;
+    const { siteId, memberId } = params ?? {};
     const repo = new FamilyRepository();
     const existing = await repo.getMemberById(memberId);
     if (!existing) return Response.json({ error: 'Member not found' }, { status: 404 });
@@ -30,7 +31,8 @@ const putHandler = async (request: Request, context: GuardContext & { params: { 
 
 const deleteHandler = async (_request: Request, context: GuardContext & { params: { siteId: string; memberId: string } }) => {
   try {
-    const { siteId, memberId } = context.params!;
+    const params = context.params instanceof Promise ? await context.params : context.params;
+    const { siteId, memberId } = params ?? {};
     const repo = new FamilyRepository();
     const existing = await repo.getMemberById(memberId);
     if (!existing) return Response.json({ error: 'Member not found' }, { status: 404 });
@@ -46,4 +48,3 @@ const deleteHandler = async (_request: Request, context: GuardContext & { params
 
 export const PUT = withAdminGuard(putHandler);
 export const DELETE = withAdminGuard(deleteHandler);
-

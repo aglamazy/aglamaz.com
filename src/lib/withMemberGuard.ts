@@ -22,7 +22,7 @@ export function withMemberGuard(handler: RouteHandler): RouteHandler {
       if (!memberRepository) {
         memberRepository = new MemberRepository();
       }
-      const cookieStore = getCookies();
+      const cookieStore = await getCookies();
       const token = cookieStore.get(ACCESS_TOKEN)?.value;
       const payload = token && verifyAccessToken(token);
       if (!payload) {
@@ -34,7 +34,8 @@ export function withMemberGuard(handler: RouteHandler): RouteHandler {
       }
 
       context.user = payload;
-      const siteId = context.params?.siteId || process.env.NEXT_SITE_ID!;
+      const params = context.params instanceof Promise ? await context.params : context.params;
+      const siteId = params?.siteId || process.env.NEXT_SITE_ID!;
       const member = await memberRepository.getByUid(siteId, uid);
 
       if (!member) {

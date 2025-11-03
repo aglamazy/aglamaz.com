@@ -9,10 +9,14 @@ const getHandler = async (_request: Request, context: GuardContext) => {
   try {
     const member = context.member!;
     const user = context.user!;
-    const { id } = context.params!; // anniversary event id
-    const eventId = (context.params as any)?.eventId as string; // occurrence id
+    const params = context.params instanceof Promise ? await context.params : context.params;
+    const { id, eventId } = params ?? {};
+    const resolvedEventId = eventId as string | undefined;
+    if (!id || !resolvedEventId) {
+      return Response.json({ error: 'Invalid parameters' }, { status: 400 });
+    }
     const occRepo = new AnniversaryOccurrenceRepository();
-    const occ = await occRepo.getById(eventId!);
+    const occ = await occRepo.getById(resolvedEventId!);
     if (!occ || occ.siteId !== member.siteId || occ.eventId !== id) {
       return Response.json({ error: 'Event not found' }, { status: 404 });
     }
@@ -44,8 +48,12 @@ const postHandler = async (request: Request, context: GuardContext) => {
   try {
     const member = context.member!;
     const user = context.user!;
-    const { id } = context.params!;
-    const eventId = (context.params as any)?.eventId as string;
+    const params = context.params instanceof Promise ? await context.params : context.params;
+    const { id, eventId } = params ?? {};
+    const resolvedEventId = eventId as string | undefined;
+    if (!id || !resolvedEventId) {
+      return Response.json({ error: 'Invalid parameters' }, { status: 400 });
+    }
     const body = await request.json();
     const imageIndex = Number(body?.imageIndex);
     const like = Boolean(body?.like);
@@ -53,7 +61,7 @@ const postHandler = async (request: Request, context: GuardContext) => {
       return Response.json({ error: 'Invalid image index' }, { status: 400 });
     }
     const occRepo = new AnniversaryOccurrenceRepository();
-    const occ = await occRepo.getById(eventId!);
+    const occ = await occRepo.getById(resolvedEventId!);
     if (!occ || occ.siteId !== member.siteId || occ.eventId !== id) {
       return Response.json({ error: 'Event not found' }, { status: 404 });
     }
@@ -64,7 +72,7 @@ const postHandler = async (request: Request, context: GuardContext) => {
     const db = getFirestore();
     const likesRef = db
       .collection('anniversaryOccurrences')
-      .doc(eventId!)
+      .doc(resolvedEventId!)
       .collection('imageLikes')
       .doc(String(imageIndex))
       .collection('likes')

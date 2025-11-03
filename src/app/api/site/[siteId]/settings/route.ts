@@ -9,9 +9,12 @@ const SUPPORTED_LOCALES: string[] = Array.isArray(nextI18NextConfig?.i18n?.local
   ? nextI18NextConfig.i18n.locales
   : ['en'];
 
+const resolveParams = async (context: GuardContext) =>
+  (context.params instanceof Promise ? await context.params : context.params) ?? {};
+
 const putHandler = async (request: Request, context: GuardContext & { params: { siteId: string } }) => {
   try {
-    const { siteId } = context.params!;
+    const { siteId } = await resolveParams(context);
     const body = await request.json();
     const { aboutFamily, sourceLang } = body;
 
@@ -45,7 +48,7 @@ const putHandler = async (request: Request, context: GuardContext & { params: { 
 
 const getHandler = async (_request: Request, context: GuardContext & { params: { siteId: string } }) => {
   try {
-    const { siteId } = context.params!;
+    const { siteId } = await resolveParams(context);
 
     const repository = new SiteRepository();
     try {

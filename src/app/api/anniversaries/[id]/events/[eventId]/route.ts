@@ -7,10 +7,14 @@ export const dynamic = 'force-dynamic';
 const getHandler = async (_request: Request, context: GuardContext) => {
   try {
     const member = context.member!;
-    const { id } = context.params!;
-    const occurrenceId = (context.params as any)?.eventId as string;
+    const params = context.params instanceof Promise ? await context.params : context.params;
+    const { id, eventId } = params ?? {};
+    const occurrenceId = eventId as string | undefined;
+    if (!id || !occurrenceId) {
+      return Response.json({ error: 'Invalid parameters' }, { status: 400 });
+    }
     const occRepo = new AnniversaryOccurrenceRepository();
-    const occ = await occRepo.getById(occurrenceId!);
+    const occ = await occRepo.getById(occurrenceId);
     if (!occ || occ.siteId !== member.siteId || occ.eventId !== id) {
       return Response.json({ error: 'Event not found' }, { status: 404 });
     }
@@ -25,10 +29,14 @@ const putHandler = async (request: Request, context: GuardContext) => {
   try {
     const member = context.member!;
     const user = context.user!;
-    const { id } = context.params!;
-    const occurrenceId = (context.params as any)?.eventId as string;
+    const params = context.params instanceof Promise ? await context.params : context.params;
+    const { id, eventId } = params ?? {};
+    const occurrenceId = eventId as string | undefined;
+    if (!id || !occurrenceId) {
+      return Response.json({ error: 'Invalid parameters' }, { status: 400 });
+    }
     const occRepo = new AnniversaryOccurrenceRepository();
-    const occ = await occRepo.getById(occurrenceId!);
+    const occ = await occRepo.getById(occurrenceId);
     if (!occ || occ.siteId !== member.siteId || occ.eventId !== id) {
       return Response.json({ error: 'Event not found' }, { status: 404 });
     }
@@ -51,13 +59,13 @@ const putHandler = async (request: Request, context: GuardContext) => {
       nextImages = [...base.filter((u) => !del.has(u)), ...add];
     }
 
-    await occRepo.update(occurrenceId!, {
+    await occRepo.update(occurrenceId, {
       date: date ? new Date(date) : undefined,
       imageUrl, // legacy
       images: nextImages,
       description: typeof description === 'string' ? description : undefined,
     });
-    const updated = await occRepo.getById(occurrenceId!);
+    const updated = await occRepo.getById(occurrenceId);
     return Response.json({ event: updated });
   } catch (error) {
     console.error(error);
@@ -69,17 +77,21 @@ const deleteHandler = async (_request: Request, context: GuardContext) => {
   try {
     const member = context.member!;
     const user = context.user!;
-    const { id } = context.params!;
-    const occurrenceId = (context.params as any)?.eventId as string;
+    const params = context.params instanceof Promise ? await context.params : context.params;
+    const { id, eventId } = params ?? {};
+    const occurrenceId = eventId as string | undefined;
+    if (!id || !occurrenceId) {
+      return Response.json({ error: 'Invalid parameters' }, { status: 400 });
+    }
     const occRepo = new AnniversaryOccurrenceRepository();
-    const occ = await occRepo.getById(occurrenceId!);
+    const occ = await occRepo.getById(occurrenceId);
     if (!occ || occ.siteId !== member.siteId || occ.eventId !== id) {
       return Response.json({ error: 'Event not found' }, { status: 404 });
     }
     if (occ.createdBy !== user.userId && member.role !== 'admin') {
       return Response.json({ error: 'Forbidden' }, { status: 403 });
     }
-    await occRepo.delete(occurrenceId!);
+    await occRepo.delete(occurrenceId);
     return Response.json({ success: true });
   } catch (error) {
     console.error(error);

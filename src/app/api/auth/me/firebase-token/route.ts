@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(_req: NextRequest) {
   try {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const token = cookieStore.get(ACCESS_TOKEN)?.value;
     const payload = token && verifyAccessToken(token);
     if (!payload?.sub) {
@@ -23,4 +23,3 @@ export async function POST(_req: NextRequest) {
     return NextResponse.json({ error: 'Failed to mint token' }, { status: 500 });
   }
 }
-

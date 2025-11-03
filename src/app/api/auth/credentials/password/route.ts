@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
       console.warn('[credentials][password] received password in request body; ignoring client payload');
     }
 
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const token = cookieStore.get(ACCESS_TOKEN)?.value;
     if (!token) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

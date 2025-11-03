@@ -278,9 +278,9 @@ export class SiteRepository {
   }
 
   async revalidateSite(siteId: string) {
-    revalidateTag(`site-${siteId}`);
-    revalidateTag('site-info');
-    revalidateTag('site-description');
+    revalidateTag(`site-${siteId}`, 'max');
+    revalidateTag('site-info', 'max');
+    revalidateTag('site-description', 'max');
   }
 
   private async fetchSite(siteId: string, locale?: string): Promise<ISite | null> {

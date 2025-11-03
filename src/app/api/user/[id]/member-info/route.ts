@@ -6,7 +6,8 @@ export const dynamic = 'force-dynamic';
 
 const handler = async (request: Request, context: GuardContext) => {
   try {
-    const { id } = context.params!;
+    const params = context.params instanceof Promise ? await context.params : context.params;
+    const { id } = params ?? {};
     const url = new URL(request.url);
     const siteId = url.searchParams.get('siteId');
     if (!siteId) {
