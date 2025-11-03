@@ -54,7 +54,9 @@ export default function BlogPage() {
 
   return (
     <div className={styles.container}>
-      <AddFab ariaLabel={t('add') as string} onClick={() => router.push('/app/blog/new')}/>
+      <div className="hidden md:block">
+        <AddFab ariaLabel={t('add') as string} onClick={() => router.push('/app/blog/new')}/>
+      </div>
       <header className={styles.header}>
         <h1 className={styles.headerTitle}>{headerTitle}</h1>
       </header>
@@ -72,7 +74,8 @@ export default function BlogPage() {
               <CardContent className={styles.cardContent}>
                 <div className={`${styles.cardTint} ${tintClass}`}>
                   <div
-                    className="prose prose-slate max-w-none"
+                    className="prose prose-slate"
+                    style={{ maxWidth: '100%', overflowWrap: 'break-word', wordBreak: 'break-word' }}
                     dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(post.content || '') }}
                   />
                 </div>

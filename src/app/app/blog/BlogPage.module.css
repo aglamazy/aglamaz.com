@@ -105,7 +105,7 @@
   font-size: 0.95rem;
 }
 
-@media (max-width: 767px) {
+@media (max-width: var(--mobile-breakpoint)) {
   .card {
     border-radius: 1rem;
     overflow: hidden;

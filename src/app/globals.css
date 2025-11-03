@@ -48,6 +48,9 @@
   --sage-800: #373F2F;
   --sage-900: #2C3E36;
   --charcoal: #2C3E36;
+
+  /* Breakpoints */
+  --mobile-breakpoint: 767px;
 }
 
 .bg-cream-50 { background-color: var(--cream-50); }
@@ -65,16 +68,23 @@
 .hover\:border-sage-300:hover { border-color: var(--sage-300); }
 
 /* Responsive visibility utilities - for SSR-safe mobile/desktop rendering */
-@media (max-width: 768px) {
+.hide-on-mobile {
+  display: block;
+}
+
+@media (max-width: 767px) {
   .desktop-only {
     display: none !important;
   }
   .mobile-only {
     display: block;
   }
+  .hide-on-mobile {
+    display: none !important;
+  }
 }
 
-@media (min-width: 769px) {
+@media (min-width: 768px) {
   .desktop-only {
     display: block;
   }
