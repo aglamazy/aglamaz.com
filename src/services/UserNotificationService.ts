@@ -25,7 +25,8 @@ export class UserNotificationService {
     let siteInfo: ISite | null = null;
     if (member.siteId) {
       try {
-        const fetched = await fetchSiteInfo(member.siteId, member.locale);
+        // Email template is in English, so fetch site info with English locale
+        const fetched = await fetchSiteInfo(member.siteId, 'en');
         siteInfo = (fetched as ISite) ?? null;
       } catch (error) {
         console.error('[UserNotificationService] failed to fetch site info for welcome email', error);
