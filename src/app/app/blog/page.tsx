@@ -70,10 +70,12 @@ export default function BlogPage() {
                 <CardTitle className={styles.cardTitle}>{post.title}</CardTitle>
               </CardHeader>
               <CardContent className={styles.cardContent}>
-                <div
-                  className={`${styles.cardTint} ${tintClass} prose max-w-none`}
-                  dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(post.content || '') }}
-                />
+                <div className={`${styles.cardTint} ${tintClass}`}>
+                  <div
+                    className="prose prose-slate max-w-none"
+                    dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(post.content || '') }}
+                  />
+                </div>
                 {canEditPost(post) && (
                   <div className={styles.cardActions}>
                     <Link href={`/app/blog/${post.id}/edit`}>
