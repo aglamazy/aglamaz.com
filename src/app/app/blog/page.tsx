@@ -12,24 +12,29 @@ import type { IBlogPost } from '@/entities/BlogPost';
 import { apiFetch } from '@/utils/apiFetch';
 import { useUserStore } from '@/store/UserStore';
 import { useSiteStore } from '@/store/SiteStore';
+import { useMemberStore } from '@/store/MemberStore';
 import styles from './BlogPage.module.css';
 
 export default function BlogPage() {
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const { user } = useUserStore();
+  const member = useMemberStore((state) => state.member);
   const siteInfo = useSiteStore((state) => state.siteInfo);
   const [posts, setPosts] = useState<IBlogPost[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  const isAdmin = member?.role === 'admin';
+  const canEditPost = (post: IBlogPost) => isAdmin || post.authorId === user?.user_id;
+
   useEffect(() => {
     const fetchPosts = async () => {
-      if (!user?.user_id) return;
       setLoading(true);
       setError('');
       try {
-        const data = await apiFetch<{ posts: IBlogPost[] }>(`/api/blog?authorId=${user.user_id}&lang=${i18n.language}`);
+        // Fetch all blog posts in the site (no authorId filter)
+        const data = await apiFetch<{ posts: IBlogPost[] }>(`/api/blog?lang=${i18n.language}`);
         setPosts(data.posts || []);
       } catch (e) {
         console.error(e);
@@ -39,7 +44,7 @@ export default function BlogPage() {
       }
     };
     fetchPosts();
-  }, [user?.user_id, i18n.language]);
+  }, [i18n.language]);
 
   const headerTitle = useMemo(() => {
     return siteInfo?.name;
@@ -69,11 +74,13 @@ export default function BlogPage() {
                   className={`${styles.cardTint} ${tintClass} prose max-w-none`}
                   dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(post.content || '') }}
                 />
-                <div className={styles.cardActions}>
-                  <Link href={`/app/blog/${post.id}/edit`}>
-                    <Button className={styles.editButton}>{t('edit')}</Button>
-                  </Link>
-                </div>
+                {canEditPost(post) && (
+                  <div className={styles.cardActions}>
+                    <Link href={`/app/blog/${post.id}/edit`}>
+                      <Button className={styles.editButton}>{t('edit')}</Button>
+                    </Link>
+                  </div>
+                )}
               </CardContent>
             </Card>
           );
