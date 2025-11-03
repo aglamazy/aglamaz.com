@@ -62,7 +62,7 @@ function resolvePreferredLocale(request: NextRequest) {
   return FALLBACK_LOCALE;
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
   const { locale: localeFromPath, path: normalizedPath } = stripLocale(pathname);
   const preferredLocale = localeFromPath ?? resolvePreferredLocale(request);
