@@ -4,6 +4,7 @@ node_modules
 .env.local.backup
 .idea/
 tsconfig.tsbuildinfo
+next-env.d.ts
 
 /firebase-debug.log
 /.codex
