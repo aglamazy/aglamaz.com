@@ -1,16 +1,20 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { FileText, Users, MessageCircle } from 'lucide-react';
+import { FileText, Users, MessageCircle, RefreshCw } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useTranslation } from 'react-i18next';
 import ArrowCTA from '@/components/ArrowCTA';
+import { apiFetch } from '@/utils/apiFetch';
+import { useState } from 'react';
 
 export default function AdminDashboard() {
   const router = useRouter();
   const { t, i18n } = useTranslation();
   const isRTL = i18n.language?.startsWith('he');
+  const [clearingCache, setClearingCache] = useState(false);
+  const [cacheCleared, setCacheCleared] = useState(false);
 
   const adminFeatures = [
     {
@@ -43,17 +47,47 @@ export default function AdminDashboard() {
     },
   ];
 
+  const handleClearCache = async () => {
+    setClearingCache(true);
+    setCacheCleared(false);
+    try {
+      await apiFetch('/api/admin/cache/revalidate', {
+        method: 'POST',
+      });
+      setCacheCleared(true);
+      setTimeout(() => setCacheCleared(false), 3000);
+    } catch (error) {
+      console.error('Failed to clear cache:', error);
+      alert('Failed to clear cache');
+    } finally {
+      setClearingCache(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-cream-50" dir={isRTL ? 'rtl' : 'ltr'}>
       {/* Header */}
       <div className="bg-white border-b border-sage-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <h1 className="text-3xl font-bold text-charcoal">
-            {t('adminDashboard') || 'Admin Dashboard'}
-          </h1>
-          <p className="mt-2 text-sage-600">
-            {t('adminDashboardSubtitle') || 'Manage your site settings and members'}
-          </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-charcoal">
+                {t('adminDashboard') || 'Admin Dashboard'}
+              </h1>
+              <p className="mt-2 text-sage-600">
+                {t('adminDashboardSubtitle') || 'Manage your site settings and members'}
+              </p>
+            </div>
+            <Button
+              onClick={handleClearCache}
+              disabled={clearingCache || cacheCleared}
+              variant="outline"
+              className="flex items-center gap-2"
+            >
+              <RefreshCw className={`w-4 h-4 ${clearingCache ? 'animate-spin' : ''}`} />
+              {cacheCleared ? (t('cacheCleared') || 'Cache Cleared!') : (t('clearCache') || 'Clear Cache')}
+            </Button>
+          </div>
         </div>
       </div>
 
