@@ -301,5 +301,10 @@
   "blogHandleNotAvailable": "כתובת בלוג זו אינה זמינה",
   "failedToRegisterBlog": "נכשל ביצירת בלוג",
   "creating": "יוצר",
-  "createBlog": "צור בלוג"
+  "createBlog": "צור בלוג",
+  "failedToSaveBlogPost": "נכשל בשמירת הפוסט",
+  "failedToDeleteBlogPost": "נכשל במחיקת הפוסט",
+  "confirmDeletePost": "למחוק פוסט?",
+  "confirmDeletePostMessage": "האם אתה בטוח שברצונך למחוק פוסט זה? לא ניתן לבטל פעולה זו.",
+  "deleting": "מוחק"
 }

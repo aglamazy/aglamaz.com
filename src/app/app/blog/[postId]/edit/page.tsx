@@ -26,6 +26,8 @@ export default function EditPostPage() {
   const [draftPublic, setDraftPublic] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -81,9 +83,29 @@ export default function EditPostPage() {
       router.push('/app/blog');
     } catch (err) {
       console.error('[blog-edit] failed to save post', err);
-      setError(t('failedToLoadBlogPosts') as string);
+      setError(t('failedToSaveBlogPost') as string);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!post) return;
+    setDeleting(true);
+    setError(null);
+    try {
+      await apiFetch(`/api/blog`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: post.id }),
+      });
+      router.push('/app/blog');
+    } catch (err) {
+      console.error('[blog-edit] failed to delete post', err);
+      setError(t('failedToDeleteBlogPost') as string);
+      setShowDeleteConfirm(false);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -125,10 +147,49 @@ export default function EditPostPage() {
             />
             <span>{t('public')}</span>
           </label>
-          <Button type="submit" disabled={saving}>
-            {saving ? (t('saving') as string) : (t('save') as string)}
-          </Button>
+          <div className="flex gap-3 justify-between">
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => setShowDeleteConfirm(true)}
+              disabled={saving || deleting}
+            >
+              {t('delete')}
+            </Button>
+            <Button type="submit" disabled={saving || deleting}>
+              {saving ? (t('saving') as string) : (t('save') as string)}
+            </Button>
+          </div>
         </form>
+
+        {showDeleteConfirm && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+            <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+              <h3 className="text-lg font-semibold text-sage-900 mb-4">
+                {t('confirmDeletePost')}
+              </h3>
+              <p className="text-sm text-sage-700 mb-6">
+                {t('confirmDeletePostMessage')}
+              </p>
+              <div className="flex gap-3 justify-end">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowDeleteConfirm(false)}
+                  disabled={deleting}
+                >
+                  {t('cancel')}
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={handleDelete}
+                  disabled={deleting}
+                >
+                  {deleting ? t('deleting') : t('delete')}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

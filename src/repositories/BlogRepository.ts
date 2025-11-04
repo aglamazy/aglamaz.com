@@ -22,6 +22,11 @@ export class BlogRepository {
     return getFirestore();
   }
 
+  private getBaseQuery() {
+    const db = this.getDb();
+    return db.collection(this.collection).where('deletedAt', '==', null);
+  }
+
   private createFieldMeta(locale: string, payload: BlogPostLocaleUpsertPayload, timestamp: Timestamp) {
     const engine = payload.engine ?? 'manual';
     const normalizedLocale = locale.toLowerCase();
@@ -124,6 +129,7 @@ export class BlogRepository {
       isPublic: Boolean(raw.isPublic),
       likeCount: raw.likeCount ?? 0,
       shareCount: raw.shareCount ?? 0,
+      deletedAt: raw.deletedAt,
       createdAt: raw.createdAt,
       updatedAt: raw.updatedAt,
     };
@@ -212,16 +218,21 @@ export class BlogRepository {
     await db.collection(this.collection).doc(id).delete();
   }
 
-  async getAll(): Promise<IBlogPost[]> {
+  async softDelete(id: string): Promise<void> {
     const db = this.getDb();
-    const snap = await db.collection(this.collection).orderBy('createdAt', 'desc').get();
+    await db.collection(this.collection).doc(id).update({
+      deletedAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    });
+  }
+
+  async getAll(): Promise<IBlogPost[]> {
+    const snap = await this.getBaseQuery().orderBy('createdAt', 'desc').get();
     return snap.docs.map((doc) => this.mapDoc(doc));
   }
 
   async getByAuthor(authorId: string): Promise<IBlogPost[]> {
-    const db = this.getDb();
-    const snap = await db
-      .collection(this.collection)
+    const snap = await this.getBaseQuery()
       .where('authorId', '==', authorId)
       .orderBy('createdAt', 'desc')
       .get();
@@ -229,9 +240,7 @@ export class BlogRepository {
   }
 
   async getPublicBySite(siteId: string, limit = 20): Promise<IBlogPost[]> {
-    const db = this.getDb();
-    const snap = await db
-      .collection(this.collection)
+    const snap = await this.getBaseQuery()
       .where('siteId', '==', siteId)
       .where('isPublic', '==', true)
       .orderBy('createdAt', 'desc')
@@ -241,9 +250,7 @@ export class BlogRepository {
   }
 
   async countPublicSince(siteId: string, since: Timestamp): Promise<number> {
-    const db = this.getDb();
-    const snap = await db
-      .collection(this.collection)
+    const snap = await this.getBaseQuery()
       .where('siteId', '==', siteId)
       .where('isPublic', '==', true)
       .where('createdAt', '>=', since)

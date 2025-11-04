@@ -248,7 +248,7 @@ const deleteHandler = async (request: Request, context: GuardContext) => {
     if (existing.authorId !== user.userId && member.role !== 'admin') {
       return Response.json({ error: 'Forbidden' }, { status: 403 });
     }
-    await repo.delete(id);
+    await repo.softDelete(id);
     return Response.json({ success: true });
   } catch (error) {
     console.error(error);

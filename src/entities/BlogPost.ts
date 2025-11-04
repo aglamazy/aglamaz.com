@@ -57,6 +57,7 @@ export interface IBlogPost {
   isPublic: boolean;
   likeCount?: number;
   shareCount?: number;
+  deletedAt?: any; // Soft delete timestamp
   createdAt: any;
   updatedAt: any;
 }

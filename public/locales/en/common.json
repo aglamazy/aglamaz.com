@@ -302,5 +302,10 @@
   "blogHandleNotAvailable": "This blog handle is not available",
   "failedToRegisterBlog": "Failed to register blog",
   "creating": "Creating",
-  "createBlog": "Create Blog"
+  "createBlog": "Create Blog",
+  "failedToSaveBlogPost": "Failed to save blog post",
+  "failedToDeleteBlogPost": "Failed to delete blog post",
+  "confirmDeletePost": "Delete Post?",
+  "confirmDeletePostMessage": "Are you sure you want to delete this post? This action cannot be undone.",
+  "deleting": "Deleting"
 }
