@@ -53,8 +53,8 @@ export function createBlogPostingSchema(
   const content = post.content || '';
   const summary = toPlainText(content).slice(0, 280);
   const articleUrlBase = baseUrl
-    ? `${baseUrl}/${lang}/blog/author/${encodeURIComponent(author.handle)}`
-    : `/${lang}/blog/author/${author.handle}`;
+    ? `${baseUrl}/${lang}/blog/${encodeURIComponent(author.handle)}`
+    : `/${lang}/blog/${author.handle}`;
   const articleUrl = articleUrlBase;
   const image = findFirstImage(content);
 
@@ -112,7 +112,7 @@ export function createProfilePageSchema(
 ) {
   const { baseUrl, siteName, lang } = options;
   const authorUrl = baseUrl
-    ? `${baseUrl}/${lang}/blog/author/${encodeURIComponent(author.handle)}`
+    ? `${baseUrl}/${lang}/blog/${encodeURIComponent(author.handle)}`
     : undefined;
 
   return {
@@ -152,8 +152,8 @@ export function createBlogPostListSchema(
       const content = post.content || '';
       const summary = toPlainText(content).slice(0, 280);
       const articleUrlBase = baseUrl
-        ? `${baseUrl}/${lang}/blog/author/${encodeURIComponent(author.handle)}`
-        : `/${lang}/blog/author/${author.handle}`;
+        ? `${baseUrl}/${lang}/blog/${encodeURIComponent(author.handle)}`
+        : `/${lang}/blog/${author.handle}`;
       const articleUrl = articleUrlBase;
       const image = findFirstImage(content);
 

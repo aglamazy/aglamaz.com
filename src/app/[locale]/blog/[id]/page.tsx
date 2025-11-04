@@ -47,28 +47,30 @@ interface AuthorPageParams {
   id: string;
 }
 
-export async function generateMetadata({ params }: { params: AuthorPageParams }): Promise<Metadata> {
-  const locale = SUPPORTED_LOCALES.includes(params.locale) ? params.locale : DEFAULT_LOCALE;
+export async function generateMetadata({ params }: { params: Promise<AuthorPageParams> }): Promise<Metadata> {
+  const { locale: paramLocale, id } = await params;
+  const locale = SUPPORTED_LOCALES.includes(paramLocale) ? paramLocale : DEFAULT_LOCALE;
   const baseUrl = resolveConfiguredBaseUrl();
-  const canonical = baseUrl ? `${baseUrl}/${locale}/blog/author/${params.id}` : undefined;
+  const canonical = baseUrl ? `${baseUrl}/${locale}/blog/${id}` : undefined;
 
   return {
-    title: `Family Blog – ${params.id}`,
+    title: `Family Blog – ${id}`,
     alternates: baseUrl
       ? {
           canonical,
           languages: {
-            en: `${baseUrl}/en/blog/author/${params.id}`,
-            he: `${baseUrl}/he/blog/author/${params.id}`,
-            'x-default': `${baseUrl}/en/blog/author/${params.id}`,
+            en: `${baseUrl}/en/blog/${id}`,
+            he: `${baseUrl}/he/blog/${id}`,
+            'x-default': `${baseUrl}/en/blog/${id}`,
           },
         }
       : undefined,
   } satisfies Metadata;
 }
 
-export default async function AuthorBlogPage({ params }: { params: AuthorPageParams }) {
-  const locale = SUPPORTED_LOCALES.includes(params.locale) ? params.locale : DEFAULT_LOCALE;
+export default async function AuthorBlogPage({ params }: { params: Promise<AuthorPageParams> }) {
+  const { locale: paramLocale, id } = await params;
+  const locale = SUPPORTED_LOCALES.includes(paramLocale) ? paramLocale : DEFAULT_LOCALE;
 
   const siteId = await resolveSiteId();
   if (!siteId) {
@@ -78,7 +80,17 @@ export default async function AuthorBlogPage({ params }: { params: AuthorPagePar
   }
 
   const fam = new FamilyRepository();
-  const member = await fam.getMemberByHandle(params.id, siteId);
+
+  if (!id) {
+    return <div>Invalid author handle</div>;
+  }
+
+  const member = await fam.getMemberByHandle(id, siteId);
+
+  if (!member) {
+    return <div>Author not found</div>;
+  }
+
   const uid = (member as any)?.userId || (member as any)?.uid || '';
   const repo = new BlogRepository();
   const list = uid ? await repo.getByAuthor(uid) : [];
@@ -133,7 +145,7 @@ export default async function AuthorBlogPage({ params }: { params: AuthorPagePar
     (member as any)?.displayName ||
     (member as any)?.firstName ||
     (member as any)?.email ||
-    params.id;
+    id;
 
   const authorEmail = (member as any)?.email || '';
   const hash = crypto.createHash('md5').update(authorEmail.trim().toLowerCase()).digest('hex');
@@ -141,7 +153,7 @@ export default async function AuthorBlogPage({ params }: { params: AuthorPagePar
 
   const author: AuthorInfo = {
     name: authorName,
-    handle: params.id,
+    handle: id,
     avatar: authorAvatar,
     email: authorEmail,
   };

@@ -12,8 +12,6 @@ const LOCALIZED_PUBLIC_PATHS = [
   '/login',
   '/contact',
   '/blog',
-  '/blog/family',
-  '/blog/author',
   '/terms',
 ];
 
@@ -28,8 +26,6 @@ const PUBLIC_PATHS = [
   '/auth-gate',
   '/app',
   '/blog',
-  '/blog/family',
-  '/blog/author',
   '/invite',
   '/sitemap.xml',
   '/robots.txt',

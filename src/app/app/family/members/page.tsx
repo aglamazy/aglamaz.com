@@ -64,7 +64,7 @@ export default function FamilyMembersPage() {
               {m.blogHandle ? (
                 <a
                   className="text-blue-600 hover:underline text-sm"
-                  href={`/blog/author/${m.blogHandle}`}
+                  href={`/blog/${m.blogHandle}`}
                   target="_blank"
                   rel="noreferrer"
                 >

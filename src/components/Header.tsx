@@ -88,6 +88,10 @@ export default function Header({ user, member, onLogout, siteInfo }: HeaderProps
   };
 
   const menuPosition = i18n.language === 'he' ? 'left-0' : 'right-0';
+
+  // Show "Start" button only on landing page (e.g., /en, /he)
+  const isLandingPage = pathname && /^\/[a-z]{2}\/?$/.test(pathname);
+
   return (
     <header className="w-full flex items-center justify-between px-4 py-2 bg-white shadow-sm sticky top-0 z-50">
       {/* Left: Site title */}
@@ -96,7 +100,7 @@ export default function Header({ user, member, onLogout, siteInfo }: HeaderProps
       </div>
       {/* Center: CTA or Navigation */}
       <div className="flex flex-row items-center">
-        {user && member && onLogout && member.role !== 'pending' ? (
+        {user && member && onLogout && member.role !== 'pending' && isLandingPage ? (
           <button
             onClick={() => router.push(`/app?locale=${i18n.language}`)}
             className="px-6 py-2 bg-sage-600 hover:bg-sage-700 text-white rounded-lg font-semibold transition-colors duration-200"

@@ -271,7 +271,7 @@ export default function SiteMembersPage() {
                         {(member as any).blogEnabled && (member as any).blogHandle ? (
                           <a
                             className="text-blue-600 hover:underline"
-                            href={`/blog/author/${(member as any).blogHandle}`}
+                            href={`/blog/${(member as any).blogHandle}`}
                             target="_blank"
                             rel="noreferrer"
                           >

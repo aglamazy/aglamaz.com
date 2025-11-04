@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useUserStore } from '@/store/UserStore';
 import { useMemberStore } from '@/store/MemberStore';
@@ -14,7 +14,12 @@ export default function BlogCTA() {
   const fetchMember = useMemberStore((s) => s.fetchMember);
   const site = useSiteStore((s) => s.siteInfo);
   const [saving, setSaving] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const hasBlog = !!member?.blogEnabled;
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const start = useCallback(async () => {
     if (!user?.user_id || !site?.id) return;
@@ -30,6 +35,9 @@ export default function BlogCTA() {
       setSaving(false);
     }
   }, [user?.user_id, site?.id, fetchMember]);
+
+  // Prevent hydration mismatch
+  if (!mounted) return null;
 
   if (!user) return null;
 

@@ -50,7 +50,7 @@ export async function GET(req: NextRequest) {
           if (max > 0) lastmod = new Date(max).toISOString();
         }
       } catch {}
-      routes.push({ path: `blog/author/${encodeURIComponent(handle)}`, lastmod });
+      routes.push({ path: `blog/${encodeURIComponent(handle)}`, lastmod });
     }
 
     const body = [
