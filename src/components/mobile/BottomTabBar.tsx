@@ -5,8 +5,9 @@ import { Calendar, Image, Plus, FileText, User } from 'lucide-react';
 import { useUserStore } from '@/store/UserStore';
 import { useMemberStore } from '@/store/MemberStore';
 import MemberAvatar from '@/components/MemberAvatar';
-import { useMemo } from 'react';
+import { useState } from 'react';
 import styles from './BottomTabBar.module.css';
+import PhotoUploadModal from '@/components/photos/PhotoUploadModal';
 
 interface TabItem {
   id: string;
@@ -21,6 +22,7 @@ export default function BottomTabBar() {
   const router = useRouter();
   const user = useUserStore((state) => state.user);
   const member = useMemberStore((state) => state.member);
+  const [photoModalOpen, setPhotoModalOpen] = useState(false);
 
   // Determine what the Add button should do based on current page
   const handleAddClick = () => {
@@ -32,8 +34,7 @@ export default function BottomTabBar() {
       console.log('Add anniversary/event');
     } else if (pathname === '/app' || pathname?.startsWith('/app/')) {
       // Main app page (pictures feed) - upload photo
-      // TODO: Open photo upload
-      console.log('Upload photo');
+      setPhotoModalOpen(true);
     } else {
       // Default: show a menu or do nothing
       console.log('Add action');
@@ -87,42 +88,53 @@ export default function BottomTabBar() {
   };
 
   return (
-    <nav className={styles.container} role="navigation" aria-label="Main navigation">
-      <div className={styles.tabBar}>
-        {tabs.map((tab) => {
-          const active = isActive(tab.path);
+    <>
+      <nav className={styles.container} role="navigation" aria-label="Main navigation">
+        <div className={styles.tabBar}>
+          {tabs.map((tab) => {
+            const active = isActive(tab.path);
 
-          if (tab.isAdd) {
+            if (tab.isAdd) {
+              return (
+                <button
+                  key={tab.id}
+                  onClick={handleAddClick}
+                  className={`${styles.tab} ${styles.addTab}`}
+                  aria-label={tab.label}
+                >
+                  <div className={styles.addIconWrapper}>
+                    {tab.icon}
+                  </div>
+                </button>
+              );
+            }
+
             return (
               <button
                 key={tab.id}
-                onClick={handleAddClick}
-                className={`${styles.tab} ${styles.addTab}`}
+                onClick={() => router.push(tab.path)}
+                className={`${styles.tab} ${active ? styles.active : ''}`}
                 aria-label={tab.label}
+                aria-current={active ? 'page' : undefined}
               >
-                <div className={styles.addIconWrapper}>
+                <div className={styles.iconWrapper}>
                   {tab.icon}
                 </div>
+                <span className={styles.label}>{tab.label}</span>
               </button>
             );
-          }
+          })}
+        </div>
+      </nav>
 
-          return (
-            <button
-              key={tab.id}
-              onClick={() => router.push(tab.path)}
-              className={`${styles.tab} ${active ? styles.active : ''}`}
-              aria-label={tab.label}
-              aria-current={active ? 'page' : undefined}
-            >
-              <div className={styles.iconWrapper}>
-                {tab.icon}
-              </div>
-              <span className={styles.label}>{tab.label}</span>
-            </button>
-          );
-        })}
-      </div>
-    </nav>
+      <PhotoUploadModal
+        isOpen={photoModalOpen}
+        onClose={() => setPhotoModalOpen(false)}
+        onSuccess={() => {
+          setPhotoModalOpen(false);
+          // TODO: Refresh feed when backend is ready
+        }}
+      />
+    </>
   );
 }
