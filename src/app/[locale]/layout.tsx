@@ -5,6 +5,9 @@ import { resolveSiteId } from '@/utils/resolveSiteId';
 import { DEFAULT_LOCALE, SUPPORTED_LOCALES } from '@/i18n';
 import { assertSerializableDev } from "@/utils/assertSerializableDev";
 
+// This layout uses headers() for multi-tenant routing, so it must be dynamic
+export const dynamic = 'force-dynamic';
+
 export function generateStaticParams() {
   return SUPPORTED_LOCALES.map((locale) => ({ locale }));
 }
