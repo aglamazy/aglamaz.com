@@ -64,6 +64,49 @@
   - `updatedAt`: timestamp
 - Each field independently finds most recent version to translate from
 
+# Blog Registration and Setup Flow
+
+## Background
+According to README.md, before a member can write blog posts, they must register their blog. Currently, the system has:
+- ✅ `blogEnabled` flag in Member entity
+- ✅ `blogHandle` field for unique blog URLs
+- ✅ `MemberRepository.setBlogEnabled()` method
+- ✅ `MemberRepository.generateUniqueBlogHandle()` for uniqueness
+
+## Missing Implementation
+- [ ] Create blog setup modal/page for first-time users
+  - Should open when user clicks "New Post" without a registered blog
+  - Collect blog slug (suggest from email, allow editing)
+  - Validate slug uniqueness in real-time
+  - Save blog settings (`blogEnabled: true`, `blogHandle: <slug>`)
+- [ ] Add API endpoint for blog registration
+  - `POST /api/user/[userId]/blog/register` or similar
+  - Validate slug uniqueness within site
+  - Set blogEnabled and blogHandle in one transaction
+- [ ] Update post creation to check for blog registration
+  - In `/app/blog/new`, check if user has `blogEnabled` and `blogHandle`
+  - If not, redirect/show modal for blog setup
+- [ ] Add blog settings page (optional for now)
+  - Allow viewing blog slug (read-only after initial setup per README)
+  - Toggle blogEnabled on/off
+  - View blog URL
+
+## User Flow
+1. User clicks "Add Post" FAB or "New Post" button
+2. System checks: `member.blogEnabled && member.blogHandle`
+3. If NO → Open blog setup modal
+   - Show suggested slug from email (e.g., "yaakov-aglamaz")
+   - Allow editing slug
+   - Validate uniqueness as user types
+   - Show preview URL: `/blog/{slug}`
+   - "Create Blog" button saves settings
+4. If YES → Navigate to post creation page
+
+## Notes
+- Blog slug is **immutable** after creation (per README)
+- Slug must be unique within the site
+- Current `/app/blog` already has `BlogCTA` component for enabling blogs, but it needs proper slug collection
+
 # Theming and Color System
 
 ## Goals
