@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import Navigation from "@/components/Navigation";
 import { useTranslation } from 'react-i18next';
-import { LogOut, Users, MessageCircle, Home as HomeIcon, BookOpen, User } from 'lucide-react';
+import { LogOut, Users, MessageCircle, Home as HomeIcon, BookOpen, User, LayoutDashboard } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
 import { IUser } from "@/entities/User";
 import { IMember } from "@/entities/Member";
@@ -170,6 +170,16 @@ export default function Header({ user, member, onLogout, siteInfo }: HeaderProps
                   {/* Admin menu items if member is admin */}
                   {member?.role === 'admin' && (
                     <>
+                      <button
+                        onClick={() => {
+                          setIsUserMenuOpen(false);
+                          router.push('/admin/dashboard');
+                        }}
+                        className="flex items-center w-full px-4 py-2 text-sm text-green-700 hover:bg-green-50 transition-colors duration-200"
+                      >
+                        <LayoutDashboard size={16} className="mr-3"/>
+                        {t('adminDashboard')}
+                      </button>
                       <button
                         onClick={() => {
                           setIsUserMenuOpen(false);

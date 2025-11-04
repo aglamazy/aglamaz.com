@@ -102,22 +102,10 @@ export default function SiteDescriptionEditor() {
     const info = site || siteInfo;
     if (!info) return;
 
-    const normalizedLocale = normalizeLocale(locale) || 'en';
-
-    // Try to find content for this locale
-    const localeContent = findLocaleContent(info, normalizedLocale);
-
-    if (localeContent) {
-      // Found content for this locale
-      setName(localeContent.name || '');
-      setAboutFamily(localeContent.aboutFamily || '');
-      setPlatformName(localeContent.platformName || '');
-    } else {
-      // No content for this locale, show empty fields
-      setName('');
-      setAboutFamily('');
-      setPlatformName('');
-    }
+    // Use top-level fields from API response (already localized by LocalizationService)
+    setName(info.name || '');
+    setAboutFamily(info.aboutFamily || '');
+    setPlatformName(info.platformName || '');
   };
 
   const handleSave = async (requestTranslations = false) => {
