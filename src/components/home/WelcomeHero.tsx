@@ -3,7 +3,8 @@ import { motion } from "framer-motion";
 import { Card, CardContent } from "../ui/card";
 import { Button } from "../ui/button";
 import Link from "next/link";
-import { BookOpen, Images, ArrowRight, Calendar } from "lucide-react";
+import { BookOpen, Images, Calendar } from "lucide-react";
+import ArrowCTA from "@/components/ArrowCTA";
 import { useTranslation } from 'react-i18next';
 
 interface ActionDef {
@@ -105,7 +106,7 @@ export default function WelcomeHero({ user, title, subtitle, aboutFamily, action
                       className="border-sage-200 hover:border-sage-300 hover:bg-sage-50 group"
                     >
                       {t('explore')}
-                      <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform duration-200" />
+                      <ArrowCTA isRTL={isRTL} />
                     </Button>
                   </Link>
                 </CardContent>
