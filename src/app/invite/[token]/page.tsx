@@ -6,13 +6,13 @@ import InviteSignupModal from './InviteSignupModal';
 import { DEFAULT_LOCALE } from '@/i18n';
 
 interface InvitePageParams {
-  params: {
+  params: Promise<{
     token: string;
-  };
+  }>;
 }
 
 export default async function InvitePage({ params }: InvitePageParams) {
-  const { token } = params;
+  const { token } = await params;
   const siteId = await resolveSiteId();
 
   let siteInfo = null;

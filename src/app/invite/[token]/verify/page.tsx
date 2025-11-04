@@ -6,13 +6,13 @@ import InviteVerifyClient from './InviteVerifyClient';
 import { DEFAULT_LOCALE } from '@/i18n';
 
 interface InviteVerifyPageParams {
-  params: {
+  params: Promise<{
     token: string;
-  };
+  }>;
 }
 
 export default async function InviteVerifyPage({ params }: InviteVerifyPageParams) {
-  const { token } = params;
+  const { token } = await params;
   const siteId = await resolveSiteId();
 
   let siteInfo = null;
