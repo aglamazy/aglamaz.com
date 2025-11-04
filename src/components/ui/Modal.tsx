@@ -11,8 +11,9 @@ interface ModalProps {
 }
 
 const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, isClosable = true }) => {
-  if (!isOpen) return null;
   const { t } = useTranslation();
+
+  if (!isOpen) return null;
 
   return (
     <div

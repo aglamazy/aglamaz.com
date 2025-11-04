@@ -1,0 +1,36 @@
+rules_version = '2';
+
+// Firebase Storage Security Rules
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Allow authenticated users to read/write their own anniversary images
+    match /anniversaries/{userId}/{allPaths=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Allow authenticated users to read/write their own profile avatars
+    match /avatars/{userId}/{allPaths=**} {
+      allow read: if true; // Public read for avatars
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Allow authenticated users to read/write their own blog images
+    match /blog/{userId}/{allPaths=**} {
+      allow read: if true; // Public read for blog posts
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Allow authenticated users to read/write member photos (gallery photos, etc)
+    match /members/{memberId}/{userId}/{allPaths=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Deny all other access by default
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
