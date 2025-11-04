@@ -62,7 +62,7 @@ export class GalleryPhotoRepository {
       .where('deletedAt', '==', null)
       .orderBy('date', 'desc')
       .get();
-    return qs.docs.map((d) => ({ id: d.id, ...doc.data() } as GalleryPhoto));
+    return qs.docs.map((d) => ({ id: d.id, ...d.data() } as GalleryPhoto));
   }
 
   async listByAnniversary(anniversaryId: string): Promise<GalleryPhoto[]> {
