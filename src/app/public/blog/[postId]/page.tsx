@@ -5,9 +5,10 @@ import { headers } from 'next/headers';
 import { localizeBlogPost } from '@/utils/blogLocales';
 import { DEFAULT_LOCALE } from '@/i18n';
 
-export default async function PublicBlogPostPage({ params }: { params: { postId: string } }) {
+export default async function PublicBlogPostPage({ params }: { params: Promise<{ postId: string }> }) {
+  const { postId } = await params;
   const repo = new BlogRepository();
-  const post = await repo.getById(params.postId);
+  const post = await repo.getById(postId);
   if (!post || !post.isPublic) {
     notFound();
   }
