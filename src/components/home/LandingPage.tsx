@@ -1,5 +1,6 @@
 import Link from 'next/link';
-import { ArrowRight, BookOpen, Images, Link as LinkIcon, MessageCircle, Calendar } from 'lucide-react';
+import { BookOpen, Images, Link as LinkIcon, MessageCircle, Calendar } from 'lucide-react';
+import ArrowCTA from '@/components/ArrowCTA';
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
 import type { ISite } from '@/entities/Site';
@@ -250,7 +251,7 @@ export default async function LandingPage({ siteInfo, siteDescription, platformD
                   <p className="text-sage-600 mb-6 leading-relaxed">{description}</p>
                   <Button className="border-sage-200 hover:border-sage-300 hover:bg-sage-50 group">
                     {cta}
-                    <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform duration-200" />
+                    <ArrowCTA isRTL={isRTL} />
                   </Button>
                 </CardContent>
               </Card>
