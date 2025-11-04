@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation';
 
 type PostLite = {
   id: string;
-  sourceLang: string;
-  translations?: Record<string, { title: string; content: string }>;
+  primaryLocale: string;
+  locales: Record<string, boolean>;
 };
 
 export default function TranslationTrigger({ posts, lang }: { posts: PostLite[]; lang: string }) {
@@ -15,12 +15,19 @@ export default function TranslationTrigger({ posts, lang }: { posts: PostLite[];
   useEffect(() => {
     const run = async () => {
       try {
-        const base = (lang || '').split('-')[0]?.toLowerCase();
+        const target = (lang || '').toLowerCase();
+        const base = target.split('-')[0] || target;
         const need = posts.filter((p) => {
-          if (!lang || base === (p.sourceLang || '').split('-')[0]) return false;
-          const tr = p.translations || {};
-          if ((tr as any)[lang]) return false;
-          return Object.keys(tr).every(k => (k.split('-')[0]?.toLowerCase() !== base));
+          if (!target) return false;
+          const primaryBase = p.primaryLocale.split('-')[0];
+          if (base === primaryBase) return false;
+          if (p.locales[target]) return false;
+          return Object.entries(p.locales).every(([key, hasContent]) => {
+            if (!hasContent) return true;
+            if (key === target) return false;
+            const keyBase = key.split('-')[0];
+            return keyBase !== base;
+          });
         });
         if (need.length === 0) return;
 

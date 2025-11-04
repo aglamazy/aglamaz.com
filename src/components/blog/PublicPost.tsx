@@ -2,15 +2,16 @@
 
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { IBlogPost } from '@/entities/BlogPost';
+import type { IBlogPost, BlogPostLocalizedFields } from '@/entities/BlogPost';
 import { Button } from '@/components/ui/button';
 import styles from './PublicPost.module.css';
 
 interface Props {
   post: IBlogPost;
+  localized: BlogPostLocalizedFields;
 }
 
-export default function PublicPost({ post }: Props) {
+export default function PublicPost({ post, localized }: Props) {
   const { t } = useTranslation();
   const [likes, setLikes] = useState(post.likeCount ?? 0);
   const [shares, setShares] = useState(post.shareCount ?? 0);
@@ -50,8 +51,8 @@ export default function PublicPost({ post }: Props) {
 
   return (
     <article className={`prose max-w-none mx-auto py-8 ${styles.article}`}>
-      <h1 className="mb-4">{post.title}</h1>
-      <div dangerouslySetInnerHTML={{ __html: post.content }} />
+      <h1 className="mb-4">{localized.title}</h1>
+      <div dangerouslySetInnerHTML={{ __html: localized.content }} />
       <div className="flex items-center space-x-4 mt-6">
         <Button onClick={handleLike} disabled={liking}>
           {t('like')} ({likes})

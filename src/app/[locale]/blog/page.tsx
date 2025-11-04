@@ -14,11 +14,11 @@ import { stripScriptTags, cleanJsonLd } from '@/utils/jsonld';
 import { fetchSiteInfo } from '@/firebase/admin';
 import { resolveSiteId } from '@/utils/resolveSiteId';
 import { getServerT } from '@/utils/serverTranslations';
-import { getPlatformName } from '@/utils/platformName';
 import { createBlogSchema, createBlogPostingSchema, type AuthorInfo } from '@/utils/blogSchema';
 import UnderConstruction from '@/components/UnderConstruction';
 import { DEFAULT_LOCALE, SUPPORTED_LOCALES } from '@/i18n';
 import type { Metadata } from 'next';
+import { buildTranslationTriggerPayload, localizeBlogPosts } from '@/utils/blogLocales';
 
 export const dynamic = 'force-dynamic';
 
@@ -101,43 +101,23 @@ export default async function FamilyBlogPage({ params }: FamilyBlogPageProps) {
     // Continue with null siteInfo
   }
 
-  const choose = (p: IBlogPost) => {
-    if (!lang || lang === p.sourceLang) return p;
-    const translations = p.translations || {};
-    const base = lang.split('-')[0]?.toLowerCase();
-    let t = (translations as any)[lang] as any;
-    if (!t && base) {
-      const key = Object.keys(translations).find(k => {
-        const kb = k.split('-')[0]?.toLowerCase();
-        return k.toLowerCase() === lang.toLowerCase() || kb === base;
-      });
-      if (key) t = (translations as any)[key];
-    }
-    if (!t) return p;
-    return { ...p, title: t.title || p.title, content: t.content || p.content };
-  };
+  const localizedPosts = localizeBlogPosts(posts, { preferredLocale: locale, fallbackLocales: [DEFAULT_LOCALE] });
 
-  const enriched = await Promise.all(posts.map(async (p) => {
-    const m = await fam.getMemberByUserId(p.authorId, siteId);
+  const enriched = await Promise.all(localizedPosts.map(async ({ post, localized }) => {
+    const m = await fam.getMemberByUserId(post.authorId, siteId);
     const email = (m as any)?.email || '';
     const handle = (m as any)?.blogHandle || '';
     const name = (m as any)?.firstName || (m as any)?.displayName || email || 'Author';
     const hash = crypto.createHash('md5').update(email.trim().toLowerCase()).digest('hex');
     const avatar = `https://www.gravatar.com/avatar/${hash}?s=48&d=identicon`;
     const palette = ['bg-blue-50','bg-green-50','bg-yellow-50','bg-purple-50','bg-rose-50'];
-    const colorIdx = parseInt(crypto.createHash('md5').update(String(p.id)).digest('hex').slice(0, 2), 16) % palette.length;
+    const colorIdx = parseInt(crypto.createHash('md5').update(String(post.id)).digest('hex').slice(0, 2), 16) % palette.length;
     const tint = palette[colorIdx];
-    return { post: choose(p), name, handle, avatar, tint };
+    return { post, localized, name, handle, avatar, tint };
   }));
 
   // Minimal, plain-JSON payload for client TranslationTrigger
-  const clientPosts = posts.map((p) => ({
-    id: p.id,
-    sourceLang: p.sourceLang,
-    translations: Object.fromEntries(
-      Object.entries(p.translations || {}).map(([k, v]: any) => [k, { title: String(v?.title || ''), content: String(v?.content || '') }])
-    ) as Record<string, { title: string; content: string }>,
-  }));
+  const clientPosts = posts.map(buildTranslationTriggerPayload);
 
   const baseUrl = await resolveRequestBaseUrl() || undefined;
   const siteName = siteInfo?.name?.trim();
@@ -151,10 +131,9 @@ export default async function FamilyBlogPage({ params }: FamilyBlogPageProps) {
     }
   );
 
-  const postSchemas = posts.map((rawPost, index) => {
-    const { post, name, handle, avatar } = enriched[index];
+  const postSchemas = enriched.map(({ post, localized, name, handle, avatar }) => {
     const author: AuthorInfo = { name, handle, avatar };
-    return createBlogPostingSchema(post, author, { baseUrl, siteName, lang: baseLang });
+    return createBlogPostingSchema(post, localized, author, { baseUrl, siteName, lang: baseLang });
   });
 
   const structuredData = stripScriptTags(JSON.stringify([blogSchema, ...postSchemas].map(cleanJsonLd)));
@@ -165,7 +144,7 @@ export default async function FamilyBlogPage({ params }: FamilyBlogPageProps) {
       {/* For users with blogs: FAB to add post. For others: CTA to start a blog */}
       <AddPostFab />
       <BlogCTA />
-      {enriched.map(({ post, name, handle, avatar, tint }) => (
+      {enriched.map(({ post, localized, name, handle, avatar, tint }) => (
         <Card key={post.id} className="border-0 shadow-lg bg-white/90">
           <CardHeader>
             <div className="flex items-center gap-3">
@@ -173,7 +152,7 @@ export default async function FamilyBlogPage({ params }: FamilyBlogPageProps) {
                 <img src={avatar} alt="" className="h-10 w-10 rounded-full" />
               </a>
               <div>
-                <h1 className="text-2xl font-semibold text-charcoal m-0">{post.title}</h1>
+                <h1 className="text-2xl font-semibold text-charcoal m-0">{localized.title}</h1>
                 <div className="text-xs text-gray-500">
                   <a className="hover:underline" href={`/${locale}/blog/${handle}`}>{name}</a>
                 </div>
@@ -182,7 +161,7 @@ export default async function FamilyBlogPage({ params }: FamilyBlogPageProps) {
           </CardHeader>
           <CardContent>
             <div className={`rounded-lg p-3 ${tint}`}>
-              <div className={`text-sm text-gray-700 ${styles.clamp3} ${blogStyles.content}`} dangerouslySetInnerHTML={{ __html: post.content || '' }} />
+              <div className={`text-sm text-gray-700 ${styles.clamp3} ${blogStyles.content}`} dangerouslySetInnerHTML={{ __html: localized.content || '' }} />
             </div>
             <div className="mt-2">
               <a className="text-blue-600 hover:underline text-sm" href={`/${locale}/blog/${handle}`}>

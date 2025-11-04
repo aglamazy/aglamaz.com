@@ -1,4 +1,4 @@
-import type { IBlogPost } from '@/entities/BlogPost';
+import type { BlogPostLocalizedFields, IBlogPost } from '@/entities/BlogPost';
 
 export interface AuthorInfo {
   name: string;
@@ -46,11 +46,12 @@ function findFirstImage(html: string): string | undefined {
  */
 export function createBlogPostingSchema(
   post: IBlogPost,
+  localized: BlogPostLocalizedFields,
   author: AuthorInfo,
   options: BlogSchemaOptions
 ) {
   const { baseUrl, lang } = options;
-  const content = post.content || '';
+  const content = localized.content || '';
   const summary = toPlainText(content).slice(0, 280);
   const articleUrlBase = baseUrl
     ? `${baseUrl}/${lang}/blog/${encodeURIComponent(author.handle)}`
@@ -61,7 +62,7 @@ export function createBlogPostingSchema(
   return {
     '@type': 'BlogPosting',
     '@id': baseUrl ? `${articleUrlBase}#post-${post.id}` : undefined,
-    headline: post.title,
+    headline: localized.title,
     description: summary || undefined,
     url: articleUrl,
     datePublished: toIsoDate((post as any).createdAt ?? post.createdAt),
@@ -70,7 +71,7 @@ export function createBlogPostingSchema(
     mainEntityOfPage: articleUrl,
     wordCount: summary ? summary.split(/\s+/).length : undefined,
     image: image,
-    inLanguage: post.sourceLang || lang,
+    inLanguage: localized.locale || post.primaryLocale || lang,
     author: {
       '@type': 'Person',
       name: author.name,
@@ -136,6 +137,7 @@ export function createProfilePageSchema(
  */
 export function createBlogPostListSchema(
   posts: IBlogPost[],
+  localizedPosts: BlogPostLocalizedFields[],
   authors: AuthorInfo[],
   options: BlogSchemaOptions
 ) {
@@ -149,7 +151,8 @@ export function createBlogPostListSchema(
     numberOfItems: posts.length,
     itemListElement: posts.map((post, index) => {
       const author = authors[index];
-      const content = post.content || '';
+      const localized = localizedPosts[index];
+      const content = localized?.content || '';
       const summary = toPlainText(content).slice(0, 280);
       const articleUrlBase = baseUrl
         ? `${baseUrl}/${lang}/blog/${encodeURIComponent(author.handle)}`
@@ -163,7 +166,7 @@ export function createBlogPostListSchema(
         item: {
           '@type': 'BlogPosting',
           '@id': baseUrl ? `${articleUrlBase}#post-${post.id}` : undefined,
-          headline: post.title,
+          headline: localized?.title ?? '',
           description: summary || undefined,
           url: articleUrl,
           datePublished: toIsoDate((post as any).createdAt ?? post.createdAt),
@@ -172,7 +175,7 @@ export function createBlogPostListSchema(
           mainEntityOfPage: articleUrl,
           wordCount: summary ? summary.split(/\s+/).length : undefined,
           image: image,
-          inLanguage: post.sourceLang || lang,
+          inLanguage: localized?.locale || post.primaryLocale || lang,
           author: {
             '@type': 'Person',
             name: author.name,

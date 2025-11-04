@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { BlogRepository } from '@/repositories/BlogRepository';
 import { TranslationService } from '@/services/TranslationService';
+import { normalizeLang } from '@/services/LocalizationService';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,10 +21,16 @@ export async function POST(req: NextRequest) {
       return Response.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const base = lang.split('-')[0]?.toLowerCase();
-    const translations = post.translations || {};
-    const has = (translations as any)[lang] || Object.keys(translations).some(k => k.split('-')[0]?.toLowerCase() === base);
-    if (has || base === (post.sourceLang || '').split('-')[0]) {
+    const targetLocale = lang.toLowerCase();
+    const base = normalizeLang(targetLocale) || targetLocale;
+    const locales = post.locales || {};
+    const hasExact = locales[targetLocale]?.title && locales[targetLocale]?.content;
+    const hasBase = Object.entries(locales).some(([key, value]) => {
+      if (!value?.title || !value?.content) return false;
+      return normalizeLang(key) === base;
+    });
+    const primaryBase = normalizeLang(post.primaryLocale);
+    if (hasExact || hasBase || base === primaryBase) {
       return Response.json({ ok: true, already: true });
     }
 
@@ -31,14 +38,26 @@ export async function POST(req: NextRequest) {
       return Response.json({ error: 'Translation service disabled' }, { status: 503 });
     }
 
+    const fallbackKey = Object.keys(locales)[0];
+    const primary = post.primaryLocale || fallbackKey;
+    const sourceEntry = primary ? locales[primary] : undefined;
+    if (!primary || !sourceEntry?.title || !sourceEntry?.content) {
+      return Response.json({ error: 'Missing source locale content' }, { status: 400 });
+    }
+
     console.log('[translate] sync', { postId, to: lang });
     const result = await TranslationService.translateHtml({
-      title: post.title,
-      content: post.content,
-      from: post.sourceLang,
-      to: base || lang,
+      title: sourceEntry.title,
+      content: sourceEntry.content,
+      from: normalizeLang(primary) || primary,
+      to: base,
     });
-    await repo.addTranslation(post.id, base || lang, { title: result.title, content: result.content, engine: 'gpt' });
+    await repo.addTranslation(post.id, targetLocale, {
+      title: result.title,
+      content: result.content,
+      engine: 'gpt',
+      sourceLocale: primary,
+    });
     return Response.json({ ok: true });
   } catch (error) {
     console.error('translate sync failed', error);

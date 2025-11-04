@@ -17,6 +17,7 @@ import UnderConstruction from '@/components/UnderConstruction';
 import crypto from 'crypto';
 import { DEFAULT_LOCALE, SUPPORTED_LOCALES } from '@/i18n';
 import type { Metadata } from 'next';
+import { buildTranslationTriggerPayload, localizeBlogPosts } from '@/utils/blogLocales';
 
 export const dynamic = 'force-dynamic';
 
@@ -112,31 +113,9 @@ export default async function AuthorBlogPage({ params }: { params: Promise<Autho
     console.error('[blog/author] failed to fetch site info', error);
   }
 
-  const choose = (p: IBlogPost) => {
-    if (!locale || locale === p.sourceLang) return p;
-    const translations = p.translations || {};
-    const base = locale.split('-')[0]?.toLowerCase();
-    let translated = translations[locale] as any;
-    if (!translated && base) {
-      const key = Object.keys(translations).find((k) => {
-        const kb = k.split('-')[0]?.toLowerCase();
-        return k.toLowerCase() === locale.toLowerCase() || kb === base;
-      });
-      if (key) translated = (translations as any)[key];
-    }
-    if (!translated) return p;
-    return { ...p, title: translated.title || p.title, content: translated.content || p.content };
-  };
+  const localizedPosts = localizeBlogPosts(posts, { preferredLocale: locale, fallbackLocales: [DEFAULT_LOCALE] });
 
-  const localized = posts.map((p) => choose(p));
-
-  const clientPosts = posts.map((p) => ({
-    id: p.id,
-    sourceLang: p.sourceLang,
-    translations: Object.fromEntries(
-      Object.entries(p.translations || {}).map(([k, v]: any) => [k, { title: String(v?.title || ''), content: String(v?.content || '') }])
-    ) as Record<string, { title: string; content: string }>,
-  }));
+  const clientPosts = posts.map(buildTranslationTriggerPayload);
 
   const baseUrl = await resolveRequestBaseUrl() || undefined;
   const siteName = siteInfo?.name?.trim();
@@ -165,8 +144,9 @@ export default async function AuthorBlogPage({ params }: { params: Promise<Autho
   });
 
   const postsListSchema = createBlogPostListSchema(
-    localized,
-    localized.map(() => author),
+    localizedPosts.map(({ post }) => post),
+    localizedPosts.map(({ localized }) => localized),
+    localizedPosts.map(() => author),
     { baseUrl, siteName, lang: baseLang }
   );
 
@@ -176,18 +156,18 @@ export default async function AuthorBlogPage({ params }: { params: Promise<Autho
     <div className="space-y-4 p-4">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: structuredData }} />
       <TranslationTrigger posts={clientPosts} lang={locale} />
-      {localized.map((post) => (
+      {localizedPosts.map(({ post, localized }) => (
         <Card key={post.id}>
           <CardHeader>
             <div className="flex items-start justify-between gap-3">
-              <h1 className="text-2xl font-semibold text-charcoal m-0">{post.title}</h1>
+              <h1 className="text-2xl font-semibold text-charcoal m-0">{localized.title}</h1>
               <AuthorPostActions postId={post.id} authorId={post.authorId} />
             </div>
           </CardHeader>
           <CardContent>
             <div
               className={`prose max-w-none ${blogStyles.content}`}
-              dangerouslySetInnerHTML={{ __html: post.content || '' }}
+              dangerouslySetInnerHTML={{ __html: localized.content || '' }}
             />
           </CardContent>
         </Card>

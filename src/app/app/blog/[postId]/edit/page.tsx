@@ -7,7 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { apiFetch } from '@/utils/apiFetch';
 import EditorRich from '@/components/EditorRich';
-import type { IBlogPost } from '@/entities/BlogPost';
+import type { IBlogPost, BlogPostLocalizedFields } from '@/entities/BlogPost';
+import { localizeBlogPost } from '@/utils/blogLocales';
+import { DEFAULT_LOCALE } from '@/i18n';
 import { useUserStore } from '@/store/UserStore';
 import { useMemberStore } from '@/store/MemberStore';
 
@@ -19,6 +21,9 @@ export default function EditPostPage() {
   const member = useMemberStore((state) => state.member);
 
   const [post, setPost] = useState<IBlogPost | null>(null);
+  const [draftTitle, setDraftTitle] = useState('');
+  const [draftContent, setDraftContent] = useState('');
+  const [draftPublic, setDraftPublic] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -27,8 +32,15 @@ export default function EditPostPage() {
     const load = async () => {
       try {
         setLoading(true);
-        const data = await apiFetch<{ post: IBlogPost }>(`/api/blog?id=${params.postId}&lang=${i18n.language}`);
+        const data = await apiFetch<{ post: IBlogPost; localized?: BlogPostLocalizedFields }>(`/api/blog?id=${params.postId}&lang=${i18n.language}`);
         setPost(data.post);
+        const localizedData = data.localized ?? localizeBlogPost(data.post, {
+          preferredLocale: i18n.language,
+          fallbackLocales: [DEFAULT_LOCALE],
+        }).localized;
+        setDraftTitle(localizedData.title ?? '');
+        setDraftContent(localizedData.content ?? '');
+        setDraftPublic(data.post?.isPublic ?? false);
         setError(null);
       } catch (err) {
         console.error('[blog-edit] failed to load post', err);
@@ -60,9 +72,9 @@ export default function EditPostPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           id: post.id,
-          title: post.title,
-          content: post.content,
-          isPublic: post.isPublic,
+          title: draftTitle,
+          content: draftContent,
+          isPublic: draftPublic,
           lang: i18n.language,
         }),
       });
@@ -95,21 +107,21 @@ export default function EditPostPage() {
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
           <input
-            value={post.title}
-            onChange={(event) => setPost({ ...post, title: event.target.value })}
+            value={draftTitle}
+            onChange={(event) => setDraftTitle(event.target.value)}
             className="w-full border border-sage-200 rounded-md px-3 py-2"
             placeholder={t('title') as string}
           />
           <EditorRich
-            value={post.content}
+            value={draftContent}
             locale={(i18n.language || 'en').split('-')[0]}
-            onChange={(html) => setPost({ ...post, content: html })}
+            onChange={(html) => setDraftContent(html)}
           />
           <label className="flex items-center gap-2 text-sage-700">
             <input
               type="checkbox"
-              checked={post.isPublic}
-              onChange={(event) => setPost({ ...post, isPublic: event.target.checked })}
+              checked={draftPublic}
+              onChange={(event) => setDraftPublic(event.target.checked)}
             />
             <span>{t('public')}</span>
           </label>

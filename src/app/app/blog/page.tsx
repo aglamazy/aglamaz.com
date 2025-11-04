@@ -8,7 +8,7 @@ import { useRouter } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import type { IBlogPost } from '@/entities/BlogPost';
+import type { LocalizedBlogPost } from '@/entities/BlogPost';
 import { apiFetch } from '@/utils/apiFetch';
 import { useUserStore } from '@/store/UserStore';
 import { useSiteStore } from '@/store/SiteStore';
@@ -21,12 +21,12 @@ export default function BlogPage() {
   const { user } = useUserStore();
   const member = useMemberStore((state) => state.member);
   const siteInfo = useSiteStore((state) => state.siteInfo);
-  const [posts, setPosts] = useState<IBlogPost[]>([]);
+  const [posts, setPosts] = useState<LocalizedBlogPost[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const isAdmin = member?.role === 'admin';
-  const canEditPost = (post: IBlogPost) => isAdmin || post.authorId === user?.user_id;
+  const canEditPost = (post: LocalizedBlogPost) => isAdmin || post.post.authorId === user?.user_id;
 
   useEffect(() => {
     const fetchPosts = async () => {
@@ -34,7 +34,7 @@ export default function BlogPage() {
       setError('');
       try {
         // Fetch all blog posts in the site (no authorId filter)
-        const data = await apiFetch<{ posts: IBlogPost[] }>(`/api/blog?lang=${i18n.language}`);
+        const data = await apiFetch<{ posts: LocalizedBlogPost[] }>(`/api/blog?lang=${i18n.language}`);
         setPosts(data.posts || []);
       } catch (e) {
         console.error(e);
@@ -63,23 +63,24 @@ export default function BlogPage() {
       {loading ? <div className={styles.status}>{t('loading') as string}</div> : null}
       {error ? <div className={`${styles.status} ${styles.statusError}`}>{loadError}</div> : null}
       <div className={styles.list}>
-        {posts.map((post, index) => {
+        {posts.map((entry, index) => {
+          const { post, localized } = entry;
           const tintPalette = [styles.tintBlue, styles.tintGreen, styles.tintYellow, styles.tintPurple, styles.tintRose];
           const tintClass = tintPalette[index % tintPalette.length];
           return (
             <Card key={post.id} className={`${styles.card} rounded-none md:rounded-2xl overflow-hidden shadow-lg md:shadow-md border-none md:border-b mx-4 my-2 md:mx-0 md:my-0`} style={{ background: 'rgba(255, 255, 255, 0.92)' }}>
               <CardHeader className={`${styles.cardHeader} p-4 md:p-3 bg-slate-50/85 md:bg-transparent border-b border-slate-400/25 md:border-gray-900/8`}>
-                <CardTitle className={styles.cardTitle}>{post.title}</CardTitle>
+                <CardTitle className={styles.cardTitle}>{localized.title}</CardTitle>
               </CardHeader>
               <CardContent className={`${styles.cardContent} p-0 md:p-3 md:pb-4`}>
                 <div className={`${styles.cardTint} ${tintClass} p-4 md:p-3`}>
                   <div
                     className="prose prose-slate"
                     style={{ maxWidth: '100%', overflowWrap: 'break-word', wordBreak: 'break-word' }}
-                    dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(post.content || '') }}
+                    dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(localized.content || '') }}
                   />
                 </div>
-                {canEditPost(post) && (
+                {canEditPost(entry) && (
                   <div className={styles.cardActions}>
                     <Link href={`/app/blog/${post.id}/edit`}>
                       <Button className={styles.editButton}>{t('edit')}</Button>

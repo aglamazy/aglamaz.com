@@ -3,70 +3,97 @@ import { BlogRepository } from '@/repositories/BlogRepository';
 import { GuardContext } from '@/app/api/types';
 import { TranslationService } from '@/services/TranslationService';
 import { normalizeLang } from '@/services/LocalizationService';
-import type { IBlogPost } from '@/entities/BlogPost';
-import { Timestamp } from 'firebase-admin/firestore';
+import type { IBlogPost, LocalizedBlogPost } from '@/entities/BlogPost';
+import { localizeBlogPost } from '@/utils/blogLocales';
+
+const DEFAULT_LANG = (process.env.NEXT_DEFAULT_LANG || 'en').toLowerCase();
 
 export const dynamic = 'force-dynamic';
 
-function pickPostForLang(post: IBlogPost, lang: string): IBlogPost {
-  // Blog posts still use old translations structure
-  if (!lang || lang === post.sourceLang) return post;
-
-  const translations = post.translations || {};
-  const normalizedLang = normalizeLang(lang);
-  const translation = normalizedLang ? translations[normalizedLang] : null;
-
-  if (!translation) return post;
-
-  return {
-    ...post,
-    title: translation.title || post.title,
-    content: translation.content || post.content,
-  };
+function parseLocaleInput(value?: string | null): string | undefined {
+  if (!value) return undefined;
+  const raw = value.split(',')[0]?.trim();
+  if (!raw) return undefined;
+  const withoutWeight = raw.split(';')[0]?.trim();
+  return withoutWeight ? withoutWeight.toLowerCase() : undefined;
 }
 
-function shouldRequestBlogTranslation(post: IBlogPost, lang: string): boolean {
-  const normalizedLang = normalizeLang(lang);
-  if (!normalizedLang || normalizedLang === post.sourceLang) return false;
-
-  // Check if translation already exists
-  const translations = post.translations || {};
-  return !translations[normalizedLang];
+function hasLocaleContent(post: IBlogPost, locale: string): boolean {
+  const locales = post.locales || {};
+  const normalized = locale.toLowerCase();
+  const base = normalizeLang(normalized);
+  const direct = locales[normalized];
+  if (direct?.title && direct?.content) {
+    return true;
+  }
+  if (!base) return false;
+  return Object.entries(locales).some(([key, value]) => {
+    if (!value?.title || !value?.content) return false;
+    return normalizeLang(key) === base;
+  });
 }
 
-async function maybeEnqueueTranslation(post: IBlogPost, lang: string, repo: BlogRepository) {
-  if (!shouldRequestBlogTranslation(post, lang)) return;
+function shouldRequestBlogTranslation(post: IBlogPost, lang: string | undefined): boolean {
+  if (!lang) return false;
+  const normalized = lang.toLowerCase();
+  if (!normalized) return false;
+  const base = normalizeLang(normalized);
+  const primaryBase = normalizeLang(post.primaryLocale);
+  if (!base || base === primaryBase) {
+    return false;
+  }
+  return !hasLocaleContent(post, normalized);
+}
 
-  const normalizedLang = normalizeLang(lang);
-  if (!normalizedLang) return;
+async function maybeEnqueueTranslation(post: IBlogPost, lang: string | undefined, repo: BlogRepository) {
+  if (!lang) return;
+  const normalized = lang.toLowerCase();
+  if (!shouldRequestBlogTranslation(post, normalized)) return;
+
+  const locales = post.locales || {};
+  const fallbackKey = Object.keys(locales)[0];
+  const primary = post.primaryLocale || fallbackKey || DEFAULT_LANG;
+  const sourceEntry = locales[primary] ?? (fallbackKey ? locales[fallbackKey] : undefined);
+  if (!sourceEntry?.title || !sourceEntry?.content) {
+    return;
+  }
+
+  const base = normalizeLang(normalized) || normalized;
 
   try {
-    await repo.markTranslationRequested(post.id, normalizedLang);
-  } catch (e) {
-    console.error('Failed to mark translation requested', e);
-    // Still attempt translation to avoid user being stuck without it
+    await repo.markTranslationRequested(post.id, normalized);
+  } catch (error) {
+    console.error('Failed to mark translation requested', error);
   }
 
   if (!TranslationService.isEnabled()) return;
 
   (async () => {
     try {
-      console.log('[translate] start', { postId: post.id, to: normalizedLang });
+      console.log('[translate] start', { postId: post.id, to: normalized });
       const res = await TranslationService.translateHtml({
-        title: post.title,
-        content: post.content,
-        from: post.sourceLang,
-        to: normalizedLang,
+        title: sourceEntry.title || '',
+        content: sourceEntry.content || '',
+        from: normalizeLang(primary) || primary,
+        to: base,
       });
-      await repo.addTranslation(post.id, normalizedLang, {
+      await repo.addTranslation(post.id, normalized, {
         title: res.title,
         content: res.content,
-        engine: 'gpt'
+        engine: 'gpt',
+        sourceLocale: primary,
       });
-    } catch (err) {
-      console.error(`Background translation failed for post ${post.id} to ${normalizedLang}:`, err);
+    } catch (error) {
+      console.error(`Background translation failed for post ${post.id} to ${normalized}:`, error);
     }
   })();
+}
+
+function localize(post: IBlogPost, locale: string | undefined): LocalizedBlogPost {
+  return localizeBlogPost(post, {
+    preferredLocale: locale,
+    fallbackLocales: [DEFAULT_LANG],
+  });
 }
 
 const getHandler = async (request: Request, _context: GuardContext) => {
@@ -74,26 +101,26 @@ const getHandler = async (request: Request, _context: GuardContext) => {
     const repo = new BlogRepository();
     const url = new URL(request.url);
     const id = url.searchParams.get('id');
-    const qLang = url.searchParams.get('lang');
-    const headerLang = normalizeLang(request.headers.get('accept-language'));
-    const lang = normalizeLang(qLang) || headerLang || process.env.NEXT_DEFAULT_LANG || 'en';
+    const qLang = parseLocaleInput(url.searchParams.get('lang'));
+    const headerLang = parseLocaleInput(request.headers.get('accept-language'));
+    const lang = qLang || headerLang || DEFAULT_LANG;
     if (id) {
       const post = await repo.getById(id);
       if (!post) {
         return Response.json({ error: 'Post not found' }, { status: 404 });
       }
       await maybeEnqueueTranslation(post, lang, repo);
-      const localized = pickPostForLang(post, lang);
-      return Response.json({ post: localized, lang });
+      const localized = localize(post, lang);
+      return Response.json({ post, localized: localized.localized, lang });
     }
     const authorId = url.searchParams.get('authorId');
     const posts = authorId ? await repo.getByAuthor(authorId) : await repo.getAll();
-    // Fire-and-forget enqueue for missing translations and localize payload
-    const localized = await Promise.all(posts.map(async (p) => {
-      await maybeEnqueueTranslation(p, lang, repo);
-      return pickPostForLang(p, lang);
-    }));
-    return Response.json({ posts: localized, lang });
+    const localizedPosts: LocalizedBlogPost[] = [];
+    for (const post of posts) {
+      await maybeEnqueueTranslation(post, lang, repo);
+      localizedPosts.push(localize(post, lang));
+    }
+    return Response.json({ posts: localizedPosts, lang });
   } catch (error) {
     console.error(error);
     return Response.json({ error: 'Failed to fetch posts' }, { status: 500 });
@@ -110,18 +137,23 @@ const postHandler = async (request: Request, context: GuardContext) => {
     if (!title || !content) {
       return Response.json({ error: 'Missing fields' }, { status: 400 });
     }
-    const accept = request.headers.get('accept-language') || '';
-    const headerLang = accept.split(',')[0]?.split('-')[0] || '';
-    const sourceLang = (lang || headerLang || process.env.NEXT_DEFAULT_LANG || 'en').toString();
+    const accept = request.headers.get('accept-language');
+    const headerLang = parseLocaleInput(accept);
+    const primaryLocale = (parseLocaleInput(lang) || headerLang || DEFAULT_LANG).toLowerCase();
     const post = await repo.create({
       authorId: user.userId,
       siteId: member.siteId,
-      sourceLang,
-      title,
-      content,
+      primaryLocale,
+      localeContent: {
+        title,
+        content,
+        engine: 'manual',
+        sourceLocale: primaryLocale,
+      },
       isPublic: Boolean(isPublic),
     });
-    return Response.json({ post }, { status: 201 });
+    const localized = localize(post, primaryLocale);
+    return Response.json({ post, localized: localized.localized }, { status: 201 });
   } catch (error) {
     console.error(error);
     return Response.json({ error: 'Failed to create post' }, { status: 500 });
@@ -134,7 +166,13 @@ const putHandler = async (request: Request, context: GuardContext) => {
     const user = context.user!;
     const member = context.member!;
     const body = await request.json();
-    const { id, title, content, isPublic, lang } = body as { id?: string; title?: string; content?: string; isPublic?: boolean; lang?: string };
+    const { id, title, content, isPublic, lang } = body as {
+      id?: string;
+      title?: string;
+      content?: string;
+      isPublic?: boolean;
+      lang?: string;
+    };
     if (!id) {
       return Response.json({ error: 'Missing id' }, { status: 400 });
     }
@@ -145,7 +183,7 @@ const putHandler = async (request: Request, context: GuardContext) => {
     if (existing.authorId !== user.userId && member.role !== 'admin') {
       return Response.json({ error: 'Forbidden' }, { status: 403 });
     }
-    const updates: any = {};
+    const updates: Record<string, unknown> = {};
     if (!(existing as any).siteId) {
       updates.siteId = member.siteId;
     }
@@ -153,28 +191,31 @@ const putHandler = async (request: Request, context: GuardContext) => {
       updates.isPublic = !!isPublic;
     }
 
-    // When editing in a language different from source, update translations map instead of original fields
-    const normalizedLang = (lang || '').toString().split('-')[0];
-    if (normalizedLang && normalizedLang !== existing.sourceLang) {
-      if (title != null || content != null) {
-        await repo.addTranslation(id, normalizedLang, {
-          title: title ?? (existing.translations?.[normalizedLang]?.title || existing.title),
-          content: content ?? (existing.translations?.[normalizedLang]?.content || existing.content),
-          engine: 'manual',
-        });
-      }
-      if (Object.keys(updates).length) {
-        await repo.update(id, updates);
-      }
-    } else {
-      // Editing the source language
-      if (title != null) updates.title = title;
-      if (content != null) updates.content = content;
+    const targetLocale = parseLocaleInput(lang) || existing.primaryLocale;
+    const normalizedLocale = targetLocale.toLowerCase();
+    const localePayload: Record<string, unknown> = {};
+    if (title !== undefined) {
+      localePayload.title = title;
+    }
+    if (content !== undefined) {
+      localePayload.content = content;
+    }
+
+    if (Object.keys(localePayload).length > 0) {
+      await repo.upsertLocale(id, normalizedLocale, {
+        ...(localePayload as { title?: string; content?: string }),
+        engine: 'manual',
+        sourceLocale: normalizedLocale === existing.primaryLocale ? normalizedLocale : existing.primaryLocale,
+      });
+    }
+
+    if (Object.keys(updates).length) {
       await repo.update(id, updates);
     }
 
     const updated = await repo.getById(id);
-    return Response.json({ post: updated });
+    const localized = updated ? localize(updated, normalizedLocale) : null;
+    return Response.json({ post: updated, localized: localized?.localized });
   } catch (error) {
     console.error(error);
     return Response.json({ error: 'Failed to update post' }, { status: 500 });
