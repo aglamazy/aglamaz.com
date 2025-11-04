@@ -12,6 +12,7 @@ import { initFirebase, ensureFirebaseSignedIn, auth } from '@/firebase/client';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { SUPPORTED_LOCALES } from '@/i18n';
 import { LANGUAGES } from '@/constants/languages';
+import { Select } from '@/components/ui/select';
 
 export default function EditUserDetails({ standalone = false }: { standalone?: boolean }) {
   const { user, setUser } = useUserStore();
@@ -31,8 +32,6 @@ export default function EditUserDetails({ standalone = false }: { standalone?: b
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [removeExisting, setRemoveExisting] = useState(false);
   const [defaultLocale, setDefaultLocale] = useState<string>('en');
-  const [isLangPickerOpen, setIsLangPickerOpen] = useState(false);
-  const langPickerRef = useRef<HTMLDivElement>(null);
   const { t, i18n } = useTranslation();
 
   const MAX_AVATAR_SIZE = 4 * 1024 * 1024; // 4MB
@@ -116,19 +115,6 @@ export default function EditUserDetails({ standalone = false }: { standalone?: b
     }
   }, [avatarPreview]);
 
-  // Close language picker on outside click
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (langPickerRef.current && !langPickerRef.current.contains(event.target as Node)) {
-        setIsLangPickerOpen(false);
-      }
-    };
-
-    if (isLangPickerOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }
-  }, [isLangPickerOpen]);
 
 const parseApiError = async (response: Response) => {
   const text = await response.text();
@@ -437,39 +423,18 @@ const mapAvatarError = (code: string) => {
             disabled
           />
         </div>
-        <div className="relative" ref={langPickerRef}>
+        <div>
           <label className="block text-sm mb-1">{t('language', { defaultValue: 'Language' })}</label>
-          <button
-            type="button"
-            onClick={() => setIsLangPickerOpen(!isLangPickerOpen)}
-            className="w-full border border-gray-300 rounded px-3 py-2 bg-white text-left flex items-center justify-between"
+          <Select
+            value={defaultLocale}
+            onChange={setDefaultLocale}
+            options={LANGUAGES.map(({ code, label, flag }) => ({
+              value: code,
+              label: label,
+              icon: flag,
+            }))}
             disabled={isLoading || profileLoading}
-          >
-            <span>
-              {LANGUAGES.find(l => l.code === defaultLocale)?.flag} {LANGUAGES.find(l => l.code === defaultLocale)?.label}
-            </span>
-            <span className="text-gray-400">▼</span>
-          </button>
-          {isLangPickerOpen && (
-            <div className="absolute z-50 mt-1 w-full bg-white border border-gray-300 rounded shadow-lg max-h-60 overflow-y-auto">
-              {LANGUAGES.map(({ code, label, flag }) => (
-                <button
-                  key={code}
-                  type="button"
-                  onClick={() => {
-                    setDefaultLocale(code);
-                    setIsLangPickerOpen(false);
-                  }}
-                  className={`w-full px-3 py-2 text-left hover:bg-sage-50 flex items-center gap-2 ${
-                    code === defaultLocale ? 'bg-sage-100 font-semibold' : ''
-                  }`}
-                >
-                  <span>{flag}</span>
-                  <span>{label}</span>
-                </button>
-              ))}
-            </div>
-          )}
+          />
         </div>
         <div className="flex justify-end gap-2">
           {!standalone && (
