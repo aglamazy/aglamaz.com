@@ -229,7 +229,7 @@ export default function Header({ user, member, onLogout, siteInfo }: HeaderProps
         ) : (
           <button
             onClick={openLogin}
-            className="h-8 px-3 rounded-full bg-sage-600 text-white text-sm"
+            className="h-8 px-3 rounded-full bg-sage-600 text-white text-sm whitespace-nowrap"
           >
             {t('signIn')}
           </button>

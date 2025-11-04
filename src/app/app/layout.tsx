@@ -10,13 +10,14 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
   params?: any;
-  searchParams?: { locale?: string };
+  searchParams?: Promise<{ locale?: string }>;
 }) {
   const h = await headers();
   const isAuthGate = h.get('x-auth-gate') === '1';
 
   // Priority: query param > header > default
-  const queryLocale = searchParams?.locale;
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const queryLocale = resolvedSearchParams?.locale;
   const headerLocale = h.get('x-locale');
   const resolvedLocale =
     (queryLocale && SUPPORTED_LOCALES.includes(queryLocale)) ? queryLocale :

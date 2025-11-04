@@ -32,7 +32,7 @@ async function resolveRequestBaseUrl() {
 
 interface HomePageProps {
   params: Promise<{ locale: string }>;
-  searchParams?: Record<string, string | string[] | undefined>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
@@ -59,7 +59,8 @@ export default async function HomePage({ params, searchParams }: HomePageProps) 
   const { locale: paramLocale } = await params;
   const locale = SUPPORTED_LOCALES.includes(paramLocale) ? paramLocale : DEFAULT_LOCALE;
   // Resolve site ID based on hostname or query param (for local dev)
-  const overrideSiteId = resolveSiteIdWithOverride(searchParams);
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const overrideSiteId = resolveSiteIdWithOverride(resolvedSearchParams);
   const siteId = overrideSiteId || await resolveSiteId();
 
   // If no site ID is resolved, show "Under Construction" page

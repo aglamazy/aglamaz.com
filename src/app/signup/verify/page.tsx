@@ -1,11 +1,12 @@
 import VerifySignupClient from './VerifySignupClient';
 
-export default function VerifySignupPage({
+export default async function VerifySignupPage({
   searchParams,
 }: {
-  searchParams?: Record<string, string | string[] | undefined>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const raw = searchParams?.token;
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const raw = resolvedSearchParams?.token;
   const token = Array.isArray(raw) ? raw[0] : raw || null;
 
   return <VerifySignupClient token={token} />;

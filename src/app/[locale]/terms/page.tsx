@@ -10,8 +10,9 @@ function resolveConfiguredBaseUrl() {
   return configured ? configured.replace(/\/+$/, '') : null;
 }
 
-export async function generateMetadata({ params }: { params: { locale: string } }): Promise<Metadata> {
-  const locale = SUPPORTED.includes(params.locale) ? params.locale : DEFAULT_LOCALE;
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+  const { locale: paramLocale } = await params;
+  const locale = SUPPORTED.includes(paramLocale) ? paramLocale : DEFAULT_LOCALE;
   const baseUrl = resolveConfiguredBaseUrl();
   const canonical = baseUrl ? `${baseUrl}/${locale}/terms` : undefined;
 
@@ -30,8 +31,9 @@ export async function generateMetadata({ params }: { params: { locale: string } 
   } satisfies Metadata;
 }
 
-export default function TermsPage({ params }: { params: { locale: string } }) {
-  const locale = SUPPORTED.includes(params.locale) ? params.locale : DEFAULT_LOCALE;
+export default async function TermsPage({ params }: { params: Promise<{ locale: string }> }) {
+  const { locale: paramLocale } = await params;
+  const locale = SUPPORTED.includes(paramLocale) ? paramLocale : DEFAULT_LOCALE;
 
   switch (locale) {
     case 'he':

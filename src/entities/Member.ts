@@ -8,6 +8,8 @@ export interface IMember {
   email: string;
   blogEnabled?: boolean;
   blogHandle?: string; // Unique slug for author's blog URL (e.g., 'yaakov-aglamaz')
+  blogTermsAcceptedAt?: any; // Timestamp when blog-specific terms were accepted
+  siteTermsAcceptedAt?: any; // Timestamp when site-wide terms were accepted
   defaultLocale?: string; // User's preferred language (e.g., 'en', 'he', 'tr')
   avatarUrl?: string | null;
   avatarStoragePath?: string | null;
