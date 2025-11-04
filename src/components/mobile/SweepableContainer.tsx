@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import styles from './SweepableContainer.module.css';
 import type { SweepableElementProps } from './SweepableElement';
@@ -8,9 +8,16 @@ import type { SweepableElementProps } from './SweepableElement';
 interface SweepableContainerProps {
   children: React.ReactElement<SweepableElementProps>[];
   indicatorLabel?: string;
+  activeIndex?: number;
+  onActiveIndexChange?: (index: number) => void;
 }
 
-export default function SweepableContainer({ children, indicatorLabel }: SweepableContainerProps) {
+export default function SweepableContainer({
+  children,
+  indicatorLabel,
+  activeIndex: controlledActiveIndex,
+  onActiveIndexChange,
+}: SweepableContainerProps) {
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const touchStartX = useRef<number | null>(null);
   const touchEndX = useRef<number | null>(null);
@@ -23,45 +30,69 @@ export default function SweepableContainer({ children, indicatorLabel }: Sweepab
     [children]
   );
 
-  const initialIndex = slides.length > 1 ? 1 : 0;
-  const [activeIndex, setActiveIndex] = useState(initialIndex);
+  const isControlled = typeof controlledActiveIndex === 'number';
+
+  const clampIndex = useCallback(
+    (value: number) => {
+      if (slides.length === 0) return 0;
+      return Math.max(0, Math.min(value, slides.length - 1));
+    },
+    [slides.length]
+  );
+
+  const defaultIndex = slides.length > 1 ? 1 : 0;
+  const initialIndex = clampIndex(
+    isControlled && controlledActiveIndex !== undefined ? controlledActiveIndex : defaultIndex
+  );
+
+  const [internalActiveIndex, setInternalActiveIndex] = useState(initialIndex);
   const [direction, setDirection] = useState<0 | 1 | -1>(0);
 
   useEffect(() => {
-    const desired = slides.length > 1 ? 1 : 0;
-    setActiveIndex((prev) => {
-      if (slides.length === 0) {
-        setDirection(0);
-        return 0;
-      }
-
-      const clamped = Math.max(0, Math.min(prev, slides.length - 1));
+    setInternalActiveIndex((prev) => {
+      const clamped = clampIndex(prev);
       if (clamped !== prev) {
         setDirection(0);
         return clamped;
       }
 
-      if (!hasInteractedRef.current && clamped !== desired) {
-        setDirection(0);
-        return desired;
+      if (!isControlled) {
+        const desired = defaultIndex;
+        if (!hasInteractedRef.current && clamped !== desired) {
+          setDirection(0);
+          return desired;
+        }
       }
 
       return clamped;
     });
-  }, [slides.length]);
+  }, [clampIndex, defaultIndex, isControlled]);
 
-  const goToIndex = (next: number) => {
-    setActiveIndex((prev) => {
-      if (slides.length === 0) return 0;
-      const clamped = Math.max(0, Math.min(next, slides.length - 1));
-      if (clamped === prev) {
-        setDirection(0);
+  useEffect(() => {
+    if (!isControlled || controlledActiveIndex === undefined) return;
+    const desired = clampIndex(controlledActiveIndex);
+    setInternalActiveIndex((prev) => {
+      if (prev === desired) {
         return prev;
       }
-      hasInteractedRef.current = true;
-      setDirection(clamped > prev ? 1 : -1);
-      return clamped;
+      setDirection(desired > prev ? 1 : -1);
+      return desired;
     });
+  }, [clampIndex, controlledActiveIndex, isControlled]);
+
+  const goToIndex = (next: number) => {
+    if (slides.length === 0) return;
+    const currentIndex = internalActiveIndex;
+    const clamped = clampIndex(next);
+    if (clamped === currentIndex) {
+      setDirection(0);
+      return;
+    }
+
+    hasInteractedRef.current = true;
+    setDirection(clamped > currentIndex ? 1 : -1);
+    setInternalActiveIndex(clamped);
+    onActiveIndexChange?.(clamped);
   };
 
   const handleTouchStart: React.TouchEventHandler<HTMLDivElement> = (event) => {
@@ -101,9 +132,9 @@ export default function SweepableContainer({ children, indicatorLabel }: Sweepab
     }
 
     if (deltaX < 0) {
-      goToIndex(activeIndex + 1);
+      goToIndex(internalActiveIndex + 1);
     } else {
-      goToIndex(activeIndex - 1);
+      goToIndex(internalActiveIndex - 1);
     }
 
     touchStartX.current = null;
@@ -135,9 +166,9 @@ export default function SweepableContainer({ children, indicatorLabel }: Sweepab
 
     if (Math.abs(deltaY) <= Math.abs(deltaX) && Math.abs(deltaX) >= threshold) {
       if (deltaX < 0) {
-        goToIndex(activeIndex + 1);
+        goToIndex(internalActiveIndex + 1);
       } else {
-        goToIndex(activeIndex - 1);
+        goToIndex(internalActiveIndex - 1);
       }
     }
 
@@ -154,7 +185,7 @@ export default function SweepableContainer({ children, indicatorLabel }: Sweepab
     window.removeEventListener('mousemove', handleMouseMove);
   }, []);
 
-  const activeSlide = slides[activeIndex] ?? slides[0] ?? null;
+  const activeSlide = slides[internalActiveIndex] ?? slides[0] ?? null;
 
   const variants = {
     enter: (dir: number) => ({ x: dir > 0 ? '100%' : '-100%', opacity: 0 }),
@@ -175,7 +206,7 @@ export default function SweepableContainer({ children, indicatorLabel }: Sweepab
         <AnimatePresence initial={false} custom={direction}>
           {activeSlide ? (
             <motion.div
-              key={activeIndex}
+              key={internalActiveIndex}
               className={styles.slideWrapper}
               custom={direction}
               variants={variants}
@@ -198,10 +229,14 @@ export default function SweepableContainer({ children, indicatorLabel }: Sweepab
           <button
             key={slide.props.label ?? index}
             type="button"
-            className={index === activeIndex ? `${styles.indicator} ${styles.indicatorActive}` : styles.indicator}
+            className={
+              index === internalActiveIndex
+                ? `${styles.indicator} ${styles.indicatorActive}`
+                : styles.indicator
+            }
             onClick={() => goToIndex(index)}
             aria-label={slide.props.label}
-            aria-selected={index === activeIndex}
+            aria-selected={index === internalActiveIndex}
           />
         ))}
       </div>

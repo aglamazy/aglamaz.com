@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import Modal from '@/components/ui/Modal';
 import LoginPage from '@/components/LoginPage';
 import PendingMemberContent from '@/components/PendingMemberContent';
@@ -14,6 +15,27 @@ import BlogPage from '@/app/app/blog/page';
 import ShimmerImagePreview from '@/components/mobile/ShimmerImagePreview';
 import styles from './ClientLayoutShell.module.css';
 import type { TFunction } from 'i18next';
+
+const ROUTE_ORDER = ['/calendar', '/pictures/feed', '/blog'] as const;
+const PATH_TO_INDEX: Record<string, number> = {
+  '/calendar': 0,
+  '/pictures/feed': 1,
+  '/app': 1,
+  '/blog': 2,
+};
+
+const normalizePathname = (path: string) => {
+  if (!path) return '/';
+  if (path === '/') return '/';
+  return path.endsWith('/') ? path.slice(0, -1) : path;
+};
+
+const getIndexFromPath = (path: string) => {
+  const normalized = normalizePathname(path);
+  return PATH_TO_INDEX[normalized] ?? 1;
+};
+
+const getPathFromIndex = (index: number) => ROUTE_ORDER[index] ?? ROUTE_ORDER[1];
 
 interface ModalControls {
   isLoginOpen: boolean;
@@ -43,6 +65,8 @@ export default function ClientMobileShell({
   isEditOpen,
   closeEdit,
 }: ClientMobileShellProps) {
+  const router = useRouter();
+  const pathname = usePathname();
   const baseClass = styles.mobileContainer;
   const containerClassName = presentationModeActive ? `${baseClass} ${styles.presentationActive}` : baseClass;
 
@@ -51,15 +75,44 @@ export default function ClientMobileShell({
     [t]
   );
 
+  const [activeIndex, setActiveIndex] = useState(() => getIndexFromPath(pathname));
+
+  useEffect(() => {
+    const nextIndex = getIndexFromPath(pathname);
+    setActiveIndex((prev) => (prev === nextIndex ? prev : nextIndex));
+  }, [pathname]);
+
   const shimmerLabel = t('loadingPreview', { defaultValue: 'Loading Preview' }) as string;
   const calendarLabel = t('calendar') as string;
   const photoFeedLabel = t('photoFeed', { defaultValue: 'Photo Feed' }) as string;
   const blogLabel = t('blog') as string;
 
+  const handleActiveIndexChange = React.useCallback(
+    (nextIndex: number) => {
+      const clampedIndex = Math.max(0, Math.min(nextIndex, ROUTE_ORDER.length - 1));
+      setActiveIndex((prev) => (prev === clampedIndex ? prev : clampedIndex));
+
+      const targetPath = getPathFromIndex(clampedIndex);
+      const normalizedCurrent = normalizePathname(pathname);
+      const normalizedTarget = normalizePathname(targetPath);
+
+      if (normalizedCurrent === normalizedTarget) {
+        return;
+      }
+
+      router.replace(targetPath);
+    },
+    [pathname, router]
+  );
+
   return (
     <div className={containerClassName}>
       <main className={styles.mobileMain}>
-        <SweepableContainer indicatorLabel={indicatorLabel}>
+        <SweepableContainer
+          indicatorLabel={indicatorLabel}
+          activeIndex={activeIndex}
+          onActiveIndexChange={handleActiveIndexChange}
+        >
           <SweepableElement label={calendarLabel}>
             <CalendarPage />
           </SweepableElement>
