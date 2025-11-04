@@ -15,14 +15,11 @@ export default async function RootLayout({
   const h = await headers();
   const isAuthGate = h.get('x-auth-gate') === '1';
 
-  // Priority: query param > header > default
+  // Priority: query param > default (member.defaultLocale handled client-side)
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const queryLocale = resolvedSearchParams?.locale;
-  const headerLocale = h.get('x-locale');
   const resolvedLocale =
-    (queryLocale && SUPPORTED_LOCALES.includes(queryLocale)) ? queryLocale :
-    (headerLocale && SUPPORTED_LOCALES.includes(headerLocale)) ? headerLocale :
-    DEFAULT_LOCALE;
+    (queryLocale && SUPPORTED_LOCALES.includes(queryLocale)) ? queryLocale : undefined;
 
   return (
     <ErrorBoundary>

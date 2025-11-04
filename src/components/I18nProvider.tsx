@@ -12,11 +12,11 @@ interface I18nProviderProps {
 }
 
 export default function I18nProvider({
-  initialLocale = DEFAULT_LOCALE,
+  initialLocale,
   resources,
   children,
 }: I18nProviderProps) {
-  const sanitizedLocale = SUPPORTED_LOCALES.includes(initialLocale) ? initialLocale : DEFAULT_LOCALE;
+  const sanitizedLocale = (initialLocale && SUPPORTED_LOCALES.includes(initialLocale)) ? initialLocale : DEFAULT_LOCALE;
   const i18nRef = useRef(
     createI18nInstance({
       locale: sanitizedLocale,

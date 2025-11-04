@@ -19,7 +19,7 @@ import ClientMobileShell from '@/components/ClientMobileShell';
 import { apiFetch } from '@/utils/apiFetch';
 import { SUPPORTED_LOCALES } from '@/i18n';
 
-export default function ClientLayoutShell({ children, initialLocale = 'en' }: { children: React.ReactNode; initialLocale?: string }) {
+export default function ClientLayoutShell({ children, initialLocale }: { children: React.ReactNode; initialLocale?: string }) {
   const { user, loading, logout, checkAuth } = useUserStore();
   const siteInfo = useSiteStore((state) => state.siteInfo);
   const hydrateSiteInfo = useSiteStore((state) => state.hydrateFromWindow);
@@ -122,6 +122,9 @@ export default function ClientLayoutShell({ children, initialLocale = 'en' }: { 
     router.push(landingPage);
   };
 
+  // Priority: query param (initialLocale) > member.defaultLocale > browser default
+  const effectiveLocale = initialLocale || member?.defaultLocale || i18n.language;
+
   if (loading) {
     return (
       <Loader size={24} thickness={3} text={t('loading') as string}/>
@@ -129,7 +132,7 @@ export default function ClientLayoutShell({ children, initialLocale = 'en' }: { 
   }
 
   return (
-    <I18nProvider initialLocale={initialLocale}>
+    <I18nProvider initialLocale={effectiveLocale}>
       <I18nGate>
         {/* Render both mobile and desktop shells, CSS controls visibility */}
         <div className="mobile-only">
