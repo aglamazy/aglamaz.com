@@ -1,5 +1,9 @@
-import { FieldValue, Timestamp, getFirestore } from 'firebase-admin/firestore';
+      import { config } from 'dotenv';
+import { Timestamp, getFirestore } from 'firebase-admin/firestore';
 import { initAdmin } from '@/firebase/admin';
+
+// Load environment variables from .env.local
+config({ path: '.env.local' });
 
 interface LegacyTranslation {
   title?: string;
@@ -33,9 +37,19 @@ async function run() {
   let batch = db.batch();
   let ops = 0;
   let processed = 0;
+  let skipped = 0;
 
   for (const doc of snapshot.docs) {
     const data = doc.data();
+
+    // Skip if already migrated
+    if (data._migrated === true) {
+      console.log(`Skipping ${doc.id} - already migrated`);
+      skipped += 1;
+      processed += 1;
+      continue;
+    }
+
     const locales: Record<string, any> = {};
     const hasLocales = data.locales && Object.keys(data.locales || {}).length > 0;
     const sourceLocale = normalizeLocale(data.primaryLocale || data.sourceLang || 'en');
@@ -104,24 +118,28 @@ async function run() {
       update.primaryLocale = finalPrimary;
     }
 
-    if (data.sourceLang !== undefined) {
-      update.sourceLang = FieldValue.delete();
-    }
-    if (data.translations !== undefined) {
-      update.translations = FieldValue.delete();
-    }
-    if (data.title !== undefined) {
-      update.title = FieldValue.delete();
-    }
-    if (data.content !== undefined) {
-      update.content = FieldValue.delete();
-    }
-    if (data.seoTitle !== undefined) {
-      update.seoTitle = FieldValue.delete();
-    }
-    if (data.seoDescription !== undefined) {
-      update.seoDescription = FieldValue.delete();
-    }
+    // Mark as migrated instead of deleting old fields
+    update._migrated = true;
+
+    // Keep old fields for safety - don't delete them
+    // if (data.sourceLang !== undefined) {
+    //   update.sourceLang = FieldValue.delete();
+    // }
+    // if (data.translations !== undefined) {
+    //   update.translations = FieldValue.delete();
+    // }
+    // if (data.title !== undefined) {
+    //   update.title = FieldValue.delete();
+    // }
+    // if (data.content !== undefined) {
+    //   update.content = FieldValue.delete();
+    // }
+    // if (data.seoTitle !== undefined) {
+    //   update.seoTitle = FieldValue.delete();
+    // }
+    // if (data.seoDescription !== undefined) {
+    //   update.seoDescription = FieldValue.delete();
+    // }
 
     if (Object.keys(update).length === 0) {
       processed += 1;
@@ -132,9 +150,9 @@ async function run() {
     ops += 1;
     processed += 1;
 
-    if (ops >= 200) {
+    if (ops >= 450) {
       await batch.commit();
-      console.log(`Committed batch. Processed ${processed}/${snapshot.size}`);
+      console.log(`Committed batch. Processed ${processed}/${snapshot.size} (${skipped} skipped)`);
       batch = db.batch();
       ops = 0;
     }
@@ -144,7 +162,7 @@ async function run() {
     await batch.commit();
   }
 
-  console.log(`Migration complete. Updated ${processed} documents.`);
+  console.log(`Migration complete. Processed ${processed} documents (${skipped} already migrated, ${processed - skipped} updated).`);
 }
 
 run().catch((error) => {
