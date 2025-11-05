@@ -1,6 +1,7 @@
 import { withMemberGuard } from '@/lib/withMemberGuard';
 import { GalleryPhotoRepository } from '@/repositories/GalleryPhotoRepository';
 import { GuardContext } from '@/app/api/types';
+import { getFirestore } from 'firebase-admin/firestore';
 
 export const dynamic = 'force-dynamic';
 
@@ -41,11 +42,28 @@ const postHandler = async (request: Request, context: GuardContext & { params: P
       return Response.json({ error: 'Invalid imageIndex' }, { status: 400 });
     }
 
-    // TODO: Implement like tracking similar to anniversary occurrences
-    // For now, return mock response
+    // Store likes in subcollection: galleryPhotos/{photoId}/imageLikes/{imageIndex}/likes/{userId}
+    const db = getFirestore();
+    const likesRef = db
+      .collection('galleryPhotos')
+      .doc(id)
+      .collection('imageLikes')
+      .doc(String(imageIndex))
+      .collection('likes')
+      .doc(user.userId);
+
+    if (like) {
+      await likesRef.set({ createdAt: new Date() }, { merge: true });
+    } else {
+      await likesRef.delete();
+    }
+
+    // Count total likes for this image
+    const countSnap = await likesRef.parent.get();
+
     return Response.json({
       index: imageIndex,
-      count: 0,
+      count: countSnap.size,
       likedByMe: like,
     });
   } catch (error) {
