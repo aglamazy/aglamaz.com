@@ -20,8 +20,10 @@ import WelcomeHero from '@/components/home/WelcomeHero';
 import { getPlatformName } from '@/utils/platformName';
 
 type Occurrence = {
-  id: string; // occurrence id
-  eventId: string; // anniversary id
+  id: string; // occurrence/gallery photo id
+  type?: 'occurrence' | 'gallery'; // added by API
+  eventId?: string; // anniversary id (for occurrences)
+  anniversaryId?: string; // anniversary id (for gallery photos)
   date: any;
   images?: string[];
   createdBy?: string;
@@ -155,7 +157,9 @@ export default function PicturesFeedPage() {
       const arr = Array.isArray(occ.images) ? occ.images : [];
       const occDescriptionRaw = typeof occ.description === 'string' ? occ.description : '';
       const occDescription = occDescriptionRaw.trim();
-      const eventNameRaw = eventNames[occ.eventId]?.name;
+      // Handle both occurrence (eventId) and gallery (anniversaryId)
+      const annId = occ.eventId || occ.anniversaryId || '';
+      const eventNameRaw = eventNames[annId]?.name;
       const eventName = typeof eventNameRaw === 'string' ? eventNameRaw.trim() : '';
       const d = occ.date as any;
       const sec = d?._seconds ?? d?.seconds;
@@ -164,13 +168,13 @@ export default function PicturesFeedPage() {
       arr.forEach((src, i) => {
         const creatorId = occ.createdBy;
         if (!creatorId) {
-          throw new Error(`[PicturesFeedPage] missing creatorId for occurrence ${occ.id}`);
+          throw new Error(`[PicturesFeedPage] missing creatorId for ${occ.type || 'item'} ${occ.id}`);
         }
         const canEdit = canEditOccurrence(creatorId);
         flat.push({
           src,
           occId: occ.id,
-          annId: occ.eventId,
+          annId,
           idx: i,
           key: `${occ.id}:${i}`,
           creatorId,
