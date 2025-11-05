@@ -145,12 +145,6 @@ export async function proxy(request: NextRequest) {
       if (!ok) {
         return NextResponse.next();
       }
-
-      // Use member's defaultLocale for authenticated pages
-      const memberDefaultLocale = memberRes?.member?.defaultLocale;
-      if (memberDefaultLocale && SUPPORTED_LOCALES.includes(memberDefaultLocale)) {
-        requestHeaders.set('x-locale', memberDefaultLocale);
-      }
     }
 
     return NextResponse.next({ request: { headers: requestHeaders } });
