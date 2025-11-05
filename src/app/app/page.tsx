@@ -112,8 +112,13 @@ export default function PicturesFeedPage() {
       await Promise.all(
         list.map(async (occ) => {
           try {
+            // Use different endpoints for occurrence vs gallery photos
+            const endpoint = occ.type === 'gallery'
+              ? `/api/photos/${occ.id}/image-likes`
+              : `/api/anniversaries/${occ.eventId}/events/${occ.id}/image-likes`;
+
             const likeResponse = await apiFetch<{ items: ImageLikeMeta[] }>(
-              `/api/anniversaries/${occ.eventId}/events/${occ.id}/image-likes`,
+              endpoint,
               { cache: 'no-store' }
             );
             likesMap[occ.id] = Array.isArray(likeResponse.items) ? likeResponse.items : [];
