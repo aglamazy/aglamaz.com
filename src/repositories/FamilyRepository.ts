@@ -384,7 +384,10 @@ export class FamilyRepository {
       }
 
       await requestRef.set(payload, { merge: true });
-      await adminNotificationService.notify('pending_member', requestData, siteUrl);
+
+      if (requestData.source !== 'invite') {
+        await adminNotificationService.notify('pending_member', requestData, siteUrl);
+      }
 
       return {
         id: documentId,

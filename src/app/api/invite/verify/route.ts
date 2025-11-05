@@ -3,6 +3,7 @@ import { FamilyRepository } from '@/repositories/FamilyRepository';
 import { adminAuth, initAdmin } from '@/firebase/admin';
 import { signAccessToken, signRefreshToken } from '@/auth/service';
 import { setAuthCookies } from '@/auth/cookies';
+import { adminNotificationService } from '@/services/AdminNotificationService';
 
 export const dynamic = 'force-dynamic';
 
@@ -136,6 +137,18 @@ export async function POST(request: Request) {
       needsCredentialSetup,
     });
     setAuthCookies(response, access, refresh);
+    try {
+      const origin = new URL(request.url).origin;
+      await adminNotificationService.notify('new_member', {
+        siteId: invite.siteId,
+        memberId: member.id,
+        firstName: member.firstName || member.displayName || pendingRequest.firstName || '',
+        email: userRecord.email || pendingRequest.email,
+        role: member.role,
+      }, origin);
+    } catch (notifyError) {
+      console.error('[invite][verify] failed to notify admin about new member', notifyError);
+    }
     return response;
   } catch (error) {
     console.error('[invite][verify] failed to verify invite', error);
