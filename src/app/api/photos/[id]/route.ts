@@ -1,6 +1,8 @@
 import { withMemberGuard } from '@/lib/withMemberGuard';
 import { GalleryPhotoRepository } from '@/repositories/GalleryPhotoRepository';
 import { GuardContext } from '@/app/api/types';
+import { buildLocalizedUpdate } from '@/services/LocalizationService';
+import { Timestamp, getFirestore } from 'firebase-admin/firestore';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,7 +38,7 @@ const getHandler = async (request: Request, context: GuardContext & { params: Pr
 
 /**
  * PUT /api/photos/[id]
- * Update a gallery photo
+ * Update a gallery photo with localization support
  */
 const putHandler = async (request: Request, context: GuardContext & { params: Promise<{ id: string }> }) => {
   try {
@@ -44,7 +46,11 @@ const putHandler = async (request: Request, context: GuardContext & { params: Pr
     const member = context.member!;
     const user = context.user!;
     const body = await request.json();
-    const { date, images, description, anniversaryId } = body;
+    const { date, description, locale } = body;
+
+    if (!locale || typeof locale !== 'string') {
+      return Response.json({ error: 'locale is required' }, { status: 400 });
+    }
 
     const repo = new GalleryPhotoRepository();
     const photo = await repo.getById(id);
@@ -63,19 +69,36 @@ const putHandler = async (request: Request, context: GuardContext & { params: Pr
       return Response.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Build updates object
+    // Build updates object with localization
+    const db = getFirestore();
+    const docRef = db.collection('galleryPhotos').doc(id);
     const updates: any = {};
-    if (date) updates.date = new Date(date);
-    if (images !== undefined) {
-      if (!Array.isArray(images) || images.length === 0) {
-        return Response.json({ error: 'At least one image is required' }, { status: 400 });
-      }
-      updates.images = images;
-    }
-    if (description !== undefined) updates.description = description?.trim() || '';
-    if (anniversaryId !== undefined) updates.anniversaryId = anniversaryId || null;
 
-    await repo.update(id, updates);
+    // Update date if provided
+    if (date !== undefined) {
+      const dateObj = new Date(date);
+      if (isNaN(dateObj.getTime())) {
+        return Response.json({ error: 'Invalid date' }, { status: 400 });
+      }
+      updates.date = Timestamp.fromDate(dateObj);
+    }
+
+    // Update description with localization
+    if (description !== undefined) {
+      const localizedUpdates = buildLocalizedUpdate(
+        photo,
+        locale,
+        { description: description?.trim() || '' },
+        'manual',
+        Timestamp.now()
+      );
+      Object.assign(updates, localizedUpdates);
+    }
+
+    if (Object.keys(updates).length > 0) {
+      updates.updatedAt = Timestamp.now();
+      await docRef.update(updates);
+    }
 
     return Response.json({ success: true });
   } catch (error) {

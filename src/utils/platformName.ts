@@ -1,6 +1,6 @@
 import { DEFAULT_PLATFORM_NAME, DEFAULT_SITE_NAME } from '@/constants/platform';
 import type { ISite } from '@/entities/Site';
-import { getLocalizedFields } from '@/services/LocalizationService';
+import { getLocalizedFields } from '@/services/LocalizationService.client';
 
 /**
  * Gets the platform name from site info with fallback to default.

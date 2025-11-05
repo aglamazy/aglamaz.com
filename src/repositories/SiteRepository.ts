@@ -329,75 +329,30 @@ export class SiteRepository {
     docRef: FirebaseFirestore.DocumentReference,
     locale: string,
   ): Promise<ISite> {
-    const normalizedLocale = locale.trim();
-
-    if (!normalizedLocale) {
-      return site;
-    }
-
-    const locales = { ...(site.locales || {}) };
-    const existing = locales[normalizedLocale];
-
-    // Check if locale already has content
-    if (existing && (existing.name || existing.aboutFamily || existing.platformName)) {
-      return site;
-    }
-
     if (!TranslationService.isEnabled()) {
-      throw new TranslationDisabledError(normalizedLocale);
-    }
-
-    const now = Timestamp.now();
-
-    // Find source content to translate from (most recent version of each field)
-    const { getMostRecentFieldVersion } = await import('@/services/LocalizationService');
-
-    const nameSource = getMostRecentFieldVersion(site, 'name');
-    const aboutSource = getMostRecentFieldVersion(site, 'aboutFamily');
-    const platformSource = getMostRecentFieldVersion(site, 'platformName');
-
-    if (!nameSource && !aboutSource && !platformSource) {
-      // No content to translate from
-      return site;
+      throw new TranslationDisabledError(locale);
     }
 
     try {
-      const translatedFields: Record<string, any> = {};
+      const { ensureLocale } = await import('@/services/LocalizationService');
+      const { SITE_TRANSLATABLE_FIELDS } = await import('@/entities/Site');
 
-      translatedFields.name = await TranslationService.translateText({
-        text: nameSource?.value,
-        from: nameSource?.locale,
-        to: normalizedLocale,
-      });
-
-      translatedFields.aboutFamily = await TranslationService.translateText({
-        text: aboutSource?.value,
-        from: aboutSource?.locale,
-        to: normalizedLocale,
-      });
-
-      translatedFields.platformName = await TranslationService.translateText({
-        text: platformSource?.value,
-        from: platformSource?.locale,
-        to: normalizedLocale,
-      });
-
-      // Save translated content with 'gpt' source
-      const { saveLocalizedContent } = await import('@/services/LocalizationService');
-      const updatedSite = await saveLocalizedContent(
-        docRef,
+      const updatedSite = await ensureLocale(
         site,
-        normalizedLocale,
-        translatedFields,
-        'gpt',
-        now
+        docRef,
+        locale,
+        [...SITE_TRANSLATABLE_FIELDS]
       );
-      await this.revalidateSite(site.id);
+
+      // Revalidate cache if content was translated
+      if (updatedSite !== site) {
+        await this.revalidateSite(site.id);
+      }
 
       return updatedSite;
     } catch (error) {
-      console.error(`[site] failed to translate locale ${normalizedLocale} for site ${site.id}`, error);
-      // On error, don't create fallback content - just return original site
+      console.error(`[site] failed to ensure locale ${locale} for site ${site.id}`, error);
+      // On error, return original site
       return site;
     }
   }

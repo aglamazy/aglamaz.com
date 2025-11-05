@@ -6,11 +6,14 @@ import I18nText from '@/components/I18nText';
 import ImageGrid from '@/components/media/ImageGrid';
 import layoutStyles from '@/components/media/MediaLayout.module.css';
 import feedStyles from '@/components/media/ImageGrid.module.css';
+import lightThemeStyles from '@/components/media/ImageGrid.light.module.css';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { ShimmerImage } from "@/components/mobile/ShimmerImagePreview";
 import md5 from 'blueimp-md5';
+import { MoreVertical } from 'lucide-react';
 import OccurrenceEditModal, { OccurrenceForEdit } from '@/components/anniversaries/OccurrenceEditModal';
+import GalleryPhotoEditModal, { GalleryPhotoForEdit } from '@/components/photos/GalleryPhotoEditModal';
 import { apiFetch } from '@/utils/apiFetch';
 import { useUserStore } from '@/store/UserStore';
 import { useMemberStore } from '@/store/MemberStore';
@@ -45,6 +48,7 @@ export default function PicturesFeedPage() {
   const [likes, setLikes] = useState<Record<string, ImageLikeMeta[]>>({}); // key: occId
   const [authors, setAuthors] = useState<Record<string, AuthorInfo>>({});
   const [editTarget, setEditTarget] = useState<{ annId: string; occId: string } | null>(null);
+  const [galleryEditTarget, setGalleryEditTarget] = useState<string | null>(null);
   const mountedRef = useRef(true);
   const currentUserId = user?.user_id ?? '';
   const isAdmin = memberRole === 'admin';
@@ -84,7 +88,7 @@ export default function PicturesFeedPage() {
         items: Occurrence[];
         events?: Record<string, { name: string }>;
         authors?: Record<string, { displayName: string; email: string }>;
-      }>('/api/pictures', { cache: 'no-store' });
+      }>(`/api/pictures?locale=${i18n.language}`, { cache: 'no-store' });
       if (!mountedRef.current) return false;
       const list: Occurrence[] = Array.isArray(data.items) ? data.items : [];
       setItems(list);
@@ -137,7 +141,7 @@ export default function PicturesFeedPage() {
     } finally {
       if (mountedRef.current) setLoading(false);
     }
-  }, []);
+  }, [i18n.language]);
 
   useEffect(() => {
     void loadFeed();
@@ -176,8 +180,8 @@ export default function PicturesFeedPage() {
         if (!creatorId) {
           throw new Error(`[PicturesFeedPage] missing creatorId for ${occ.type || 'item'} ${occ.id}`);
         }
-        // Only allow edit for occurrences (not gallery photos yet - need separate modal)
-        const canEdit = occ.type !== 'gallery' && canEditOccurrence(creatorId);
+        // Allow edit for both occurrences and gallery photos (if user is creator or admin)
+        const canEdit = canEditOccurrence(creatorId);
         flat.push({
           src,
           occId: occ.id,
@@ -212,10 +216,25 @@ export default function PicturesFeedPage() {
     setItems((prev) => prev.map((occ) => (occ.id === updated.id ? { ...occ, ...updated } : occ)));
   };
 
+  const handleGalleryPhotoUpdated = (updated: GalleryPhotoForEdit) => {
+    if (updated.images.length === 0) {
+      // Photo was deleted - remove from items
+      setItems((prev) => prev.filter((item) => item.id !== updated.id));
+    } else {
+      // Photo was updated
+      setItems((prev) => prev.map((item) => (item.id === updated.id ? { ...item, ...updated } : item)));
+    }
+  };
+
   const currentOccurrence = useMemo(() => {
     if (!editTarget) return null;
     return items.find((occ) => occ.id === editTarget.occId) ?? null;
   }, [editTarget, items]);
+
+  const currentGalleryPhoto = useMemo(() => {
+    if (!galleryEditTarget) return null;
+    return items.find((item) => item.id === galleryEditTarget) ?? null;
+  }, [galleryEditTarget, items]);
 
   const canEditCurrent = editTarget && currentOccurrence ? canEditOccurrence(currentOccurrence.createdBy) : false;
 
@@ -227,6 +246,16 @@ export default function PicturesFeedPage() {
       onClose={() => setEditTarget(null)}
       onUpdated={handleOccurrenceUpdated}
       initialOccurrence={currentOccurrence as OccurrenceForEdit | null}
+    />
+  ) : null;
+
+  const galleryPhotoModal = galleryEditTarget && currentGalleryPhoto ? (
+    <GalleryPhotoEditModal
+      photoId={galleryEditTarget}
+      isOpen={true}
+      onClose={() => setGalleryEditTarget(null)}
+      onUpdated={handleGalleryPhotoUpdated}
+      initialPhoto={currentGalleryPhoto as GalleryPhotoForEdit | null}
     />
   ) : null;
 
@@ -297,6 +326,7 @@ export default function PicturesFeedPage() {
                 onTitleClick={headerText && item.canEdit ? () => openOccurrenceModal(item.annId, item.occId, item.creatorId) : undefined}
                 canEdit={item.canEdit}
                 titleDir={item.dir}
+                onGalleryEdit={(photoId) => setGalleryEditTarget(photoId)}
               />
             );
           })}
@@ -343,6 +373,7 @@ export default function PicturesFeedPage() {
       </Card>
 
       {occurrenceModal}
+      {galleryPhotoModal}
     </>
   );
 }
@@ -356,6 +387,7 @@ interface MobileFeedItemProps {
     eventName: string;
     dateText: string;
     showHeader: boolean;
+    type?: 'occurrence' | 'gallery';
   } & { occId: string; annId: string; idx: number };
   title?: string;
   meta: ImageLikeMeta;
@@ -365,14 +397,24 @@ interface MobileFeedItemProps {
   onTitleClick?: () => void;
   canEdit: boolean;
   titleDir: 'ltr' | 'rtl';
+  onGalleryEdit?: (photoId: string) => void;
 }
 
-function MobileFeedItem({ item, title, meta, author, onToggle, t, onTitleClick, canEdit, titleDir }: MobileFeedItemProps) {
+function MobileFeedItem({ item, title, meta, author, onToggle, t, onTitleClick, canEdit, titleDir, onGalleryEdit }: MobileFeedItemProps) {
   const [loaded, setLoaded] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const wrapperClass = feedStyles.mobileContinuousImageWrap;
+  const isRtl = titleDir === 'rtl';
+  const isGallery = item.type === 'gallery';
+
+  const metaRowClass = lightThemeStyles.mobileMetaRow + (isRtl ? ' ' + lightThemeStyles.mobileMetaRowRtl : '');
   const likeClass =
-    feedStyles.mobileContinuousLike +
-    (meta.likedByMe ? ' ' + feedStyles.mobileContinuousLikeActive : '');
+    lightThemeStyles.mobileContinuousLike +
+    (isRtl ? ' ' + lightThemeStyles.mobileContinuousLikeRtl : '') +
+    (meta.likedByMe ? ' ' + lightThemeStyles.mobileContinuousLikeActive : '');
+  const likePlaceholderClass =
+    lightThemeStyles.mobileContinuousLikePlaceholder +
+    (isRtl ? ' ' + lightThemeStyles.mobileContinuousLikePlaceholderRtl : '');
 
   const avatarUrl = useMemo(() => {
     const email = author.email.trim().toLowerCase();
@@ -395,43 +437,71 @@ function MobileFeedItem({ item, title, meta, author, onToggle, t, onTitleClick, 
           <div className={feedStyles.mobileEventHeader} dir={titleDir}>{title}</div>
         )
       ) : null}
-      <div className={feedStyles.mobileMetaRow}>
-        <div className={feedStyles.mobileAuthorAvatar}>
-          <img src={avatarUrl} alt="" className={feedStyles.mobileAuthorAvatarImage} />
+      <div style={{ position: 'relative' }}>
+        <ShimmerImage
+          src={item.src}
+          alt={title || ''}
+          useDefaultStyles={false}
+          wrapperClassName={wrapperClass}
+          imageClassName={feedStyles.mobileContinuousImage}
+          loadingClassName={feedStyles.mobileContinuousImageWrapLoading}
+          hiddenClassName={feedStyles.mobileContinuousImageHidden}
+          visibleClassName={feedStyles.mobileContinuousImageVisible}
+          shimmerClassName={feedStyles.mobileShimmer}
+          onLoadStateChange={setLoaded}
+        />
+        <div className={metaRowClass}>
+          <div className={lightThemeStyles.mobileAuthorAvatar}>
+            <img src={avatarUrl} alt="" className={lightThemeStyles.mobileAuthorAvatarImage} />
+          </div>
+          <div className={lightThemeStyles.mobileAuthorInfo}>
+            <span className={lightThemeStyles.mobileAuthorName}>
+              {author.displayName}
+            </span>
+          </div>
         </div>
-        <div className={feedStyles.mobileAuthorInfo}>
-          <span className={feedStyles.mobileAuthorName}>
-            {author.displayName}
-          </span>
-        </div>
+        {isGallery && canEdit && onGalleryEdit && (
+          <div className={lightThemeStyles.mobilePhotoMenu + (isRtl ? ' ' + lightThemeStyles.mobilePhotoMenuRtl : '')}>
+            <button
+              type="button"
+              className={lightThemeStyles.mobilePhotoMenuButton}
+              onClick={() => setMenuOpen(!menuOpen)}
+              aria-label="Menu"
+            >
+              <MoreVertical size={18} />
+            </button>
+            {menuOpen && (
+              <div className={lightThemeStyles.mobilePhotoMenuDropdown + (isRtl ? ' ' + lightThemeStyles.mobilePhotoMenuDropdownRtl : '')}>
+                <button
+                  type="button"
+                  className={lightThemeStyles.mobilePhotoMenuItem}
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onGalleryEdit(item.occId);
+                  }}
+                >
+                  {t('edit') || 'Edit'}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+        {loaded ? (
+          <button
+            type="button"
+            className={likeClass}
+            onClick={() => {
+              void onToggle();
+            }}
+            aria-label={meta.likedByMe ? (t('unlike') as string) : (t('like') as string)}
+          >
+            <span>❤</span>
+            <span>{meta.count}</span>
+          </button>
+        ) : (
+          <div className={likePlaceholderClass} aria-hidden="true" />
+        )}
       </div>
-      <ShimmerImage
-        src={item.src}
-        alt={title || ''}
-        useDefaultStyles={false}
-        wrapperClassName={wrapperClass}
-        imageClassName={feedStyles.mobileContinuousImage}
-        loadingClassName={feedStyles.mobileContinuousImageWrapLoading}
-        hiddenClassName={feedStyles.mobileContinuousImageHidden}
-        visibleClassName={feedStyles.mobileContinuousImageVisible}
-        shimmerClassName={feedStyles.mobileShimmer}
-        onLoadStateChange={setLoaded}
-      />
-      {loaded ? (
-        <button
-          type="button"
-          className={likeClass}
-          onClick={() => {
-            void onToggle();
-          }}
-          aria-label={meta.likedByMe ? (t('unlike') as string) : (t('like') as string)}
-        >
-          <span>❤</span>
-          <span>{meta.count}</span>
-        </button>
-      ) : (
-        <div className={feedStyles.mobileContinuousLikePlaceholder} aria-hidden="true" />
-      )}
     </article>
   );
 }
