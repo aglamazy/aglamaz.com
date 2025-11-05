@@ -2,18 +2,13 @@
 
 import dynamic from 'next/dynamic';
 import React from 'react';
-// TinyMCE skins (self-hosted) — import CSS and disable Tiny's external skin loading
-import 'tinymce/skins/ui/oxide/skin.min.css';
-import 'tinymce/skins/content/default/content.min.css';
 
-// TinyMCE self-hosted assets (only load on client)
+// TinyMCE core, theme and plugins — only load in the browser
 if (typeof window !== 'undefined') {
-  // Core + UI
   require('tinymce/tinymce');
   require('tinymce/icons/default');
   require('tinymce/themes/silver');
   require('tinymce/models/dom');
-  // Plugins used
   require('tinymce/plugins/link');
   require('tinymce/plugins/lists');
   require('tinymce/plugins/code');
@@ -29,6 +24,11 @@ interface EditorRichProps {
 }
 
 export default function EditorRich({ value, onChange, locale = 'en' }: EditorRichProps) {
+  const plugins = ['lists', 'link', 'code', 'directionality'];
+  const pluginsConfig = plugins.join(' ');
+  const toolbar =
+    'undo redo | blocks | bold italic underline | bullist numlist | link | ltr rtl | code';
+
   return (
     <TinyMCEEditor
       value={value}
@@ -36,15 +36,21 @@ export default function EditorRich({ value, onChange, locale = 'en' }: EditorRic
       init={{
         menubar: false,
         height: 400,
-        plugins: 'lists link code directionality',
-        toolbar:
-          'undo redo | blocks | bold italic underline | bullist numlist | link | ltr rtl | code',
+        plugins: pluginsConfig,
+        toolbar,
+        toolbar_mode: 'wrap',
         block_formats: 'Paragraph=p; Heading 1=h1; Heading 2=h2; Heading 3=h3; Quote=blockquote',
         directionality: locale === 'he' ? 'rtl' : 'ltr',
-        // Disable Tiny's own external skin/content CSS loading (we import CSS via bundler)
-        skin: false,
-        content_css: false,
+        skin: 'oxide',
+        skin_url: '/tinymce/skins/ui/oxide',
+        content_css: '/tinymce/skins/content/default/content.min.css',
         content_style: 'body { font-family: Arial,Helvetica,sans-serif; font-size:14px }',
+        mobile: {
+          menubar: false,
+          plugins: pluginsConfig,
+          toolbar,
+          toolbar_mode: 'wrap',
+        },
         license_key: 'gpl',
       }}
     />
