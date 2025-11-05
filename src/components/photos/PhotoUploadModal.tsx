@@ -155,16 +155,22 @@ export default function PhotoUploadModal({ isOpen, onClose, onSuccess }: PhotoUp
 
       setUploading(false);
 
-      // TODO: POST to /api/photos once backend is ready
-      console.log('Would POST to /api/photos:', {
-        date,
-        images: imageUrls,
-        description: description.trim() || undefined,
-        anniversaryId: anniversaryId || undefined,
+      // POST to /api/photos
+      const response = await fetch('/api/photos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          date,
+          images: imageUrls,
+          description: description.trim() || undefined,
+          anniversaryId: anniversaryId || undefined,
+        }),
       });
 
-      // Temporary: simulate success
-      alert(t('photoUploadedSuccessfully') || 'Photo uploaded successfully!');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to save photo');
+      }
 
       // Clean up
       previews.forEach(url => URL.revokeObjectURL(url));
