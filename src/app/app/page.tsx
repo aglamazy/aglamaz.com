@@ -152,6 +152,7 @@ export default function PicturesFeedPage() {
       occDescription: string;
       dateText: string;
       showHeader: boolean;
+      type?: 'occurrence' | 'gallery';
     }> = [];
     for (const occ of items) {
       const arr = Array.isArray(occ.images) ? occ.images : [];
@@ -170,7 +171,8 @@ export default function PicturesFeedPage() {
         if (!creatorId) {
           throw new Error(`[PicturesFeedPage] missing creatorId for ${occ.type || 'item'} ${occ.id}`);
         }
-        const canEdit = canEditOccurrence(creatorId);
+        // Only allow edit for occurrences (not gallery photos yet - need separate modal)
+        const canEdit = occ.type !== 'gallery' && canEditOccurrence(creatorId);
         flat.push({
           src,
           occId: occ.id,
@@ -184,6 +186,7 @@ export default function PicturesFeedPage() {
           occDescription,
           dateText,
           showHeader: i === 0,
+          type: occ.type,
         });
       });
     }
@@ -222,13 +225,18 @@ export default function PicturesFeedPage() {
     />
   ) : null;
 
-  async function toggleLike(annId: string, occId: string, idx: number) {
+  async function toggleLike(annId: string, occId: string, idx: number, type?: 'occurrence' | 'gallery') {
     const meta = getLikeMeta(occId, idx);
     const next = { ...meta, likedByMe: !meta.likedByMe, count: meta.count + (meta.likedByMe ? -1 : 1) };
     setLikes((cur) => ({ ...cur, [occId]: [...(cur[occId] || []).filter((l) => l.index !== idx), next].sort((a, b) => a.index - b.index) }));
     try {
+      // Use different endpoints for occurrence vs gallery photos
+      const endpoint = type === 'gallery'
+        ? `/api/photos/${occId}/image-likes`
+        : `/api/anniversaries/${annId}/events/${occId}/image-likes`;
+
       const data = await apiFetch<{ index: number; count: number; likedByMe: boolean }>(
-        `/api/anniversaries/${annId}/events/${occId}/image-likes`,
+        endpoint,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -279,7 +287,7 @@ export default function PicturesFeedPage() {
                 title={headerText}
                 meta={meta}
                 author={author}
-                onToggle={() => toggleLike(item.annId, item.occId, item.idx)}
+                onToggle={() => toggleLike(item.annId, item.occId, item.idx, item.type)}
                 t={t}
                 onTitleClick={headerText && item.canEdit ? () => openOccurrenceModal(item.annId, item.occId, item.creatorId) : undefined}
                 canEdit={item.canEdit}
@@ -315,7 +323,7 @@ export default function PicturesFeedPage() {
             }}
             onToggle={(item) => {
               const f = feed.find((x) => x.key === item.key)!;
-              return toggleLike(f.annId, f.occId, f.idx);
+              return toggleLike(f.annId, f.occId, f.idx, f.type);
             }}
             onTitleClick={(item) => {
               const meta = (item.meta || {}) as { annId?: string; occId?: string; creatorId?: string; canEdit?: boolean };
