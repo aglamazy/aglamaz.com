@@ -6,6 +6,8 @@ import { apiFetch } from '@/utils/apiFetch';
 import { useTranslation } from 'react-i18next';
 import { useSpamProtection } from '@/hooks/useSpamProtection';
 
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export default function ContactPage() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -20,8 +22,15 @@ export default function ContactPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !email.trim() || !message.trim()) {
+    const trimmedName = name.trim();
+    const trimmedEmail = email.trim();
+    const trimmedMessage = message.trim();
+    if (!trimmedName || !trimmedEmail || !trimmedMessage) {
       setError(t('pleaseFillAllFields'));
+      return;
+    }
+    if (!emailPattern.test(trimmedEmail)) {
+      setError(t('invalidEmail'));
       return;
     }
     setIsLoading(true);
@@ -32,9 +41,9 @@ export default function ContactPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: name.trim(),
-          email: email.trim(),
-          message: message.trim(),
+          name: trimmedName,
+          email: trimmedEmail,
+          message: trimmedMessage,
           honeyputValue,
           timeToSubmitMs,
         })

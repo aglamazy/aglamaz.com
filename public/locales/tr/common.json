@@ -141,6 +141,7 @@
   "confirm": "Onayla",
   "deleting": "Siliniyor…",
   "pleaseFillAllFields": "Lütfen tüm alanları doldurun",
+  "invalidEmail": "Lütfen geçerli bir e-posta adresi girin",
   "failedToSubmit": "Gönderme başarısız",
   "contactThankYou": "Bizimle iletişime geçtiğiniz için teşekkürler! Kısa süre içinde dönüş yapacağız.",
   "getInTouch": "Bir sorunuz veya fikriniz mi var? Bize ulaşın",
