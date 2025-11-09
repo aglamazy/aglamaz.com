@@ -4,9 +4,33 @@ import { adminNotificationService } from '@/services/AdminNotificationService';
 
 export async function POST(req: NextRequest) {
   try {
-    const { name, email, message } = await req.json();
+    const { name, email, message, honeyputValue, timeToSubmitMs } = await req.json();
     if (!name || !email || !message) {
       return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
+    }
+    let spamProbability = 0;
+    if (typeof honeyputValue === 'string' && honeyputValue.trim().length > 0) {
+      spamProbability += 50;
+    }
+    if (typeof timeToSubmitMs === 'number') {
+      if (timeToSubmitMs <= 2000) {
+        spamProbability += 25;
+      }
+      if (timeToSubmitMs <= 1000) {
+        spamProbability += 25;
+      }
+    }
+
+    if (spamProbability >= 50) {
+      console.log('Blocked spam submission', {
+        name,
+        email,
+        message,
+        honeyputValue,
+        timeToSubmitMs,
+        spamProbability,
+      });
+      return NextResponse.json({ success: true });
     }
     const saved = await contactRepository.addContactMessage({ name, email, message });
     const origin = new URL(req.url).origin;
