@@ -1,11 +1,11 @@
 "use client";
 
-import React, { useCallback, useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useUserStore } from '@/store/UserStore';
 import { useMemberStore } from '@/store/MemberStore';
 import { useSiteStore } from '@/store/SiteStore';
-import { apiFetch } from '@/utils/apiFetch';
+import BlogSetupModal from './BlogSetupModal';
 
 export default function BlogCTA() {
   const { t } = useTranslation();
@@ -13,28 +13,23 @@ export default function BlogCTA() {
   const member = useMemberStore((s) => s.member);
   const fetchMember = useMemberStore((s) => s.fetchMember);
   const site = useSiteStore((s) => s.siteInfo);
-  const [saving, setSaving] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [open, setOpen] = useState(false);
   const hasBlog = !!member?.blogEnabled;
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  const start = useCallback(async () => {
+  const refreshMember = useCallback(async () => {
     if (!user?.user_id || !site?.id) return;
-    setSaving(true);
-    try {
-      await apiFetch(`/api/user/${user.user_id}/blog/enable?siteId=${site.id}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ enabled: true })
-      });
-      await fetchMember(user.user_id, site.id);
-    } finally {
-      setSaving(false);
-    }
-  }, [user?.user_id, site?.id, fetchMember]);
+    await fetchMember(user.user_id, site.id);
+  }, [fetchMember, site?.id, user?.user_id]);
+
+  const handleSuccess = useCallback(async () => {
+    await refreshMember();
+    setOpen(false);
+  }, [refreshMember]);
 
   // Prevent hydration mismatch
   if (!mounted) return null;
@@ -44,13 +39,19 @@ export default function BlogCTA() {
   return (
     <div className="p-3 border rounded-lg bg-white shadow-sm">
       {hasBlog ? null : (
-        <button
-          onClick={start}
-          disabled={saving}
-          className="text-sm bg-sage-600 text-white px-3 py-1 rounded disabled:opacity-50"
-        >
-          {saving ? t('saving') : t('startYourBlog')}
-        </button>
+        <>
+          <button
+            onClick={() => setOpen(true)}
+            className="text-sm bg-sage-600 text-white px-3 py-1 rounded"
+          >
+            {t('startYourBlog')}
+          </button>
+          <BlogSetupModal
+            open={open}
+            onClose={() => setOpen(false)}
+            onSuccess={handleSuccess}
+          />
+        </>
       )}
     </div>
   );
