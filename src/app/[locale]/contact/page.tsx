@@ -4,6 +4,9 @@ import { Loader2, CheckCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/utils/apiFetch';
 import { useTranslation } from 'react-i18next';
+import { useSpamProtection } from '@/hooks/useSpamProtection';
+
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function ContactPage() {
   const [name, setName] = useState('');
@@ -15,20 +18,35 @@ export default function ContactPage() {
   const [countdown, setCountdown] = useState(10);
   const router = useRouter();
   const { t } = useTranslation();
+  const { honeyputInputProps, getSubmissionMetadata, resetProtection } = useSpamProtection('contact_honeyput');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !email.trim() || !message.trim()) {
+    const trimmedName = name.trim();
+    const trimmedEmail = email.trim();
+    const trimmedMessage = message.trim();
+    if (!trimmedName || !trimmedEmail || !trimmedMessage) {
       setError(t('pleaseFillAllFields'));
+      return;
+    }
+    if (!emailPattern.test(trimmedEmail)) {
+      setError(t('invalidEmail'));
       return;
     }
     setIsLoading(true);
     setError('');
     try {
+      const { honeyputValue, timeToSubmitMs } = getSubmissionMetadata();
       await apiFetch<void>('/api/contact', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: name.trim(), email: email.trim(), message: message.trim() })
+        body: JSON.stringify({
+          name: trimmedName,
+          email: trimmedEmail,
+          message: trimmedMessage,
+          honeyputValue,
+          timeToSubmitMs,
+        })
       });
       setSuccess(true);
       setName('');
@@ -57,6 +75,12 @@ export default function ContactPage() {
     }
   }, [success, router]);
 
+  useEffect(() => {
+    if (!success) {
+      resetProtection();
+    }
+  }, [success, resetProtection]);
+
   if (success) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
@@ -75,6 +99,7 @@ export default function ContactPage() {
       <form onSubmit={handleSubmit} className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8 space-y-4">
         <h1 className="text-2xl font-bold text-center">{t('contactUs')}</h1>
         {error && <div className="w-full p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">{error}</div>}
+        <input type="text" {...honeyputInputProps} />
         <div>
           <label className="block text-gray-700 text-sm mb-1" htmlFor="name">{t('name')}</label>
           <input id="name" type="text" value={name} onChange={e => setName(e.target.value)}

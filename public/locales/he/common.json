@@ -149,6 +149,7 @@
   "confirm": "אישור",
   "deleting": "מוחק…",
   "pleaseFillAllFields": "אנא מלא את כל השדות",
+  "invalidEmail": "אנא הזן כתובת אימייל תקינה",
   "failedToSubmit": "השליחה נכשלה",
   "contactThankYou": "תודה שפנית אלינו! נחזור אליך בהקדם.",
   "getInTouch": "יש לך שאלה או רעיון? צור קשר",
