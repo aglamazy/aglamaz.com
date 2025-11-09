@@ -1,6 +1,7 @@
 import { FieldValue, Firestore, Timestamp, Transaction, getFirestore } from 'firebase-admin/firestore';
 import { initAdmin } from '@/firebase/admin';
 import type { IMember } from '@/entities/Member';
+import { normalizeSlug } from '@/utils/slug';
 
 export type MemberRole = IMember['role'] | 'rejected';
 
@@ -46,6 +47,13 @@ export interface MemberListOptions extends MemberQueryOptions {
 export interface MemberTransactionSnapshot {
   id: string;
   data: MemberRecord;
+}
+
+export class BlogRegistrationError extends Error {
+  constructor(public code: 'not_found' | 'handle_taken' | 'immutable' | 'invalid', message: string) {
+    super(message);
+    this.name = 'BlogRegistrationError';
+  }
 }
 
 export class MemberRepository {
@@ -175,7 +183,11 @@ export class MemberRepository {
     return members.filter(member => !!member.blogHandle);
   }
 
-  async getByHandle(handle: string, siteId: string, opts?: MemberQueryOptions): Promise<LocalizedMemberRecord | null> {
+  async getByBlogHandle(
+    siteId: string,
+    handle: string,
+    opts?: MemberQueryOptions,
+  ): Promise<LocalizedMemberRecord | null> {
     try {
       const snap = await this.membersCollection()
         .where('siteId', '==', siteId)
@@ -190,6 +202,10 @@ export class MemberRepository {
       console.error('[member][repo] failed to load member by handle', { siteId, handle }, error);
       throw new Error('Failed to load member');
     }
+  }
+
+  async getByHandle(handle: string, siteId: string, opts?: MemberQueryOptions): Promise<LocalizedMemberRecord | null> {
+    return this.getByBlogHandle(siteId, handle, opts);
   }
 
   async create(data: Partial<MemberRecord>): Promise<MemberRecord> {
@@ -271,11 +287,57 @@ export class MemberRepository {
     };
 
     if (enabled && !member.blogHandle) {
-      const base = this.slugify((member.email || 'user').split('@')[0]);
+      const base = this.normalizeBlogHandle((member.email || 'user').split('@')[0]);
       updates.blogHandle = await this.generateUniqueBlogHandle(base, siteId);
     }
 
     await this.update(member.id, updates);
+  }
+
+  async registerBlog(
+    uid: string,
+    siteId: string,
+    requestedHandle: string,
+  ): Promise<string> {
+    const db = this.getDb();
+    const normalizedInput = this.normalizeBlogHandle(requestedHandle);
+
+    return db.runTransaction(async (tx) => {
+      const member = await this.findByUidForUpdate(tx, siteId, uid);
+      if (!member) {
+        throw new BlogRegistrationError('not_found', 'Member not found');
+      }
+
+      const fallbackHandle = this.normalizeBlogHandle((member.data.email || 'user').split('@')[0]);
+      const desiredHandle = normalizedInput || fallbackHandle;
+
+      if (!desiredHandle) {
+        throw new BlogRegistrationError('invalid', 'Invalid blog handle');
+      }
+
+      const existingHandle = member.data.blogHandle;
+      if (existingHandle && existingHandle !== desiredHandle) {
+        throw new BlogRegistrationError('immutable', 'Blog handle cannot be changed once set');
+      }
+
+      const existing = await tx.get(
+        this.membersCollection()
+          .where('siteId', '==', siteId)
+          .where('blogHandle', '==', desiredHandle)
+          .limit(1),
+      );
+
+      if (!existing.empty && existing.docs[0].id !== member.id) {
+        throw new BlogRegistrationError('handle_taken', 'Blog handle already in use');
+      }
+
+      this.txUpdate(tx, member.id, {
+        blogEnabled: true,
+        blogHandle: desiredHandle,
+      });
+
+      return desiredHandle;
+    });
   }
 
   async findByUidForUpdate(
@@ -409,7 +471,7 @@ export class MemberRepository {
 
   private async generateUniqueBlogHandle(base: string, siteId: string): Promise<string> {
     let attempt = 0;
-    const sanitizedBase = this.slugify(base);
+    const sanitizedBase = this.normalizeBlogHandle(base);
     while (attempt < 50) {
       const candidate = attempt === 0 ? sanitizedBase : `${sanitizedBase}-${attempt + 1}`;
       const snap = await this.membersCollection()
@@ -425,12 +487,7 @@ export class MemberRepository {
     return `${sanitizedBase}-${Math.random().toString(36).slice(2, 6)}`;
   }
 
-  private slugify(input: string): string {
-    return input
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/-+/g, '-')
-      .replace(/^-|-$/g, '')
-      || 'user';
+  normalizeBlogHandle(input: string): string {
+    return normalizeSlug(input);
   }
 }

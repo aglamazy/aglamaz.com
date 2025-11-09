@@ -1,268 +1,257 @@
 "use client";
 
-import React, { useState, useCallback, useEffect } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button } from '@/components/ui/button';
+import Modal from '@/components/ui/Modal';
+import { useUserStore } from '@/store/UserStore';
+import { useMemberStore } from '@/store/MemberStore';
+import { useSiteStore } from '@/store/SiteStore';
 import { apiFetch } from '@/utils/apiFetch';
+import { normalizeSlug } from '@/utils/slug';
 
 interface BlogSetupModalProps {
-  isOpen: boolean;
+  open: boolean;
   onClose: () => void;
-  onSuccess: (blogHandle: string) => void;
-  userId: string;
-  siteId: string;
-  suggestedHandle: string;
+  onSuccess?: (slug: string) => void;
 }
 
-export default function BlogSetupModal({
-  isOpen,
-  onClose,
-  onSuccess,
-  userId,
-  siteId,
-  suggestedHandle,
-}: BlogSetupModalProps) {
-  const { t, i18n } = useTranslation();
-  const [handle, setHandle] = useState('');
-  const [acceptBlogTerms, setAcceptBlogTerms] = useState(false);
-  const [acceptSiteTerms, setAcceptSiteTerms] = useState(false);
-  const [checking, setChecking] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [available, setAvailable] = useState<boolean | null>(null);
+const MIN_SLUG_LENGTH = 3;
 
-  const checkAvailability = useCallback(async (value: string) => {
-    if (!value || value.length < 3) {
-      setAvailable(null);
-      return;
+export default function BlogSetupModal({ open, onClose, onSuccess }: BlogSetupModalProps) {
+  const { t } = useTranslation();
+  const { user } = useUserStore();
+  const member = useMemberStore((state) => state.member);
+  const fetchMember = useMemberStore((state) => state.fetchMember);
+  const site = useSiteStore((state) => state.siteInfo);
+  const previewBase = typeof window !== 'undefined' ? window.location.origin : 'https://aglamaz.com';
+
+  const [slug, setSlug] = useState('');
+  const [status, setStatus] = useState<'idle' | 'checking' | 'available' | 'unavailable' | 'error'>('idle');
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  const suggestion = useMemo(() => {
+    if (member?.blogHandle) {
+      return normalizeSlug(member.blogHandle);
     }
-    setChecking(true);
-    setError(null);
-    try {
-      const result = await apiFetch<{ available: boolean }>(
-        `/api/blog/check-handle?handle=${encodeURIComponent(value)}&siteId=${siteId}`
-      );
-      setAvailable(result.available);
-    } catch (err) {
-      console.error('Failed to check handle availability', err);
-      setError(t('failedToCheckAvailability') as string);
-      setAvailable(null);
-    } finally {
-      setChecking(false);
+
+    const candidates = [
+      member?.email?.split('@')[0],
+      user?.email?.split('@')[0],
+      member?.displayName,
+      member?.firstName,
+      user?.name,
+      user?.user_id,
+    ];
+
+    for (const candidate of candidates) {
+      const normalized = normalizeSlug(candidate || '', '');
+      if (normalized) {
+        return normalized;
+      }
     }
-  }, [siteId, t]);
 
-  const handleChange = useCallback((value: string) => {
-    // Sanitize: lowercase, alphanumeric and hyphens only
-    const sanitized = value
-      .toLowerCase()
-      .replace(/[^a-z0-9-]/g, '')
-      .replace(/^-+|-+$/g, ''); // Remove leading/trailing hyphens
+    return normalizeSlug(user?.user_id || '');
+  }, [member?.blogHandle, member?.displayName, member?.email, member?.firstName, user?.email, user?.name, user?.user_id]);
 
-    setHandle(sanitized);
-    setAvailable(null);
-    setError(null);
-
-    // Debounce check
-    const timer = setTimeout(() => {
-      checkAvailability(sanitized);
-    }, 500);
-
-    return () => clearTimeout(timer);
-  }, [checkAvailability]);
-
-  // Update handle when suggestedHandle changes and check availability
   useEffect(() => {
-    if (suggestedHandle && suggestedHandle !== 'user') {
-      setHandle(suggestedHandle);
-      // Automatically check availability for suggested handle
-      checkAvailability(suggestedHandle);
+    if (open) {
+      setSlug(suggestion);
+      setStatus('idle');
+      setStatusMessage(null);
+    } else {
+      setSlug('');
+      setStatus('idle');
+      setStatusMessage(null);
+      setSubmitting(false);
     }
-  }, [suggestedHandle, checkAvailability]);
+  }, [open, suggestion]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!handle || handle.length < 3) {
-      setError(t('blogHandleTooShort') as string);
+  useEffect(() => {
+    if (!open) return;
+    if (!slug) {
+      setStatus('idle');
+      setStatusMessage(t('blogSlugRequired', { defaultValue: 'Choose a slug to continue' }) as string);
       return;
     }
 
-    if (!acceptBlogTerms) {
-      setError(t('mustAcceptBlogTerms') as string);
+    if (slug.length < MIN_SLUG_LENGTH) {
+      setStatus('unavailable');
+      setStatusMessage(
+        t('blogSlugTooShort', {
+          defaultValue: 'Slug must be at least {{count}} characters',
+          count: MIN_SLUG_LENGTH,
+        }) as string,
+      );
       return;
     }
 
-    if (!acceptSiteTerms) {
-      setError(t('mustAcceptSiteTerms') as string);
+    if (!site?.id || !user?.user_id) {
+      setStatus('error');
+      setStatusMessage(t('missingContext', { defaultValue: 'Missing site information' }) as string);
       return;
     }
 
-    if (available !== true) {
-      setError(t('blogHandleNotAvailable') as string);
+    const currentHandle = member?.blogHandle ? normalizeSlug(member.blogHandle) : null;
+    if (currentHandle && currentHandle === slug) {
+      setStatus('available');
+      setStatusMessage(t('blogSlugLocked', { defaultValue: 'This is your blog slug' }) as string);
       return;
     }
 
-    setSaving(true);
-    setError(null);
+    let cancelled = false;
+    const controller = new AbortController();
+    setStatus('checking');
+    setStatusMessage(t('blogSlugChecking', { defaultValue: 'Checking availability…' }) as string);
+
+    const timeout = setTimeout(async () => {
+      try {
+        const data = await apiFetch<{ slug: string; available: boolean }>(
+          `/api/user/${user.user_id}/blog/register?siteId=${site.id}&slug=${encodeURIComponent(slug)}`,
+          { method: 'GET', signal: controller.signal },
+        );
+        if (cancelled) return;
+        setSlug(data.slug);
+        if (data.available) {
+          setStatus('available');
+          setStatusMessage(t('blogSlugAvailable', { defaultValue: 'Great! This slug is available.' }) as string);
+        } else {
+          setStatus('unavailable');
+          setStatusMessage(t('blogSlugTaken', { defaultValue: 'That slug is already taken.' }) as string);
+        }
+      } catch (error) {
+        if (cancelled) return;
+        setStatus('error');
+        setStatusMessage(t('blogSlugValidationFailed', { defaultValue: 'Could not validate slug. Try again.' }) as string);
+      }
+    }, 400);
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+      clearTimeout(timeout);
+    };
+  }, [member?.blogHandle, open, site?.id, slug, t, user?.user_id]);
+
+  const ready = status === 'available' || (member?.blogHandle && normalizeSlug(member.blogHandle) === slug);
+
+  const resetToSuggestion = () => setSlug(suggestion);
+
+  const handleSubmit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!user?.user_id || !site?.id) return;
+    if (!slug || slug.length < MIN_SLUG_LENGTH) return;
+    setSubmitting(true);
+    setStatusMessage(null);
 
     try {
-      await apiFetch(`/api/user/${userId}/blog/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          siteId,
-          blogHandle: handle,
-          acceptBlogTerms: true,
-          acceptSiteTerms: true,
-        }),
-      });
-      onSuccess(handle);
-    } catch (err) {
-      console.error('Failed to register blog', err);
-      setError(t('failedToRegisterBlog') as string);
+      const response = await apiFetch<{ ok: boolean; slug: string }>(
+        `/api/user/${user.user_id}/blog/register?siteId=${site.id}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ slug }),
+        },
+      );
+      if (response.ok) {
+        setStatus('available');
+        setStatusMessage(t('blogSlugRegistered', { defaultValue: 'Blog enabled! You can start writing.' }) as string);
+        if (user.user_id && site.id) {
+          await fetchMember(user.user_id, site.id);
+        }
+        onSuccess?.(response.slug);
+        onClose();
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error && /409/.test(error.message)
+          ? (t('blogSlugTaken', { defaultValue: 'That slug is already taken.' }) as string)
+          : (t('blogRegistrationFailed', { defaultValue: 'Failed to enable your blog. Please try again.' }) as string);
+      setStatus('error');
+      setStatusMessage(message);
     } finally {
-      setSaving(false);
+      setSubmitting(false);
     }
   };
 
-  if (!isOpen) return null;
+  if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="p-6">
-          <h2 className="text-2xl font-bold text-sage-900 mb-4">
-            {t('setupYourBlog')}
-          </h2>
-
-          <div className="space-y-4 mb-6">
-            <div className="bg-sage-50 border border-sage-200 rounded-lg p-4">
-              <h3 className="font-semibold text-sage-900 mb-2">
-                {t('aboutFamilyBlog')}
-              </h3>
-              <p className="text-sm text-sage-700 mb-2">
-                {t('blogExplanation')}
-              </p>
-              <ul className="text-sm text-sage-700 space-y-1 list-disc list-inside">
-                <li>{t('blogFeaturePublicPrivate')}</li>
-                <li>{t('blogFeatureIPProtection')}</li>
-                <li>{t('blogFeatureMultilingual')}</li>
-              </ul>
-            </div>
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label htmlFor="blogHandle" className="block text-sm font-medium text-sage-900 mb-1">
-                  {t('blogHandle')}
-                </label>
-                <div className="flex items-center gap-2">
-                  <span className="text-sage-600 text-sm">/blog/</span>
-                  <input
-                    id="blogHandle"
-                    type="text"
-                    value={handle}
-                    onChange={(e) => handleChange(e.target.value)}
-                    className="flex-1 border border-sage-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sage-500"
-                    placeholder="your-name"
-                    minLength={3}
-                    maxLength={50}
-                    required
-                  />
-                </div>
-
-                {checking && (
-                  <p className="text-xs text-sage-600 mt-1">{t('checking')}...</p>
-                )}
-
-                {!checking && available === true && (
-                  <p className="text-xs text-green-600 mt-1">✓ {t('handleAvailable')}</p>
-                )}
-
-                {!checking && available === false && (
-                  <p className="text-xs text-red-600 mt-1">✗ {t('handleTaken')}</p>
-                )}
-
-                <p className="text-xs text-sage-600 mt-1">
-                  {t('blogHandleNote')}
-                </p>
-              </div>
-
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                <h4 className="font-medium text-amber-900 mb-2 text-sm">
-                  {t('termsAndConditions')}
-                </h4>
-                <ul className="text-xs text-amber-800 space-y-1 list-disc list-inside mb-3">
-                  <li>{t('blogTermsRespectIP')}</li>
-                  <li>{t('blogTermsNoHarmful')}</li>
-                  <li>{t('blogTermsCompliance')}</li>
-                  <li>{t('blogTermsModeration')}</li>
-                </ul>
-
-                <label className="flex items-start gap-2">
-                  <input
-                    type="checkbox"
-                    checked={acceptBlogTerms}
-                    onChange={(e) => setAcceptBlogTerms(e.target.checked)}
-                    className="mt-1"
-                    required
-                  />
-                  <span className="text-xs text-amber-900">
-                    {t('acceptBlogTerms')}
-                  </span>
-                </label>
-              </div>
-
-              <div className="border border-sage-200 rounded-lg p-4">
-                <label className="flex items-start gap-2">
-                  <input
-                    type="checkbox"
-                    checked={acceptSiteTerms}
-                    onChange={(e) => setAcceptSiteTerms(e.target.checked)}
-                    className="mt-1"
-                    required
-                  />
-                  <span className="text-xs text-sage-700">
-                    {t('iHaveReadAndAccept')}{' '}
-                    <a
-                      href={`/${i18n.language}/terms`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sage-600 underline hover:text-sage-700"
-                    >
-                      {t('siteTermsAndConditions')}
-                    </a>
-                  </span>
-                </label>
-              </div>
-
-              {error && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                  <p className="text-sm text-red-700">{error}</p>
-                </div>
-              )}
-
-              <div className="flex gap-3 justify-end">
-                <Button
-                  type="button"
-                  onClick={onClose}
-                  disabled={saving}
-                  variant="outline"
-                >
-                  {t('cancel')}
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={saving || !acceptBlogTerms || !acceptSiteTerms || available !== true}
-                  className="bg-sage-600 hover:bg-sage-700 text-white"
-                >
-                  {saving ? t('creating') : t('createBlog')}
-                </Button>
-              </div>
-            </form>
-          </div>
+    <Modal isOpen={open} onClose={onClose} isClosable={!submitting}>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <h2 className="text-lg font-semibold">{t('setupYourBlog', { defaultValue: 'Set up your family blog' })}</h2>
+          <p className="text-sm text-gray-600 mt-1">
+            {t('blogSlugDescription', {
+              defaultValue: 'Choose a short, memorable slug for your personal blog URL.',
+            })}
+          </p>
         </div>
-      </div>
-    </div>
+        <div className="space-y-2">
+          <label className="block text-sm font-medium text-gray-700" htmlFor="blog-slug">
+            {t('blogSlugLabel', { defaultValue: 'Blog slug' })}
+          </label>
+          <input
+            id="blog-slug"
+            type="text"
+            value={slug}
+            onChange={(event) => setSlug(normalizeSlug(event.target.value, ''))}
+            className="w-full rounded border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sage-500"
+            autoFocus
+            disabled={submitting || Boolean(member?.blogHandle)}
+          />
+          {member?.blogHandle ? (
+            <p className="text-xs text-gray-500">
+              {t('blogSlugLocked', { defaultValue: 'Your slug is permanent once created.' })}
+            </p>
+          ) : (
+            <button
+              type="button"
+              onClick={resetToSuggestion}
+              className="text-xs text-sage-700 hover:text-sage-900"
+              disabled={submitting}
+            >
+              {t('useSuggestion', { defaultValue: 'Use suggestion' })}: <span className="font-medium">{suggestion}</span>
+            </button>
+          )}
+        </div>
+        <div className="rounded border px-3 py-2 bg-gray-50 text-sm">
+          <span className="font-medium">{t('blogPreview', { defaultValue: 'Preview URL:' })}</span>{' '}
+          <code className="text-sage-700">{`${previewBase}/blog/${slug || suggestion}`}</code>
+        </div>
+        {statusMessage && (
+          <div
+            className={`text-sm ${
+              status === 'available'
+                ? 'text-green-600'
+                : status === 'checking'
+                  ? 'text-gray-600'
+                  : status === 'unavailable' || status === 'error'
+                    ? 'text-red-600'
+                    : 'text-gray-600'
+            }`}
+          >
+            {statusMessage}
+          </div>
+        )}
+        <div className="flex justify-end gap-2">
+          <button
+            type="button"
+            className="px-3 py-1 rounded border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+            onClick={onClose}
+            disabled={submitting}
+          >
+            {t('cancel')}
+          </button>
+          <button
+            type="submit"
+            className="px-3 py-1 rounded bg-sage-600 text-white hover:bg-sage-700 disabled:opacity-50"
+            disabled={!ready || submitting}
+          >
+            {submitting ? t('saving') : t('startYourBlog', { defaultValue: 'Enable blog' })}
+          </button>
+        </div>
+      </form>
+    </Modal>
   );
 }
