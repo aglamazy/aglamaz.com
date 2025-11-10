@@ -29,9 +29,27 @@ const postHandler = async (request: Request, context: GuardContext) => {
     const user = context.user!;
     const member = context.member!;
     const body = await request.json();
-    const { name, description, type, date, isAnnual, imageUrl, useHebrew } = body;
+    const { name, description, type, date, isAnnual, imageUrl, useHebrew, deathDate, burialDate } = body;
     if (!name || !date || !type) {
       return Response.json({ error: 'Missing fields' }, { status: 400 });
+    }
+    const parsedDate = new Date(date);
+    if (Number.isNaN(parsedDate.getTime())) {
+      return Response.json({ error: 'Invalid date' }, { status: 400 });
+    }
+    const isDeathType = type === 'death' || type === 'death_anniversary';
+    const parsedDeathDate = deathDate ? new Date(deathDate) : parsedDate;
+    if (isDeathType && Number.isNaN(parsedDeathDate.getTime())) {
+      return Response.json({ error: 'Invalid death date' }, { status: 400 });
+    }
+    const parsedBurialDate = burialDate ? new Date(burialDate) : undefined;
+    if (useHebrew && isDeathType) {
+      if (!parsedBurialDate || Number.isNaN(parsedBurialDate.getTime())) {
+        return Response.json({ error: 'Invalid burial date' }, { status: 400 });
+      }
+      if (parsedBurialDate.getTime() < parsedDeathDate.getTime()) {
+        return Response.json({ error: 'Burial date must not precede death date' }, { status: 400 });
+      }
     }
     const repo = new AnniversaryRepository();
     const event = await repo.create({
@@ -40,7 +58,9 @@ const postHandler = async (request: Request, context: GuardContext) => {
       name,
       description,
       type,
-      date: new Date(date),
+      date: parsedDate,
+      deathDate: isDeathType ? parsedDeathDate : undefined,
+      burialDate: isDeathType ? parsedBurialDate : undefined,
       isAnnual: Boolean(isAnnual),
       createdBy: user.userId,
       imageUrl,
