@@ -2,8 +2,10 @@ import type { ReactNode } from 'react';
 import PublicLayoutShell from '@/components/PublicLayoutShell';
 import { fetchSiteInfo } from '@/firebase/admin';
 import { resolveSiteId } from '@/utils/resolveSiteId';
+import { headers } from 'next/headers';
 import { DEFAULT_LOCALE, SUPPORTED_LOCALES } from '@/i18n';
-import { assertSerializableDev } from "@/utils/assertSerializableDev";
+import { assertSerializableDev } from '@/utils/assertSerializableDev';
+import { findBestMatchingTag, parseAcceptLanguage } from '@/utils/locale';
 
 // This layout uses headers() for multi-tenant routing, so it must be dynamic
 export const dynamic = 'force-dynamic';
@@ -20,6 +22,10 @@ interface LocaleLayoutProps {
 export default async function PublicLayout({ children, params }: LocaleLayoutProps) {
   const { locale: paramsLocale } = await params;
   const locale = SUPPORTED_LOCALES.includes(paramsLocale) ? paramsLocale : DEFAULT_LOCALE;
+  const headerStore = await headers();
+  const acceptLanguage = headerStore.get('accept-language');
+  const preferences = parseAcceptLanguage(acceptLanguage);
+  const resolvedLocale = findBestMatchingTag(preferences, locale) ?? locale;
   let siteInfo = null;
   try {
     const siteId = await resolveSiteId();
@@ -33,5 +39,9 @@ export default async function PublicLayout({ children, params }: LocaleLayoutPro
     // Don't throw - let children handle null siteInfo (e.g., UnderConstruction page)
   }
 
-  return <PublicLayoutShell siteInfo={siteInfo} locale={locale}>{children}</PublicLayoutShell>;
+  return (
+    <PublicLayoutShell siteInfo={siteInfo} locale={locale} resolvedLocale={resolvedLocale}>
+      {children}
+    </PublicLayoutShell>
+  );
 }

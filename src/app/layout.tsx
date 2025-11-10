@@ -7,6 +7,13 @@ import { getPlatformName } from '../utils/platformName';
 import type { Metadata } from 'next';
 import { headers } from 'next/headers';
 import { DEFAULT_LOCALE, DEFAULT_RESOURCES, SUPPORTED_LOCALES } from '../i18n';
+import {
+  findBestMatchingTag,
+  findBestSupportedLocale,
+  parseAcceptLanguage,
+  sanitizeLocaleCandidate,
+} from '@/utils/locale';
+import { fetchMemberPreferredLocale } from '@/utils/memberPreferredLocale';
 
 const GOOGLE_VERIFICATION = process.env.GOOGLE_SITE_VERIFICATION || '';
 
@@ -42,21 +49,70 @@ export async function generateMetadata(): Promise<Metadata> {
   }
 }
 
-async function resolveInitialLocale(): Promise<string> {
-  const headerStore = await headers();
-  const headerLocale = headerStore.get('x-locale');
-  if (headerLocale && SUPPORTED_LOCALES.includes(headerLocale)) {
-    return headerLocale;
+interface RequestLocaleResult {
+  base: string;
+  full: string;
+}
+
+function resolveRequestUrl(rawUrl: string | null): URL {
+  if (!rawUrl) {
+    return new URL('/', 'http://localhost');
   }
-  return DEFAULT_LOCALE;
+
+  try {
+    return rawUrl.startsWith('http') ? new URL(rawUrl) : new URL(rawUrl, 'http://localhost');
+  } catch {
+    return new URL('/', 'http://localhost');
+  }
+}
+
+async function resolveInitialLocale(siteId: string | null): Promise<RequestLocaleResult> {
+  const headerStore = await headers();
+  const rawNextUrl = headerStore.get('next-url');
+  const requestUrl = resolveRequestUrl(rawNextUrl);
+  const pathname = requestUrl.pathname;
+  const searchParams = requestUrl.searchParams;
+  const acceptLanguage = headerStore.get('accept-language');
+  const preferences = parseAcceptLanguage(acceptLanguage);
+  const fallbackBase = findBestSupportedLocale(preferences, SUPPORTED_LOCALES) ?? DEFAULT_LOCALE;
+
+  const localeSegmentMatch = pathname.match(/^\/(\w{2})(?:\/|$)/i);
+  const pathLocale = localeSegmentMatch
+    ? sanitizeLocaleCandidate(localeSegmentMatch[1], SUPPORTED_LOCALES)
+    : undefined;
+
+  let baseLocale = pathLocale ?? fallbackBase;
+  const needsPrivateLocale = pathname.startsWith('/app') || pathname.startsWith('/admin');
+
+  if (needsPrivateLocale) {
+    const queryLocale = sanitizeLocaleCandidate(searchParams.get('locale'), SUPPORTED_LOCALES);
+    if (queryLocale) {
+      baseLocale = queryLocale;
+    } else {
+      const memberLocale = sanitizeLocaleCandidate(
+        await fetchMemberPreferredLocale(siteId),
+        SUPPORTED_LOCALES,
+      );
+      baseLocale = memberLocale ?? fallbackBase;
+    }
+  }
+
+  const fullLocale = findBestMatchingTag(preferences, baseLocale) ?? baseLocale;
+
+  return {
+    base: baseLocale,
+    full: fullLocale,
+  };
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const initialLocale = await resolveInitialLocale();
+  const siteId = await resolveSiteId();
+  const { base: initialLocale, full: resolvedFullLocale } = await resolveInitialLocale(siteId);
   let siteInfo = null;
   try {
-    const siteId = await resolveSiteId();
-    siteInfo = siteId ? await fetchSiteInfo(siteId, initialLocale) : await fetchSiteInfo(undefined, initialLocale);
+    siteInfo = siteId
+      ? await fetchSiteInfo(siteId, initialLocale)
+      : await fetchSiteInfo(undefined, initialLocale);
   } catch (error) {
     console.error('Failed to fetch site info:', error);
     // Don't throw - let the app render with null siteInfo
@@ -65,7 +121,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const htmlDir = initialLocale === 'he' ? 'rtl' : 'ltr';
 
   return (
-    <html lang={initialLocale} dir={htmlDir}>
+    <html lang={resolvedFullLocale} dir={htmlDir}>
       <body>
         {/* Inject siteInfo for client-side access */}
         <script
@@ -74,7 +130,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             __html: `window.__SITE_INFO__=${JSON.stringify(siteInfo ?? null)};`,
           }}
         />
-        <I18nProvider initialLocale={initialLocale} resources={DEFAULT_RESOURCES}>
+        <I18nProvider
+          initialLocale={initialLocale}
+          resolvedLocale={resolvedFullLocale}
+          resources={DEFAULT_RESOURCES}
+        >
           <I18nGate>{children}</I18nGate>
         </I18nProvider>
       </body>

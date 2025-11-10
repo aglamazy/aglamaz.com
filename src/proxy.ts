@@ -2,6 +2,7 @@ import { ACCESS_TOKEN } from '@/auth/cookies';
 import { apiFetchFromMiddleware, verifyAccessToken } from 'src/lib/edgeAuth';
 import { NextRequest, NextResponse } from 'next/server';
 import { SUPPORTED_LOCALES as CONFIG_LOCALES } from '@/constants/i18n';
+import { findBestSupportedLocale, parseAcceptLanguage } from '@/utils/locale';
 
 const SUPPORTED_LOCALES = CONFIG_LOCALES.map((locale) => locale as string);
 const FALLBACK_LOCALE = SUPPORTED_LOCALES[0] || 'en';
@@ -51,11 +52,9 @@ function isLocalizedPublic(path: string) {
 }
 
 function resolvePreferredLocale(request: NextRequest) {
-  const cookieLocale = request.cookies.get('NEXT_LOCALE')?.value;
-  if (cookieLocale && SUPPORTED_LOCALES.includes(cookieLocale)) {
-    return cookieLocale;
-  }
-  return FALLBACK_LOCALE;
+  const acceptLanguage = request.headers.get('accept-language');
+  const preferences = parseAcceptLanguage(acceptLanguage);
+  return findBestSupportedLocale(preferences, SUPPORTED_LOCALES) ?? FALLBACK_LOCALE;
 }
 
 export async function proxy(request: NextRequest) {
@@ -63,8 +62,6 @@ export async function proxy(request: NextRequest) {
   const { locale: localeFromPath, path: normalizedPath } = stripLocale(pathname);
   const preferredLocale = localeFromPath ?? resolvePreferredLocale(request);
   const isLocalized = Boolean(localeFromPath);
-  const requestHeaders = new Headers(request.headers);
-  requestHeaders.set('x-locale', preferredLocale);
 
   if (!isLocalized && isLocalizedPublic(normalizedPath)) {
     const targetLocale = preferredLocale;
@@ -72,9 +69,7 @@ export async function proxy(request: NextRequest) {
       ? `/${targetLocale}`
       : `/${targetLocale}${normalizedPath}`;
     const redirectUrl = new URL(destination + search, request.url);
-    const response = NextResponse.redirect(redirectUrl, 308);
-    response.cookies.set('NEXT_LOCALE', targetLocale, { path: '/', maxAge: 60 * 60 * 24 * 365 });
-    return response;
+    return NextResponse.redirect(redirectUrl, 308);
   }
 
   const token = request.cookies.get(ACCESS_TOKEN)?.value;
@@ -82,7 +77,7 @@ export async function proxy(request: NextRequest) {
 
   // Allow public paths regardless of auth status
   if (isPublic) {
-    return NextResponse.next({ request: { headers: requestHeaders } });
+    return NextResponse.next();
   }
 
   const isApi = pathname.startsWith('/api');
@@ -91,9 +86,7 @@ export async function proxy(request: NextRequest) {
     if (isApi) {
       return NextResponse.json({ error: 'Unauthorized (middleware)' }, { status: 401 });
     }
-    return NextResponse.rewrite(new URL('/auth-gate', request.url), {
-      request: { headers: requestHeaders },
-    });
+    return NextResponse.rewrite(new URL('/auth-gate', request.url));
   }
 
   try {
@@ -147,7 +140,7 @@ export async function proxy(request: NextRequest) {
       }
     }
 
-    return NextResponse.next({ request: { headers: requestHeaders } });
+    return NextResponse.next();
   } catch {
     if (isApi) {
       return NextResponse.json({ error: 'Unauthorized (api)' }, { status: 401 });
@@ -158,8 +151,6 @@ export async function proxy(request: NextRequest) {
 
     const headers = new Headers(request.headers);
     headers.set('x-auth-gate', '1');
-    headers.set('x-locale', preferredLocale);
-
     return NextResponse.rewrite(url, { request: { headers } });
   }
 }

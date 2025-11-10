@@ -2,28 +2,56 @@ import ClientLayoutShell from '../../components/ClientLayoutShell';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 import { headers } from 'next/headers';
 import { DEFAULT_LOCALE, SUPPORTED_LOCALES } from '@/i18n';
+import {
+  findBestMatchingTag,
+  findBestSupportedLocale,
+  parseAcceptLanguage,
+  sanitizeLocaleCandidate,
+} from '@/utils/locale';
+import { resolveSiteId } from '@/utils/resolveSiteId';
+import { fetchMemberPreferredLocale } from '@/utils/memberPreferredLocale';
 
-export default async function RootLayout({
-  children,
-  params,
-  searchParams
-}: {
+interface AppLayoutProps {
   children: React.ReactNode;
   params?: any;
   searchParams?: Promise<{ locale?: string }>;
-}) {
-  const h = await headers();
-  const isAuthGate = h.get('x-auth-gate') === '1';
+}
 
-  // Priority: query param > default (member.defaultLocale handled client-side)
+export default async function RootLayout({
+  children,
+  searchParams,
+}: AppLayoutProps) {
+  const headerStore = await headers();
+  const isAuthGate = headerStore.get('x-auth-gate') === '1';
+  const acceptLanguage = headerStore.get('accept-language');
+  const preferences = parseAcceptLanguage(acceptLanguage);
+  const fallbackBase = findBestSupportedLocale(preferences, SUPPORTED_LOCALES) ?? DEFAULT_LOCALE;
+
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
-  const queryLocale = resolvedSearchParams?.locale;
-  const resolvedLocale =
-    (queryLocale && SUPPORTED_LOCALES.includes(queryLocale)) ? queryLocale : undefined;
+  const queryLocaleCandidate = resolvedSearchParams?.locale;
+  const queryLocale = sanitizeLocaleCandidate(queryLocaleCandidate, SUPPORTED_LOCALES);
+
+  let baseLocale = queryLocale;
+  if (!baseLocale) {
+    const siteId = await resolveSiteId();
+    const memberLocale = sanitizeLocaleCandidate(
+      await fetchMemberPreferredLocale(siteId),
+      SUPPORTED_LOCALES,
+    );
+    baseLocale = memberLocale ?? fallbackBase;
+  }
+
+  const resolvedLocale = findBestMatchingTag(preferences, baseLocale) ?? baseLocale;
 
   return (
     <ErrorBoundary>
-      {isAuthGate ? <>{children}</> : <ClientLayoutShell initialLocale={resolvedLocale}>{children}</ClientLayoutShell>}
+      {isAuthGate ? (
+        <>{children}</>
+      ) : (
+        <ClientLayoutShell initialLocale={baseLocale} resolvedLocale={resolvedLocale}>
+          {children}
+        </ClientLayoutShell>
+      )}
     </ErrorBoundary>
   );
 }

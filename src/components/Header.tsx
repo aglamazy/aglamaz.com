@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from "react";
 import Navigation from "@/components/Navigation";
 import { useTranslation } from 'react-i18next';
 import { LogOut, Users, MessageCircle, Home as HomeIcon, BookOpen, User, LayoutDashboard } from 'lucide-react';
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { IUser } from "@/entities/User";
 import { IMember } from "@/entities/Member";
 import { ISite } from "@/entities/Site";
@@ -30,6 +30,7 @@ export default function Header({ user, member, onLogout, siteInfo }: HeaderProps
   const userMenuRef = useRef(null);
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const openLogin = useLoginModalStore((s) => s.open);
   const openEdit = useEditUserModalStore((s) => s.open);
   const siteDisplayName = siteInfo?.name?.trim();
@@ -59,27 +60,33 @@ export default function Header({ user, member, onLogout, siteInfo }: HeaderProps
     }
 
     try {
-      if (typeof document !== 'undefined') {
-        document.cookie = `NEXT_LOCALE=${targetLocale}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax`;
-      }
-
       const currentPath = pathname || '/';
-      const segments = currentPath.split('/').filter(Boolean);
-      let nextPath = currentPath;
-
-      if (segments.length > 0 && SUPPORTED_LOCALES.includes(segments[0])) {
-        const rest = segments.slice(1).join('/');
-        nextPath = `/${targetLocale}${rest ? `/${rest}` : ''}`;
-      } else if (segments.length === 0) {
-        nextPath = `/${targetLocale}`;
-      }
-
-      if (nextPath !== currentPath) {
-        router.replace(nextPath, { scroll: false });
+      const isPrivateRoute = currentPath.startsWith('/app') || currentPath.startsWith('/admin');
+      if (isPrivateRoute) {
+        const params = new URLSearchParams(searchParams?.toString());
+        params.set('locale', targetLocale);
+        const queryString = params.toString();
+        const nextUrl = queryString ? `${currentPath}?${queryString}` : currentPath;
+        router.replace(nextUrl, { scroll: false });
+        router.refresh();
       } else {
-        router.replace(currentPath, { scroll: false });
+        const segments = currentPath.split('/').filter(Boolean);
+        let nextPath = currentPath;
+
+        if (segments.length > 0 && SUPPORTED_LOCALES.includes(segments[0])) {
+          const rest = segments.slice(1).join('/');
+          nextPath = `/${targetLocale}${rest ? `/${rest}` : ''}`;
+        } else if (segments.length === 0) {
+          nextPath = `/${targetLocale}`;
+        }
+
+        if (nextPath !== currentPath) {
+          router.replace(nextPath, { scroll: false });
+        } else {
+          router.replace(currentPath, { scroll: false });
+        }
+        router.refresh();
       }
-      router.refresh();
     } catch (error) {
       console.error('[Header] failed to update locale path', error);
     }
@@ -102,7 +109,7 @@ export default function Header({ user, member, onLogout, siteInfo }: HeaderProps
       <div className="flex flex-row items-center">
         {user && member && onLogout && member.role !== 'pending' && isLandingPage ? (
           <button
-            onClick={() => router.push(`/app?locale=${i18n.language}`)}
+            onClick={() => router.push(`/app?locale=${currentLocale}`)}
             className="px-6 py-2 bg-sage-600 hover:bg-sage-700 text-white rounded-lg font-semibold transition-colors duration-200"
           >
             {t('start') as string}
@@ -134,7 +141,7 @@ export default function Header({ user, member, onLogout, siteInfo }: HeaderProps
             className="h-8 w-8 rounded-full flex items-center justify-center text-xl bg-gray-100 hover:bg-gray-200 border border-gray-300"
             aria-label={t('changeLanguage') as string}
           >
-            {LANGUAGES.find(l => l.code === i18n.language)?.flag || '🌐'}
+            {LANGUAGES.find(l => l.code === currentLocale)?.flag || '🌐'}
           </button>
           {isLangMenuOpen && (
             <div className={`language-menu ${menuPosition}`}>
@@ -143,7 +150,7 @@ export default function Header({ user, member, onLogout, siteInfo }: HeaderProps
                   <button
                     key={code}
                     onClick={() => handleLangChange(code)}
-                    className={`language-menu-item ${i18n.language === code ? 'font-bold' : ''}`}
+                    className={`language-menu-item ${currentLocale === code ? 'font-bold' : ''}`}
                   >
                     <span>{flag}</span>
                     <span>{label}</span>

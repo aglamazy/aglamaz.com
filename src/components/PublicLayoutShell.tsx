@@ -13,16 +13,16 @@ import { useRouter } from 'next/navigation';
 import { landingPage } from '@/app/settings';
 import type { ISite } from '@/entities/Site';
 import styles from './PublicLayoutShell.module.css';
-import { SUPPORTED_LOCALES as CONFIG_LOCALES } from '@/constants/i18n';
 import { useTranslation } from 'react-i18next';
 
 interface PublicLayoutShellProps {
   siteInfo: ISite | null;
   children: React.ReactNode;
   locale: string;
+  resolvedLocale?: string;
 }
 
-export default function PublicLayoutShell({ siteInfo, children, locale }: PublicLayoutShellProps) {
+export default function PublicLayoutShell({ siteInfo, children, locale, resolvedLocale }: PublicLayoutShellProps) {
   const { i18n } = useTranslation();
   const { isOpen, close } = useLoginModalStore();
   const setSiteInfo = useSiteStore((s) => s.setSiteInfo);
@@ -33,13 +33,17 @@ export default function PublicLayoutShell({ siteInfo, children, locale }: Public
   const router = useRouter();
 
   useEffect(() => {
-    if (CONFIG_LOCALES.includes(locale as any)) {
-      document.cookie = `NEXT_LOCALE=${locale}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax`;
-      if (i18n.language !== locale) {
-        void i18n.changeLanguage(locale);
-      }
+    if (i18n.language !== locale) {
+      void i18n.changeLanguage(locale);
     }
   }, [locale, i18n]);
+
+  useEffect(() => {
+    const htmlElement = document.documentElement;
+    const htmlLocale = resolvedLocale ?? locale;
+    htmlElement.lang = htmlLocale;
+    htmlElement.dir = locale === 'he' ? 'rtl' : 'ltr';
+  }, [locale, resolvedLocale]);
 
   useEffect(() => {
     if (siteInfo) {

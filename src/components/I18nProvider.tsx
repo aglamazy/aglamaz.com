@@ -7,16 +7,31 @@ import type { Resource } from 'i18next';
 
 interface I18nProviderProps {
   initialLocale?: string;
+  resolvedLocale?: string;
   resources?: Resource;
   children: React.ReactNode;
 }
 
 export default function I18nProvider({
   initialLocale,
+  resolvedLocale,
   resources,
   children,
 }: I18nProviderProps) {
-  const sanitizedLocale = (initialLocale && SUPPORTED_LOCALES.includes(initialLocale)) ? initialLocale : DEFAULT_LOCALE;
+  const normalizedInitial = initialLocale?.toLowerCase();
+  const normalizedBase = normalizedInitial?.split('-')[0];
+  const sanitizedLocale =
+    normalizedBase && SUPPORTED_LOCALES.includes(normalizedBase)
+      ? normalizedBase
+      : DEFAULT_LOCALE;
+  const htmlLocale = (() => {
+    if (!resolvedLocale) {
+      return sanitizedLocale;
+    }
+    const normalizedResolved = resolvedLocale.toLowerCase();
+    const resolvedBase = normalizedResolved.split('-')[0];
+    return resolvedBase === sanitizedLocale ? resolvedLocale : sanitizedLocale;
+  })();
   const i18nRef = useRef(
     createI18nInstance({
       locale: sanitizedLocale,
@@ -40,12 +55,11 @@ export default function I18nProvider({
     const htmlElement = document.documentElement;
     if (sanitizedLocale === 'he') {
       htmlElement.dir = 'rtl';
-      htmlElement.lang = 'he';
     } else {
       htmlElement.dir = 'ltr';
-      htmlElement.lang = sanitizedLocale;
     }
-  }, [sanitizedLocale]);
+    htmlElement.lang = htmlLocale;
+  }, [sanitizedLocale, htmlLocale]);
 
   return <I18nextProvider i18n={i18nRef.current}>{children}</I18nextProvider>;
 }
