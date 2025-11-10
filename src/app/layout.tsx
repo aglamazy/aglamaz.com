@@ -13,7 +13,7 @@ import {
   parseAcceptLanguage,
   sanitizeLocaleCandidate,
 } from '@/utils/locale';
-import { fetchMemberPreferredLocale } from '@/utils/memberPreferredLocale';
+import { getMemberFromToken } from '@/utils/serverAuth';
 
 const GOOGLE_VERIFICATION = process.env.GOOGLE_SITE_VERIFICATION || '';
 
@@ -66,7 +66,10 @@ function resolveRequestUrl(rawUrl: string | null): URL {
   }
 }
 
-async function resolveInitialLocale(siteId: string | null): Promise<RequestLocaleResult> {
+async function resolveInitialLocale(
+  siteId: string | null,
+  memberDefaultLocale: string | null | undefined
+): Promise<RequestLocaleResult> {
   const headerStore = await headers();
   const rawNextUrl = headerStore.get('next-url');
   const requestUrl = resolveRequestUrl(rawNextUrl);
@@ -90,7 +93,7 @@ async function resolveInitialLocale(siteId: string | null): Promise<RequestLocal
       baseLocale = queryLocale;
     } else {
       const memberLocale = sanitizeLocaleCandidate(
-        await fetchMemberPreferredLocale(siteId),
+        memberDefaultLocale,
         SUPPORTED_LOCALES,
       );
       baseLocale = memberLocale ?? fallbackBase;
@@ -107,7 +110,17 @@ async function resolveInitialLocale(siteId: string | null): Promise<RequestLocal
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const siteId = await resolveSiteId();
-  const { base: initialLocale, full: resolvedFullLocale } = await resolveInitialLocale(siteId);
+
+  // Fetch member info (will be null if no user is authenticated)
+  let memberInfo = null;
+  try {
+    memberInfo = siteId ? await getMemberFromToken(siteId) : null;
+  } catch (error) {
+    console.error('Failed to fetch member info:', error);
+    // Don't throw - let the app render with null memberInfo
+  }
+
+  const { base: initialLocale, full: resolvedFullLocale } = await resolveInitialLocale(siteId, memberInfo?.defaultLocale);
   let siteInfo = null;
   try {
     siteInfo = siteId
@@ -128,6 +141,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           id="__SITE_INFO__"
           dangerouslySetInnerHTML={{
             __html: `window.__SITE_INFO__=${JSON.stringify(siteInfo ?? null)};`,
+          }}
+        />
+        {/* Inject memberInfo for client-side access */}
+        <script
+          id="__MEMBER_INFO__"
+          dangerouslySetInnerHTML={{
+            __html: `window.__MEMBER_INFO__=${JSON.stringify(memberInfo ?? null)};`,
           }}
         />
         <I18nProvider

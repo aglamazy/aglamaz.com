@@ -1,30 +1,21 @@
 import { NextResponse } from 'next/server';
-import { ACCESS_TOKEN } from '@/auth/cookies';
-import { cookies } from 'next/headers';
-import { verifyAccessToken } from '@/auth/service';
+import { getUserFromToken, getMemberFromToken, __setMockCookies as __setMockCookiesUtil, __setMockMemberRepository as __setMockMemberRepositoryUtil } from '@/utils/serverAuth';
 import { MemberRepository } from '@/repositories/MemberRepository';
 import { RouteHandler, GuardContext } from '../app/api/types';
-
-let memberRepository: MemberRepository | null = null;
-let getCookies = cookies;
+import { cookies } from 'next/headers';
 
 export function __setMockCookies(fn: typeof cookies) {
-  getCookies = fn;
+  __setMockCookiesUtil(fn);
 }
 
 export function __setMockMemberRepository(repo: MemberRepository | null) {
-  memberRepository = repo;
+  __setMockMemberRepositoryUtil(repo);
 }
 
 export function withMemberGuard(handler: RouteHandler): RouteHandler {
   return async (request: Request, context: GuardContext) => {
     try {
-      if (!memberRepository) {
-        memberRepository = new MemberRepository();
-      }
-      const cookieStore = await getCookies();
-      const token = cookieStore.get(ACCESS_TOKEN)?.value;
-      const payload = token && verifyAccessToken(token);
+      const payload = await getUserFromToken();
       if (!payload) {
         return NextResponse.json({ error: 'Unauthorized (withMG, np)' }, { status: 401 });
       }
@@ -36,7 +27,7 @@ export function withMemberGuard(handler: RouteHandler): RouteHandler {
       context.user = payload;
       const params = context.params instanceof Promise ? await context.params : context.params;
       const siteId = params?.siteId || process.env.NEXT_SITE_ID!;
-      const member = await memberRepository.getByUid(siteId, uid);
+      const member = await getMemberFromToken(siteId);
 
       if (!member) {
         return NextResponse.json({ error: 'Member not found' }, { status: 404 });

@@ -18,6 +18,7 @@ interface MemberState {
   setMember: (member: IMember | null) => void;
   clearMember: () => void;
   resolveAvatar: (options?: ResolveAvatarOptions) => MemberAvatar;
+  hydrateFromWindow: () => void;
 }
 
 export type MemberAvatar =
@@ -42,6 +43,14 @@ const computeInitials = (name?: string, email?: string): string => {
   if (parts.length === 0) return '?';
   const letters = parts.map((part) => part[0]?.toUpperCase() || '').join('');
   return letters || '?';
+};
+
+const readBootstrapMemberInfo = (): IMember | null => {
+  if (typeof window === 'undefined') return null; // SSR guard
+  const w = window as any;
+  if (w.__MEMBER_INFO__) return w.__MEMBER_INFO__ as IMember;
+
+  return null;
 };
 
 export const computeMemberAvatar = (
@@ -87,7 +96,11 @@ export const useMemberStore = create<MemberState>((set, get) => ({
   },
 
   setMember: (member) => set({ member }),
-  
+
   clearMember: () => set({ member: null, error: null }),
   resolveAvatar: (options) => computeMemberAvatar(get().member, options),
+  hydrateFromWindow: () => {
+    const member = readBootstrapMemberInfo();
+    set((state) => (state.member === member ? state : { member }));
+  },
 }));

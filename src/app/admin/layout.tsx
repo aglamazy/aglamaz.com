@@ -8,7 +8,7 @@ import {
   sanitizeLocaleCandidate,
 } from '@/utils/locale';
 import { resolveSiteId } from '@/utils/resolveSiteId';
-import { fetchMemberPreferredLocale } from '@/utils/memberPreferredLocale';
+import { getMemberFromToken } from '@/utils/serverAuth';
 
 function extractQueryLocale(rawNextUrl: string | null): string | undefined {
   if (!rawNextUrl) return undefined;
@@ -34,8 +34,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   let baseLocale = queryLocale;
   if (!baseLocale) {
     const siteId = await resolveSiteId();
+    const member = siteId ? await getMemberFromToken(siteId) : null;
     const memberLocale = sanitizeLocaleCandidate(
-      await fetchMemberPreferredLocale(siteId),
+      member?.defaultLocale,
       SUPPORTED_LOCALES,
     );
     baseLocale = memberLocale ?? fallbackBase;

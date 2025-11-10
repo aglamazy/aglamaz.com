@@ -1,21 +1,16 @@
 import { NextResponse } from 'next/server';
-import { ACCESS_TOKEN } from '@/auth/cookies';
-import { cookies } from 'next/headers';
-import { verifyAccessToken } from '@/auth/service';
+import { getUserFromToken, __setMockCookies as __setMockCookiesUtil } from '@/utils/serverAuth';
 import { RouteHandler, GuardContext } from '../app/api/types';
-
-let getCookies = cookies;
+import { cookies } from 'next/headers';
 
 export function __setMockCookies(fn: typeof cookies) {
-  getCookies = fn;
+  __setMockCookiesUtil(fn);
 }
 
 export function withUserGuard(handler: RouteHandler): RouteHandler {
   return async (request: Request, context: GuardContext) => {
     try {
-      const cookieStore = await getCookies();
-      const token = cookieStore.get(ACCESS_TOKEN)?.value;
-      const payload = token && verifyAccessToken(token);
+      const payload = await getUserFromToken();
       if (!payload) {
         return NextResponse.json({ error: 'Unauthorized (withUG)' }, { status: 401 });
       }

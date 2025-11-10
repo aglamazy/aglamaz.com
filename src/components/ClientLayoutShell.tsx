@@ -28,6 +28,7 @@ export default function ClientLayoutShell({ children, initialLocale, resolvedLoc
   const siteInfo = useSiteStore((state) => state.siteInfo);
   const hydrateSiteInfo = useSiteStore((state) => state.hydrateFromWindow);
   const member = useMemberStore((state) => state.member);
+  const hydrateMemberInfo = useMemberStore((state) => state.hydrateFromWindow);
   const router = useRouter();
   const { t, i18n } = useTranslation();
   const { isOpen: isLoginOpen, close: closeLogin, open: openLogin } = useLoginModalStore();
@@ -78,6 +79,13 @@ export default function ClientLayoutShell({ children, initialLocale, resolvedLoc
       hydrateSiteInfo();
     }
   }, [siteInfo, hydrateSiteInfo]);
+
+  // Ensure member info is available on the client after hydration
+  useEffect(() => {
+    if (!member) {
+      hydrateMemberInfo();
+    }
+  }, [member, hydrateMemberInfo]);
 
   const headerReady = mounted && !!siteInfo;
 

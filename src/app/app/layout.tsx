@@ -9,7 +9,7 @@ import {
   sanitizeLocaleCandidate,
 } from '@/utils/locale';
 import { resolveSiteId } from '@/utils/resolveSiteId';
-import { fetchMemberPreferredLocale } from '@/utils/memberPreferredLocale';
+import { getMemberFromToken } from '@/utils/serverAuth';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -34,8 +34,9 @@ export default async function RootLayout({
   let baseLocale = queryLocale;
   if (!baseLocale) {
     const siteId = await resolveSiteId();
+    const member = siteId ? await getMemberFromToken(siteId) : null;
     const memberLocale = sanitizeLocaleCandidate(
-      await fetchMemberPreferredLocale(siteId),
+      member?.defaultLocale,
       SUPPORTED_LOCALES,
     );
     baseLocale = memberLocale ?? fallbackBase;
