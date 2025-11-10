@@ -13,7 +13,6 @@ import { useRouter } from 'next/navigation';
 import { landingPage } from '@/app/settings';
 import type { ISite } from '@/entities/Site';
 import styles from './PublicLayoutShell.module.css';
-import { useTranslation } from 'react-i18next';
 
 interface PublicLayoutShellProps {
   siteInfo: ISite | null;
@@ -23,7 +22,6 @@ interface PublicLayoutShellProps {
 }
 
 export default function PublicLayoutShell({ siteInfo, children, locale, resolvedLocale }: PublicLayoutShellProps) {
-  const { i18n } = useTranslation();
   const { isOpen, close } = useLoginModalStore();
   const setSiteInfo = useSiteStore((s) => s.setSiteInfo);
   const site = useSiteStore((s) => s.siteInfo);
@@ -31,19 +29,14 @@ export default function PublicLayoutShell({ siteInfo, children, locale, resolved
   const member = useMemberStore((s) => s.member);
   const fetchMember = useMemberStore((s) => s.fetchMember);
   const router = useRouter();
-
-  useEffect(() => {
-    if (i18n.language !== locale) {
-      void i18n.changeLanguage(locale);
-    }
-  }, [locale, i18n]);
+  const direction = locale === 'he' ? 'rtl' : 'ltr';
+  const language = resolvedLocale ?? locale;
 
   useEffect(() => {
     const htmlElement = document.documentElement;
-    const htmlLocale = resolvedLocale ?? locale;
-    htmlElement.lang = htmlLocale;
-    htmlElement.dir = locale === 'he' ? 'rtl' : 'ltr';
-  }, [locale, resolvedLocale]);
+    htmlElement.lang = language;
+    htmlElement.dir = direction;
+  }, [direction, language]);
 
   useEffect(() => {
     if (siteInfo) {
@@ -88,11 +81,13 @@ export default function PublicLayoutShell({ siteInfo, children, locale, resolved
   };
 
   return (
-    <div className={styles.container}>
+    <div className={styles.container} dir={direction} lang={language}>
       {siteInfo ? (
         <Header siteInfo={siteInfo} user={user} member={member} onLogout={handleLogout} />
       ) : null}
-      <main className={styles.main}>{children}</main>
+      <main className={styles.main} dir={direction}>
+        {children}
+      </main>
       {siteInfo ? <Footer siteInfo={siteInfo} /> : null}
       <Modal isOpen={isOpen} onClose={close}>
         <LoginPage />
