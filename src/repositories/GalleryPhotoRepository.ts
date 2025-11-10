@@ -1,14 +1,14 @@
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { initAdmin } from '@/firebase/admin';
+import { LocalizableDocument } from '@/services/LocalizationService';
 
-export interface GalleryPhoto {
+export interface GalleryPhoto extends LocalizableDocument {
   id: string;
   siteId: string;
   createdBy: string;
   createdAt: Timestamp;
   date: Timestamp; // Display date for the photo
   images: string[]; // Array of Firebase Storage URLs
-  description?: string;
   anniversaryId?: string; // Optional link to anniversary
   deletedAt: Timestamp | null; // null for active, Timestamp for soft delete
 }

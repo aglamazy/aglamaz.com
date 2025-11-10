@@ -4,12 +4,18 @@ import { AnniversaryRepository } from '@/repositories/AnniversaryRepository';
 import { GalleryPhotoRepository } from '@/repositories/GalleryPhotoRepository';
 import { GuardContext } from '@/app/api/types';
 import { FamilyRepository } from '@/repositories/FamilyRepository';
+import { getLocalizedFields, ensureLocale } from '@/services/LocalizationService';
+import { getFirestore } from 'firebase-admin/firestore';
 
 export const dynamic = 'force-dynamic';
 
-const getHandler = async (_req: Request, context: GuardContext) => {
+const getHandler = async (req: Request, context: GuardContext) => {
   try {
     const member = context.member!;
+
+    // Get locale from query parameter (default to 'he')
+    const url = new URL(req.url);
+    const locale = url.searchParams.get('locale') || 'he';
 
     // Fetch both anniversary occurrences and gallery photos
     const occRepo = new AnniversaryOccurrenceRepository();
@@ -21,7 +27,31 @@ const getHandler = async (_req: Request, context: GuardContext) => {
 
     // Add type field to distinguish between them
     const occurrenceItems = occurrences.map((item: any) => ({ ...item, type: 'occurrence' }));
-    const galleryItems = galleryPhotos.map((item: any) => ({ ...item, type: 'gallery' }));
+
+    // Ensure locale for gallery photos (JIT translation)
+    const db = getFirestore();
+    const galleryItems = await Promise.all(
+      galleryPhotos.map(async (item: any) => {
+        try {
+          // Ensure locale exists, translate if needed
+          const docRef = db.collection('galleryPhotos').doc(item.id);
+          const ensuredItem = await ensureLocale(item, docRef, locale, ['description']);
+
+          // Get localized fields after ensuring
+          const localizedFields = getLocalizedFields(ensuredItem, locale, ['description']);
+
+          return {
+            ...ensuredItem,
+            type: 'gallery',
+            description: localizedFields.description
+          };
+        } catch (error) {
+          console.error(`[pictures] Failed to ensure locale for gallery photo ${item.id}:`, error);
+          // Fallback: return item without translation
+          return { ...item, type: 'gallery' };
+        }
+      })
+    );
 
     // Merge and sort by date (newest first)
     const items = [...occurrenceItems, ...galleryItems].sort((a, b) => {
@@ -29,7 +59,7 @@ const getHandler = async (_req: Request, context: GuardContext) => {
       const bDate = b.date?.toDate ? b.date.toDate() : new Date(b.date);
       return bDate.getTime() - aDate.getTime();
     });
-    // Attach minimal event summaries (name) to reduce client round-trips
+    // Attach minimal event summaries (name) with localization
     const annRepo = new AnniversaryRepository();
     const familyRepo = new FamilyRepository();
     // Collect eventId from occurrences and anniversaryId from gallery photos
@@ -40,8 +70,22 @@ const getHandler = async (_req: Request, context: GuardContext) => {
     for (const id of ids) {
       try {
         const ev = await annRepo.getById(id);
-        if (ev) events[id] = { name: ev.name };
-      } catch {}
+        if (ev) {
+          // Ensure locale exists, translate if needed (JIT)
+          const docRef = db.collection('anniversaries').doc(id);
+          const ensuredEv = await ensureLocale(ev, docRef, locale, ['name']);
+
+          // Get localized fields after ensuring
+          const localizedFields = getLocalizedFields(ensuredEv, locale, ['name']);
+
+          // Only include event if localized name exists
+          if (localizedFields.name) {
+            events[id] = { name: localizedFields.name };
+          }
+        }
+      } catch (error) {
+        console.error(`[pictures] Failed to ensure locale for anniversary ${id}:`, error);
+      }
     }
     const authorIds = Array.from(new Set(items.map((i: any) => i.createdBy).filter(Boolean)));
     const authors: Record<string, { displayName: string; email: string }> = {};

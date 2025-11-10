@@ -1,4 +1,6 @@
-export interface AnniversaryEvent {
+import { LocalizableDocument } from '@/services/LocalizationService.client';
+
+export interface AnniversaryEvent extends LocalizableDocument {
   id: string;
   siteId: string;
   ownerId: string;

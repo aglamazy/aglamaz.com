@@ -359,48 +359,7 @@
   flex-direction: column;
 }
 
-.mobileMetaRow {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.25rem 1rem 0.35rem;
-}
-
-.mobileAuthorAvatar {
-  width: 42px;
-  height: 42px;
-  border-radius: 50%;
-  overflow: hidden;
-  flex-shrink: 0;
-  background: linear-gradient(135deg, #d1d5db, #9ca3af);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.mobileAuthorAvatarImage {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
-.mobileAuthorInfo {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  min-width: 0;
-  flex: 1;
-}
-
-.mobileAuthorName {
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: #111827;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
+/* Mobile meta row styles moved to theme files (ImageGrid.light.module.css / ImageGrid.dark.module.css) */
 
 .mobileEventHeader {
   padding: 0.85rem 1.25rem 0.3rem;
@@ -472,36 +431,7 @@
   animation: mobileSkeletonWave 1.6s linear infinite;
 }
 
-.mobileContinuousLike {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  align-self: flex-end;
-  margin: 0.25rem 1rem 0;
-  padding: 0.28rem 0.75rem;
-  border-radius: 9999px;
-  border: none;
-  font-size: 0.95rem;
-  font-weight: 600;
-  background: rgba(17, 24, 39, 0.08);
-  color: var(--sage-700);
-}
-
-.mobileContinuousLikeActive {
-  background: rgba(220, 38, 38, 0.12);
-  color: #dc2626;
-}
-
-.mobileContinuousLikePlaceholder {
-  align-self: flex-end;
-  margin: 0.75rem 1.25rem 1.15rem;
-  width: 96px;
-  height: 32px;
-  border-radius: 9999px;
-  background: linear-gradient(90deg, rgba(229, 231, 235, 0.25) 0%, rgba(209, 213, 219, 0.55) 50%, rgba(229, 231, 235, 0.25) 100%);
-  background-size: 200% 100%;
-  animation: mobileSkeletonWave 1.6s linear infinite;
-}
+/* Mobile like button styles moved to theme files (ImageGrid.light.module.css / ImageGrid.dark.module.css) */
 
 @keyframes mobileSkeletonWave {
   0% { background-position: 200% 0; }
