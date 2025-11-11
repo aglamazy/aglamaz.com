@@ -77,6 +77,19 @@ export const useMemberStore = create<MemberState>((set, get) => ({
   
   fetchMember: async (userId: string, siteId: string) => {
     try {
+      // Check if member data is already loaded (from hydration)
+      const currentMember = get().member;
+      if (currentMember && currentMember.siteId === siteId && currentMember.uid === userId) {
+        // Member already loaded and matches the authenticated user
+        return MembershipStatus.Member;
+      }
+
+      // If member exists but doesn't match (different user or site), clear it
+      if (currentMember && (currentMember.siteId !== siteId || currentMember.uid !== userId)) {
+        console.warn('[MemberStore] Hydrated member does not match authenticated user, clearing and refetching');
+        set({ member: null });
+      }
+
       set({ loading: true, error: null });
 
       const data = await apiFetch<{ status: string; member?: IMember }>(`/api/user/member-info?siteId=${siteId}`);
