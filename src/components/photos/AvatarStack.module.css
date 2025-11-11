@@ -1,0 +1,51 @@
+.stack {
+  display: inline-flex;
+  align-items: center;
+  position: relative;
+}
+
+.stackRtl {
+  direction: rtl;
+}
+
+.avatar {
+  width: var(--avatar-size, 28px);
+  height: var(--avatar-size, 28px);
+  border-radius: 999px;
+  border: 2px solid #fff;
+  background: #d4d4d8;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #1f2937;
+  overflow: hidden;
+  margin-inline-start: -4px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.2);
+}
+
+.stackRtl .avatar {
+  margin-inline-start: 0;
+  margin-inline-end: -4px;
+}
+
+.avatar:first-of-type {
+  margin-inline-start: 0;
+}
+
+.stackRtl .avatar:first-of-type {
+  margin-inline-end: 0;
+}
+
+.avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.moreBadge {
+  background: #f1f5f9;
+  color: #1e293b;
+  font-weight: 600;
+}

@@ -1,0 +1,140 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+}
+
+.backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+
+.sheet {
+  position: relative;
+  width: 100%;
+  max-width: 640px;
+  background: #fff;
+  border-top-left-radius: 24px;
+  border-top-right-radius: 24px;
+  box-shadow: 0 -8px 24px rgba(15, 23, 42, 0.2);
+  padding: 16px 24px 32px;
+  max-height: 85vh;
+  overflow: hidden;
+  animation: slideUp 0.25s ease-out;
+}
+
+.sheetRtl {
+  direction: rtl;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.dragHandle {
+  width: 48px;
+  height: 4px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  margin: 0 auto 16px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  gap: 12px;
+}
+
+.header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: #0f172a;
+}
+
+.closeButton {
+  border: none;
+  background: transparent;
+  font-size: 1.1rem;
+  cursor: pointer;
+  color: #475569;
+}
+
+.content {
+  overflow-y: auto;
+  max-height: calc(85vh - 80px);
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.likerRow {
+  width: 100%;
+  border: none;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid #f1f5f9;
+  cursor: pointer;
+  text-align: left;
+}
+
+.likerAvatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  color: #0f172a;
+  overflow: hidden;
+}
+
+.likerAvatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.likerInfo {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.likerName {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.likerTime {
+  font-size: 0.85rem;
+  color: #475569;
+}
+
+.empty {
+  text-align: center;
+  padding: 32px 0;
+  color: #94a3b8;
+}
