@@ -7,6 +7,15 @@ import { findBestSupportedLocale, parseAcceptLanguage } from '@/utils/locale';
 const SUPPORTED_LOCALES = CONFIG_LOCALES.map((locale) => locale as string);
 const FALLBACK_LOCALE = SUPPORTED_LOCALES[0] || 'en';
 
+// Helper to add locale header to response
+function addLocaleHeader(response: NextResponse, request: NextRequest): NextResponse {
+  const locale = request.nextUrl.searchParams.get('locale');
+  if (locale) {
+    response.headers.set('x-locale', locale);
+  }
+  return response;
+}
+
 // Paths that should get locale prefixes (e.g., / -> /en, /blog -> /en/blog)
 const LOCALIZED_PUBLIC_PATHS = [
   '/',
@@ -77,7 +86,7 @@ export async function proxy(request: NextRequest) {
 
   // Allow public paths regardless of auth status
   if (isPublic) {
-    return NextResponse.next();
+    return addLocaleHeader(NextResponse.next(), request);
   }
 
   const isApi = pathname.startsWith('/api');
@@ -103,7 +112,7 @@ export async function proxy(request: NextRequest) {
     if (needsCredentialSetup) {
       if (isApi) {
         if (isCredentialApi || isLogoutApi) {
-          return NextResponse.next();
+          return addLocaleHeader(NextResponse.next(), request);
         }
         return NextResponse.json({ error: 'Credentials setup required' }, { status: 403 });
       }
@@ -127,7 +136,7 @@ export async function proxy(request: NextRequest) {
       }
 
       if (!res.ok) {
-        return NextResponse.next();
+        return addLocaleHeader(NextResponse.next(), request);
       }
 
       const memberRes = await res.json();
@@ -136,11 +145,11 @@ export async function proxy(request: NextRequest) {
         memberRes?.member &&
         ['member', 'admin'].includes(memberRes.member.role);
       if (!ok) {
-        return NextResponse.next();
+        return addLocaleHeader(NextResponse.next(), request);
       }
     }
 
-    return NextResponse.next();
+    return addLocaleHeader(NextResponse.next(), request);
   } catch {
     if (isApi) {
       return NextResponse.json({ error: 'Unauthorized (api)' }, { status: 401 });
