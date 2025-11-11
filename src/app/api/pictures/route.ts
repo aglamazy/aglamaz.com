@@ -17,41 +17,17 @@ const getHandler = async (req: Request, context: GuardContext) => {
     const url = new URL(req.url);
     const locale = url.searchParams.get('locale') || 'he';
 
-    // Fetch both anniversary occurrences and gallery photos
+    // Fetch both anniversary occurrences and gallery photos with localization
     const occRepo = new AnniversaryOccurrenceRepository();
     const galleryRepo = new GalleryPhotoRepository();
     const [occurrences, galleryPhotos] = await Promise.all([
-      occRepo.listBySite(member.siteId),
-      galleryRepo.listBySite(member.siteId),
+      occRepo.listBySite(member.siteId, locale),
+      galleryRepo.listBySite(member.siteId, locale),
     ]);
 
     // Add type field to distinguish between them
     const occurrenceItems = occurrences.map((item: any) => ({ ...item, type: 'occurrence' }));
-
-    // Ensure locale for gallery photos (JIT translation)
-    const db = getFirestore();
-    const galleryItems = await Promise.all(
-      galleryPhotos.map(async (item: any) => {
-        try {
-          // Ensure locale exists, translate if needed
-          const docRef = db.collection('galleryPhotos').doc(item.id);
-          const ensuredItem = await ensureLocale(item, docRef, locale, ['description']);
-
-          // Get localized fields after ensuring
-          const localizedFields = getLocalizedFields(ensuredItem, locale, ['description']);
-
-          return {
-            ...ensuredItem,
-            type: 'gallery',
-            description: localizedFields.description
-          };
-        } catch (error) {
-          console.error(`[pictures] Failed to ensure locale for gallery photo ${item.id}:`, error);
-          // Fallback: return item without translation
-          return { ...item, type: 'gallery' };
-        }
-      })
-    );
+    const galleryItems = galleryPhotos.map((item: any) => ({ ...item, type: 'gallery' }));
 
     // Merge and sort by date (newest first)
     const items = [...occurrenceItems, ...galleryItems].sort((a, b) => {
