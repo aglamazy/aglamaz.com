@@ -22,3 +22,9 @@ String labels on the UI: use only with t()
 
 # Firebase
 if you adding a new query, let me know if I need to create the index in firbase (will be in backend log)
+
+# Architecture
+See `docs/architecture.md` for:
+- Repository Pattern (all Firestore access via repositories)
+- Localization implementation (in repositories, not API endpoints)
+- Localization storage format (`locales.{locale}.{field}`)

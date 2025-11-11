@@ -38,3 +38,13 @@ const password = process.env.TEST_ADMIN_PASSWORD;
 - Any value that should be explicitly provided by the user or configuration
 
 **Exception**: Only use fallback values if the user explicitly requests or approves them.
+
+## Architecture Principles
+
+**CRITICAL**: Follow the architecture patterns documented in `docs/architecture.md`:
+
+- **Repository Pattern**: All Firestore database access must go through repository classes
+- **Localization in Repositories**: Localization logic belongs in repositories, not API endpoints
+- **Localization Storage**: Content stored in `locales.{locale}.{field}` with metadata in `locales.{locale}.{field}$meta`
+
+See `docs/architecture.md` for detailed examples and patterns.

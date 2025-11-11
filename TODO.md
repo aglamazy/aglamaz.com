@@ -43,26 +43,12 @@
 
 # Translation Architecture Migration
 
-## Sites Collection - COMPLETED
-- ✅ Updated ISite entity to use `locales` structure with `field$meta`
-- ✅ Updated LocalizationService to support new architecture
-- ✅ Updated SiteRepository to use new locales structure
-- ✅ Updated API routes and admin pages
-
-## BlogPost Collection - TODO
+## BlogPost Collection
 - [ ] Migrate BlogPost entity from `translations` to `locales` structure
 - [ ] Update BlogRepository to use new locales structure
 - [ ] Update blog-related API routes
 - [ ] Update blog pages to work with new structure
 - [ ] Create migration script to convert existing blog posts from old to new structure
-
-## New Architecture
-- No single "source language" - each field tracks its own source
-- Content stored in `locales.{locale}.field`
-- Metadata stored in `locales.{locale}.field$meta` with:
-  - `source`: 'manual' | 'gpt' | 'other'
-  - `updatedAt`: timestamp
-- Each field independently finds most recent version to translate from
 
 # Blog Registration and Setup Flow
 

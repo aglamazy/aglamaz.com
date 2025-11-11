@@ -59,3 +59,10 @@ Family blog: All the posts of all the authors in the site are visible in the fam
 Public family blog: The posts that were marked as public, will be visible to visitors (no login required for now).
 ### /[locale]/blog/[handle]
 Author blog: Single author's blog facing public. The `[handle]` parameter is the member's `blogHandle` field.
+
+# Architecture
+
+See detailed architecture documentation in `docs/architecture.md`:
+- Repository Pattern for database access
+- Localization implementation and storage format
+- JIT (Just-In-Time) translation
