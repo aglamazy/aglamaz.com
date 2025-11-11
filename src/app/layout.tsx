@@ -52,27 +52,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     // Don't throw - let the app render with null memberInfo
   }
 
-  // Fetch site info for metadata/scripts (each section will handle locale)
-  let siteInfo = null;
-  try {
-    siteInfo = siteId
-      ? await fetchSiteInfo(siteId, 'en')
-      : await fetchSiteInfo(undefined, 'en');
-  } catch (error) {
-    console.error('Failed to fetch site info:', error);
-    // Don't throw - let the app render with null siteInfo
-  }
+  // Note: siteInfo injection moved to section-specific layouts (/app, /admin, /[locale])
+  // where locale context is available for proper localization
 
   return (
     <html>
       <body>
-        {/* Inject siteInfo for client-side access */}
-        <script
-          id="__SITE_INFO__"
-          dangerouslySetInnerHTML={{
-            __html: `window.__SITE_INFO__=${JSON.stringify(siteInfo ?? null)};`,
-          }}
-        />
         {/* Inject memberInfo for client-side access */}
         <script
           id="__MEMBER_INFO__"

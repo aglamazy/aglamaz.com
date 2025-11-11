@@ -347,7 +347,7 @@ export default function PicturesFeedPage() {
       {/* Desktop version - hidden on mobile */}
       <Card className={`${layoutStyles.container} desktop-only`}>
         <CardHeader>
-          <CardTitle>Pictures Feed</CardTitle>
+          <CardTitle>{t('picturesFeed')}</CardTitle>
         </CardHeader>
         <CardContent>
           <ImageGrid

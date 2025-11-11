@@ -1,0 +1,140 @@
+.popover {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.15), 0 0 1px rgba(15, 23, 42, 0.1);
+  padding: 16px;
+  width: 320px;
+  max-height: 400px;
+  overflow: hidden;
+  animation: fadeIn 0.15s ease-out;
+}
+
+.popoverRtl {
+  direction: rtl;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  gap: 12px;
+}
+
+.header h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.closeButton {
+  border: none;
+  background: transparent;
+  font-size: 1.1rem;
+  cursor: pointer;
+  color: #475569;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.closeButton:hover {
+  color: #0f172a;
+}
+
+.content {
+  overflow-y: auto;
+  max-height: 320px;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.likerRow {
+  width: 100%;
+  border: none;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 4px;
+  border-bottom: 1px solid #f1f5f9;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s;
+}
+
+.likerRow:hover {
+  background: #f8fafc;
+}
+
+.likerRow:last-child {
+  border-bottom: none;
+}
+
+.likerAvatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  color: #0f172a;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.likerAvatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.likerInfo {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.likerName {
+  font-weight: 600;
+  color: #0f172a;
+  font-size: 0.9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.likerTime {
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.empty {
+  text-align: center;
+  padding: 24px 0;
+  color: #94a3b8;
+  font-size: 0.9rem;
+}

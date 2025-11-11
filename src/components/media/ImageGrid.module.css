@@ -18,10 +18,21 @@
   cursor: pointer;
 }
 
-.likeBtn {
+.likeContainer {
   position: absolute;
   right: 0.4rem;
   bottom: 0.4rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+:global([dir='rtl']) .likeContainer {
+  right: auto;
+  left: 0.4rem;
+}
+
+.likeBtn {
   background: rgba(0,0,0,0.5);
   color: #fff;
   padding: 0.15rem 0.4rem;
@@ -29,10 +40,34 @@
   font-size: 0.875rem;
   display: flex;
   align-items: center;
-  gap: 0.25rem;
+  border: none;
+  cursor: pointer;
 }
 
 .likeBtnLiked { background: rgba(220, 38, 38, 0.85); }
+
+.likeCount {
+  background: rgba(0,0,0,0.5);
+  color: #fff;
+  padding: 0.15rem 0.4rem;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.likeCount:hover {
+  background: rgba(0,0,0,0.7);
+}
+
+.likeCountText {
+  background: rgba(0,0,0,0.5);
+  color: #fff;
+  padding: 0.15rem 0.4rem;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+}
 
 .lightboxBackdrop {
   position: fixed;

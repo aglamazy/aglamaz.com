@@ -4,8 +4,11 @@ import { ISite } from "@/entities/Site";
 
 export interface SiteStore {
   siteInfo: ISite | null;
+  siteCache: Record<string, ISite>; // Cache by locale
   setSiteInfo: (info: ISite | null) => void;
   hydrateFromWindow: () => void;
+  getSiteForLocale: (locale: string) => ISite | null;
+  cacheSiteForLocale: (locale: string, site: ISite) => void;
 }
 
 const readBootstrapSiteInfo = (): ISite | null => {
@@ -16,11 +19,21 @@ const readBootstrapSiteInfo = (): ISite | null => {
   return null;
 };
 
-export const useSiteStore = create<SiteStore>((set) => ({
+export const useSiteStore = create<SiteStore>((set, get) => ({
   siteInfo: null,
+  siteCache: {},
   setSiteInfo: (info) => set({ siteInfo: info }),
   hydrateFromWindow: () => {
     const info = readBootstrapSiteInfo();
     set((state) => (state.siteInfo === info ? state : { siteInfo: info }));
+  },
+  getSiteForLocale: (locale: string) => {
+    return get().siteCache[locale] ?? null;
+  },
+  cacheSiteForLocale: (locale: string, site: ISite) => {
+    set((state) => ({
+      siteInfo: site,
+      siteCache: { ...state.siteCache, [locale]: site },
+    }));
   },
 }));

@@ -35,6 +35,8 @@ export default function ClientLayoutShell({ children }: ClientLayoutShellProps) 
 
   const { fetchMember } = useMemberStore();
   const presentationModeActive = usePresentationModeStore((state) => state.active);
+  const getSiteForLocale = useSiteStore((state) => state.getSiteForLocale);
+  const cacheSiteForLocale = useSiteStore((state) => state.cacheSiteForLocale);
 
   useEffect(() => {
     checkAuth()
@@ -76,6 +78,32 @@ export default function ClientLayoutShell({ children }: ClientLayoutShellProps) 
       hydrateSiteInfo();
     }
   }, [siteInfo, hydrateSiteInfo]);
+
+  // Fetch site info when locale changes (after initial hydration)
+  useEffect(() => {
+    if (!siteInfo) return; // Wait for initial hydration first
+
+    // Check if we have cached site for this locale
+    const cached = getSiteForLocale(i18n.language);
+    if (cached) {
+      useSiteStore.getState().setSiteInfo(cached);
+      return;
+    }
+
+    // Not cached, fetch from API
+    const fetchLocalizedSite = async () => {
+      try {
+        const response = await fetch(`/api/site?locale=${i18n.language}`);
+        if (!response.ok) throw new Error('Failed to fetch site info');
+        const data = await response.json();
+        cacheSiteForLocale(i18n.language, data);
+      } catch (error) {
+        console.error('[ClientLayoutShell] Failed to fetch localized site:', error);
+      }
+    };
+
+    void fetchLocalizedSite();
+  }, [i18n.language, siteInfo, getSiteForLocale, cacheSiteForLocale]);
 
   // Ensure member info is available on the client after hydration
   useEffect(() => {

@@ -4,6 +4,8 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import styles from './ImageGrid.module.css';
 import { useTranslation } from 'react-i18next';
 import { usePresentationModeStore } from '@/store/PresentationModeStore';
+import type { LikerInfo } from '@/types/likes';
+import LikersPopover from '@/components/photos/LikersPopover';
 
 export interface GridItem {
   key: string;
@@ -13,7 +15,11 @@ export interface GridItem {
   dir?: 'ltr' | 'rtl' | 'auto';
 }
 
-export interface LikeMeta { count: number; likedByMe: boolean; }
+export interface LikeMeta {
+  count: number;
+  likedByMe: boolean;
+  likers: LikerInfo[];
+}
 
 interface ImageGridProps {
   items: GridItem[];
@@ -23,13 +29,14 @@ interface ImageGridProps {
 }
 
 export default function ImageGrid({ items, getMeta, onToggle, onTitleClick }: ImageGridProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [isMobile, setIsMobile] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showGestureHint, setShowGestureHint] = useState(false);
   const [presentationMode, setPresentationMode] = useState(false);
+  const [likersPopover, setLikersPopover] = useState<{ item: GridItem; anchorEl: HTMLElement } | null>(null);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const prefetchedSrc = useRef<Set<string>>(new Set());
   const presentationListRef = useRef<HTMLDivElement | null>(null);
@@ -389,15 +396,32 @@ export default function ImageGrid({ items, getMeta, onToggle, onTitleClick }: Im
                   <div className={styles.titleBadge} title={it.title} dir={titleDir}>{it.title}</div>
                 )
               )}
-              <button
-                type="button"
-                aria-label={meta.likedByMe ? (t('unlike') as string) : (t('like') as string)}
-                className={styles.likeBtn + (meta.likedByMe ? (' ' + styles.likeBtnLiked) : '')}
-                onClick={(e) => { e.stopPropagation(); onToggle(it); }}
-              >
-                <span>❤</span>
-                <span>{meta.count}</span>
-              </button>
+              <div className={styles.likeContainer}>
+                <button
+                  type="button"
+                  aria-label={meta.likedByMe ? (t('unlike') as string) : (t('like') as string)}
+                  className={styles.likeBtn + (meta.likedByMe ? (' ' + styles.likeBtnLiked) : '')}
+                  onClick={(e) => { e.stopPropagation(); onToggle(it); }}
+                >
+                  <span>❤</span>
+                </button>
+                {meta.count > 0 && !isMobile && (
+                  <button
+                    type="button"
+                    className={styles.likeCount}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setLikersPopover({ item: it, anchorEl: e.currentTarget });
+                    }}
+                    aria-label={t('showLikers') as string}
+                  >
+                    {meta.count}
+                  </button>
+                )}
+                {(meta.count > 0 && isMobile) && (
+                  <span className={styles.likeCountText}>{meta.count}</span>
+                )}
+              </div>
             </div>
           );
         })}
@@ -409,6 +433,18 @@ export default function ImageGrid({ items, getMeta, onToggle, onTitleClick }: Im
           <img src={items[lightboxIndex].src} alt="" className={styles.lightboxImg} onClick={(e) => e.stopPropagation()} />
           <button className={styles.navBtn + ' ' + styles.navRight} onClick={(e) => { e.stopPropagation(); setLightboxIndex((p) => (p + 1) % items.length); }}>›</button>
         </div>
+      )}
+
+      {likersPopover && (
+        <LikersPopover
+          likers={getMeta(likersPopover.item).likers}
+          onClose={() => setLikersPopover(null)}
+          title={t('whoLiked') as string || 'Who liked this'}
+          emptyLabel={t('noLikes') as string || 'No likes yet'}
+          dir={i18n.dir()}
+          language={i18n.language}
+          anchorEl={likersPopover.anchorEl}
+        />
       )}
     </>
   );
