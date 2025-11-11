@@ -21,6 +21,9 @@ import { useSiteStore } from '@/store/SiteStore';
 import { formatLocalizedDate } from '@/utils/dateFormat';
 import WelcomeHero from '@/components/home/WelcomeHero';
 import { getPlatformName } from '@/utils/platformName';
+import AvatarStack from '@/components/photos/AvatarStack';
+import LikersBottomSheet from '@/components/photos/LikersBottomSheet';
+import type { ImageLikeMeta } from '@/types/likes';
 
 type Occurrence = {
   id: string; // occurrence/gallery photo id
@@ -33,7 +36,6 @@ type Occurrence = {
   description?: string;
 };
 
-type ImageLikeMeta = { index: number; count: number; likedByMe: boolean };
 type AuthorInfo = { displayName: string; email: string };
 
 export default function PicturesFeedPage() {
@@ -49,6 +51,7 @@ export default function PicturesFeedPage() {
   const [authors, setAuthors] = useState<Record<string, AuthorInfo>>({});
   const [editTarget, setEditTarget] = useState<{ annId: string; occId: string } | null>(null);
   const [galleryEditTarget, setGalleryEditTarget] = useState<string | null>(null);
+  const [likersSheet, setLikersSheet] = useState<{ occId: string; imageIndex: number } | null>(null);
   const mountedRef = useRef(true);
   const currentUserId = user?.user_id ?? '';
   const isAdmin = memberRole === 'admin';
@@ -204,7 +207,7 @@ export default function PicturesFeedPage() {
 
   function getLikeMeta(occId: string, idx: number): ImageLikeMeta {
     const arr = likes[occId] || [];
-    return arr.find((l) => l.index === idx) || { index: idx, count: 0, likedByMe: false };
+    return arr.find((l) => l.index === idx) || { index: idx, count: 0, likedByMe: false, likers: [] };
   }
 
   const openOccurrenceModal = (annId: string, occId: string, creatorId?: string) => {
@@ -259,9 +262,14 @@ export default function PicturesFeedPage() {
     />
   ) : null;
 
+  const currentLikersData = useMemo(() => {
+    if (!likersSheet) return null;
+    return getLikeMeta(likersSheet.occId, likersSheet.imageIndex);
+  }, [likersSheet, likes]);
+
   async function toggleLike(annId: string, occId: string, idx: number, type?: 'occurrence' | 'gallery') {
     const meta = getLikeMeta(occId, idx);
-    const next = { ...meta, likedByMe: !meta.likedByMe, count: meta.count + (meta.likedByMe ? -1 : 1) };
+    const next: ImageLikeMeta = { ...meta, likedByMe: !meta.likedByMe, count: meta.count + (meta.likedByMe ? -1 : 1) };
     setLikes((cur) => ({ ...cur, [occId]: [...(cur[occId] || []).filter((l) => l.index !== idx), next].sort((a, b) => a.index - b.index) }));
     try {
       // Use different endpoints for occurrence vs gallery photos
@@ -269,7 +277,7 @@ export default function PicturesFeedPage() {
         ? `/api/photos/${occId}/image-likes`
         : `/api/anniversaries/${annId}/events/${occId}/image-likes`;
 
-      const data = await apiFetch<{ index: number; count: number; likedByMe: boolean }>(
+      const data = await apiFetch<ImageLikeMeta>(
         endpoint,
         {
           method: 'POST',
@@ -277,6 +285,7 @@ export default function PicturesFeedPage() {
           body: JSON.stringify({ imageIndex: idx, like: !meta.likedByMe }),
         }
       );
+      // Update with full response including refreshed likers array
       setLikes((cur) => ({ ...cur, [occId]: [...(cur[occId] || []).filter((l) => l.index !== idx), data].sort((a, b) => a.index - b.index) }));
     } catch (e) {
       console.error('[feed] like toggle failed', e);
@@ -322,6 +331,7 @@ export default function PicturesFeedPage() {
                 meta={meta}
                 author={author}
                 onToggle={() => toggleLike(item.annId, item.occId, item.idx, item.type)}
+                onShowLikers={() => setLikersSheet({ occId: item.occId, imageIndex: item.idx })}
                 t={t}
                 onTitleClick={headerText && item.canEdit ? () => openOccurrenceModal(item.annId, item.occId, item.creatorId) : undefined}
                 canEdit={item.canEdit}
@@ -374,6 +384,17 @@ export default function PicturesFeedPage() {
 
       {occurrenceModal}
       {galleryPhotoModal}
+      {likersSheet && currentLikersData && (
+        <LikersBottomSheet
+          open={true}
+          likers={currentLikersData.likers}
+          onClose={() => setLikersSheet(null)}
+          title={t('whoLiked') as string || 'Who liked this'}
+          emptyLabel={t('noLikes') as string || 'No likes yet'}
+          dir={textDirection}
+          language={i18n.language}
+        />
+      )}
     </>
   );
 }
@@ -393,6 +414,7 @@ interface MobileFeedItemProps {
   meta: ImageLikeMeta;
   author: AuthorInfo;
   onToggle: () => Promise<void> | void;
+  onShowLikers: () => void;
   t: TFunction;
   onTitleClick?: () => void;
   canEdit: boolean;
@@ -400,7 +422,7 @@ interface MobileFeedItemProps {
   onGalleryEdit?: (photoId: string) => void;
 }
 
-function MobileFeedItem({ item, title, meta, author, onToggle, t, onTitleClick, canEdit, titleDir, onGalleryEdit }: MobileFeedItemProps) {
+function MobileFeedItem({ item, title, meta, author, onToggle, onShowLikers, t, onTitleClick, canEdit, titleDir, onGalleryEdit }: MobileFeedItemProps) {
   const [loaded, setLoaded] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const wrapperClass = feedStyles.mobileContinuousImageWrap;
@@ -487,17 +509,41 @@ function MobileFeedItem({ item, title, meta, author, onToggle, t, onTitleClick, 
           </div>
         )}
         {loaded ? (
-          <button
-            type="button"
-            className={likeClass}
-            onClick={() => {
-              void onToggle();
-            }}
-            aria-label={meta.likedByMe ? (t('unlike') as string) : (t('like') as string)}
-          >
-            <span>❤</span>
-            <span>{meta.count}</span>
-          </button>
+          <>
+            <button
+              type="button"
+              className={likeClass}
+              onClick={() => {
+                void onToggle();
+              }}
+              aria-label={meta.likedByMe ? (t('unlike') as string) : (t('like') as string)}
+            >
+              <span>❤</span>
+              <span>{meta.count}</span>
+            </button>
+            {meta.count > 0 && (
+              <div
+                onClick={onShowLikers}
+                style={{
+                  position: 'absolute',
+                  bottom: '0.75rem',
+                  insetInlineEnd: '78px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'flex-start',
+                  padding: '0.35rem 0.8rem',
+                }}
+              >
+                <AvatarStack
+                  likers={meta.likers}
+                  maxVisible={3}
+                  size={28}
+                  direction={isRtl ? 'rtl' : 'ltr'}
+                />
+              </div>
+            )}
+          </>
         ) : (
           <div className={likePlaceholderClass} aria-hidden="true" />
         )}
