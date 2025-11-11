@@ -1,14 +1,15 @@
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { initAdmin } from '@/firebase/admin';
+import { LocalizableDocument } from '@/services/LocalizationService';
 
-export interface AnniversaryOccurrence {
+export interface AnniversaryOccurrence extends LocalizableDocument {
   id: string;
   siteId: string;
   eventId: string;
   date: any; // Firestore Timestamp
   createdAt: any;
-  createdBy: string; // legacy single image
-  images?: string[]; // new: multiple images
+  createdBy: string;
+  images?: string[];
 }
 
 export class AnniversaryOccurrenceRepository {
@@ -47,14 +48,35 @@ export class AnniversaryOccurrenceRepository {
     return qs.docs.map((d) => ({ id: d.id, ...d.data() } as AnniversaryOccurrence));
   }
 
-  async listBySite(siteId: string): Promise<AnniversaryOccurrence[]> {
+  async listBySite(siteId: string, locale?: string): Promise<AnniversaryOccurrence[]> {
     const db = this.getDb();
     const qs = await db
       .collection(this.collection)
       .where('siteId', '==', siteId)
       .orderBy('date', 'desc')
       .get();
-    return qs.docs.map((d) => ({ id: d.id, ...d.data() } as AnniversaryOccurrence));
+
+    const items = qs.docs.map((d) => ({ id: d.id, ...d.data() } as AnniversaryOccurrence));
+
+    // If locale is specified, ensure and apply localization
+    if (locale) {
+      const { ensureLocale, getLocalizedFields } = await import('@/services/LocalizationService');
+      return Promise.all(
+        items.map(async (item) => {
+          try {
+            const docRef = db.collection(this.collection).doc(item.id);
+            const ensuredItem = await ensureLocale(item, docRef, locale, ['description']);
+            const localizedFields = getLocalizedFields(ensuredItem, locale, ['description']);
+            return { ...ensuredItem, description: localizedFields.description };
+          } catch (error) {
+            console.error(`[AnniversaryOccurrenceRepository] Failed to localize ${item.id}:`, error);
+            return item;
+          }
+        })
+      );
+    }
+
+    return items;
   }
 
   async listBySiteAndRange(siteId: string, start: Date, end: Date): Promise<AnniversaryOccurrence[]> {

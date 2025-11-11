@@ -54,7 +54,7 @@ export class GalleryPhotoRepository {
     return data;
   }
 
-  async listBySite(siteId: string): Promise<GalleryPhoto[]> {
+  async listBySite(siteId: string, locale?: string): Promise<GalleryPhoto[]> {
     const db = this.getDb();
     const qs = await db
       .collection(this.collection)
@@ -62,7 +62,28 @@ export class GalleryPhotoRepository {
       .where('deletedAt', '==', null)
       .orderBy('date', 'desc')
       .get();
-    return qs.docs.map((d) => ({ id: d.id, ...d.data() } as GalleryPhoto));
+
+    const items = qs.docs.map((d) => ({ id: d.id, ...d.data() } as GalleryPhoto));
+
+    // If locale is specified, ensure and apply localization
+    if (locale) {
+      const { ensureLocale, getLocalizedFields } = await import('@/services/LocalizationService');
+      return Promise.all(
+        items.map(async (item) => {
+          try {
+            const docRef = db.collection(this.collection).doc(item.id);
+            const ensuredItem = await ensureLocale(item, docRef, locale, ['description']);
+            const localizedFields = getLocalizedFields(ensuredItem, locale, ['description']);
+            return { ...ensuredItem, description: localizedFields.description };
+          } catch (error) {
+            console.error(`[GalleryPhotoRepository] Failed to localize ${item.id}:`, error);
+            return item;
+          }
+        })
+      );
+    }
+
+    return items;
   }
 
   async listByAnniversary(anniversaryId: string): Promise<GalleryPhoto[]> {
