@@ -4,7 +4,6 @@ import { useSiteStore } from '../store/SiteStore';
 import { useUserStore } from '../store/UserStore';
 import { useRouter } from "next/navigation";
 import { MembershipStatus, useMemberStore } from '../store/MemberStore';
-import I18nProvider from './I18nProvider';
 import { useTranslation } from 'react-i18next';
 import { Loader } from "../components/ui/Loader";
 import I18nGate from "@/components/I18nGate";
@@ -19,11 +18,9 @@ import ClientMobileShell from '@/components/ClientMobileShell';
 
 interface ClientLayoutShellProps {
   children: React.ReactNode;
-  initialLocale?: string;
-  resolvedLocale?: string;
 }
 
-export default function ClientLayoutShell({ children, initialLocale, resolvedLocale }: ClientLayoutShellProps) {
+export default function ClientLayoutShell({ children }: ClientLayoutShellProps) {
   const { user, loading, logout, checkAuth } = useUserStore();
   const siteInfo = useSiteStore((state) => state.siteInfo);
   const hydrateSiteInfo = useSiteStore((state) => state.hydrateFromWindow);
@@ -94,9 +91,6 @@ export default function ClientLayoutShell({ children, initialLocale, resolvedLoc
     router.push(landingPage);
   };
 
-  // Priority: query param (initialLocale) > member.defaultLocale > browser default
-  const effectiveLocale = initialLocale || member?.defaultLocale || i18n.language;
-
   if (loading) {
     return (
       <Loader size={24} thickness={3} text={t('loading') as string}/>
@@ -104,8 +98,7 @@ export default function ClientLayoutShell({ children, initialLocale, resolvedLoc
   }
 
   return (
-    <I18nProvider initialLocale={effectiveLocale} resolvedLocale={resolvedLocale}>
-      <I18nGate>
+    <I18nGate>
         {/* Render both mobile and desktop shells, CSS controls visibility */}
         <div className="mobile-only">
           <ClientMobileShell
@@ -144,6 +137,5 @@ export default function ClientLayoutShell({ children, initialLocale, resolvedLoc
           </ClientDesktopShell>
         </div>
       </I18nGate>
-    </I18nProvider>
   );
 }
