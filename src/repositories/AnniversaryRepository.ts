@@ -99,11 +99,28 @@ export class AnniversaryRepository {
     return events.filter(e => e.isAnnual || e.year === year).sort((a, b) => a.day - b.day);
   }
 
-  async getById(id: string): Promise<AnniversaryEvent | null> {
+  async getById(id: string, locale?: string): Promise<AnniversaryEvent | null> {
     const db = this.getDb();
     const doc = await db.collection(this.collection).doc(id).get();
     if (!doc.exists) return null;
-    return { id: doc.id, ...doc.data() } as AnniversaryEvent;
+
+    const event = { id: doc.id, ...doc.data() } as AnniversaryEvent;
+
+    // If locale is specified, ensure and apply localization
+    if (locale) {
+      const { ensureLocale, getLocalizedFields } = await import('@/services/LocalizationService');
+      try {
+        const docRef = db.collection(this.collection).doc(id);
+        const ensured = await ensureLocale(event, docRef, locale, ['name']);
+        const localized = getLocalizedFields(ensured, locale, ['name']);
+        return { ...ensured, name: localized.name };
+      } catch (error) {
+        console.error(`[AnniversaryRepository] Failed to localize ${id}:`, error);
+        return event;
+      }
+    }
+
+    return event;
   }
 
   async update(id: string, updates: {

@@ -4,8 +4,6 @@ import { AnniversaryRepository } from '@/repositories/AnniversaryRepository';
 import { GalleryPhotoRepository } from '@/repositories/GalleryPhotoRepository';
 import { GuardContext } from '@/app/api/types';
 import { FamilyRepository } from '@/repositories/FamilyRepository';
-import { getLocalizedFields, ensureLocale } from '@/services/LocalizationService';
-import { getFirestore } from 'firebase-admin/firestore';
 
 export const dynamic = 'force-dynamic';
 
@@ -45,22 +43,12 @@ const getHandler = async (req: Request, context: GuardContext) => {
     const events: Record<string, { name: string }> = {};
     for (const id of ids) {
       try {
-        const ev = await annRepo.getById(id);
-        if (ev) {
-          // Ensure locale exists, translate if needed (JIT)
-          const docRef = db.collection('anniversaries').doc(id);
-          const ensuredEv = await ensureLocale(ev, docRef, locale, ['name']);
-
-          // Get localized fields after ensuring
-          const localizedFields = getLocalizedFields(ensuredEv, locale, ['name']);
-
-          // Only include event if localized name exists
-          if (localizedFields.name) {
-            events[id] = { name: localizedFields.name };
-          }
+        const ev = await annRepo.getById(id, locale);
+        if (ev && ev.name) {
+          events[id] = { name: ev.name };
         }
       } catch (error) {
-        console.error(`[pictures] Failed to ensure locale for anniversary ${id}:`, error);
+        console.error(`[pictures] Failed to load anniversary ${id}:`, error);
       }
     }
     const authorIds = Array.from(new Set(items.map((i: any) => i.createdBy).filter(Boolean)));
