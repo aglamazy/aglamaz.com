@@ -327,5 +327,9 @@
   "failedToDeleteBlogPost": "Failed to delete blog post",
   "confirmDeletePost": "Delete Post?",
   "confirmDeletePostMessage": "Are you sure you want to delete this post? This action cannot be undone.",
-  "deleting": "Deleting"
+  "deleting": "Deleting",
+  "whoLiked": "Who liked this",
+  "noLikes": "No likes yet",
+  "showLikers": "Show who liked",
+  "picturesFeed": "Pictures Feed"
 }

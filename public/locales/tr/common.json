@@ -285,5 +285,9 @@
   "blogSlugDescription": "Kişisel blog adresiniz için kısa ve akılda kalıcı bir kısa ad seçin.",
   "useSuggestion": "Öneriyi kullan",
   "blogPreview": "Önizleme URL’si:",
-  "missingContext": "Site bilgisi eksik"
+  "missingContext": "Site bilgisi eksik",
+  "whoLiked": "Bunu kim beğendi",
+  "noLikes": "Henüz beğeni yok",
+  "showLikers": "Beğenenleri göster",
+  "picturesFeed": "Fotoğraf Akışı"
 }

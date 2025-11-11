@@ -326,5 +326,9 @@
   "failedToDeleteBlogPost": "נכשל במחיקת הפוסט",
   "confirmDeletePost": "למחוק פוסט?",
   "confirmDeletePostMessage": "האם אתה בטוח שברצונך למחוק פוסט זה? לא ניתן לבטל פעולה זו.",
-  "deleting": "מוחק"
+  "deleting": "מוחק",
+  "whoLiked": "מי אהב את זה",
+  "noLikes": "אין לייקים עדיין",
+  "showLikers": "הצג מי אהב",
+  "picturesFeed": "פיד תמונות"
 }
