@@ -1,13 +1,13 @@
 import { withMemberGuard } from '@/lib/withMemberGuard';
 import { GalleryPhotoRepository } from '@/repositories/GalleryPhotoRepository';
+import { ImageLikeRepository } from '@/repositories/ImageLikeRepository';
 import { GuardContext } from '@/app/api/types';
-import { getFirestore } from 'firebase-admin/firestore';
 
 export const dynamic = 'force-dynamic';
 
 /**
  * GET /api/photos/[id]/image-likes
- * Get all likes for all images in a gallery photo
+ * Get likes for all images in a gallery photo (with first 3 likers for avatar stack)
  */
 const getHandler = async (request: Request, context: GuardContext & { params: Promise<{ id: string }> }) => {
   try {
@@ -15,8 +15,8 @@ const getHandler = async (request: Request, context: GuardContext & { params: Pr
     const member = context.member!;
     const user = context.user!;
 
-    const repo = new GalleryPhotoRepository();
-    const photo = await repo.getById(id);
+    const photoRepo = new GalleryPhotoRepository();
+    const photo = await photoRepo.getById(id);
 
     if (!photo) {
       return Response.json({ error: 'Photo not found' }, { status: 404 });
@@ -27,26 +27,19 @@ const getHandler = async (request: Request, context: GuardContext & { params: Pr
       return Response.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Fetch likes for all images
-    const db = getFirestore();
-    const items: Array<{ index: number; count: number; likedByMe: boolean }> = [];
+    // Fetch likes for all images (with first 3 likers for avatar stack)
+    const likeRepo = new ImageLikeRepository();
+    const items = [];
 
     for (let i = 0; i < photo.images.length; i++) {
-      const likesSnap = await db
-        .collection('galleryPhotos')
-        .doc(id)
-        .collection('imageLikes')
-        .doc(String(i))
-        .collection('likes')
-        .get();
-
-      const likedByMe = likesSnap.docs.some(doc => doc.id === user.userId);
-
-      items.push({
-        index: i,
-        count: likesSnap.size,
-        likedByMe,
-      });
+      const result = await likeRepo.getLikesForImage(
+        id,
+        i,
+        user.userId,
+        member.siteId,
+        3 // Only fetch first 3 likers for avatar stack
+      );
+      items.push(result);
     }
 
     return Response.json({ items });
@@ -79,8 +72,8 @@ const postHandler = async (request: Request, context: GuardContext & { params: P
       return Response.json({ error: 'like must be boolean' }, { status: 400 });
     }
 
-    const repo = new GalleryPhotoRepository();
-    const photo = await repo.getById(id);
+    const photoRepo = new GalleryPhotoRepository();
+    const photo = await photoRepo.getById(id);
 
     if (!photo) {
       return Response.json({ error: 'Photo not found' }, { status: 404 });
@@ -96,30 +89,18 @@ const postHandler = async (request: Request, context: GuardContext & { params: P
       return Response.json({ error: 'Invalid imageIndex' }, { status: 400 });
     }
 
-    // Store likes in subcollection: galleryPhotos/{photoId}/imageLikes/{imageIndex}/likes/{userId}
-    const db = getFirestore();
-    const likesRef = db
-      .collection('galleryPhotos')
-      .doc(id)
-      .collection('imageLikes')
-      .doc(String(imageIndex))
-      .collection('likes')
-      .doc(user.userId);
+    // Toggle like using repository
+    const likeRepo = new ImageLikeRepository();
+    const result = await likeRepo.toggleLikeForImage(
+      id,
+      imageIndex,
+      user.userId,
+      like,
+      member.siteId,
+      3 // Return first 3 likers for avatar stack
+    );
 
-    if (like) {
-      await likesRef.set({ createdAt: new Date() }, { merge: true });
-    } else {
-      await likesRef.delete();
-    }
-
-    // Count total likes for this image
-    const countSnap = await likesRef.parent.get();
-
-    return Response.json({
-      index: imageIndex,
-      count: countSnap.size,
-      likedByMe: like,
-    });
+    return Response.json(result);
   } catch (error) {
     console.error('[photos/id/image-likes] POST error:', error);
     return Response.json(

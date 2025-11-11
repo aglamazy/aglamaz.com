@@ -1,10 +1,14 @@
 import { withMemberGuard } from '@/lib/withMemberGuard';
 import { GuardContext } from '@/app/api/types';
 import { AnniversaryOccurrenceRepository } from '@/repositories/AnniversaryOccurrenceRepository';
-import { getFirestore } from 'firebase-admin/firestore';
+import { ImageLikeRepository } from '@/repositories/ImageLikeRepository';
 
 export const dynamic = 'force-dynamic';
 
+/**
+ * GET /api/anniversaries/[id]/events/[eventId]/image-likes
+ * Get likes for all images in an anniversary occurrence (with first 3 likers for avatar stack)
+ */
 const getHandler = async (_request: Request, context: GuardContext) => {
   try {
     const member = context.member!;
@@ -21,29 +25,33 @@ const getHandler = async (_request: Request, context: GuardContext) => {
       return Response.json({ error: 'Event not found' }, { status: 404 });
     }
     const images: string[] = Array.isArray((occ as any).images) ? ((occ as any).images as string[]) : [];
-    const max = images.length;
-    const db = getFirestore();
-    const results: Array<{ index: number; count: number; likedByMe: boolean }> = [];
-    for (let i = 0; i < max; i++) {
-      const likesRef = db
-        .collection('anniversaryOccurrences')
-        .doc(eventId!)
-        .collection('imageLikes')
-        .doc(String(i))
-        .collection('likes');
-      const [snap, mine] = await Promise.all([
-        likesRef.get(),
-        likesRef.doc(user.userId).get(),
-      ]);
-      results.push({ index: i, count: snap.size, likedByMe: mine.exists });
+
+    // Fetch likes for all images (with first 3 likers for avatar stack)
+    const likeRepo = new ImageLikeRepository();
+    const items = [];
+
+    for (let i = 0; i < images.length; i++) {
+      const result = await likeRepo.getLikesForOccurrenceImage(
+        resolvedEventId,
+        i,
+        user.userId,
+        member.siteId,
+        3 // Only fetch first 3 likers for avatar stack
+      );
+      items.push(result);
     }
-    return Response.json({ items: results });
+
+    return Response.json({ items });
   } catch (error) {
-    console.error(error);
+    console.error('[anniversaries/id/events/eventId/image-likes] GET error:', error);
     return Response.json({ error: 'Failed to load likes' }, { status: 500 });
   }
 };
 
+/**
+ * POST /api/anniversaries/[id]/events/[eventId]/image-likes
+ * Like/unlike a specific image in an anniversary occurrence
+ */
 const postHandler = async (request: Request, context: GuardContext) => {
   try {
     const member = context.member!;
@@ -55,37 +63,42 @@ const postHandler = async (request: Request, context: GuardContext) => {
       return Response.json({ error: 'Invalid parameters' }, { status: 400 });
     }
     const body = await request.json();
-    const imageIndex = Number(body?.imageIndex);
-    const like = Boolean(body?.like);
-    if (!Number.isFinite(imageIndex) || imageIndex < 0) {
-      return Response.json({ error: 'Invalid image index' }, { status: 400 });
+    const { imageIndex, like } = body;
+
+    if (typeof imageIndex !== 'number' || imageIndex < 0) {
+      return Response.json({ error: 'Invalid imageIndex' }, { status: 400 });
     }
+
+    if (typeof like !== 'boolean') {
+      return Response.json({ error: 'like must be boolean' }, { status: 400 });
+    }
+
     const occRepo = new AnniversaryOccurrenceRepository();
     const occ = await occRepo.getById(resolvedEventId!);
     if (!occ || occ.siteId !== member.siteId || occ.eventId !== id) {
       return Response.json({ error: 'Event not found' }, { status: 404 });
     }
     const imgs: string[] = Array.isArray((occ as any).images) ? ((occ as any).images as string[]) : [];
+
+    // Verify imageIndex is valid
     if (imageIndex >= imgs.length) {
-      return Response.json({ error: 'Index out of range' }, { status: 400 });
+      return Response.json({ error: 'Invalid imageIndex' }, { status: 400 });
     }
-    const db = getFirestore();
-    const likesRef = db
-      .collection('anniversaryOccurrences')
-      .doc(resolvedEventId!)
-      .collection('imageLikes')
-      .doc(String(imageIndex))
-      .collection('likes')
-      .doc(user.userId);
-    if (like) {
-      await likesRef.set({ createdAt: new Date() }, { merge: true });
-    } else {
-      await likesRef.delete();
-    }
-    const countSnap = await likesRef.parent.get();
-    return Response.json({ index: imageIndex, count: countSnap.size, likedByMe: like });
+
+    // Toggle like using repository
+    const likeRepo = new ImageLikeRepository();
+    const result = await likeRepo.toggleLikeForOccurrenceImage(
+      resolvedEventId,
+      imageIndex,
+      user.userId,
+      like,
+      member.siteId,
+      3 // Return first 3 likers for avatar stack
+    );
+
+    return Response.json(result);
   } catch (error) {
-    console.error(error);
+    console.error('[anniversaries/id/events/eventId/image-likes] POST error:', error);
     return Response.json({ error: 'Failed to update like' }, { status: 500 });
   }
 };
