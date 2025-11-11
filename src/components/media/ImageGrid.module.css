@@ -27,6 +27,11 @@
   gap: 0.25rem;
 }
 
+:global([dir='rtl']) .likeContainer {
+  right: auto;
+  left: 0.4rem;
+}
+
 .likeBtn {
   background: rgba(0,0,0,0.5);
   color: #fff;
