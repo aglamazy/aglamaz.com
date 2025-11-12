@@ -37,6 +37,11 @@ const putHandler = async (request: Request, context: GuardContext) => {
     }
     const body = await request.json();
     const { name, description, type, date, isAnnual, imageUrl, useHebrew } = body;
+
+    // Resolve locale for updating the event
+    const { resolveLocaleForPrivateRoutes } = await import('@/utils/resolveLocale');
+    const { baseLocale } = await resolveLocaleForPrivateRoutes(member.defaultLocale);
+
     await repo.update(id!, {
       name,
       description,
@@ -45,6 +50,7 @@ const putHandler = async (request: Request, context: GuardContext) => {
       isAnnual: isAnnual !== undefined ? Boolean(isAnnual) : undefined,
       imageUrl,
       useHebrew,
+      locale: baseLocale,
     });
       const updated = await repo.getById(id!);
     return Response.json({ event: updated });

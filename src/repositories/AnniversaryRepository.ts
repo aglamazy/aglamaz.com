@@ -24,14 +24,25 @@ export class AnniversaryRepository {
     createdBy: string;
     imageUrl?: string;
     useHebrew?: boolean;
+    locale: string;
   }): Promise<AnniversaryEvent> {
     const db = this.getDb();
     const now = Timestamp.now();
     const eventDate = Timestamp.fromDate(eventData.date);
+
+    // Build locales structure for the name field
+    const localeData: any = {
+      name: eventData.name,
+      name$meta: {
+        source: 'manual',
+        updatedAt: now,
+      }
+    };
+
     const base: any = {
       siteId: eventData.siteId,
       ownerId: eventData.ownerId,
-      name: eventData.name,
+      name: eventData.name, // Keep for backward compatibility
       description: eventData.description || '',
       type: eventData.type,
       date: eventDate,
@@ -40,6 +51,10 @@ export class AnniversaryRepository {
       year: eventData.date.getFullYear(),
       isAnnual: eventData.isAnnual,
       imageUrl: eventData.imageUrl || '',
+      primaryLocale: eventData.locale,
+      locales: {
+        [eventData.locale]: localeData
+      },
       createdAt: now,
     };
     if (eventData.useHebrew) {
@@ -64,7 +79,7 @@ export class AnniversaryRepository {
     return { id: doc.id, ...doc.data() } as AnniversaryEvent;
   }
 
-  async getEventsForMonth(siteId: string, month: number, year: number): Promise<AnniversaryEvent[]> {
+  async getEventsForMonth(siteId: string, month: number, year: number, locale?: string): Promise<AnniversaryEvent[]> {
     const db = this.getDb();
     const snapshot = await db
       .collection(this.collection)
@@ -95,8 +110,28 @@ export class AnniversaryRepository {
       } as any);
     }
 
-    const events = [...eventsBase.filter(e => !e.useHebrew), ...hebEventsForMonth];
-    return events.filter(e => e.isAnnual || e.year === year).sort((a, b) => a.day - b.day);
+    let events = [...eventsBase.filter(e => !e.useHebrew), ...hebEventsForMonth];
+    events = events.filter(e => e.isAnnual || e.year === year).sort((a, b) => a.day - b.day);
+
+    // Apply localization if locale is specified
+    if (locale) {
+      const { ensureLocale, getLocalizedFields } = await import('@/services/LocalizationService');
+      const localizedEvents: AnniversaryEvent[] = [];
+      for (const event of events) {
+        try {
+          const docRef = db.collection(this.collection).doc(event.id);
+          const ensured = await ensureLocale(event, docRef, locale, ['name']);
+          const localized = getLocalizedFields(ensured, locale, ['name']);
+          localizedEvents.push({ ...ensured, name: localized.name });
+        } catch (error) {
+          console.error(`[AnniversaryRepository] Failed to localize event ${event.id}:`, error);
+          localizedEvents.push(event);
+        }
+      }
+      return localizedEvents;
+    }
+
+    return events;
   }
 
   async getById(id: string, locale?: string): Promise<AnniversaryEvent | null> {
@@ -131,6 +166,7 @@ export class AnniversaryRepository {
     isAnnual?: boolean;
     imageUrl?: string;
     useHebrew?: boolean;
+    locale?: string;
   }): Promise<void> {
     const db = this.getDb();
     const existing = await this.getById(id);
@@ -138,7 +174,31 @@ export class AnniversaryRepository {
       throw new Error(`Anniversary ${id} not found`);
     }
 
-    const data: any = { ...updates };
+    const locale = updates.locale || existing.primaryLocale || 'he';
+    const data: any = {};
+
+    // Handle localized name field
+    if (updates.name !== undefined) {
+      data.name = updates.name; // Keep for backward compatibility
+
+      // Update locales structure using LocalizationService
+      const docRef = db.collection(this.collection).doc(id);
+      const { saveLocalizedContent } = await import('@/services/LocalizationService');
+      await saveLocalizedContent(
+        docRef,
+        existing,
+        locale,
+        { name: updates.name },
+        'manual',
+        Timestamp.now()
+      );
+    }
+
+    // Handle non-localized fields
+    if (updates.type !== undefined) data.type = updates.type;
+    if (updates.isAnnual !== undefined) data.isAnnual = updates.isAnnual;
+    if (updates.imageUrl !== undefined) data.imageUrl = updates.imageUrl;
+    if (updates.description !== undefined) data.description = updates.description;
     if (updates.date) {
       const eventDate = Timestamp.fromDate(updates.date);
       data.date = eventDate;
