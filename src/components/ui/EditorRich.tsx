@@ -14,6 +14,7 @@ if (typeof window !== 'undefined') {
   require('tinymce/plugins/lists');
   require('tinymce/plugins/code');
   require('tinymce/plugins/directionality');
+  require('tinymce/plugins/image');
 }
 
 const TinyMCEEditor = dynamic(async () => (await import('@tinymce/tinymce-react')).Editor as any, { ssr: false }) as unknown as React.ComponentType<any>;
@@ -25,6 +26,7 @@ interface EditorRichProps {
   onDelete?: () => void | Promise<void>;
   deleteLabel?: string;
   deleteConfirmMessage?: string;
+  emojis?: string[];
 }
 
 export default function EditorRich({
@@ -34,13 +36,20 @@ export default function EditorRich({
   onDelete,
   deleteLabel,
   deleteConfirmMessage,
+  emojis = [],
 }: EditorRichProps) {
   const { t } = useTranslation();
   const [deleting, setDeleting] = useState(false);
-  const plugins = ['lists', 'link', 'code', 'directionality'];
+  const plugins = ['lists', 'link', 'code', 'directionality', 'image'];
   const pluginsConfig = plugins.join(' ');
-  const toolbar =
-    'undo redo | blocks | bold italic underline | bullist numlist | link | ltr rtl | code';
+
+  // Build toolbar with optional emoji buttons
+  let toolbar = 'undo redo | blocks | bold italic underline | bullist numlist | link | image | ltr rtl';
+  if (emojis.length > 0) {
+    const emojiButtons = emojis.map((_, i) => `emojiBtn${i}`).join(' ');
+    toolbar += ` | ${emojiButtons}`;
+  }
+  toolbar += ' | code';
 
   const handleDelete = async () => {
     if (!onDelete) return;
@@ -79,6 +88,35 @@ export default function EditorRich({
             toolbar_mode: 'wrap',
           },
           license_key: 'gpl',
+          // Image upload handler - converts to base64
+          images_upload_handler: (blobInfo: any, progress: any) => new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+              resolve(reader.result as string);
+            };
+            reader.onerror = () => {
+              reject('Failed to read image');
+            };
+            reader.readAsDataURL(blobInfo.blob());
+          }),
+          // Allow all image file types
+          file_picker_types: 'image',
+          // Configure image dialog
+          image_title: true,
+          image_description: false,
+          image_dimensions: true,
+          image_advtab: false,
+          setup: (editor: any) => {
+            // Register emoji buttons dynamically
+            emojis.forEach((emoji, i) => {
+              editor.ui.registry.addButton(`emojiBtn${i}`, {
+                text: emoji,
+                onAction: () => {
+                  editor.insertContent(emoji);
+                }
+              });
+            });
+          },
         }}
       />
       {onDelete && (

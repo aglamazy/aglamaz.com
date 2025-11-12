@@ -218,6 +218,7 @@ export default function BlessingPage() {
                 value={blessingContent}
                 onChange={setBlessingContent}
                 locale={i18n.language}
+                emojis={['🎂', '🥳', '🎊', '🍷', '🎁', '🕯️', '❤️', '💙']}
                 onDelete={editingBlessing ? async () => {
                   if (!blessingPage?.id || !editingBlessing) return;
                   await apiFetch(`/api/blessing-pages/${blessingPage.id}/blessings/${editingBlessing.id}`, {
