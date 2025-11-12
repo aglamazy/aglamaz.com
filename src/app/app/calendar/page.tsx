@@ -398,14 +398,13 @@ export default function AnniversariesPage() {
         dir={i18n.dir()}
       >
         <div
-          className={`absolute top-1 pointer-events-none ${
-            i18n.dir() === 'rtl' ? 'right-1' : 'left-1'
-          } flex items-center`}
+          className={`absolute top-1 left-0 right-0 px-1 pointer-events-none flex items-center gap-2`}
+          dir={i18n.dir()}
         >
-          <span className={`font-bold text-sm ${isToday ? styles.todayNumber : ''}`}>{cellDay}</span>
-          {dayEvents.length === 1 && !dayEvents[0].imageUrl && (
-            <span className={`ml-2 text-xs ${styles.nameMobile}`}>
-              {truncateResponsive(dayEvents[0].name, 6, 12)}
+          <span className={`font-bold text-sm flex-shrink-0 ${isToday ? styles.todayNumber : ''}`}>{cellDay}</span>
+          {totalItems === 1 && dayEvents.length === 1 && (
+            <span className="text-[10px] sm:text-[11px] whitespace-nowrap opacity-70 overflow-hidden text-ellipsis">
+              {dayEvents[0].name}
             </span>
           )}
         </div>
@@ -756,7 +755,7 @@ export default function AnniversariesPage() {
               </div>
             )}
             <div>
-              {t('type')}: {selectedEvent.type}
+              {t('type')}: {t(selectedEvent.type)}
             </div>
             {selectedEvent.description && (
               <div>
@@ -770,6 +769,12 @@ export default function AnniversariesPage() {
                 className="px-3 py-1 bg-primary text-white rounded"
               >
                 {t('addEvent')}
+              </button>
+              <button
+                onClick={() => alert('Create blessing page - coming soon!')}
+                className="px-3 py-1 bg-primary text-white rounded"
+              >
+                {t('createBlessingPage')}
               </button>
               {occurrences.map((occ) => {
                 const d = (occ.date as any);
