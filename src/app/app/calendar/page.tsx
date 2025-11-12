@@ -30,6 +30,11 @@ interface AnniversaryEvent {
   imageUrl?: string;
   useHebrew?: boolean;
   hebrewDate?: string;
+  date?: any;
+  hebrewBurialDate?: string;
+  deathDate?: any;
+  burialDate?: any;
+  originalDate?: any;
 }
 
 export default function AnniversariesPage() {
@@ -43,6 +48,7 @@ export default function AnniversariesPage() {
     isAnnual: true,
     imageUrl: '',
     useHebrew: false,
+    burialDate: '',
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -79,6 +85,51 @@ export default function AnniversariesPage() {
   const truncateResponsive = (name: string, mobileLen: number, desktopLen: number) =>
     truncateName(name, isSmUp ? desktopLen : mobileLen);
   const preloaded = useRef<Set<string>>(new Set());
+
+  const toDateValue = (value: any): Date | null => {
+    if (!value) return null;
+    if (value instanceof Date) return value;
+    const seconds = value?._seconds ?? value?.seconds;
+    if (typeof seconds === 'number') {
+      return new Date(seconds * 1000);
+    }
+    if (typeof value.toDate === 'function') {
+      try {
+        const d = value.toDate();
+        return d instanceof Date && !Number.isNaN(d.getTime()) ? d : null;
+      } catch {
+        return null;
+      }
+    }
+    if (typeof value === 'string') {
+      const parsed = new Date(value);
+      return Number.isNaN(parsed.getTime()) ? null : parsed;
+    }
+    return null;
+  };
+
+  const toDateInputValue = (value: any): string => {
+    const d = toDateValue(value);
+    if (!d) return '';
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const formatDisplayDate = (value: any): string => {
+    const d = toDateValue(value);
+    if (!d) return '';
+    try {
+      return d.toLocaleDateString(i18n.language || undefined, {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      });
+    } catch {
+      return d.toLocaleDateString();
+    }
+  };
 
   useEffect(() => {
     if (imgRef.current) {
@@ -254,6 +305,32 @@ export default function AnniversariesPage() {
     setSaving(true);
     setError('');
     try {
+      const isHebrewDeath =
+        form.useHebrew && (form.type === 'death' || form.type === 'death_anniversary');
+      if (isHebrewDeath) {
+        if (!form.burialDate) {
+          setError(t('burialDateRequired'));
+          setSaving(false);
+          return;
+        }
+        const death = new Date(form.date);
+        const burial = new Date(form.burialDate);
+        if (Number.isNaN(burial.getTime())) {
+          setError(t('burialDateRequired'));
+          setSaving(false);
+          return;
+        }
+        if (Number.isNaN(death.getTime())) {
+          setError(t('invalidDate'));
+          setSaving(false);
+          return;
+        }
+        if (burial.getTime() < death.getTime()) {
+          setError(t('burialDateAfterDeathError'));
+          setSaving(false);
+          return;
+        }
+      }
       let imageUrl = editEvent?.imageUrl || '';
       if (imageFile) {
         // Ensure Firebase Auth is aligned with the app session before Storage ops
@@ -280,7 +357,19 @@ export default function AnniversariesPage() {
         imageUrl = await getDownloadURL(storageRef);
       }
 
-      const payload = { ...form, imageUrl };
+      const payload: Record<string, any> = {
+        name: form.name,
+        description: form.description,
+        date: form.date,
+        type: form.type,
+        isAnnual: form.isAnnual,
+        imageUrl,
+        useHebrew: form.useHebrew,
+      };
+      if (isHebrewDeath) {
+        payload.deathDate = form.date;
+        payload.burialDate = form.burialDate;
+      }
       if (editEvent) {
         await apiFetch<void>(`/api/anniversaries/${editEvent.id}`, {
           method: 'PUT',
@@ -294,7 +383,7 @@ export default function AnniversariesPage() {
           body: JSON.stringify(payload),
         });
       }
-      setForm({ name: '', description: '', date: '', type: 'birthday', isAnnual: true, imageUrl: '', useHebrew: false });
+      setForm({ name: '', description: '', date: '', type: 'birthday', isAnnual: true, imageUrl: '', useHebrew: false, burialDate: '' });
       setImageFile(null);
       setEditEvent(null);
       setIsModalOpen(false);
@@ -453,6 +542,7 @@ export default function AnniversariesPage() {
                 ? (ev as unknown as { images?: string[] }).images
                 : [];
               const imageUrl = imageOverride || ev.imageUrl || fallbackImages[0];
+              const isDeathEvent = ev.type === 'death' || ev.type === 'death_anniversary';
               return (
                 <div
                   key={key}
@@ -463,15 +553,20 @@ export default function AnniversariesPage() {
                   imageUrl ? 'p-0 bg-transparent' : 'bg-blue-100 text-blue-800 px-2 py-1 rounded-full'
                 } ${isCurrentMonth ? '' : 'opacity-50'}`}
                 >
-                {imageUrl ? (
-                  <img
-                    src={imageUrl}
-                    alt=""
-                    className="w-full h-16 sm:h-20 object-cover rounded"
-                  />
-                ) : (
-                  <span className={styles.nameMobile}>{truncateResponsive(ev.name, 6, 16)}</span>
-                )}
+                <div
+                  className={`${styles.eventCardImageWrapper} ${imageUrl ? '' : styles.eventCardImageWrapperPlain}`}
+                >
+                  {isDeathEvent && <span className={styles.deathBadge} aria-hidden="true" />}
+                  {imageUrl ? (
+                    <img
+                      src={imageUrl}
+                      alt=""
+                      className="w-full h-16 sm:h-20 object-cover rounded"
+                    />
+                  ) : (
+                    <span className={styles.nameMobile}>{truncateResponsive(ev.name, 6, 16)}</span>
+                  )}
+                </div>
               </div>
             );
             };
@@ -541,6 +636,8 @@ export default function AnniversariesPage() {
     touchStartRef.current = null;
   };
 
+  const isHebrewDeathForm = form.useHebrew && (form.type === 'death' || form.type === 'death_anniversary');
+
   return (
     <div className="container mx-auto px-2 py-2 sm:px-4 sm:py-4">
       <h1 className="text-2xl font-bold mb-2 sm:mb-4">{t('familyCalendar')}</h1>
@@ -601,7 +698,7 @@ export default function AnniversariesPage() {
       <AddFab
         ariaLabel={t('add') as string}
         onClick={() => {
-      setForm({ name: '', description: '', date: '', type: 'birthday', isAnnual: true, imageUrl: '', useHebrew: false });
+          setForm({ name: '', description: '', date: '', type: 'birthday', isAnnual: true, imageUrl: '', useHebrew: false, burialDate: '' });
           setEditEvent(null);
           setImageFile(null);
           setImageSrc('');
@@ -630,7 +727,7 @@ export default function AnniversariesPage() {
             />
           </div>
           <div>
-            <label className="block mb-1 text-sm text-text">{t('date')}</label>
+            <label className="block mb-1 text-sm text-text">{t(isHebrewDeathForm ? 'deathDate' : 'date')}</label>
             <input
               type="date"
               className="border rounded w-full px-3 py-2"
@@ -639,6 +736,18 @@ export default function AnniversariesPage() {
               required
             />
           </div>
+          {isHebrewDeathForm && (
+            <div>
+              <label className="block mb-1 text-sm text-text">{t('burialDate')}</label>
+              <input
+                type="date"
+                className="border rounded w-full px-3 py-2"
+                value={form.burialDate}
+                onChange={(e) => setForm({ ...form, burialDate: e.target.value })}
+                required
+              />
+            </div>
+          )}
           <div>
             <label className="block mb-1 text-sm text-text">{t('type')}</label>
             <select
@@ -705,10 +814,19 @@ export default function AnniversariesPage() {
             />
             <label htmlFor="useHebrew" className="text-text">{t('hebrewCalendar') as string}</label>
           </div>
-          {form.useHebrew && form.date && (
-            <div className="text-sm text-sage-700">
-              {t('hebrewDate') as string}: {new Intl.DateTimeFormat('he-u-ca-hebrew', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(form.date))}
-            </div>
+          {form.useHebrew && (
+            <>
+              {form.date && (
+                <div className="text-sm text-sage-700">
+                  {t(isHebrewDeathForm ? 'hebrewDeathDate' : 'hebrewDate') as string}: {new Intl.DateTimeFormat('he-u-ca-hebrew', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(form.date))}
+                </div>
+              )}
+              {isHebrewDeathForm && form.burialDate && (
+                <div className="text-sm text-sage-700">
+                  {t('hebrewBurialDate') as string}: {new Intl.DateTimeFormat('he-u-ca-hebrew', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(form.burialDate))}
+                </div>
+              )}
+            </>
           )}
           <div className="flex items-center">
             <input
@@ -750,9 +868,28 @@ export default function AnniversariesPage() {
             <div>
               {t('date')}: {selectedEvent.day}/{selectedEvent.month + 1}
             </div>
+            {(selectedEvent.type === 'death' || selectedEvent.type === 'death_anniversary') && (
+              <>
+                {formatDisplayDate((selectedEvent as any).deathDate ?? (selectedEvent as any).originalDate ?? selectedEvent.date) && (
+                  <div>
+                    {t('deathDate')}: {formatDisplayDate((selectedEvent as any).deathDate ?? (selectedEvent as any).originalDate ?? selectedEvent.date)}
+                  </div>
+                )}
+                {formatDisplayDate((selectedEvent as any).burialDate) && (
+                  <div>
+                    {t('burialDate')}: {formatDisplayDate((selectedEvent as any).burialDate)}
+                  </div>
+                )}
+              </>
+            )}
             {selectedEvent.hebrewDate && (
               <div>
-                {t('hebrewDate')}: {selectedEvent.hebrewDate}
+                {t(selectedEvent.type === 'death' || selectedEvent.type === 'death_anniversary' ? 'hebrewDeathDate' : 'hebrewDate')}: {selectedEvent.hebrewDate}
+              </div>
+            )}
+            {(selectedEvent.type === 'death' || selectedEvent.type === 'death_anniversary') && selectedEvent.hebrewBurialDate && (
+              <div>
+                {t('hebrewBurialDate')}: {selectedEvent.hebrewBurialDate}
               </div>
             )}
             <div>
@@ -791,14 +928,25 @@ export default function AnniversariesPage() {
               <div className="flex gap-2 pt-2">
                 <button
                   onClick={() => {
+                    const preferredDate =
+                      (selectedEvent as any).originalDate ??
+                      (selectedEvent as any).deathDate ??
+                      selectedEvent.date;
+                    const baseDateIso = toDateInputValue(preferredDate);
+                    const fallbackIso = `${selectedEvent.year}-${String(selectedEvent.month + 1).padStart(2, '0')}-${String(selectedEvent.day).padStart(2, '0')}`;
+                    const burialIso = toDateInputValue((selectedEvent as any).burialDate);
                     setForm({
                       name: selectedEvent.name,
                       description: selectedEvent.description || '',
-                      date: `${selectedEvent.year}-${String(selectedEvent.month + 1).padStart(2, '0')}-${String(selectedEvent.day).padStart(2, '0')}`,
+                      date: baseDateIso || fallbackIso,
                       type: selectedEvent.type,
                       isAnnual: selectedEvent.isAnnual,
                       imageUrl: '',
                       useHebrew: Boolean((selectedEvent as any).useHebrew),
+                      burialDate:
+                        selectedEvent.type === 'death' || selectedEvent.type === 'death_anniversary'
+                          ? burialIso
+                          : '',
                     });
                     setEditEvent(selectedEvent);
                     setImageFile(null);

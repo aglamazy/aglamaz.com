@@ -55,3 +55,49 @@
 :global([dir='rtl']) .monthNavNext {
   transform: rotate(-135deg);
 }
+
+.eventCardImageWrapper {
+  position: relative;
+  width: 100%;
+}
+
+.eventCardImageWrapperPlain {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem 0;
+  min-height: 2.25rem;
+}
+
+.deathBadge {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 48px;
+  height: 48px;
+  pointer-events: none;
+}
+
+.deathBadge::before {
+  content: '';
+  position: absolute;
+  top: -20px;
+  left: -18px;
+  width: 80px;
+  height: 16px;
+  background: linear-gradient(135deg, rgba(17, 24, 39, 0.95), rgba(31, 41, 55, 0.95));
+  transform: rotate(-45deg);
+  transform-origin: top left;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.35);
+}
+
+.deathBadge::after {
+  content: '';
+  position: absolute;
+  top: 6px;
+  left: 16px;
+  width: 0;
+  height: 0;
+  border-top: 14px solid rgba(17, 24, 39, 0.95);
+  border-left: 14px solid transparent;
+}

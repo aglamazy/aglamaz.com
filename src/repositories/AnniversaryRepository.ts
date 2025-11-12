@@ -13,13 +13,62 @@ export class AnniversaryRepository {
     return getFirestore();
   }
 
+  private toDate(value: any): Date | null {
+    if (!value) return null;
+    if (value instanceof Date) return value;
+    if (value instanceof Timestamp) return value.toDate();
+    if (typeof value.toDate === 'function') {
+      try {
+        return value.toDate();
+      } catch {
+        return null;
+      }
+    }
+    if (typeof value._seconds === 'number') {
+      return new Date(value._seconds * 1000);
+    }
+    if (typeof value.seconds === 'number') {
+      return new Date(value.seconds * 1000);
+    }
+    if (typeof value === 'string') {
+      const parsed = new Date(value);
+      return Number.isNaN(parsed.getTime()) ? null : parsed;
+    }
+    return null;
+  }
+
+  private async buildHebrewOccurrences(params: {
+    siteId: string;
+    hebrewKey: string;
+    baseDate: Date;
+    startYearOverride?: number;
+  }): Promise<Array<{ year: number; month: number; day: number; date: any }>> {
+    const { siteId, hebrewKey, baseDate, startYearOverride } = params;
+    if (!hebrewKey) return [];
+    const hebHorizonYear = await this.config.getHorizonYear(siteId);
+    const currentYear = new Date().getFullYear();
+    const baseYear = baseDate.getFullYear();
+    const startYear = Math.max(currentYear, baseYear, startYearOverride ?? baseYear);
+    const endYear = Math.max(hebHorizonYear, startYear);
+    const occurrences: Array<{ year: number; month: number; day: number; date: any }> = [];
+    for (let y = startYear; y <= endYear; y++) {
+      const g = findGregorianForHebrewKeyInYear(hebrewKey, y);
+      if (g) {
+        occurrences.push({ year: y, month: g.getMonth(), day: g.getDate(), date: Timestamp.fromDate(g) });
+      }
+    }
+    return occurrences;
+  }
+
   async create(eventData: {
     siteId: string;
     ownerId: string;
     name: string;
     description?: string;
-    type: 'birthday' | 'death' | 'wedding';
+    type: 'birthday' | 'death' | 'death_anniversary' | 'wedding';
     date: Date;
+    deathDate?: Date;
+    burialDate?: Date;
     isAnnual: boolean;
     createdBy: string;
     imageUrl?: string;
@@ -42,22 +91,43 @@ export class AnniversaryRepository {
       imageUrl: eventData.imageUrl || '',
       createdAt: now,
     };
+    const isDeathType = eventData.type === 'death' || eventData.type === 'death_anniversary';
     if (eventData.useHebrew) {
       base.useHebrew = true;
-      base.hebrewDate = formatHebrewDisplay(eventData.date);
-      base.hebrewKey = formatHebrewKey(eventData.date);
-      // Precompute occurrences up to horizon year
-      const hebHorizonYear = await this.config.getHorizonYear(eventData.siteId);
-      const startYear = Math.max(new Date().getFullYear(), eventData.date.getFullYear());
-      const endYear = Math.max(hebHorizonYear, startYear);
-      const occurrences: Array<{ year: number; month: number; day: number; date: any }> = [];
-      for (let y = startYear; y <= endYear; y++) {
-        const g = findGregorianForHebrewKeyInYear(base.hebrewKey, y);
-        if (g) {
-          occurrences.push({ year: y, month: g.getMonth(), day: g.getDate(), date: Timestamp.fromDate(g) });
+      let hebrewKeySource = eventData.date;
+      let startYearOverride: number | undefined;
+      if (isDeathType) {
+        const deathDate = eventData.deathDate ?? eventData.date;
+        const burialDate = eventData.burialDate;
+        base.hebrewDate = formatHebrewDisplay(deathDate);
+        base.hebrewKey = formatHebrewKey(deathDate);
+        base.deathDate = Timestamp.fromDate(deathDate);
+        if (burialDate) {
+          base.burialDate = Timestamp.fromDate(burialDate);
+          base.hebrewBurialDate = formatHebrewDisplay(burialDate);
+          base.hebrewBurialKey = formatHebrewKey(burialDate);
+          startYearOverride = burialDate.getFullYear() + 1;
         }
+        hebrewKeySource = deathDate;
+      } else {
+        base.hebrewDate = formatHebrewDisplay(eventData.date);
+        base.hebrewKey = formatHebrewKey(eventData.date);
       }
-      base.hebrewOccurrences = occurrences;
+      if (base.hebrewKey) {
+        base.hebrewOccurrences = await this.buildHebrewOccurrences({
+          siteId: eventData.siteId,
+          hebrewKey: base.hebrewKey,
+          baseDate: hebrewKeySource,
+          startYearOverride,
+        });
+      }
+    } else if (isDeathType) {
+      if (eventData.deathDate) {
+        base.deathDate = Timestamp.fromDate(eventData.deathDate);
+      }
+      if (eventData.burialDate) {
+        base.burialDate = Timestamp.fromDate(eventData.burialDate);
+      }
     }
     const ref = await db.collection(this.collection).add(base);
     const doc = await ref.get();
@@ -92,6 +162,7 @@ export class AnniversaryRepository {
         day: occ.day,
         year: occ.year,
         date: occ.date,
+        originalDate: ev.date,
       } as any);
     }
 
@@ -126,8 +197,10 @@ export class AnniversaryRepository {
   async update(id: string, updates: {
     name?: string;
     description?: string;
-    type?: 'birthday' | 'death' | 'wedding';
+    type?: 'birthday' | 'death' | 'death_anniversary' | 'wedding';
     date?: Date;
+    deathDate?: Date;
+    burialDate?: Date;
     isAnnual?: boolean;
     imageUrl?: string;
     useHebrew?: boolean;
@@ -145,43 +218,64 @@ export class AnniversaryRepository {
       data.month = updates.date.getMonth();
       data.day = updates.date.getDate();
       data.year = updates.date.getFullYear();
-      if (updates.useHebrew) {
-        data.useHebrew = true;
-        data.hebrewDate = formatHebrewDisplay(updates.date);
-        data.hebrewKey = formatHebrewKey(updates.date);
-        // Recompute occurrences up to horizon
-        const hebHorizonYear = await this.config.getHorizonYear(existing.siteId);
-        const startYear = Math.max(new Date().getFullYear(), updates.date.getFullYear());
-        const endYear = Math.max(hebHorizonYear, startYear);
-        const occurrences: Array<{ year: number; month: number; day: number; date: any }> = [];
-        for (let y = startYear; y <= endYear; y++) {
-          const g = findGregorianForHebrewKeyInYear(data.hebrewKey, y);
-          if (g) {
-            occurrences.push({ year: y, month: g.getMonth(), day: g.getDate(), date: Timestamp.fromDate(g) });
-          }
-        }
-        data.hebrewOccurrences = occurrences;
-      }
     }
-    if (updates.useHebrew !== undefined && !updates.date) {
-      data.useHebrew = !!updates.useHebrew;
-      if (updates.useHebrew && existing.date) {
-        const d = (existing.date as Timestamp).toDate();
-        data.hebrewDate = formatHebrewDisplay(d);
-        data.hebrewKey = formatHebrewKey(d);
-        // compute occurrences up to horizon
-        const hebHorizonYear = await this.config.getHorizonYear(existing.siteId);
-        const startYear = Math.max(new Date().getFullYear(), d.getFullYear());
-        const endYear = Math.max(hebHorizonYear, startYear);
-        const occurrences: Array<{ year: number; month: number; day: number; date: any }> = [];
-        for (let y = startYear; y <= endYear; y++) {
-          const g = findGregorianForHebrewKeyInYear(data.hebrewKey, y);
-          if (g) {
-            occurrences.push({ year: y, month: g.getMonth(), day: g.getDate(), date: Timestamp.fromDate(g) });
+
+    const resolvedType = (updates.type ?? (existing.type as any)) as
+      | 'birthday'
+      | 'death'
+      | 'death_anniversary'
+      | 'wedding';
+    const isDeathType = resolvedType === 'death' || resolvedType === 'death_anniversary';
+    const resolvedDate = updates.date ?? this.toDate(existing.date);
+    let resolvedDeathDate =
+      updates.deathDate ?? (existing.deathDate ? this.toDate(existing.deathDate) : resolvedDate);
+    if (!resolvedDeathDate && resolvedDate) {
+      resolvedDeathDate = resolvedDate;
+    }
+    let resolvedBurialDate =
+      updates.burialDate ?? (existing.burialDate ? this.toDate(existing.burialDate) : undefined);
+
+    const useHebrew = updates.useHebrew !== undefined ? updates.useHebrew : !!existing.useHebrew;
+
+    if (updates.deathDate) {
+      data.deathDate = Timestamp.fromDate(updates.deathDate);
+    } else if (isDeathType && useHebrew && updates.date) {
+      data.deathDate = Timestamp.fromDate(updates.date);
+      resolvedDeathDate = updates.date;
+    }
+
+    if (updates.burialDate) {
+      data.burialDate = Timestamp.fromDate(updates.burialDate);
+      resolvedBurialDate = updates.burialDate;
+    }
+
+    if (useHebrew) {
+      data.useHebrew = true;
+      const hebrewSource = isDeathType ? resolvedDeathDate ?? resolvedDate : resolvedDate;
+      if (hebrewSource) {
+        data.hebrewDate = formatHebrewDisplay(hebrewSource);
+        data.hebrewKey = formatHebrewKey(hebrewSource);
+        let startYearOverride: number | undefined;
+        if (isDeathType) {
+          if (resolvedDeathDate && !data.deathDate) {
+            data.deathDate = Timestamp.fromDate(resolvedDeathDate);
+          }
+          if (resolvedBurialDate) {
+            data.burialDate = Timestamp.fromDate(resolvedBurialDate);
+            data.hebrewBurialDate = formatHebrewDisplay(resolvedBurialDate);
+            data.hebrewBurialKey = formatHebrewKey(resolvedBurialDate);
+            startYearOverride = resolvedBurialDate.getFullYear() + 1;
           }
         }
-        data.hebrewOccurrences = occurrences;
+        data.hebrewOccurrences = await this.buildHebrewOccurrences({
+          siteId: existing.siteId,
+          hebrewKey: data.hebrewKey,
+          baseDate: hebrewSource,
+          startYearOverride,
+        });
       }
+    } else if (updates.useHebrew === false) {
+      data.useHebrew = false;
     }
     await db.collection(this.collection).doc(id).update(data);
   }
@@ -209,8 +303,15 @@ export class AnniversaryRepository {
       if (!key || ev.isAnnual === false) continue;
       const existing: Array<{ year: number; month: number; day: number; date: any }> = Array.isArray(ev.hebrewOccurrences) ? ev.hebrewOccurrences : [];
       const existingYears = new Set(existing.map((o) => o.year));
-      const eventYear = ev.date ? (ev.date as Timestamp).toDate().getFullYear() : currentYear;
-      const start = Math.max(currentYear, eventYear);
+      const baseDate = this.toDate(ev.deathDate ?? ev.date);
+      if (!baseDate) continue;
+      let start = Math.max(currentYear, baseDate.getFullYear());
+      if ((ev.type === 'death' || ev.type === 'death_anniversary') && ev.burialDate) {
+        const burial = this.toDate(ev.burialDate);
+        if (burial) {
+          start = Math.max(start, burial.getFullYear() + 1);
+        }
+      }
       const additions: Array<{ year: number; month: number; day: number; date: any }> = [];
       for (let y = start; y <= targetYear; y++) {
         if (existingYears.has(y)) continue;
