@@ -60,6 +60,50 @@ Public family blog: The posts that were marked as public, will be visible to vis
 ### /[locale]/blog/[handle]
 Author blog: Single author's blog facing public. The `[handle]` parameter is the member's `blogHandle` field.
 
+# Blessing Pages
+
+The blessing pages feature allows family members to create and share blessings for anniversary events (birthdays, weddings, etc.).
+
+## Overview
+- Create a blessing page for any anniversary event by year
+- Members can add, edit, and delete their blessings
+- Rich text editor with celebration emojis (🎂🥳🎊🍷🎁🕯️❤️💙)
+- Inline photo upload support
+- Permission system: authors can edit their own blessings, admins can edit all
+
+## User Flow
+1. From the calendar, click on an anniversary event
+2. Click "Create Blessing Page" button (one per event per year)
+3. Share the blessing page URL with family members
+4. Members can add blessings using the floating action button (FAB)
+5. Edit/delete buttons appear on blessings for authors and admins
+
+## Data Structure
+- **BlessingPage**: Page metadata (eventId, year, slug, siteId)
+- **Blessing**: Individual blessing messages (blessingPageId, authorId, content HTML)
+- Top-level collections for query flexibility
+
+## Implementation
+- **Entities**: `BlessingPage`, `Blessing`
+- **Repositories**: `BlessingPageRepository`, `BlessingRepository`
+- **API Routes**:
+  - `POST/GET /api/anniversaries/[id]/blessing-pages` - Create/list blessing pages
+  - `GET /api/blessing-pages/by-slug/[slug]` - Fetch page with event details
+  - `POST/GET /api/blessing-pages/[id]/blessings` - Create/list blessings
+  - `PUT/DELETE /api/blessing-pages/[id]/blessings/[blessingId]` - Edit/delete blessings
+- **Pages**: `/app/blessing/[slug]` - View and manage blessings
+
+## Rich Text Editor
+- TinyMCE integration via `EditorRich` component
+- Context-specific emojis passed as props
+- Inline image upload (currently base64, optimization pending)
+- Delete functionality built into editor
+
+## Future Enhancements
+- Replace base64 image storage with Firebase Storage (see TODO.md)
+- Add reactions/likes to blessings
+- Link event owner to member profile
+
 # Architecture
 
 See detailed architecture documentation in `docs/architecture.md`:
