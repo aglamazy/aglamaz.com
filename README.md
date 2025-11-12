@@ -1,12 +1,16 @@
-# Aglamaz App
+# FamCircle
 
-This is a minimal Next.js 14 application demonstrating Firebase Authentication with Google and Facebook providers. Authenticated routes are protected using middleware that verifies Firebase ID tokens with the Firebase Admin SDK.
+**FamCircle** is a private family website platform that brings your family together in one beautiful, secure space. Share memories, celebrate milestones, and stay connected with the people who matter most.
 
-## Development
+## What is FamCircle?
 
-1. Copy `.env.local.example` to `.env.local` and fill in your Firebase credentials.
-2. Install dependencies with `npm install` (requires internet access).
-3. Run the development server using `npm run dev`.
+FamCircle helps families create their own private website where they can:
+- **Share Stories** - Write and publish family blog posts with rich text and photos
+- **Celebrate Together** - Create blessing pages for birthdays, anniversaries, and special occasions
+- **Remember Important Dates** - Keep track of family anniversaries and events in a shared calendar
+- **Preserve Memories** - Upload and organize family photos in shared galleries
+
+Built with modern web technologies (Next.js, Firebase, Firestore) and designed for families who value privacy and connection.
 
 ### Google Search Console verification
 
