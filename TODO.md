@@ -108,23 +108,40 @@ According to README.md, before a member can write blog posts, they must register
 
 # Blessing Pages
 
-## Future Features
-- [ ] Add reactions/likes to blessings (like blog post likes)
-- [ ] Link event owner to member - show "Event honoree" badge on their blessings
-
 ## Current Implementation
 - ✅ BlessingPage entity (page metadata: eventId, year, slug)
 - ✅ BlessingPageRepository with CRUD operations
 - ✅ API routes for creating/fetching blessing pages
 - ✅ Calendar modal integration with create/view blessing page
-- ✅ Basic blessing page view (/blessing/[slug])
+- ✅ Blessing page view (/blessing/[slug])
+- ✅ Blessing entity (individual blessing messages)
+- ✅ BlessingRepository with full CRUD
+- ✅ API routes for posting/editing/deleting blessings
+- ✅ TinyMCE rich text editor with celebration emojis
+- ✅ Delete functionality in editor
+- ✅ Permission system (author + admin can edit/delete)
+- ✅ Inline photo upload (currently base64)
 
-## Next Steps
-- [ ] Create Blessing entity (individual blessing messages)
-  - blessingPageId, authorId, authorName, content (rich text HTML)
-  - createdAt, updatedAt, deleted (bool), deletedAt
-  - Should be localizable for multi-language support
-- [ ] Create BlessingRepository
-- [ ] Add API routes for posting/editing/deleting blessings
-- [ ] Integrate TinyMCE rich text editor for blessing content
-- [ ] Display blessings on blessing page (newest first, hide deleted)
+## Future Features
+- [ ] Add reactions/likes to blessings (like blog post likes)
+- [ ] Link event owner to member - show "Event honoree" badge on their blessings
+
+## Image Storage Optimization
+- [ ] **IMPORTANT: Replace base64 image storage with Firebase Storage**
+  - **Problem:** Base64-encoded images in Firestore are expensive:
+    - Base64 encoding increases image size by ~33%
+    - Every blessing view reads large documents (high read costs)
+    - Firestore 1MB document size limit can be hit quickly
+    - Storage costs higher than Cloud Storage
+  - **Solution:** Upload images to Firebase Storage, store only URLs in Firestore
+  - **Tasks:**
+    - [ ] Create image upload API endpoint (`POST /api/upload/image`)
+    - [ ] Store images in Firebase Storage bucket
+    - [ ] Return public URL or signed URL
+    - [ ] Update EditorRich `images_upload_handler` to call API instead of base64
+    - [ ] Add image cleanup on blessing delete (optional, consider orphaned images)
+  - **Benefits:**
+    - Much cheaper storage costs
+    - Faster document reads/writes
+    - No document size limits
+    - CDN delivery for images
