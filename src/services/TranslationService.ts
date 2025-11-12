@@ -1,5 +1,6 @@
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { initAdmin } from '@/firebase/admin';
+import type { HealthCheckResult } from '@/types/health';
 
 export interface TranslationResult {
   title: string;
@@ -156,5 +157,89 @@ Output ONLY the translated text, no labels or extra commentary.`;
       title: translatedTitle,
       content: translatedContent,
     };
+  }
+
+  static async getHealth(): Promise<HealthCheckResult> {
+    // Check required environment variables
+    const apiKey = process.env.OPENAI_API_KEY;
+
+    if (!apiKey) {
+      return {
+        healthy: false,
+        status: 'Missing OPENAI_API_KEY',
+      };
+    }
+
+    // Try to ping OpenAI API with the lightest possible request
+    // GET /v1/models doesn't consume tokens but verifies auth and quota
+    try {
+      const res = await fetch('https://api.openai.com/v1/models', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+        },
+      });
+
+      // Check for rate limiting or budget issues
+      if (res.status === 429) {
+        const rateLimitReset = res.headers.get('x-ratelimit-reset-requests');
+        const resetTime = rateLimitReset ? new Date(parseInt(rateLimitReset) * 1000).toISOString() : 'unknown';
+        return {
+          healthy: false,
+          status: `Rate limit exceeded (resets at ${resetTime})`,
+        };
+      }
+
+      if (res.status === 401) {
+        return {
+          healthy: false,
+          status: 'Invalid API key',
+        };
+      }
+
+      if (res.status === 403) {
+        return {
+          healthy: false,
+          status: 'API access forbidden (possible billing issue)',
+        };
+      }
+
+      if (!res.ok) {
+        let errorText = `HTTP ${res.status}`;
+        try {
+          const errorData = await res.json();
+          if (errorData.error?.message) {
+            errorText = errorData.error.message;
+          }
+        } catch {
+          // If JSON parsing fails, use status text
+          errorText = res.statusText || errorText;
+        }
+        return {
+          healthy: false,
+          status: `OpenAI API error: ${errorText}`,
+        };
+      }
+
+      // Extract rate limit info from headers for status message
+      const rateLimitRequests = res.headers.get('x-ratelimit-limit-requests');
+      const rateLimitRemaining = res.headers.get('x-ratelimit-remaining-requests');
+
+      let statusMsg = 'OK';
+      if (rateLimitRequests && rateLimitRemaining) {
+        statusMsg = `OK (${rateLimitRemaining}/${rateLimitRequests} requests remaining)`;
+      }
+
+      return {
+        healthy: true,
+        status: statusMsg,
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      return {
+        healthy: false,
+        status: `Failed to connect to OpenAI API: ${errorMessage}`,
+      };
+    }
   }
 }
