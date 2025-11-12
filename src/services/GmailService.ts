@@ -2,6 +2,7 @@ import { google } from 'googleapis';
 import { EmailTemplateOptions, renderEmailHtml, renderPlainTextEmail } from './emailTemplates';
 import { getPlatformName } from '@/utils/platformName';
 import type { ISite } from '@/entities/Site';
+import type { HealthCheckResult } from '@/types/health';
 
 export interface EmailData {
   to: string;
@@ -313,5 +314,51 @@ export class GmailService {
   async sendVerificationEmailWithFailure(to: string, firstName: string, verificationUrl: string): Promise<void> {
     // Simulate email failure by throwing an error
     throw new Error('Gmail service not configured - simulating email failure');
+  }
+
+  static async getHealth(): Promise<HealthCheckResult> {
+    // Check required environment variables
+    const requiredVars = [
+      'GMAIL_CLIENT_ID',
+      'GMAIL_CLIENT_SECRET',
+      'GMAIL_REFRESH_TOKEN',
+      'GMAIL_FROM_EMAIL',
+    ];
+
+    const missingVars = requiredVars.filter(varName => !process.env[varName]);
+
+    if (missingVars.length > 0) {
+      return {
+        healthy: false,
+        status: `Missing environment variables: ${missingVars.join(', ')}`,
+      };
+    }
+
+    // Try to initialize and get access token
+    try {
+      const oauth2Client = new google.auth.OAuth2(
+        process.env.GMAIL_CLIENT_ID,
+        process.env.GMAIL_CLIENT_SECRET,
+        'https://developers.google.com/oauthplayground'
+      );
+
+      oauth2Client.setCredentials({
+        refresh_token: process.env.GMAIL_REFRESH_TOKEN,
+      });
+
+      // Test if we can get an access token
+      await oauth2Client.getAccessToken();
+
+      return {
+        healthy: true,
+        status: 'OK',
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      return {
+        healthy: false,
+        status: `Failed to authenticate with Gmail API: ${errorMessage}`,
+      };
+    }
   }
 } 
