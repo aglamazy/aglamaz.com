@@ -48,3 +48,18 @@ const password = process.env.TEST_ADMIN_PASSWORD;
 - **Localization Storage**: Content stored in `locales.{locale}.{field}` with metadata in `locales.{locale}.{field}$meta`
 
 See `docs/architecture.md` for detailed examples and patterns.
+
+## TypeScript Interfaces Reference
+
+**IMPORTANT**: Before working with data structures, always refer to the comprehensive interfaces index:
+
+📋 **[TypeScript Interfaces Index](docs/typescript_interfaces_index.md)** - Complete catalog of 87+ interfaces organized by category:
+
+- **Authentication & User** - TokenClaims, IUser, MemberDoc, MemberRecord
+- **Entities** - AnniversaryEvent, Blessing, BlessingPage, BlogPost, Photo, Site
+- **API** - GuardContext, RouteParams, request/response types
+- **Components** - Props interfaces for all major components
+- **Repositories** - Query options, filter options
+- **Services** - Localization, configuration, caching
+
+**Usage**: When you need to understand a data structure, check this index first to avoid confusion about property names and types.

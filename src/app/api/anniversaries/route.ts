@@ -13,10 +13,14 @@ const getHandler = async (request: Request, context: GuardContext) => {
     const now = new Date();
     const month = monthParam ? parseInt(monthParam, 10) : now.getMonth();
     const year = yearParam ? parseInt(yearParam, 10) : now.getFullYear();
+
+    // Get locale from header (injected by proxy from query param)
+    const locale = request.headers.get('x-locale') || undefined;
+
     const repo = new AnniversaryRepository();
     // Push site-specific horizon forward and compute occurrences if needed
     await repo.ensureHebrewHorizonForYear(member.siteId, year);
-    const events = await repo.getEventsForMonth(member.siteId, month, year);
+    const events = await repo.getEventsForMonth(member.siteId, month, year, locale);
     return Response.json({ events });
   } catch (error) {
     console.error(error);
@@ -33,6 +37,10 @@ const postHandler = async (request: Request, context: GuardContext) => {
     if (!name || !date || !type) {
       return Response.json({ error: 'Missing fields' }, { status: 400 });
     }
+
+    // Get locale from header (injected by proxy from query param)
+    const locale = request.headers.get('x-locale') || 'he';
+
     const repo = new AnniversaryRepository();
     const event = await repo.create({
       siteId: member.siteId,
@@ -45,6 +53,7 @@ const postHandler = async (request: Request, context: GuardContext) => {
       createdBy: user.userId,
       imageUrl,
       useHebrew: Boolean(useHebrew),
+      locale,
     });
     return Response.json({ event }, { status: 201 });
   } catch (error) {

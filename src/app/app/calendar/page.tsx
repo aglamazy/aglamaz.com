@@ -16,21 +16,7 @@ import AddFab from '@/components/ui/AddFab';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-
-interface AnniversaryEvent {
-  id: string;
-  name: string;
-  description?: string;
-  type: string;
-  day: number;
-  month: number;
-  year: number;
-  isAnnual: boolean;
-  ownerId: string;
-  imageUrl?: string;
-  useHebrew?: boolean;
-  hebrewDate?: string;
-}
+import type { AnniversaryEvent } from '@/entities/Anniversary';
 
 export default function AnniversariesPage() {
   const [events, setEvents] = useState<AnniversaryEvent[]>([]);
@@ -59,6 +45,8 @@ export default function AnniversariesPage() {
   const [occError, setOccError] = useState('');
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
+  const [creatingBlessingPage, setCreatingBlessingPage] = useState(false);
+  const [blessingPageError, setBlessingPageError] = useState('');
   const user = useUserStore((s) => s.user);
   const checkAuth = useUserStore((s) => s.checkAuth);
   const member = useMemberStore((state) => state.member);
@@ -307,6 +295,48 @@ export default function AnniversariesPage() {
     }
   };
 
+  const handleCreateBlessingPage = async () => {
+    if (!selectedEvent) return;
+    setCreatingBlessingPage(true);
+    setBlessingPageError('');
+    try {
+      const currentYear = new Date().getFullYear();
+
+      // Call API to create blessing page
+      const res = await fetch(`/api/anniversaries/${selectedEvent.id}/blessing-pages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ year: currentYear }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to create blessing page');
+      }
+
+      const { blessingPage } = await res.json();
+
+      // Update selected event to include the new blessing page
+      setSelectedEvent({
+        ...selectedEvent,
+        blessingPages: [
+          ...(selectedEvent.blessingPages || []),
+          { year: blessingPage.year, slug: blessingPage.slug }
+        ]
+      } as any);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to create blessing page';
+      setBlessingPageError(msg);
+    } finally {
+      setCreatingBlessingPage(false);
+    }
+  };
+
+  const handleCopyBlessingPageLink = (slug: string) => {
+    const link = `${window.location.origin}/app/blessing/${slug}`;
+    navigator.clipboard.writeText(link);
+  };
+
   const openConfirmDelete = (event: AnniversaryEvent) => {
     setDeleteTarget(event);
     setDeleteError('');
@@ -398,14 +428,13 @@ export default function AnniversariesPage() {
         dir={i18n.dir()}
       >
         <div
-          className={`absolute top-1 pointer-events-none ${
-            i18n.dir() === 'rtl' ? 'right-1' : 'left-1'
-          } flex items-center`}
+          className={`absolute top-1 left-0 right-0 px-1 pointer-events-none flex items-center gap-2`}
+          dir={i18n.dir()}
         >
-          <span className={`font-bold text-sm ${isToday ? styles.todayNumber : ''}`}>{cellDay}</span>
-          {dayEvents.length === 1 && !dayEvents[0].imageUrl && (
-            <span className={`ml-2 text-xs ${styles.nameMobile}`}>
-              {truncateResponsive(dayEvents[0].name, 6, 12)}
+          <span className={`font-bold text-sm flex-shrink-0 ${isToday ? styles.todayNumber : ''}`}>{cellDay}</span>
+          {totalItems === 1 && dayEvents.length === 1 && (
+            <span className="text-[10px] sm:text-[11px] whitespace-nowrap opacity-70 overflow-hidden text-ellipsis">
+              {dayEvents[0].name}
             </span>
           )}
         </div>
@@ -433,8 +462,20 @@ export default function AnniversariesPage() {
             {dayEvents.map((ev) => (
               <div
                 key={ev.id}
-                onClick={() => {
-                  setSelectedEvent(ev);
+                onClick={async () => {
+                  // Fetch full event details including blessing pages
+                  try {
+                    const res = await fetch(`/api/anniversaries/${ev.id}`);
+                    if (res.ok) {
+                      const { event } = await res.json();
+                      setSelectedEvent(event);
+                    } else {
+                      setSelectedEvent(ev);
+                    }
+                  } catch (err) {
+                    console.error('Failed to fetch event details:', err);
+                    setSelectedEvent(ev);
+                  }
                 }}
                 className="bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded cursor-pointer text-[10px] sm:text-xs"
               >
@@ -456,8 +497,20 @@ export default function AnniversariesPage() {
               return (
                 <div
                   key={key}
-                  onClick={() => {
-                    setSelectedEvent(ev);
+                  onClick={async () => {
+                    // Fetch full event details including blessing pages
+                    try {
+                      const res = await fetch(`/api/anniversaries/${ev.id}`);
+                      if (res.ok) {
+                        const { event } = await res.json();
+                        setSelectedEvent(event);
+                      } else {
+                        setSelectedEvent(ev);
+                      }
+                    } catch (err) {
+                      console.error('Failed to fetch event details:', err);
+                      setSelectedEvent(ev);
+                    }
                   }}
                   className={`mt-6 sm:mt-7 flex flex-col items-center gap-1 text-xs cursor-pointer ${
                   imageUrl ? 'p-0 bg-transparent' : 'bg-blue-100 text-blue-800 px-2 py-1 rounded-full'
@@ -756,7 +809,7 @@ export default function AnniversariesPage() {
               </div>
             )}
             <div>
-              {t('type')}: {selectedEvent.type}
+              {t('type')}: {t(selectedEvent.type)}
             </div>
             {selectedEvent.description && (
               <div>
@@ -771,6 +824,41 @@ export default function AnniversariesPage() {
               >
                 {t('addEvent')}
               </button>
+              {(() => {
+                const currentYear = new Date().getFullYear();
+                // Check if blessing page exists for current year
+                const blessingPage = (selectedEvent as any).blessingPages?.find((bp: any) => bp.year === currentYear);
+
+                if (blessingPage) {
+                  return (
+                    <div className="flex items-center gap-2 px-3 py-1 bg-secondary/10 rounded">
+                      <span className="text-sm">{t('blessingPage')}:</span>
+                      <button
+                        onClick={() => handleCopyBlessingPageLink(blessingPage.slug)}
+                        className="px-2 py-0.5 bg-primary text-white text-xs rounded hover:opacity-90"
+                      >
+                        {t('copy')}
+                      </button>
+                      <a
+                        href={`/app/blessing/${blessingPage.slug}`}
+                        className="px-2 py-0.5 bg-primary text-white text-xs rounded hover:opacity-90"
+                      >
+                        {t('visit')}
+                      </a>
+                    </div>
+                  );
+                } else {
+                  return (
+                    <button
+                      onClick={handleCreateBlessingPage}
+                      disabled={creatingBlessingPage}
+                      className="px-3 py-1 bg-primary text-white rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {creatingBlessingPage ? t('creating') : t('createBlessingPage')}
+                    </button>
+                  );
+                }
+              })()}
               {occurrences.map((occ) => {
                 const d = (occ.date as any);
                 const sec = d?._seconds ?? d?.seconds;

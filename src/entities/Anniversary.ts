@@ -1,4 +1,4 @@
-import { LocalizableDocument } from '@/services/LocalizationService.client';
+import { LocalizableDocument } from '@/services/LocalizationService';
 
 export interface AnniversaryEvent extends LocalizableDocument {
   id: string;
@@ -23,4 +23,8 @@ export interface AnniversaryEvent extends LocalizableDocument {
   }>;
   imageUrl?: string;
   createdAt: any;
+  blessingPages?: Array<{
+    year: number;
+    slug: string;
+  }>;
 }

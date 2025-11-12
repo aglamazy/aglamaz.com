@@ -1,5 +1,6 @@
 import { withMemberGuard } from '@/lib/withMemberGuard';
 import { AnniversaryRepository } from '@/repositories/AnniversaryRepository';
+import { BlessingPageRepository } from '@/repositories/BlessingPageRepository';
 import { GuardContext } from '@/app/api/types';
 
 export const dynamic = 'force-dynamic';
@@ -14,7 +15,17 @@ const getHandler = async (_request: Request, context: GuardContext) => {
     if (!existing || existing.siteId !== member.siteId) {
       return Response.json({ error: 'Event not found' }, { status: 404 });
     }
-    return Response.json({ event: existing });
+
+    // Fetch blessing pages for this event
+    const blessingPageRepo = new BlessingPageRepository();
+    const blessingPages = await blessingPageRepo.listByEvent(id!);
+
+    return Response.json({
+      event: {
+        ...existing,
+        blessingPages: blessingPages.map(bp => ({ year: bp.year, slug: bp.slug }))
+      }
+    });
   } catch (error) {
     console.error(error);
     return Response.json({ error: 'Failed to fetch event' }, { status: 500 });
@@ -37,6 +48,10 @@ const putHandler = async (request: Request, context: GuardContext) => {
     }
     const body = await request.json();
     const { name, description, type, date, isAnnual, imageUrl, useHebrew } = body;
+
+    // Get locale from header (injected by proxy from query param)
+    const locale = request.headers.get('x-locale') || 'he';
+
     await repo.update(id!, {
       name,
       description,
@@ -45,6 +60,7 @@ const putHandler = async (request: Request, context: GuardContext) => {
       isAnnual: isAnnual !== undefined ? Boolean(isAnnual) : undefined,
       imageUrl,
       useHebrew,
+      locale,
     });
       const updated = await repo.getById(id!);
     return Response.json({ event: updated });

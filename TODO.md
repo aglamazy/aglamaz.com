@@ -105,3 +105,26 @@ According to README.md, before a member can write blog posts, they must register
 - [ ] Create centralized color palette file (src/styles/colors.ts) with semantic color names
 - [ ] Add theme configuration system for dark/light mode support
 - [ ] Refactor components to use semantic color names instead of hardcoded Tailwind classes
+
+# Blessing Pages
+
+## Future Features
+- [ ] Add reactions/likes to blessings (like blog post likes)
+- [ ] Link event owner to member - show "Event honoree" badge on their blessings
+
+## Current Implementation
+- ✅ BlessingPage entity (page metadata: eventId, year, slug)
+- ✅ BlessingPageRepository with CRUD operations
+- ✅ API routes for creating/fetching blessing pages
+- ✅ Calendar modal integration with create/view blessing page
+- ✅ Basic blessing page view (/blessing/[slug])
+
+## Next Steps
+- [ ] Create Blessing entity (individual blessing messages)
+  - blessingPageId, authorId, authorName, content (rich text HTML)
+  - createdAt, updatedAt, deleted (bool), deletedAt
+  - Should be localizable for multi-language support
+- [ ] Create BlessingRepository
+- [ ] Add API routes for posting/editing/deleting blessings
+- [ ] Integrate TinyMCE rich text editor for blessing content
+- [ ] Display blessings on blessing page (newest first, hide deleted)
