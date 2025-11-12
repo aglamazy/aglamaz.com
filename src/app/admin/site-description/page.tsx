@@ -9,7 +9,7 @@ import { Loader2, Save, Check, Languages } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import dynamic from 'next/dynamic';
 
-const EditorRich = dynamic(() => import('@/components/EditorRich'), { ssr: false });
+const EditorRich = dynamic(() => import('@/components/ui/EditorRich'), { ssr: false });
 
 interface SiteLocaleContent {
   name?: string;

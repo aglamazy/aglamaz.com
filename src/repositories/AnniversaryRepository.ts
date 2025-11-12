@@ -51,7 +51,6 @@ export class AnniversaryRepository {
       year: eventData.date.getFullYear(),
       isAnnual: eventData.isAnnual,
       imageUrl: eventData.imageUrl || '',
-      primaryLocale: eventData.locale,
       locales: {
         [eventData.locale]: localeData
       },
@@ -174,7 +173,10 @@ export class AnniversaryRepository {
       throw new Error(`Anniversary ${id} not found`);
     }
 
-    const locale = updates.locale || existing.primaryLocale || 'he';
+    if (!updates.locale) {
+      throw new Error('locale is required for update');
+    }
+    const locale = updates.locale;
     const data: any = {};
 
     // Handle localized name field

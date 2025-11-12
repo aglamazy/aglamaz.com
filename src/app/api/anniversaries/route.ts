@@ -1,7 +1,6 @@
 import { withMemberGuard } from '@/lib/withMemberGuard';
 import { AnniversaryRepository } from '@/repositories/AnniversaryRepository';
 import { GuardContext } from '@/app/api/types';
-import { resolveLocaleForPrivateRoutes } from '@/utils/resolveLocale';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,13 +14,13 @@ const getHandler = async (request: Request, context: GuardContext) => {
     const month = monthParam ? parseInt(monthParam, 10) : now.getMonth();
     const year = yearParam ? parseInt(yearParam, 10) : now.getFullYear();
 
-    // Resolve locale from request
-    const { baseLocale } = await resolveLocaleForPrivateRoutes(member.defaultLocale);
+    // Get locale from header (injected by proxy from query param)
+    const locale = request.headers.get('x-locale') || undefined;
 
     const repo = new AnniversaryRepository();
     // Push site-specific horizon forward and compute occurrences if needed
     await repo.ensureHebrewHorizonForYear(member.siteId, year);
-    const events = await repo.getEventsForMonth(member.siteId, month, year, baseLocale);
+    const events = await repo.getEventsForMonth(member.siteId, month, year, locale);
     return Response.json({ events });
   } catch (error) {
     console.error(error);
@@ -39,8 +38,8 @@ const postHandler = async (request: Request, context: GuardContext) => {
       return Response.json({ error: 'Missing fields' }, { status: 400 });
     }
 
-    // Resolve locale for creating the event
-    const { baseLocale } = await resolveLocaleForPrivateRoutes(member.defaultLocale);
+    // Get locale from header (injected by proxy from query param)
+    const locale = request.headers.get('x-locale') || 'he';
 
     const repo = new AnniversaryRepository();
     const event = await repo.create({
@@ -54,7 +53,7 @@ const postHandler = async (request: Request, context: GuardContext) => {
       createdBy: user.userId,
       imageUrl,
       useHebrew: Boolean(useHebrew),
-      locale: baseLocale,
+      locale,
     });
     return Response.json({ event }, { status: 201 });
   } catch (error) {

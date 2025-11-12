@@ -332,5 +332,21 @@
   "whoLiked": "Who liked this",
   "noLikes": "No likes yet",
   "showLikers": "Show who liked",
-  "picturesFeed": "Pictures Feed"
+  "picturesFeed": "Pictures Feed",
+  "creating": "Creating...",
+  "blessingPage": "Blessing page",
+  "copy": "Copy",
+  "visit": "Visit",
+  "blessingPageTitle": "Blessing Page",
+  "blessingPageNotFound": "Blessing page not found",
+  "blessingContentComingSoon": "Blessing content coming soon...",
+  "addYourBlessing": "Add Your Blessing",
+  "writeBlessingPlaceholder": "Write your blessing here...",
+  "richTextEditorNote": "Rich text editor (TinyMCE) will be integrated here",
+  "postBlessing": "Post Blessing",
+  "submitting": "Submitting...",
+  "blessingSubmittedMock": "Blessing submitted (mock)",
+  "blessingsCount": "Blessings ({{count}})",
+  "noBlessingsYet": "No blessings yet. Be the first to bless!",
+  "editBlessing": "Edit Blessing"
 }

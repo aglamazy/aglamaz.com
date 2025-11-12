@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { apiFetch } from '@/utils/apiFetch';
-import EditorRich from '@/components/EditorRich';
+import EditorRich from '@/components/ui/EditorRich';
 import type { IBlogPost, BlogPostLocalizedFields } from '@/entities/BlogPost';
 import { localizeBlogPost } from '@/utils/blogLocales';
 import { DEFAULT_LOCALE } from '@/i18n';
