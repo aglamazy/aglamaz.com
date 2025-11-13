@@ -17,7 +17,7 @@ export default function ContactPage() {
   const [error, setError] = useState('');
   const [countdown, setCountdown] = useState(10);
   const router = useRouter();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { honeyputInputProps, getSubmissionMetadata, resetProtection } = useSpamProtection('contact_honeyput');
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -66,14 +66,14 @@ export default function ContactPage() {
         setCountdown((c) => c - 1);
       }, 1000);
       const timeout = setTimeout(() => {
-        router.push('/');
+        router.push(`/${i18n.language}`);
       }, 10000);
       return () => {
         clearInterval(interval);
         clearTimeout(timeout);
       };
     }
-  }, [success, router]);
+  }, [success, router, i18n.language]);
 
   useEffect(() => {
     if (!success) {
