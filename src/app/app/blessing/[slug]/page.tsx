@@ -49,12 +49,9 @@ export default function BlessingPage() {
     const fetchBlessingPage = async () => {
       try {
         setLoading(true);
-        const res = await fetch(`/api/blessing-pages/by-slug/${slug}`);
-        if (!res.ok) {
-          const data = await res.json();
-          throw new Error(data.error || 'Failed to load blessing page');
-        }
-        const data = await res.json();
+        const data = await apiFetch<{ blessingPage: any; event: any }>(
+          `/api/blessing-pages/by-slug/${slug}`
+        );
         setBlessingPage(data.blessingPage);
         setEvent(data.event);
 
