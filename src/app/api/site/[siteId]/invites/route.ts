@@ -25,7 +25,7 @@ const handler = async (request: Request, context: GuardContext) => {
 
     const origin = request.headers.get('origin') || new URL(request.url).origin;
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || origin;
-    const url = `${baseUrl.replace(/\/$/, '')}/invite/${invite.token}`;
+    const url = `${baseUrl.replace(/\/$/, '')}/auth/invite/${invite.token}`;
 
     return Response.json({
       invite: {

@@ -77,7 +77,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
       language: locale,
     }, origin);
 
-    const verificationUrl = `${baseUrl.replace(/\/$/, '')}/invite/${invite.token}/verify?code=${verificationToken}`;
+    const verificationUrl = `${baseUrl.replace(/\/$/, '')}/auth/invite/${invite.token}/verify?code=${verificationToken}`;
 
     try {
       const gmailService = await GmailService.init();
