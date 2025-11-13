@@ -76,26 +76,29 @@ const routePaths: Record<AppRoute, string> = {
 
 /**
  * Get the base URL for the application
+ *
+ * @throws Error if NEXT_PUBLIC_APP_URL is not set
  */
-export function getBaseUrl(origin?: string): string {
-  if (process.env.NEXT_PUBLIC_APP_URL) {
-    return process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, '');
+export function getBaseUrl(): string {
+  const url = process.env.NEXT_PUBLIC_APP_URL;
+
+  if (!url || !url.trim()) {
+    throw new Error(
+      'NEXT_PUBLIC_APP_URL environment variable is required but not set. ' +
+      'This must be configured in your .env file and deployment environment.'
+    );
   }
-  if (origin) {
-    return origin.replace(/\/$/, '');
-  }
-  if (typeof window !== 'undefined') {
-    return window.location.origin;
-  }
-  return 'http://localhost:3000';
+
+  return url.replace(/\/$/, '');
 }
 
 /**
  * Generate a URL for a specific route
  *
+ * Uses NEXT_PUBLIC_APP_URL environment variable as the base URL.
+ *
  * @param route - The route enum value
  * @param params - Parameters to substitute in the path template
- * @param baseUrl - Optional base URL (uses NEXT_PUBLIC_APP_URL by default)
  * @param queryParams - Optional query parameters to append
  *
  * @example
@@ -117,7 +120,6 @@ export function getBaseUrl(origin?: string): string {
  * // Route with query parameters
  * getUrl(AppRoute.AUTH_INVITE_VERIFY,
  *   { token: 'abc123' },
- *   undefined,
  *   { code: 'xyz789', locale: 'he' }
  * )
  * // => "https://app.example.com/auth/invite/abc123/verify?code=xyz789&locale=he"
@@ -125,10 +127,9 @@ export function getBaseUrl(origin?: string): string {
 export function getUrl(
   route: AppRoute,
   params?: UrlParams,
-  baseUrl?: string,
   queryParams?: Record<string, string | undefined>
 ): string {
-  const base = baseUrl ? baseUrl.replace(/\/$/, '') : getBaseUrl();
+  const base = getBaseUrl();
   let path = routePaths[route];
 
   // Substitute path parameters
