@@ -80,7 +80,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
     const verificationUrl = getUrl(
       AppRoute.AUTH_INVITE_VERIFY,
       { token: invite.token },
-      undefined,
       { code: verificationToken }
     );
 

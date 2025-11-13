@@ -37,7 +37,6 @@ export async function POST(request: NextRequest) {
     const verificationUrl = getUrl(
       AppRoute.AUTH_SIGNUP_VERIFY,
       undefined,
-      undefined,
       { token: verificationToken }
     );
 
