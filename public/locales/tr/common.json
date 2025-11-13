@@ -189,6 +189,8 @@
   "viewBlog": "Blogu Görüntüle",
   "noMembersFound": "Üye bulunamadı.",
   "deleteMemberQuestion": "Üye silinsin mi?",
+  "hardDelete": "Kalıcı Silme",
+  "hardDeleteUserQuestion": "Kullanıcı kalıcı olarak silinsin mi?",
   "cancel": "İptal",
   "hebrewCalendar": "İbranice takvim",
   "hebrewDate": "İbranice tarih",

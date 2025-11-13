@@ -19,7 +19,7 @@ function addLocaleHeader(response: NextResponse, request: NextRequest): NextResp
 // Paths that should get locale prefixes (e.g., / -> /en, /blog -> /en/blog)
 const LOCALIZED_PUBLIC_PATHS = [
   '/',
-  '/login',
+  '/auth/login',
   '/contact',
   '/blog',
   '/terms',
@@ -28,21 +28,21 @@ const LOCALIZED_PUBLIC_PATHS = [
 // All public paths (accessible without auth)
 const PUBLIC_PATHS = [
   '/',
-  '/login',
+  '/auth/login',
   '/contact',
   '/favicon.ico',
   '/_next',
   '/locales',
-  '/auth-gate',
+  '/auth/gate',
+  '/auth',
   '/app',
   '/blog',
-  '/invite',
   '/sitemap.xml',
   '/robots.txt',
   '/terms',
 ];
 
-const PUBLIC_REDIRECT_PATHS = ['/login'];
+const PUBLIC_REDIRECT_PATHS = ['/auth/login'];
 
 function stripLocale(pathname: string) {
   const match = pathname.match(/^\/(\w{2})(\/.*)?$/);
@@ -95,13 +95,13 @@ export async function proxy(request: NextRequest) {
     if (isApi) {
       return NextResponse.json({ error: 'Unauthorized (middleware)' }, { status: 401 });
     }
-    return NextResponse.rewrite(new URL('/auth-gate', request.url));
+    return NextResponse.rewrite(new URL('/auth/gate', request.url));
   }
 
   try {
     const claims = await verifyAccessToken(token);
     const needsCredentialSetup = Boolean((claims as any)?.needsCredentialSetup);
-    const isCredentialPage = pathname === '/welcome/credentials' || pathname.startsWith('/welcome/credentials/');
+    const isCredentialPage = pathname === '/auth/welcome/credentials' || pathname.startsWith('/auth/welcome/credentials/');
     const isCredentialApi = pathname.startsWith('/api/auth/credentials');
     const isLogoutApi = pathname === '/api/auth/logout';
 
@@ -117,13 +117,13 @@ export async function proxy(request: NextRequest) {
         return NextResponse.json({ error: 'Credentials setup required' }, { status: 403 });
       }
 
-      if (!isCredentialPage && !pathname.startsWith('/invite')) {
-        return NextResponse.redirect(new URL('/welcome/credentials', request.url));
+      if (!isCredentialPage && !pathname.startsWith('/auth/invite')) {
+        return NextResponse.redirect(new URL('/auth/welcome/credentials', request.url));
       }
     }
 
     if (PUBLIC_REDIRECT_PATHS.includes(normalizedPath)) {
-      const target = needsCredentialSetup ? '/welcome/credentials' : '/app';
+      const target = needsCredentialSetup ? '/auth/welcome/credentials' : '/app';
       return NextResponse.redirect(new URL(target, request.url));
     }
 
@@ -156,7 +156,7 @@ export async function proxy(request: NextRequest) {
     }
 
     const url = request.nextUrl.clone();
-    url.pathname = '/auth-gate';
+    url.pathname = '/auth/gate';
 
     const headers = new Headers(request.headers);
     headers.set('x-auth-gate', '1');

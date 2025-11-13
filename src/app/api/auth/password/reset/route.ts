@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
       let actionSettings: ActionCodeSettings | undefined;
       if (continueBase) {
         const url = new URL(continueBase);
-        url.pathname = '/login';
+        url.pathname = '/auth/login';
         actionSettings = {
           url: url.toString(),
           handleCodeInApp: true,

@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { FamilyRepository } from '../../../../repositories/FamilyRepository';
 import { GmailService } from '../../../../services/GmailService';
+import { getUrl, AppRoute } from '@/utils/urls';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { firstName, email, siteId } = body;
+    const { firstName, email, siteId, language } = body;
 
     if (!firstName || !email || !siteId) {
       return NextResponse.json(
@@ -13,6 +14,8 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    const locale = language || 'en';
 
     // Create a verification token
     const verificationToken = crypto.randomUUID();
@@ -31,11 +34,16 @@ export async function POST(request: NextRequest) {
     }, origin);
 
     // Send verification email
-    const verificationUrl = `${process.env.NEXT_PUBLIC_APP_URL || origin}/signup/verify?token=${verificationToken}`;
-    
+    const verificationUrl = getUrl(
+      AppRoute.AUTH_SIGNUP_VERIFY,
+      undefined,
+      undefined,
+      { token: verificationToken }
+    );
+
     try {
       const gmailService = await GmailService.init();
-      await gmailService.sendVerificationEmail(email, firstName, verificationUrl);
+      await gmailService.sendVerificationEmail(email, firstName, verificationUrl, locale);
       
       // Update the document to mark email as verified
       const emailKey = email.toLowerCase().trim();

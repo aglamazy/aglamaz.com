@@ -199,6 +199,8 @@
   "viewBlog": "View Blog",
   "noMembersFound": "No members found.",
   "deleteMemberQuestion": "Delete Member?",
+  "hardDelete": "Hard Delete",
+  "hardDeleteUserQuestion": "Permanently Delete User?",
   "cancel": "Cancel",
   "hebrewCalendar": "Hebrew calendar",
   "hebrewDate": "Hebrew date",

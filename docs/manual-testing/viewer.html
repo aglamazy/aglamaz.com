@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manual Testing Viewer</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: #24292e;
+            background: #f6f8fa;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            background: white;
+            min-height: 100vh;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            border-bottom: 2px solid #e1e4e8;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        .metadata {
+            background: #f6f8fa;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            color: #6a737d;
+        }
+        .metadata strong {
+            color: #24292e;
+        }
+        .test-selector {
+            margin-bottom: 20px;
+        }
+        .test-selector select {
+            width: 100%;
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #d1d5da;
+            border-radius: 6px;
+            background: white;
+        }
+        .actions {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .btn {
+            padding: 8px 16px;
+            border: 1px solid #d1d5da;
+            border-radius: 6px;
+            background: white;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+        .btn:hover {
+            background: #f6f8fa;
+        }
+        .btn-primary {
+            background: #2ea44f;
+            color: white;
+            border-color: #2ea44f;
+        }
+        .btn-primary:hover {
+            background: #2c974b;
+        }
+        .content {
+            padding: 20px 0;
+        }
+        h1 {
+            font-size: 32px;
+            border-bottom: 1px solid #e1e4e8;
+            padding-bottom: 10px;
+            margin-top: 24px;
+        }
+        h2 {
+            font-size: 24px;
+            margin-top: 32px;
+            margin-bottom: 16px;
+            border-bottom: 1px solid #e1e4e8;
+            padding-bottom: 8px;
+        }
+        h3 {
+            font-size: 20px;
+            margin-top: 24px;
+            margin-bottom: 16px;
+        }
+        ul {
+            padding-left: 30px;
+        }
+        li {
+            margin: 8px 0;
+        }
+        /* Checkbox styling - make sure they're clickable */
+        input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            margin-right: 8px;
+            cursor: pointer;
+            vertical-align: middle;
+            pointer-events: auto !important;
+        }
+        .task-list-item {
+            list-style: none;
+            margin-left: -30px;
+        }
+        .task-list-item input[type="checkbox"] {
+            margin-right: 12px;
+        }
+        code {
+            background: #f6f8fa;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 85%;
+            font-family: 'Courier New', monospace;
+        }
+        pre {
+            background: #f6f8fa;
+            padding: 16px;
+            border-radius: 6px;
+            overflow-x: auto;
+        }
+        pre code {
+            background: none;
+            padding: 0;
+        }
+        blockquote {
+            border-left: 4px solid #d1d5da;
+            padding-left: 16px;
+            margin-left: 0;
+            color: #6a737d;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 30px;
+            background: #e1e4e8;
+            border-radius: 6px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+        .progress-fill {
+            height: 100%;
+            background: #2ea44f;
+            transition: width 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .stats {
+            display: flex;
+            gap: 20px;
+            margin: 20px 0;
+            padding: 15px;
+            background: #f6f8fa;
+            border-radius: 6px;
+        }
+        .stat {
+            flex: 1;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2ea44f;
+        }
+        .stat-label {
+            font-size: 12px;
+            color: #6a737d;
+            text-transform: uppercase;
+        }
+        hr {
+            border: none;
+            border-top: 1px solid #e1e4e8;
+            margin: 32px 0;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 16px 0;
+        }
+        th, td {
+            border: 1px solid #d1d5da;
+            padding: 8px 12px;
+            text-align: left;
+        }
+        th {
+            background: #f6f8fa;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 style="border: none; margin: 0;">📋 Manual Testing Viewer</h1>
+        </div>
+
+        <div class="metadata" id="metadata" style="display: none;">
+            <strong>Date:</strong> <span id="testDate"></span> |
+            <strong>Version:</strong> <span id="testVersion"></span> |
+            <strong>Test:</strong> <span id="testName"></span>
+        </div>
+
+        <div class="test-selector">
+            <select id="testSelect">
+                <option value="">-- Select a test --</option>
+                <option value="01-onboarding.md">Test 01: User Onboarding Flow</option>
+                <option value="02-blog-creation.md">Test 02: Blog Creation and First Post</option>
+            </select>
+        </div>
+
+        <div class="actions">
+            <button class="btn btn-primary" onclick="saveProgressJSON()">💾 Save to JSON</button>
+            <button class="btn" onclick="downloadMarkdown()">⬇️ Download MD</button>
+            <button class="btn" onclick="loadFromJSON()">📂 Load from JSON</button>
+            <button class="btn" onclick="resetTest()">🔄 Reset Test</button>
+        </div>
+
+        <div class="stats" id="stats" style="display: none;">
+            <div class="stat">
+                <div class="stat-value" id="totalSteps">0</div>
+                <div class="stat-label">Total Steps</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="completedSteps">0</div>
+                <div class="stat-label">Completed</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="remainingSteps">0</div>
+                <div class="stat-label">Remaining</div>
+            </div>
+        </div>
+
+        <div class="progress-bar" id="progressBar" style="display: none;">
+            <div class="progress-fill" id="progressFill">0%</div>
+        </div>
+
+        <div class="content" id="content">
+            <p style="color: #6a737d; text-align: center; padding: 40px;">
+                Select a test from the dropdown above to begin.
+            </p>
+        </div>
+    </div>
+
+    <script>
+        let currentTest = '';
+        let currentMarkdown = '';
+        let testMetadata = {
+            date: '',
+            version: '',
+            testName: ''
+        };
+
+        // Get version from package.json (you'll need to update this manually or fetch it)
+        const APP_VERSION = '0.5.0';
+
+        document.getElementById('testSelect').addEventListener('change', function(e) {
+            loadTest(e.target.value);
+        });
+
+        async function loadTest(filename) {
+            if (!filename) return;
+
+            currentTest = filename;
+
+            try {
+                const response = await fetch(filename);
+                currentMarkdown = await response.text();
+
+                // Initialize metadata
+                testMetadata.date = new Date().toISOString().split('T')[0];
+                testMetadata.version = APP_VERSION;
+                testMetadata.testName = filename.replace('.md', '');
+
+                // Try to load saved progress from localStorage first
+                const savedProgress = localStorage.getItem(`test-progress-${filename}`);
+                if (savedProgress) {
+                    try {
+                        const data = JSON.parse(savedProgress);
+                        currentMarkdown = data.markdown;
+                        testMetadata = data.metadata;
+                    } catch (e) {
+                        console.warn('Failed to parse saved progress, using fresh test:', e);
+                        localStorage.removeItem(`test-progress-${filename}`);
+                    }
+                }
+
+                // Auto-fill the date and version in the markdown (after loading from storage)
+                currentMarkdown = currentMarkdown.replace(
+                    /Test Date:\s*_+/,
+                    `Test Date: ${testMetadata.date}`
+                );
+                currentMarkdown = currentMarkdown.replace(
+                    /Version:\s*_+/,
+                    `Version: ${testMetadata.version}`
+                );
+
+                updateMetadataDisplay();
+                renderMarkdown();
+                updateStats();
+                document.getElementById('stats').style.display = 'flex';
+                document.getElementById('progressBar').style.display = 'block';
+                document.getElementById('metadata').style.display = 'block';
+            } catch (error) {
+                document.getElementById('content').innerHTML =
+                    `<p style="color: red;">Error loading test: ${error.message}</p>`;
+            }
+        }
+
+        function updateMetadataDisplay() {
+            document.getElementById('testDate').textContent = testMetadata.date;
+            document.getElementById('testVersion').textContent = testMetadata.version;
+            document.getElementById('testName').textContent = testMetadata.testName;
+        }
+
+        function renderMarkdown() {
+            // Configure marked to create checkboxes properly
+            marked.setOptions({
+                breaks: true,
+                gfm: true
+            });
+
+            const html = marked.parse(currentMarkdown);
+            const content = document.getElementById('content');
+            content.innerHTML = html;
+
+            // Make checkboxes interactive and clickable
+            const checkboxes = content.querySelectorAll('input[type="checkbox"]');
+            checkboxes.forEach((checkbox, index) => {
+                checkbox.id = `checkbox-${index}`;
+                checkbox.disabled = false; // Ensure not disabled
+
+                // Remove any existing event listeners by cloning
+                const newCheckbox = checkbox.cloneNode(true);
+                checkbox.parentNode.replaceChild(newCheckbox, checkbox);
+
+                newCheckbox.addEventListener('change', function(e) {
+                    e.stopPropagation();
+                    updateMarkdown(index, this.checked);
+                    updateStats();
+                    autoSaveToLocalStorage();
+                });
+
+                // Also handle click to ensure it works
+                newCheckbox.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                });
+            });
+        }
+
+        function updateMarkdown(checkboxIndex, checked) {
+            const lines = currentMarkdown.split('\n');
+            let checkboxCount = -1;
+
+            for (let i = 0; i < lines.length; i++) {
+                if (lines[i].match(/^(\s*)-\s+\[([ x])\]/)) {
+                    checkboxCount++;
+                    if (checkboxCount === checkboxIndex) {
+                        lines[i] = lines[i].replace(/\[([ x])\]/, checked ? '[x]' : '[ ]');
+                        break;
+                    }
+                }
+            }
+
+            currentMarkdown = lines.join('\n');
+        }
+
+        function updateStats() {
+            const checkboxes = document.querySelectorAll('#content input[type="checkbox"]');
+            const total = checkboxes.length;
+            const completed = Array.from(checkboxes).filter(cb => cb.checked).length;
+            const remaining = total - completed;
+            const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+            document.getElementById('totalSteps').textContent = total;
+            document.getElementById('completedSteps').textContent = completed;
+            document.getElementById('remainingSteps').textContent = remaining;
+
+            const progressFill = document.getElementById('progressFill');
+            progressFill.style.width = percentage + '%';
+            progressFill.textContent = percentage + '%';
+        }
+
+        function autoSaveToLocalStorage() {
+            if (!currentTest) return;
+
+            const data = {
+                markdown: currentMarkdown,
+                metadata: testMetadata
+            };
+
+            localStorage.setItem(`test-progress-${currentTest}`, JSON.stringify(data));
+        }
+
+        function saveProgressJSON() {
+            if (!currentTest) {
+                alert('No test loaded');
+                return;
+            }
+
+            const checkboxes = document.querySelectorAll('#content input[type="checkbox"]');
+            const checkboxStates = Array.from(checkboxes).map(cb => cb.checked);
+
+            const data = {
+                metadata: {
+                    ...testMetadata,
+                    savedAt: new Date().toISOString()
+                },
+                test: currentTest,
+                markdown: currentMarkdown,
+                checkboxStates: checkboxStates,
+                stats: {
+                    total: checkboxes.length,
+                    completed: checkboxStates.filter(s => s).length,
+                    percentage: Math.round((checkboxStates.filter(s => s).length / checkboxes.length) * 100)
+                }
+            };
+
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            const filename = `results/${testMetadata.testName}-${testMetadata.date}.json`;
+            a.download = filename;
+            a.click();
+            URL.revokeObjectURL(url);
+
+            alert(`✅ Progress saved to: ${filename}\n\nSave this file to docs/manual-testing/results/`);
+        }
+
+        function loadFromJSON() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.onchange = e => {
+                const file = e.target.files[0];
+                const reader = new FileReader();
+                reader.onload = event => {
+                    try {
+                        const data = JSON.parse(event.target.result);
+                        currentTest = data.test;
+                        currentMarkdown = data.markdown;
+                        testMetadata = data.metadata;
+
+                        document.getElementById('testSelect').value = currentTest;
+                        updateMetadataDisplay();
+                        renderMarkdown();
+                        updateStats();
+                        document.getElementById('stats').style.display = 'flex';
+                        document.getElementById('progressBar').style.display = 'block';
+                        document.getElementById('metadata').style.display = 'block';
+
+                        alert('✅ Test progress loaded successfully!');
+                    } catch (error) {
+                        alert('❌ Error loading JSON: ' + error.message);
+                    }
+                };
+                reader.readAsText(file);
+            };
+            input.click();
+        }
+
+        function downloadMarkdown() {
+            if (!currentTest) {
+                alert('No test loaded');
+                return;
+            }
+
+            // Update date/version in markdown
+            let updatedMarkdown = currentMarkdown;
+            updatedMarkdown = updatedMarkdown.replace(
+                /\*\*Test Date\*\*: _+/,
+                `**Test Date**: ${testMetadata.date}`
+            );
+            updatedMarkdown = updatedMarkdown.replace(
+                /\*\*Version\*\*: _+/,
+                `**Version**: ${testMetadata.version}`
+            );
+
+            const blob = new Blob([updatedMarkdown], { type: 'text/markdown' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = currentTest;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function resetTest() {
+            if (!currentTest) {
+                alert('No test loaded');
+                return;
+            }
+
+            if (!confirm('Are you sure you want to reset all checkboxes? This will clear saved progress.')) {
+                return;
+            }
+
+            localStorage.removeItem(`test-progress-${currentTest}`);
+            loadTest(currentTest);
+        }
+    </script>
+</body>
+</html>

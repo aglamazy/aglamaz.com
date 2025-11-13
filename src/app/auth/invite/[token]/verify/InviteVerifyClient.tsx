@@ -53,7 +53,7 @@ export default function InviteVerifyClient({ token }: InviteVerifyClientProps) {
     }
 
     setStatus('success');
-    await router.replace(needsCredentialSetup ? '/welcome/credentials' : '/app');
+    await router.replace(needsCredentialSetup ? '/auth/welcome/credentials' : '/app');
   }, [fetchMember, router, setUser]);
 
   useEffect(() => {
@@ -66,6 +66,7 @@ export default function InviteVerifyClient({ token }: InviteVerifyClientProps) {
     let active = true;
     (async () => {
       try {
+        // eslint-disable-next-line no-restricted-globals
         const res = await fetch('/api/invite/verify', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

@@ -5,15 +5,14 @@ import type { IMember } from '@/entities/Member';
 import type { ISite } from '@/entities/Site';
 import { fetchSiteInfo } from '@/firebase/admin';
 import { getPlatformName } from '@/utils/platformName';
+import { getUrl, AppRoute } from '@/utils/urls';
 
 export class UserNotificationService {
   private renderTemplate(template: string, data: any) {
     const templateDir = path.join(process.cwd(), 'src', 'templates', 'user-notification');
     const file = path.join(templateDir, `${template}.pug`);
-    const siteUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.SITE_URL || 'http://localhost:3000';
-    const base = siteUrl.replace(/\/+$/, '');
-    const appUrl = `${base}/app`;
-    return pug.renderFile(file, { ...data, siteUrl, appUrl });
+    const appUrl = getUrl(AppRoute.APP_DASHBOARD);
+    return pug.renderFile(file, { ...data, appUrl });
   }
 
   async sendWelcomeEmail(member: Pick<IMember, 'firstName' | 'email' | 'siteId'> & { locale?: string }) {

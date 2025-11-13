@@ -3,9 +3,9 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2, CheckCircle, XCircle } from 'lucide-react';
-import { initFirebase, auth, googleProvider } from '../../../firebase/client';
+import { initFirebase, auth, googleProvider } from '@/firebase/client';
 import { signInWithPopup, getIdToken } from 'firebase/auth';
-import { useUserStore } from '../../../store/UserStore';
+import { useUserStore } from '@/store/UserStore';
 import { apiFetch } from '@/utils/apiFetch';
 import { landingPage } from "@/app/settings";
 

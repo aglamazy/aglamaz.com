@@ -112,6 +112,10 @@ export default function SiteMembersPage() {
   const [deleteTarget, setDeleteTarget] = useState<IMember | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
+  const [hardDeleteConfirmOpen, setHardDeleteConfirmOpen] = useState(false);
+  const [hardDeleteTarget, setHardDeleteTarget] = useState<IMember | null>(null);
+  const [hardDeleting, setHardDeleting] = useState(false);
+  const [hardDeleteError, setHardDeleteError] = useState('');
 
   useEffect(() => {
     if (!site?.id) return;
@@ -181,6 +185,29 @@ export default function SiteMembersPage() {
       // Rethrow is not necessary for UI but keeping local error visible
     } finally {
       setDeleting(false);
+    }
+  };
+
+  const openHardDeleteConfirm = (member: IMember) => {
+    setHardDeleteError('');
+    setHardDeleteTarget(member);
+    setHardDeleteConfirmOpen(true);
+  };
+
+  const handleHardDelete = async () => {
+    if (!hardDeleteTarget) return;
+    setHardDeleting(true);
+    setHardDeleteError('');
+    try {
+      await apiFetch(`/api/admin/users/${hardDeleteTarget.uid}/hard-delete`, { method: 'DELETE' });
+      setMembers((prev) => prev.filter(m => m.id !== hardDeleteTarget.id));
+      setHardDeleteConfirmOpen(false);
+      setHardDeleteTarget(null);
+    } catch (e: any) {
+      console.error(e);
+      setHardDeleteError(e?.message || 'Failed to hard delete user');
+    } finally {
+      setHardDeleting(false);
     }
   };
 
@@ -282,13 +309,22 @@ export default function SiteMembersPage() {
                         )}
                       </td>
                       <td className="px-4 py-2 text-right">
-                        <Button
-                          className="bg-red-500 hover:bg-red-600"
-                          disabled={savingId === member.id}
-                          onClick={() => openConfirmDelete(member)}
-                        >
-                          {t('delete') as string}
-                        </Button>
+                        <div className="flex gap-2 justify-end">
+                          <Button
+                            className="bg-red-500 hover:bg-red-600"
+                            disabled={savingId === member.id}
+                            onClick={() => openConfirmDelete(member)}
+                          >
+                            {t('delete') as string}
+                          </Button>
+                          <Button
+                            className="bg-red-700 hover:bg-red-800"
+                            disabled={savingId === member.id}
+                            onClick={() => openHardDeleteConfirm(member)}
+                          >
+                            {t('hardDelete')}
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -316,6 +352,23 @@ export default function SiteMembersPage() {
                 setConfirmOpen(false);
                 setDeleteTarget(null);
                 setDeleteError('');
+              }}
+            />
+            <ConfirmDialog
+              isOpen={hardDeleteConfirmOpen}
+              title={t('hardDeleteUserQuestion')}
+              message={hardDeleteTarget ? `${hardDeleteTarget.displayName || ''} (${hardDeleteTarget.email || ''})` : ''}
+              confirmLabel={t('hardDelete')}
+              cancelLabel={t('cancel')}
+              destructive
+              loading={hardDeleting}
+              error={hardDeleteError}
+              onConfirm={handleHardDelete}
+              onCancel={() => {
+                if (hardDeleting) return;
+                setHardDeleteConfirmOpen(false);
+                setHardDeleteTarget(null);
+                setHardDeleteError('');
               }}
             />
           </CardContent>
