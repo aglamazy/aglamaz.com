@@ -3,6 +3,7 @@ import { initAdmin, adminAuth } from '@/firebase/admin';
 import { FamilyRepository } from '@/repositories/FamilyRepository';
 import { GmailService } from '@/services/GmailService';
 import { randomUUID } from 'crypto';
+import { getUrl, AppRoute } from '@/utils/urls';
 
 export const dynamic = 'force-dynamic';
 
@@ -55,7 +56,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
 
     const firstName = name.trim();
     const origin = new URL(request.url).origin;
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || origin;
     const verificationToken = randomUUID();
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
@@ -77,7 +77,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
       language: locale,
     }, origin);
 
-    const verificationUrl = `${baseUrl.replace(/\/$/, '')}/auth/invite/${invite.token}/verify?code=${verificationToken}`;
+    const verificationUrl = getUrl(
+      AppRoute.AUTH_INVITE_VERIFY,
+      { token: invite.token },
+      undefined,
+      { code: verificationToken }
+    );
 
     try {
       const gmailService = await GmailService.init();

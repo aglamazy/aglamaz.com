@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { FamilyRepository } from '../../../../repositories/FamilyRepository';
 import { GmailService } from '../../../../services/GmailService';
+import { getUrl, AppRoute } from '@/utils/urls';
 
 export async function POST(request: NextRequest) {
   try {
@@ -33,7 +34,12 @@ export async function POST(request: NextRequest) {
     }, origin);
 
     // Send verification email
-    const verificationUrl = `${process.env.NEXT_PUBLIC_APP_URL || origin}/auth/signup/verify?token=${verificationToken}`;
+    const verificationUrl = getUrl(
+      AppRoute.AUTH_SIGNUP_VERIFY,
+      undefined,
+      undefined,
+      { token: verificationToken }
+    );
 
     try {
       const gmailService = await GmailService.init();
