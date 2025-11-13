@@ -1,6 +1,6 @@
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import I18nProvider from '@/components/I18nProvider';
-import { resolveLocaleForPublicRoutes } from '@/utils/resolveLocale';
+import { resolveLocaleForPrivateRoutes } from '@/utils/resolveLocale';
 import { fetchSiteInfo } from '@/firebase/admin';
 import { resolveSiteId } from '@/utils/resolveSiteId';
 
@@ -9,8 +9,8 @@ interface AuthLayoutProps {
 }
 
 export default async function AuthLayout({ children }: AuthLayoutProps) {
-  // Resolve locale for auth pages (public-like, no member preference)
-  const { baseLocale, resolvedLocale } = await resolveLocaleForPublicRoutes();
+  // Resolve locale for auth pages (no member preference, uses Accept-Language + query param)
+  const { baseLocale, resolvedLocale } = await resolveLocaleForPrivateRoutes();
 
   // Fetch site info with resolved locale
   const siteId = await resolveSiteId();
