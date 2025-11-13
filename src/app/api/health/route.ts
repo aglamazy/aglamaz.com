@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { GmailService } from '@/services/GmailService';
 import { TranslationService } from '@/services/TranslationService';
 import { FirebaseService } from '@/services/FirebaseService';
+import { getVersion } from '@/utils/version';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,6 +23,7 @@ export async function GET() {
     const allServicesHealthy = firebase.healthy && gmail.healthy && translation.healthy;
 
     const response = {
+      version: getVersion(),
       firebase: {
         healthy: firebase.healthy,
         status: firebase.status,

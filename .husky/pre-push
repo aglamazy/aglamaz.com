@@ -1,0 +1,3 @@
+node scripts/increment-version.js
+git add package.json
+git commit --amend --no-verify --no-edit
