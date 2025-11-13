@@ -4,6 +4,35 @@ export default [
   {
     ignores: ["node_modules/**", ".next/**", "out/**", "build/**", "dist/**", ".turbo/**"]
   },
+  // Enforce app structure - only allow pages in specific sections
+  {
+    files: ["src/app/**/*.{js,jsx,ts,tsx}"],
+    ignores: [
+      "src/app/\\[locale\\]/**",
+      "src/app/app/**",
+      "src/app/admin/**",
+      "src/app/auth/**",
+      "src/app/api/**",
+      "src/app/layout.*",
+      "src/app/error.*",
+      "src/app/not-found.*",
+      "src/app/loading.*",
+      "src/app/template.*",
+      "src/app/settings.*",
+      "src/app/robots.txt/**",
+      "src/app/sitemap.xml/**",
+      "src/app/public/**"
+    ],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "Program",
+          message: "Pages must be organized under one of the main sections: /[locale] (public), /app (private), /admin (admin), or /auth (authentication). Create pages in the appropriate section instead of at the app root."
+        }
+      ]
+    }
+  },
   {
     files: ["src/**/*.{js,jsx,ts,tsx}"],
     languageOptions: {
