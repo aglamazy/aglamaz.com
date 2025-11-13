@@ -145,3 +145,87 @@ According to README.md, before a member can write blog posts, they must register
     - Faster document reads/writes
     - No document size limits
     - CDN delivery for images
+
+# Hard Delete User Feature
+
+## Current Implementation
+- ✅ Admin API endpoint: `DELETE /api/admin/users/[userId]/hard-delete`
+  - Deletes Firebase Auth user
+  - Deletes member document via MemberRepository
+  - Prevents self-deletion
+  - Returns summary of deleted resources
+- ✅ Admin UI in site-members page
+  - "Hard Delete" button next to regular delete
+  - ConfirmDialog with destructive styling
+  - Proper error handling and loading states
+- ✅ Translation keys added (he/en/tr)
+
+## Future Enhancements (GDPR Compliance)
+When a user requests full data deletion (GDPR "right to be forgotten"):
+
+### Content Cleanup Tasks
+- [ ] **Blog Posts**: Delete all blog posts authored by the user
+  - Query: `posts` collection where `authorId === userId`
+  - Delete post documents and any associated media
+- [ ] **Blessings**: Delete all blessing messages posted by the user
+  - Query: `blessings` collection where `authorId === userId`
+  - Consider: Keep anonymous or replace with "[deleted user]"?
+- [ ] **Photos**: Delete photos uploaded by the user
+  - Query: `photos` collection where `uploadedBy === userId`
+  - Delete from Firebase Storage as well
+- [ ] **Comments**: Handle comments/reactions by the user
+  - Either delete or anonymize
+- [ ] **Likes/Reactions**: Remove user's likes on posts/blessings
+  - Update like counts on affected documents
+
+### Two-Step Delete Pattern (Recommended for Production)
+Instead of immediate hard delete, consider a two-step process:
+
+1. **Soft Delete** (Current "Delete" button):
+   - Set `member.status = 'deleted'`
+   - Set `member.deletedAt = timestamp`
+   - User cannot log in (middleware rejects)
+   - Member still visible to admins (for audit)
+
+2. **Hard Delete** (After grace period):
+   - Run after 30-90 days
+   - Actually delete Firebase Auth + all content
+   - Can be scheduled job or manual admin action
+   - Gives time to recover from mistakes
+
+### Implementation Notes
+- Current implementation is **minimum viable** for testing onboarding flows
+- For GDPR compliance, will need content cleanup + grace period
+- Consider creating a `DeletionService` to orchestrate all cleanup
+- Log all deletions for audit trail
+- Consider data export before deletion (GDPR requirement)
+
+# Automatic Versioning System
+
+## Implementation
+- ✅ Version utility: `src/utils/version.ts`
+  - Reads version from `package.json` using `@/../package.json` alias
+  - Provides `getVersion()` function for consistent access
+- ✅ Health API endpoint: `/api/health`
+  - Includes `version` field in response
+  - Useful for monitoring and debugging
+- ✅ Footer component
+  - Displays version in copyright line: `© 2025 SiteName. v1.0.0. All rights reserved.`
+- ✅ Auto-increment on push
+  - Script: `scripts/increment-version.js` increments patch version
+  - Husky hook: `.husky/pre-push` runs script and amends commit
+  - Version bumps automatically on every `git push`
+
+## How It Works
+1. Developer commits changes normally
+2. On `git push`, pre-push hook triggers
+3. Script reads `package.json`, increments patch version (1.0.0 → 1.0.1)
+4. Updated `package.json` is staged and committed via `--amend`
+5. Push continues with updated version
+
+## Version Format
+- Using semantic versioning: `MAJOR.MINOR.PATCH`
+- Currently auto-incrementing PATCH on every push
+- Manual version bumps:
+  - Minor: `npm version minor` (1.0.5 → 1.1.0)
+  - Major: `npm version major` (1.1.0 → 2.0.0)
