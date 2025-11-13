@@ -2,6 +2,7 @@ import { GmailService } from './GmailService';
 import { notificationRepository, AdminNotification } from '../repositories/NotificationRepository';
 import { fetchSiteInfo, adminAuth } from '../firebase/admin';
 import { DEFAULT_LOCALE } from '@/i18n';
+import { getUrl, AppRoute } from '@/utils/urls';
 import path from 'path';
 import pug from 'pug';
 
@@ -58,12 +59,19 @@ export class AdminNotificationService {
   private renderTemplate(notification: AdminNotification) {
     const templateDir = path.join(process.cwd(), 'src', 'templates', 'admin-notifications');
     const file = path.join(templateDir, `${notification.eventType}.pug`);
-    const payloadUrl = (notification.payload as any)?.siteUrl;
-    const fallbackEnvUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.SITE_URL || 'http://localhost:3000';
-    const siteUrl = payloadUrl || fallbackEnvUrl;
-    const data = { ...notification.payload, siteUrl } as any;
+
+    // Generate URLs using the centralized utility
+    const urls = {
+      adminSiteMembers: getUrl(AppRoute.ADMIN_SITE_MEMBERS),
+      adminPendingMembers: getUrl(AppRoute.ADMIN_PENDING_MEMBERS),
+      adminDashboard: getUrl(AppRoute.ADMIN_DASHBOARD),
+    };
+
+    const data = { ...notification.payload, ...urls } as any;
     delete data.siteId;
     delete data.userId;
+    delete data.siteUrl; // Remove old siteUrl
+
     return pug.renderFile(file, data);
   }
 

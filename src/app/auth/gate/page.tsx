@@ -18,6 +18,7 @@ export default function AuthGate() {
 
     (async () => {
       try {
+        // eslint-disable-next-line no-restricted-globals
         const res = await fetch('/api/auth/refresh', {
           method: 'POST',
           credentials: 'include',

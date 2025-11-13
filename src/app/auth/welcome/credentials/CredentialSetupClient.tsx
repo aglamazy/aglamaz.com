@@ -66,6 +66,7 @@ export default function CredentialSetupClient() {
 
       await updatePassword(currentUser, password);
 
+      // eslint-disable-next-line no-restricted-globals
       const res = await fetch('/api/auth/credentials/password', {
         method: 'POST',
         credentials: 'include',
@@ -115,6 +116,7 @@ export default function CredentialSetupClient() {
         }
       }
 
+      // eslint-disable-next-line no-restricted-globals
       const res = await fetch('/api/auth/credentials/google', { method: 'POST', credentials: 'include' });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {

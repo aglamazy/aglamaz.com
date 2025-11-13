@@ -1,6 +1,7 @@
 import { withAdminGuard } from '@/lib/withAdminGuard';
 import { FamilyRepository } from '@/repositories/FamilyRepository';
 import type { GuardContext } from '@/app/api/types';
+import { getUrl, AppRoute } from '@/utils/urls';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,9 +24,7 @@ const handler = async (request: Request, context: GuardContext) => {
       name: inviterName,
     });
 
-    const origin = request.headers.get('origin') || new URL(request.url).origin;
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || origin;
-    const url = `${baseUrl.replace(/\/$/, '')}/invite/${invite.token}`;
+    const url = getUrl(AppRoute.AUTH_INVITE, { token: invite.token });
 
     return Response.json({
       invite: {

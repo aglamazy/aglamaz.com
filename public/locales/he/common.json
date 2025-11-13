@@ -198,6 +198,8 @@
   "viewBlog": "צפה בבלוג",
   "noMembersFound": "לא נמצאו חברים.",
   "deleteMemberQuestion": "למחוק את החבר?",
+  "hardDelete": "מחיקה מוחלטת",
+  "hardDeleteUserQuestion": "למחוק את המשתמש לצמיתות?",
   "cancel": "ביטול",
   "hebrewCalendar": "לוח שנה עברי",
   "hebrewDate": "תאריך עברי",

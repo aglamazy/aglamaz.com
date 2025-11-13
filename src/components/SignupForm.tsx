@@ -68,6 +68,7 @@ export default function SignupForm({
               firstName: firstName.trim(),
               email: email.trim(),
               siteId,
+              language: i18n.language,
             }),
           },
         );
