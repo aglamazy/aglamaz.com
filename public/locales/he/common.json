@@ -256,6 +256,8 @@
   "inviteVerificationFailedTitle": "לא הצלחנו לאשר את ההזמנה",
   "inviteVerificationFailed": "לא הצלחנו לאמת את ההזמנה. נסו לבקש קישור חדש.",
   "inviteAlreadyVerified": "ההזמנה כבר אושרה בעבר. ניתן לחזור לדשבורד או לבקש קישור חדש במידת הצורך.",
+  "redirectingToApp": "מעביר אתכם לאפליקציה...",
+  "goNow": "עבור עכשיו",
   "credentialSetupTitle": "בחירת אופן ההתחברות",
   "credentialSetupSubtitle": "בחרו באפשרות שמתאימה לכם כדי להיכנס למרחב המשפחתי בקלות.",
   "credentialSetupPasswordTitle": "יצירת סיסמה",

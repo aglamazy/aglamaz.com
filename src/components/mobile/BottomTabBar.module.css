@@ -10,6 +10,14 @@
   box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
 }
 
+@media (prefers-color-scheme: dark) {
+  .container {
+    background-color: var(--sage-900);
+    border-top: 1px solid var(--sage-700);
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.3);
+  }
+}
+
 .tabBar {
   display: flex;
   justify-content: space-around;
@@ -34,6 +42,12 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+@media (prefers-color-scheme: dark) {
+  .tab {
+    color: var(--sage-300);
+  }
+}
+
 .tab:active {
   transform: scale(0.95);
 }
@@ -42,8 +56,20 @@
   color: var(--sage-700);
 }
 
+@media (prefers-color-scheme: dark) {
+  .tab.active {
+    color: var(--sage-100);
+  }
+}
+
 .tab.active .iconWrapper {
   color: var(--sage-700);
+}
+
+@media (prefers-color-scheme: dark) {
+  .tab.active .iconWrapper {
+    color: var(--sage-100);
+  }
 }
 
 .iconWrapper {
@@ -90,4 +116,10 @@
 /* Apply active state ring to MemberAvatar when profile tab is active */
 .tab.active .iconWrapper > div {
   box-shadow: 0 0 0 2px var(--sage-600);
+}
+
+@media (prefers-color-scheme: dark) {
+  .tab.active .iconWrapper > div {
+    box-shadow: 0 0 0 2px var(--sage-100);
+  }
 }
