@@ -48,6 +48,44 @@
   --sage-800: #373F2F;
   --sage-900: #2C3E36;
   --charcoal: #2C3E36;
+
+  /* Semantic theme colors - light mode */
+  --theme-bg: #f3f4f6;
+  --theme-bg-secondary: #fff;
+  --theme-text: #1f2937;
+  --theme-text-secondary: #6b7280;
+  --theme-text-tertiary: #9ca3af;
+  --theme-border: rgba(17, 24, 39, 0.08);
+  --theme-border-strong: rgba(17, 24, 39, 0.2);
+  --theme-accent: var(--sage-600);
+
+  /* Card tint colors - light mode */
+  --tint-blue: #E6F2FF;
+  --tint-green: #E8F8EF;
+  --tint-yellow: #FFF6E2;
+  --tint-purple: #E6F2FF;
+  --tint-rose: #E8F8EF;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* Semantic theme colors - dark mode */
+    --theme-bg: #1a1f1d;
+    --theme-bg-secondary: var(--sage-800);
+    --theme-text: var(--sage-100);
+    --theme-text-secondary: var(--sage-300);
+    --theme-text-tertiary: var(--sage-400);
+    --theme-border: var(--sage-700);
+    --theme-border-strong: var(--sage-600);
+    --theme-accent: var(--sage-400);
+
+    /* Card tint colors - dark mode */
+    --tint-blue: linear-gradient(135deg, rgba(37, 99, 235, 0.15), rgba(59, 130, 246, 0.1));
+    --tint-green: linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(74, 222, 128, 0.1));
+    --tint-yellow: linear-gradient(135deg, rgba(234, 179, 8, 0.15), rgba(250, 204, 21, 0.1));
+    --tint-purple: linear-gradient(135deg, rgba(168, 85, 247, 0.15), rgba(192, 132, 252, 0.1));
+    --tint-rose: linear-gradient(135deg, rgba(244, 63, 94, 0.15), rgba(251, 113, 133, 0.1));
+  }
 }
 
 .bg-cream-50 { background-color: var(--cream-50); }

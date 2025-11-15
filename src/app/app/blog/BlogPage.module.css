@@ -4,27 +4,28 @@
   width: 100%;
   min-height: 100%;
   padding-bottom: 3.5rem;
+  background: var(--theme-bg);
 }
 
 .header {
-  padding: 1.1rem 1rem 0.7rem;
-  background: rgba(255, 255, 255, 0.92);
+  padding: 2rem 1.5rem;
+  background: var(--theme-accent);
   backdrop-filter: blur(10px);
-  border-bottom: 1px solid rgba(17, 24, 39, 0.08);
+  border-bottom: none;
 }
 
 .headerTitle {
   margin: 0;
-  font-size: 1.3rem;
+  font-size: 1.5rem;
   font-weight: 700;
-  color: #111827;
+  color: #fff;
   text-align: center;
 }
 
 .status {
   padding: 1rem;
   font-size: 0.95rem;
-  color: #6b7280;
+  color: var(--theme-text-secondary);
 }
 
 .statusError {
@@ -34,14 +35,16 @@
 .list {
   display: flex;
   flex-direction: column;
+  padding: 1rem;
 }
 
 .card {
   /* Desktop styles */
-  background: rgba(255, 255, 255, 0.94);
-  border-radius: 0;
-  box-shadow: 0 10px 25px rgba(17, 24, 39, 0.08);
-  border-bottom: 1px solid rgba(17, 24, 39, 0.06);
+  background: var(--theme-bg-secondary);
+  border-radius: 12px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.07);
+  border: none;
+  margin-bottom: 1rem;
 }
 
 /* Mobile responsive styles applied via Tailwind utilities in component */
@@ -51,7 +54,7 @@
 }
 
 .cardHeader {
-  border-bottom: 1px solid rgba(17, 24, 39, 0.08);
+  border-bottom: 1px solid var(--theme-border);
   padding: 0.75rem 1rem;
   background: transparent;
 }
@@ -59,7 +62,7 @@
 .cardTitle {
   font-size: 1rem;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--theme-text);
 }
 
 .cardContent {
@@ -70,27 +73,27 @@
   border-radius: 0 0 1rem 1rem;
   padding: 0.75rem 1rem;
   margin: 0;
-  background: var(--card-tint, linear-gradient(135deg, rgba(244, 244, 249, 0.85), rgba(232, 244, 255, 0.7)));
+  background: var(--card-tint);
 }
 
 .tintBlue {
-  --card-tint: linear-gradient(135deg, rgba(232, 244, 255, 0.95), rgba(204, 229, 255, 0.9));
+  --card-tint: var(--tint-blue);
 }
 
 .tintGreen {
-  --card-tint: linear-gradient(135deg, rgba(232, 255, 241, 0.95), rgba(204, 255, 227, 0.9));
+  --card-tint: var(--tint-green);
 }
 
 .tintYellow {
-  --card-tint: linear-gradient(135deg, rgba(255, 249, 235, 0.95), rgba(255, 240, 199, 0.9));
+  --card-tint: var(--tint-yellow);
 }
 
 .tintPurple {
-  --card-tint: linear-gradient(135deg, rgba(244, 237, 255, 0.95), rgba(224, 214, 255, 0.9));
+  --card-tint: var(--tint-purple);
 }
 
 .tintRose {
-  --card-tint: linear-gradient(135deg, rgba(255, 240, 245, 0.95), rgba(255, 220, 230, 0.9));
+  --card-tint: var(--tint-rose);
 }
 
 .editButton {
@@ -104,6 +107,6 @@
 .emptyState {
   text-align: center;
   padding: 2rem 1rem;
-  color: #9ca3af;
+  color: var(--theme-text-tertiary);
   font-size: 0.95rem;
 }
