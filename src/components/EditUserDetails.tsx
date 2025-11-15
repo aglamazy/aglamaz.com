@@ -101,7 +101,6 @@ export default function EditUserDetails({ standalone = false }: { standalone?: b
       .finally(() => {
         setProfileLoading(false);
       });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [effectiveIsOpen, member?.siteId, siteInfo?.id]);
 
   useEffect(() => {
@@ -114,17 +113,6 @@ export default function EditUserDetails({ standalone = false }: { standalone?: b
       URL.revokeObjectURL(avatarPreview);
     }
   }, [avatarPreview]);
-
-
-const parseApiError = async (response: Response) => {
-  const text = await response.text();
-  try {
-    const json = JSON.parse(text);
-    return json.error || text;
-  } catch {
-    return text || 'unknown_error';
-  }
-};
 
 async function resizeToWebp(file: File, maxWidth = 800, quality = 0.9): Promise<Blob> {
   const img = document.createElement('img');
@@ -151,16 +139,10 @@ async function resizeToWebp(file: File, maxWidth = 800, quality = 0.9): Promise<
 }
 
 const deleteAvatar = async (siteId: string): Promise<IMember> => {
-  const res = await fetch(`/api/user/profile/avatar?siteId=${siteId}`, {
+  const data = await apiFetch<{ member: IMember }>(`/api/user/profile/avatar?siteId=${siteId}`, {
     method: 'DELETE',
-    credentials: 'include',
   });
-  if (!res.ok) {
-    const code = await parseApiError(res);
-    throw new Error(code || 'delete_failed');
-  }
-  const data = await res.json();
-  return data.member as IMember;
+  return data.member;
 };
 
 const uploadAvatar = async (siteId: string): Promise<IMember> => {
@@ -186,18 +168,12 @@ const uploadAvatar = async (siteId: string): Promise<IMember> => {
   });
   const downloadUrl = await getDownloadURL(storageRef);
 
-  const res = await fetch(`/api/user/profile/avatar?siteId=${siteId}`, {
+  const data = await apiFetch<{ member: IMember }>(`/api/user/profile/avatar?siteId=${siteId}`, {
     method: 'POST',
-    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ avatarUrl: downloadUrl, avatarStoragePath: storagePath }),
   });
-  if (!res.ok) {
-    const code = await parseApiError(res);
-    throw new Error(code || 'upload_failed');
-  }
-  const data = await res.json();
-  return data.member as IMember;
+  return data.member;
 };
 
 const mapAvatarError = (code: string) => {
@@ -354,12 +330,12 @@ const mapAvatarError = (code: string) => {
 
   return (
     <div className="w-full max-w-md" dir={i18n.dir()} lang={i18n.language}>
-      <h2 className="text-xl font-semibold mb-4">{t('editProfile')}</h2>
+      <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">{t('editProfile')}</h2>
       {error && (
         <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">{error}</div>
       )}
       <div className="space-y-2 mb-6">
-        <span className="block text-sm font-medium text-sage-700">{t('avatar')}</span>
+        <span className="block text-sm font-medium text-gray-700 dark:text-gray-300">{t('avatar')}</span>
         <div className="flex items-center gap-4">
           {avatarPreview ? (
             <img src={avatarPreview} alt="" className="h-16 w-16 rounded-full object-cover" />
@@ -402,29 +378,29 @@ const mapAvatarError = (code: string) => {
       </div>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-sm mb-1" htmlFor="name">{t('name')}</label>
+          <label className="block text-sm mb-1 text-gray-700 dark:text-gray-300" htmlFor="name">{t('name')}</label>
           <input
             id="name"
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-full border border-gray-300 rounded px-3 py-2"
+            className="w-full border border-gray-300 dark:border-gray-600 rounded px-3 py-2 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100"
             disabled={isLoading || profileLoading}
           />
         </div>
         <div>
-          <label className="block text-sm mb-1" htmlFor="email">{t('email')}</label>
+          <label className="block text-sm mb-1 text-gray-700 dark:text-gray-300" htmlFor="email">{t('email')}</label>
           <input
             id="email"
             type="email"
             value={email}
             readOnly
-            className="w-full border border-gray-200 bg-gray-100 text-gray-600 rounded px-3 py-2"
+            className="w-full border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-900 text-gray-600 dark:text-gray-400 rounded px-3 py-2"
             disabled
           />
         </div>
         <div>
-          <label className="block text-sm mb-1">{t('language', { defaultValue: 'Language' })}</label>
+          <label className="block text-sm mb-1 text-gray-700 dark:text-gray-300">{t('language', { defaultValue: 'Language' })}</label>
           <Select
             value={defaultLocale}
             onChange={setDefaultLocale}

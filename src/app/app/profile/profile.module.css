@@ -2,7 +2,7 @@
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background: linear-gradient(180deg, var(--cream-100) 0%, var(--cream-50) 80%);
+  background: var(--theme-bg);
   padding-bottom: 80px; /* Space for bottom tab bar */
 }
 
@@ -11,8 +11,8 @@
   align-items: center;
   gap: 1rem;
   padding: 1rem;
-  background-color: white;
-  border-bottom: 1px solid var(--sage-200);
+  background-color: var(--theme-bg-secondary);
+  border-bottom: 1px solid var(--theme-border);
   position: sticky;
   top: 0;
   z-index: 10;
@@ -25,7 +25,7 @@
   padding: 0.5rem;
   background: none;
   border: none;
-  color: var(--sage-700);
+  color: var(--theme-text);
   cursor: pointer;
   transition: background-color 0.2s;
   border-radius: 0.5rem;
@@ -33,13 +33,13 @@
 }
 
 .backButton:active {
-  background-color: var(--sage-100);
+  background-color: var(--theme-border);
 }
 
 .title {
   font-size: 1.25rem;
   font-weight: 600;
-  color: var(--sage-700);
+  color: var(--theme-text);
 }
 
 .content {
