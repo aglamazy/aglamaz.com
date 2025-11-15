@@ -8,10 +8,10 @@ import { getPlatformName } from '@/utils/platformName';
 import { getUrl, AppRoute } from '@/utils/urls';
 
 export class UserNotificationService {
-  private renderTemplate(template: string, data: any) {
+  private async renderTemplate(template: string, data: any, siteId: string) {
     const templateDir = path.join(process.cwd(), 'src', 'templates', 'user-notification');
     const file = path.join(templateDir, `${template}.pug`);
-    const appUrl = getUrl(AppRoute.APP_DASHBOARD);
+    const appUrl = await getUrl(AppRoute.APP_DASHBOARD, siteId);
     return pug.renderFile(file, { ...data, appUrl });
   }
 
@@ -34,10 +34,10 @@ export class UserNotificationService {
 
     const siteName = siteInfo?.name?.trim();
 
-    const html = this.renderTemplate('welcome', {
+    const html = await this.renderTemplate('welcome', {
       firstName: member.firstName,
       siteName,
-    });
+    }, member.siteId);
     const gmail = await GmailService.init();
     await gmail.sendEmail({
       to: member.email,

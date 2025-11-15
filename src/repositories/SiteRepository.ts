@@ -56,7 +56,7 @@ export class SiteRepository {
   }
 
   private domainMappingRef(domain: string) {
-    return this.getDb().collection('domain_mappings').doc(domain);
+    return this.getDb().collection('domainMappings').doc(domain);
   }
 
   async get(siteId: string, locale?: string | null, opts?: GetOptions): Promise<ISite | null> {
@@ -269,7 +269,32 @@ export class SiteRepository {
     if (opts?.cached) {
       const cachedFn = unstable_cache(fetcher, [`domain-mapping-${domain}`], {
         revalidate: 3600,
-        tags: ['domain-mappings', `domain-${domain}`],
+        tags: ['domainMappings', `domain-${domain}`],
+      });
+      return cachedFn();
+    }
+
+    return fetcher();
+  }
+
+  async getDomainBySiteId(siteId: string, opts?: GetOptions): Promise<string | null> {
+    const fetcher = async () => {
+      const snapshot = await this.getDb()
+        .collection('domainMappings')
+        .where('siteId', '==', siteId)
+        .limit(1)
+        .get();
+
+      if (snapshot.empty) return null;
+
+      // Return the document ID, which is the domain
+      return snapshot.docs[0].id;
+    };
+
+    if (opts?.cached) {
+      const cachedFn = unstable_cache(fetcher, [`site-domain-${siteId}`], {
+        revalidate: 3600,
+        tags: ['domainMappings', `site-${siteId}-domain`],
       });
       return cachedFn();
     }

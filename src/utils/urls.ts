@@ -75,61 +75,66 @@ const routePaths: Record<AppRoute, string> = {
 };
 
 /**
- * Get the base URL for the application
+ * Get the base URL for a specific site by looking up its domain mapping
  *
- * @throws Error if NEXT_PUBLIC_APP_URL is not set
+ * @param siteId - The site ID to get the domain for
+ * @returns Base URL with protocol (e.g., "https://aglamaz.com")
+ * @throws Error if domain mapping not found for siteId
  */
-export function getBaseUrl(): string {
-  const url = process.env.NEXT_PUBLIC_APP_URL;
+export async function getBaseUrlForSite(siteId: string): Promise<string> {
+  const { SiteRepository } = await import('@/repositories/SiteRepository');
+  const repo = new SiteRepository();
 
-  if (!url || !url.trim()) {
+  const domain = await repo.getDomainBySiteId(siteId, { cached: true });
+
+  if (!domain || !domain.trim()) {
     throw new Error(
-      'NEXT_PUBLIC_APP_URL environment variable is required but not set. ' +
-      'This must be configured in your .env file and deployment environment.'
+      `No domain mapping found for siteId: ${siteId}. ` +
+      'Please create a domainMappings document in Firebase.'
     );
   }
 
-  return url.replace(/\/$/, '');
+  // Use https for production domains, http for localhost
+  const protocol = domain.includes('localhost') ? 'http' : 'https';
+  return `${protocol}://${domain}`;
 }
 
 /**
- * Generate a URL for a specific route
+ * Generate a URL for a specific route for a given site
  *
- * Uses NEXT_PUBLIC_APP_URL environment variable as the base URL.
+ * Looks up the site's domain from domain_mappings collection and builds the full URL.
  *
  * @param route - The route enum value
+ * @param siteId - The site ID to generate URL for
  * @param params - Parameters to substitute in the path template
  * @param queryParams - Optional query parameters to append
  *
  * @example
  * // Simple route
- * getUrl(AppRoute.ADMIN_SITE_MEMBERS)
- * // => "https://app.example.com/admin/site-members"
+ * await getUrl(AppRoute.ADMIN_SITE_MEMBERS, 'XFptrxZIKXV6P2TjtGCL')
+ * // => "https://aglamaz.com/admin/site-members"
  *
  * @example
  * // Route with parameters
- * getUrl(AppRoute.AUTH_INVITE, { token: 'abc123' })
- * // => "https://app.example.com/auth/invite/abc123"
- *
- * @example
- * // Route with locale
- * getUrl(AppRoute.CONTACT, { locale: 'he' })
- * // => "https://app.example.com/he/contact"
+ * await getUrl(AppRoute.AUTH_INVITE, 'XFptrxZIKXV6P2TjtGCL', { token: 'abc123' })
+ * // => "https://aglamaz.com/auth/invite/abc123"
  *
  * @example
  * // Route with query parameters
- * getUrl(AppRoute.AUTH_INVITE_VERIFY,
+ * await getUrl(AppRoute.AUTH_INVITE_VERIFY,
+ *   'XFptrxZIKXV6P2TjtGCL',
  *   { token: 'abc123' },
  *   { code: 'xyz789', locale: 'he' }
  * )
- * // => "https://app.example.com/auth/invite/abc123/verify?code=xyz789&locale=he"
+ * // => "https://aglamaz.com/auth/invite/abc123/verify?code=xyz789&locale=he"
  */
-export function getUrl(
+export async function getUrl(
   route: AppRoute,
+  siteId: string,
   params?: UrlParams,
   queryParams?: Record<string, string | undefined>
-): string {
-  const base = getBaseUrl();
+): Promise<string> {
+  const base = await getBaseUrlForSite(siteId);
   let path = routePaths[route];
 
   // Substitute path parameters

@@ -24,7 +24,7 @@ const handler = async (request: Request, context: GuardContext) => {
       name: inviterName,
     });
 
-    const url = getUrl(AppRoute.AUTH_INVITE, { token: invite.token });
+    const url = await getUrl(AppRoute.AUTH_INVITE, siteId, { token: invite.token });
 
     return Response.json({
       invite: {
