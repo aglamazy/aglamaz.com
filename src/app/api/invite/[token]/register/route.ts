@@ -77,8 +77,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
       language: locale,
     }, origin);
 
-    const verificationUrl = getUrl(
+    const verificationUrl = await getUrl(
       AppRoute.AUTH_INVITE_VERIFY,
+      invite.siteId,
       { token: invite.token },
       { code: verificationToken }
     );

@@ -47,7 +47,7 @@ await newSiteRef.set({
 
 ```typescript
 // Firebase Firestore
-const domainMappingsCollection = db.collection('domain_mappings');
+const domainMappingsCollection = db.collection('domainMappings');
 
 // Create mapping for primary domain
 await domainMappingsCollection.doc('levi.famcircle.org').set({
@@ -77,19 +77,19 @@ await domainMappingsCollection.doc('www.levifamily.com').set({
 
 ```typescript
 // Site 1: Levi Family (multiple domains for same site)
-domain_mappings/levi.famcircle.org → { siteId: "XFptrxZIKXV6P2TjtGCL", isPrimary: true }
-domain_mappings/levifamily.com → { siteId: "XFptrxZIKXV6P2TjtGCL", isPrimary: false }
-domain_mappings/www.levifamily.com → { siteId: "XFptrxZIKXV6P2TjtGCL", isPrimary: false }
+domainMappings/levi.famcircle.org → { siteId: "XFptrxZIKXV6P2TjtGCL", isPrimary: true }
+domainMappings/levifamily.com → { siteId: "XFptrxZIKXV6P2TjtGCL", isPrimary: false }
+domainMappings/www.levifamily.com → { siteId: "XFptrxZIKXV6P2TjtGCL", isPrimary: false }
 
 // Site 2: Cohen Family (single domain)
-domain_mappings/cohen.famcircle.org → { siteId: "AbC123XyZ456PqRsTuV", isPrimary: true }
+domainMappings/cohen.famcircle.org → { siteId: "AbC123XyZ456PqRsTuV", isPrimary: true }
 
 // Site 3: Aglamaz (custom domain)
-domain_mappings/aglamaz.com → { siteId: "DeF789GhI012JkLmNoP", isPrimary: true }
-domain_mappings/www.aglamaz.com → { siteId: "DeF789GhI012JkLmNoP", isPrimary: false }
+domainMappings/aglamaz.com → { siteId: "DeF789GhI012JkLmNoP", isPrimary: true }
+domainMappings/www.aglamaz.com → { siteId: "DeF789GhI012JkLmNoP", isPrimary: false }
 
 // Local testing
-domain_mappings/levi.famcircle.local → { siteId: "XFptrxZIKXV6P2TjtGCL" }
+domainMappings/levi.famcircle.local → { siteId: "XFptrxZIKXV6P2TjtGCL" }
 ```
 
 **Document ID Rules:**
@@ -165,7 +165,7 @@ async function createNewSite(
   console.log(`✅ Created site document: sites/${siteId}`);
 
   // Step 2: Create domain mappings (if domains provided)
-  const mappingsCollection = db.collection('domain_mappings');
+  const mappingsCollection = db.collection('domainMappings');
   const createdDomains: string[] = [];
 
   for (const domain of domains) {
@@ -211,7 +211,7 @@ async function createNewSite(
    const domainsToCheck = ["levi.famcircle.org", "levifamily.com"];
 
    for (const domain of domainsToCheck) {
-     const existingMapping = await db.collection('domain_mappings')
+     const existingMapping = await db.collection('domainMappings')
        .doc(domain)
        .get();
 
@@ -294,7 +294,7 @@ async function addDomainToSite(siteId: string, newDomain: string) {
   const normalizedDomain = newDomain.toLowerCase().trim();
 
   // Check if domain is available
-  const existingMapping = await db.collection('domain_mappings')
+  const existingMapping = await db.collection('domainMappings')
     .doc(normalizedDomain)
     .get();
 
@@ -309,7 +309,7 @@ async function addDomainToSite(siteId: string, newDomain: string) {
   }
 
   // Create new mapping
-  await db.collection('domain_mappings').doc(normalizedDomain).set({
+  await db.collection('domainMappings').doc(normalizedDomain).set({
     siteId: siteId,
     isPrimary: false, // New domains are not primary by default
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -329,7 +329,7 @@ async function removeDomainFromSite(domain: string) {
   const normalizedDomain = domain.toLowerCase().trim();
 
   // Check if mapping exists
-  const mappingDoc = await db.collection('domain_mappings')
+  const mappingDoc = await db.collection('domainMappings')
     .doc(normalizedDomain)
     .get();
 
@@ -339,7 +339,7 @@ async function removeDomainFromSite(domain: string) {
 
   // Check if it's the last domain for the site (optional warning)
   const siteId = mappingDoc.data()?.siteId;
-  const otherMappings = await db.collection('domain_mappings')
+  const otherMappings = await db.collection('domainMappings')
     .where('siteId', '==', siteId)
     .get();
 
@@ -348,7 +348,7 @@ async function removeDomainFromSite(domain: string) {
   }
 
   // Delete the mapping
-  await db.collection('domain_mappings').doc(normalizedDomain).delete();
+  await db.collection('domainMappings').doc(normalizedDomain).delete();
 
   console.log(`✅ Removed domain ${normalizedDomain}`);
 }

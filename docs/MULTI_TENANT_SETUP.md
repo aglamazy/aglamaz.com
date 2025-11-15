@@ -8,14 +8,14 @@ The system uses **secure domain mapping** to prevent site ID guessing:
 
 ### Site Resolution Flow (Priority Order)
 
-1. **Domain Mapping Lookup**: Query Firebase `domain_mappings/{domain}` collection
+1. **Domain Mapping Lookup**: Query Firebase `domainMappings/{domain}` collection
 2. **Environment Variable Fallback**: Use `NEXT_SITE_ID` if set (temporary, will be removed)
 3. **Under Construction**: Show error page if no configuration exists
 
 ### Security Benefits
 
 - Site document IDs are **private** (auto-generated, hard to guess: `XFptrxZIKXV6P2TjtGCL`)
-- Public domains map to private IDs via `domain_mappings` collection
+- Public domains map to private IDs via `domainMappings` collection
 - No way to enumerate or guess site IDs from URLs
 
 ## Firebase Structure
@@ -25,7 +25,7 @@ The system uses **secure domain mapping** to prevent site ID guessing:
 Maps public domains to private site IDs:
 
 ```
-domain_mappings/
+domainMappings/
   aglamaz.com:
     siteId: "XFptrxZIKXV6P2TjtGCL"
   levi.famcircle.org:
@@ -68,10 +68,10 @@ Fields:
 
 ### Step 2: Create Domain Mapping
 
-In Firebase Console, create a mapping in the `domain_mappings` collection:
+In Firebase Console, create a mapping in the `domainMappings` collection:
 
 ```
-Collection: domain_mappings
+Collection: domainMappings
 Document ID: "subdomain.famcircle.org" (exact domain)
 Fields:
   - siteId: "XFptrxZIKXV6P2TjtGCL" (the auto-generated ID from Step 1)
@@ -120,7 +120,7 @@ Add these lines:
 **Important**: You must also create the domain mapping in Firebase:
 
 ```
-domain_mappings/levi.famcircle.local:
+domainMappings/levi.famcircle.local:
   siteId: "XFptrxZIKXV6P2TjtGCL"
 ```
 
@@ -172,7 +172,7 @@ services:
    - This catches unmapped domains and provides graceful degradation
 
 3. **Firebase Setup**:
-   - Create domain mapping for each domain in `domain_mappings` collection
+   - Create domain mapping for each domain in `domainMappings` collection
    - Use auto-generated site IDs for security
 
 4. **DNS Configuration**:
@@ -211,7 +211,7 @@ Request: aglamaz.com
   ↓
 resolveSiteId() → fetchSiteIdByDomain("aglamaz.com")
   ↓
-Firebase: domain_mappings/aglamaz.com → { siteId: "XFptrxZIKXV6P2TjtGCL" }
+Firebase: domainMappings/aglamaz.com → { siteId: "XFptrxZIKXV6P2TjtGCL" }
   ↓
 fetchSiteInfo("XFptrxZIKXV6P2TjtGCL") → Firebase sites/XFptrxZIKXV6P2TjtGCL
   ↓
@@ -268,7 +268,7 @@ Request: localhost:3000?site=XFptrxZIKXV6P2TjtGCL
 ### "Under Construction" page showing unexpectedly
 
 **Possible causes:**
-1. Domain mapping doesn't exist in Firebase `domain_mappings` collection
+1. Domain mapping doesn't exist in Firebase `domainMappings` collection
 2. `NEXT_SITE_ID` environment variable not set
 3. Domain mapping points to non-existent site ID
 
@@ -284,7 +284,7 @@ Request: localhost:3000?site=XFptrxZIKXV6P2TjtGCL
 - Cache not cleared after changing mappings
 
 **Solution:**
-- Verify each domain has unique siteId in `domain_mappings`
+- Verify each domain has unique siteId in `domainMappings`
 - Clear Next.js cache: `rm -rf .next`
 - Call `revalidateTag('domain-mappings')` after changes
 
@@ -293,7 +293,7 @@ Request: localhost:3000?site=XFptrxZIKXV6P2TjtGCL
 **Checklist:**
 1. ✅ Domain added in Vercel dashboard
 2. ✅ DNS points to Vercel
-3. ✅ Domain mapping exists in Firebase `domain_mappings/{domain}`
+3. ✅ Domain mapping exists in Firebase `domainMappings/{domain}`
 4. ✅ Mapped siteId exists in Firebase `sites/{siteId}`
 
 ### Performance Considerations

@@ -34,8 +34,9 @@ export async function POST(request: NextRequest) {
     }, origin);
 
     // Send verification email
-    const verificationUrl = getUrl(
+    const verificationUrl = await getUrl(
       AppRoute.AUTH_SIGNUP_VERIFY,
+      siteId,
       undefined,
       { token: verificationToken }
     );

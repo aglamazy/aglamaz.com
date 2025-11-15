@@ -47,7 +47,7 @@ export class AdminNotificationService {
     const subject = subjectByType[notification.eventType] ?? 'New notification';
     let html: string;
     try {
-      html = this.renderTemplate(notification);
+      html = await this.renderTemplate(notification);
     } catch (error) {
       console.error('Failed to render template:', error);
       html = `<p>A new ${notification.eventType.replace('_', ' ')} event occurred.</p><pre>${JSON.stringify(notification.payload, null, 2)}</pre>`;
@@ -56,15 +56,20 @@ export class AdminNotificationService {
     await gmail.sendEmail({ to: adminEmail, subject, html });
   }
 
-  private renderTemplate(notification: AdminNotification) {
+  private async renderTemplate(notification: AdminNotification) {
     const templateDir = path.join(process.cwd(), 'src', 'templates', 'admin-notifications');
     const file = path.join(templateDir, `${notification.eventType}.pug`);
 
+    const siteId = (notification.payload as any)?.siteId;
+    if (!siteId) {
+      throw new Error('siteId is required in notification payload for URL generation');
+    }
+
     // Generate URLs using the centralized utility
     const urls = {
-      adminSiteMembers: getUrl(AppRoute.ADMIN_SITE_MEMBERS),
-      adminPendingMembers: getUrl(AppRoute.ADMIN_PENDING_MEMBERS),
-      adminDashboard: getUrl(AppRoute.ADMIN_DASHBOARD),
+      adminSiteMembers: await getUrl(AppRoute.ADMIN_SITE_MEMBERS, siteId),
+      adminPendingMembers: await getUrl(AppRoute.ADMIN_PENDING_MEMBERS, siteId),
+      adminDashboard: await getUrl(AppRoute.ADMIN_DASHBOARD, siteId),
     };
 
     const data = { ...notification.payload, ...urls } as any;
