@@ -54,6 +54,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
       }
     }
 
+    // Check if user is already a member of this site
+    const existingMember = await repo.getMemberByUserId(userRecord.uid, invite.siteId);
+    if (existingMember) {
+      return NextResponse.json({
+        error: 'You are already a member of this site',
+        code: 'invite/already-member'
+      }, { status: 409 });
+    }
+
     const firstName = name.trim();
     const origin = new URL(request.url).origin;
     const verificationToken = randomUUID();

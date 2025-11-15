@@ -6,7 +6,6 @@ import I18nText from '@/components/I18nText';
 import ImageGrid from '@/components/media/ImageGrid';
 import layoutStyles from '@/components/media/MediaLayout.module.css';
 import feedStyles from '@/components/media/ImageGrid.module.css';
-import lightThemeStyles from '@/components/media/ImageGrid.light.module.css';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { ShimmerImage } from "@/components/mobile/ShimmerImagePreview";
@@ -429,14 +428,14 @@ function MobileFeedItem({ item, title, meta, author, onToggle, onShowLikers, t, 
   const isRtl = titleDir === 'rtl';
   const isGallery = item.type === 'gallery';
 
-  const metaRowClass = lightThemeStyles.mobileMetaRow + (isRtl ? ' ' + lightThemeStyles.mobileMetaRowRtl : '');
+  const metaRowClass = feedStyles.mobileMetaRow + (isRtl ? ' ' + feedStyles.mobileMetaRowRtl : '');
   const likeClass =
-    lightThemeStyles.mobileContinuousLike +
-    (isRtl ? ' ' + lightThemeStyles.mobileContinuousLikeRtl : '') +
-    (meta.likedByMe ? ' ' + lightThemeStyles.mobileContinuousLikeActive : '');
+    feedStyles.mobileContinuousLike +
+    (isRtl ? ' ' + feedStyles.mobileContinuousLikeRtl : '') +
+    (meta.likedByMe ? ' ' + feedStyles.mobileContinuousLikeActive : '');
   const likePlaceholderClass =
-    lightThemeStyles.mobileContinuousLikePlaceholder +
-    (isRtl ? ' ' + lightThemeStyles.mobileContinuousLikePlaceholderRtl : '');
+    feedStyles.mobileContinuousLikePlaceholder +
+    (isRtl ? ' ' + feedStyles.mobileContinuousLikePlaceholderRtl : '');
 
   const avatarUrl = useMemo(() => {
     const email = author.email.trim().toLowerCase();
@@ -473,30 +472,30 @@ function MobileFeedItem({ item, title, meta, author, onToggle, onShowLikers, t, 
           onLoadStateChange={setLoaded}
         />
         <div className={metaRowClass}>
-          <div className={lightThemeStyles.mobileAuthorAvatar}>
-            <img src={avatarUrl} alt="" className={lightThemeStyles.mobileAuthorAvatarImage} />
+          <div className={feedStyles.mobileAuthorAvatar}>
+            <img src={avatarUrl} alt="" className={feedStyles.mobileAuthorAvatarImage} />
           </div>
-          <div className={lightThemeStyles.mobileAuthorInfo}>
-            <span className={lightThemeStyles.mobileAuthorName}>
+          <div className={feedStyles.mobileAuthorInfo}>
+            <span className={feedStyles.mobileAuthorName}>
               {author.displayName}
             </span>
           </div>
         </div>
         {isGallery && canEdit && onGalleryEdit && (
-          <div className={lightThemeStyles.mobilePhotoMenu + (isRtl ? ' ' + lightThemeStyles.mobilePhotoMenuRtl : '')}>
+          <div className={feedStyles.mobilePhotoMenu + (isRtl ? ' ' + feedStyles.mobilePhotoMenuRtl : '')}>
             <button
               type="button"
-              className={lightThemeStyles.mobilePhotoMenuButton}
+              className={feedStyles.mobilePhotoMenuButton}
               onClick={() => setMenuOpen(!menuOpen)}
               aria-label="Menu"
             >
               <MoreVertical size={18} />
             </button>
             {menuOpen && (
-              <div className={lightThemeStyles.mobilePhotoMenuDropdown + (isRtl ? ' ' + lightThemeStyles.mobilePhotoMenuDropdownRtl : '')}>
+              <div className={feedStyles.mobilePhotoMenuDropdown + (isRtl ? ' ' + feedStyles.mobilePhotoMenuDropdownRtl : '')}>
                 <button
                   type="button"
-                  className={lightThemeStyles.mobilePhotoMenuItem}
+                  className={feedStyles.mobilePhotoMenuItem}
                   onClick={() => {
                     setMenuOpen(false);
                     onGalleryEdit(item.occId);
