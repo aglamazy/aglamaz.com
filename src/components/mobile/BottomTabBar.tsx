@@ -5,9 +5,7 @@ import { Calendar, Image, Plus, FileText, User } from 'lucide-react';
 import { useUserStore } from '@/store/UserStore';
 import { useMemberStore } from '@/store/MemberStore';
 import MemberAvatar from '@/components/MemberAvatar';
-import { useState } from 'react';
 import styles from './BottomTabBar.module.css';
-import PhotoUploadModal from '@/components/photos/PhotoUploadModal';
 import { triggerAddAction } from '@/hooks/useAddAction';
 
 interface TabItem {
@@ -23,7 +21,6 @@ export default function BottomTabBar() {
   const router = useRouter();
   const user = useUserStore((state) => state.user);
   const member = useMemberStore((state) => state.member);
-  const [photoModalOpen, setPhotoModalOpen] = useState(false);
 
   // Determine what the Add button should do based on current page
   const handleAddClick = () => {
@@ -118,15 +115,6 @@ export default function BottomTabBar() {
           })}
         </div>
       </nav>
-
-      <PhotoUploadModal
-        isOpen={photoModalOpen}
-        onClose={() => setPhotoModalOpen(false)}
-        onSuccess={() => {
-          setPhotoModalOpen(false);
-          // TODO: Refresh feed when backend is ready
-        }}
-      />
     </>
   );
 }
