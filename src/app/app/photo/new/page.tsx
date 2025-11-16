@@ -3,12 +3,13 @@
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, Upload, Loader2 } from 'lucide-react';
+import { X, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 import { apiFetch } from '@/utils/apiFetch';
-import { initFirebase, ensureFirebaseSignedIn, auth } from '@/firebase/client';
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ImageStore } from '@/store/ImageStore';
+import ImageUploadArea from '@/components/ui/ImageUploadArea';
+import DateInput from '@/components/ui/DateInput';
 
 export default function NewPhotoPage() {
   const { t } = useTranslation();
@@ -77,26 +78,6 @@ export default function NewPhotoPage() {
     });
   };
 
-  async function resizeToWebp(file: File, maxWidth = 1600, quality = 0.9): Promise<Blob> {
-    const img = document.createElement('img');
-    img.decoding = 'async';
-    img.src = URL.createObjectURL(file);
-    await img.decode();
-    const ratio = img.width > 0 ? Math.min(1, maxWidth / img.width) : 1;
-    const w = Math.round(img.width * ratio);
-    const h = Math.round(img.height * ratio);
-    const canvas = document.createElement('canvas');
-    canvas.width = w;
-    canvas.height = h;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) throw new Error('Canvas unsupported');
-    ctx.drawImage(img, 0, 0, w, h);
-    const blob: Blob = await new Promise((resolve, reject) =>
-      canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('toBlob failed'))), 'image/webp', quality)
-    );
-    URL.revokeObjectURL(img.src);
-    return blob;
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -117,23 +98,9 @@ export default function NewPhotoPage() {
 
     try {
       // Upload images to Firebase Storage
-      initFirebase();
-      await ensureFirebaseSignedIn();
-      const currentUser = auth().currentUser;
-      if (!currentUser) throw new Error('Not signed in to Firebase');
-
-      const storage = getStorage();
       const imageUrls = await Promise.all(
-        imageFiles.map(async (file, idx) => {
-          const blob = await resizeToWebp(file, 1600, 0.9);
-          const fileName = `${Date.now()}_${idx}.webp`;
-          const path = `gallery/${currentUser.uid}/${fileName}`;
-          const storageRef = ref(storage, path);
-          await uploadBytes(storageRef, blob, {
-            contentType: 'image/webp',
-            cacheControl: 'public, max-age=31536000, immutable'
-          });
-          return await getDownloadURL(storageRef);
+        imageFiles.map(async (file) => {
+          return await ImageStore.uploadGalleryPhoto(file, 1600, 0.9);
         })
       );
 
@@ -188,41 +155,12 @@ export default function NewPhotoPage() {
           <label className="block text-sm font-medium text-gray-700 mb-2">
             {t('photos') || 'Photos'} *
           </label>
-
-          {previews.length > 0 && (
-            <div className="mb-3 grid grid-cols-3 gap-2">
-              {previews.map((src, i) => (
-                <div key={i} className="relative">
-                  <img
-                    src={src}
-                    alt={`Preview ${i + 1}`}
-                    className="w-full h-24 object-cover rounded-lg"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removeImage(i)}
-                    className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
-                  >
-                    <X size={16} />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <label className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg p-6 cursor-pointer hover:border-sage-500 transition">
-            <Upload className="w-8 h-8 text-gray-400 mb-2" />
-            <span className="text-sm text-gray-600">
-              {t('tapToSelectPhotos') || 'Tap to select photos'}
-            </span>
-            <input
-              type="file"
-              accept="image/*"
-              multiple
-              onChange={handleFileChange}
-              className="hidden"
-            />
-          </label>
+          <ImageUploadArea
+            previews={previews}
+            onFileChange={handleFileChange}
+            onRemoveImage={removeImage}
+            multiple={true}
+          />
         </div>
 
         {/* Date */}
@@ -230,11 +168,9 @@ export default function NewPhotoPage() {
           <label className="block text-sm font-medium text-gray-700 mb-2">
             {t('date') || 'Date'} *
           </label>
-          <input
-            type="date"
+          <DateInput
             value={date}
-            onChange={(e) => setDate(e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2"
+            onChange={setDate}
             required
           />
         </div>

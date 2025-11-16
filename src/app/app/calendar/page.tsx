@@ -17,6 +17,8 @@ import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import type { AnniversaryEvent } from '@/entities/Anniversary';
+import { useAddAction } from '@/hooks/useAddAction';
+import EventFormContent from '@/components/calendar/EventFormContent';
 
 export default function AnniversariesPage() {
   const [events, setEvents] = useState<AnniversaryEvent[]>([]);
@@ -54,6 +56,9 @@ export default function AnniversariesPage() {
   const siteInfo = useSiteStore((s) => s.siteInfo);
   const { t, i18n } = useTranslation();
   const router = useRouter();
+
+  // Register add action - navigate to new event page
+  useAddAction(() => router.push('/app/calendar/new'));
 
   const [imageSrc, setImageSrc] = useState('');
   const [offsetY, setOffsetY] = useState(0);
@@ -303,18 +308,14 @@ export default function AnniversariesPage() {
       const currentYear = new Date().getFullYear();
 
       // Call API to create blessing page
-      const res = await fetch(`/api/anniversaries/${selectedEvent.id}/blessing-pages`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ year: currentYear }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Failed to create blessing page');
-      }
-
-      const { blessingPage } = await res.json();
+      const { blessingPage } = await apiFetch<{ blessingPage: { year: number; slug: string } }>(
+        `/api/anniversaries/${selectedEvent.id}/blessing-pages`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ year: currentYear }),
+        }
+      );
 
       // Update selected event to include the new blessing page
       setSelectedEvent({
@@ -465,13 +466,8 @@ export default function AnniversariesPage() {
                 onClick={async () => {
                   // Fetch full event details including blessing pages
                   try {
-                    const res = await fetch(`/api/anniversaries/${ev.id}`);
-                    if (res.ok) {
-                      const { event } = await res.json();
-                      setSelectedEvent(event);
-                    } else {
-                      setSelectedEvent(ev);
-                    }
+                    const { event } = await apiFetch<{ event: AnniversaryEvent }>(`/api/anniversaries/${ev.id}`);
+                    setSelectedEvent(event);
                   } catch (err) {
                     console.error('Failed to fetch event details:', err);
                     setSelectedEvent(ev);
@@ -500,13 +496,8 @@ export default function AnniversariesPage() {
                   onClick={async () => {
                     // Fetch full event details including blessing pages
                     try {
-                      const res = await fetch(`/api/anniversaries/${ev.id}`);
-                      if (res.ok) {
-                        const { event } = await res.json();
-                        setSelectedEvent(event);
-                      } else {
-                        setSelectedEvent(ev);
-                      }
+                      const { event } = await apiFetch<{ event: AnniversaryEvent }>(`/api/anniversaries/${ev.id}`);
+                      setSelectedEvent(event);
                     } catch (err) {
                       console.error('Failed to fetch event details:', err);
                       setSelectedEvent(ev);
@@ -663,128 +654,16 @@ export default function AnniversariesPage() {
       />
 
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
-        <form onSubmit={handleSubmit} className="space-y-4 max-w-md">
-          {error && <div className="text-red-600">{error}</div>}
-          <div>
-            <label className="block mb-1 text-sm text-text">{t('name')}</label>
-            <input
-              className="border rounded w-full px-3 py-2"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              required
-            />
-          </div>
-          <div>
-            <label className="block mb-1 text-sm text-text">{t('description')}</label>
-            <textarea
-              className="border rounded w-full px-3 py-2"
-              value={form.description}
-              onChange={(e) => setForm({ ...form, description: e.target.value })}
-            />
-          </div>
-          <div>
-            <label className="block mb-1 text-sm text-text">{t('date')}</label>
-            <input
-              type="date"
-              className="border rounded w-full px-3 py-2"
-              value={form.date}
-              onChange={(e) => setForm({ ...form, date: e.target.value })}
-              required
-            />
-          </div>
-          <div>
-            <label className="block mb-1 text-sm text-text">{t('type')}</label>
-            <select
-              className="border rounded w-full px-3 py-2"
-              value={form.type}
-              onChange={(e) => setForm({ ...form, type: e.target.value })}
-            >
-              <option value="birthday">{t('birthday')}</option>
-              <option value="death">{t('death')}</option>
-              <option value="wedding">{t('wedding')}</option>
-              <option value="death_anniversary">{t('death_anniversary')}</option>
-            </select>
-          </div>
-          <div>
-            <label className="block mb-1 text-sm text-text">{t('image')}</label>
-            {editEvent?.imageUrl && !imageSrc && (
-              <img src={editEvent.imageUrl} alt="" className="mb-2 max-h-40"/>
-            )}
-            <input type="file" accept="image/*" onChange={onFileChange}/>
-            {imageSrc && (
-              <div className="mt-2">
-                <div
-                  ref={cropRef}
-                  className="relative w-full aspect-[16/9] overflow-hidden bg-gray-200"
-                >
-                  <img
-                    ref={imgRef}
-                    src={imageSrc}
-                    onLoad={onImageLoad}
-                    className={styles.cropImage}
-                    alt="crop source"
-                  />
-                </div>
-                {maxOffsetY > 0 && (
-                  <input
-                    type="range"
-                    min={0}
-                    max={maxOffsetY}
-                    value={offsetY}
-                    onChange={(e) => setOffsetY(Number(e.target.value))}
-                    className="w-full mt-2"
-                  />
-                )}
-                <button
-                  type="button"
-                  onClick={handleCrop}
-                  className="mt-2 bg-primary text-white px-4 py-2 rounded"
-                >
-                  {t('cropImage')}
-                </button>
-                {form.imageUrl && (
-                  <img src={form.imageUrl} alt="preview" className="w-full mt-2 rounded"/>
-                )}
-              </div>
-            )}
-          </div>
-          <div className="flex items-center">
-            <input
-              id="useHebrew"
-              type="checkbox"
-              checked={form.useHebrew}
-              onChange={(e) => setForm({ ...form, useHebrew: e.target.checked })}
-              className="mr-2"
-            />
-            <label htmlFor="useHebrew" className="text-text">{t('hebrewCalendar') as string}</label>
-          </div>
-          {form.useHebrew && form.date && (
-            <div className="text-sm text-sage-700">
-              {t('hebrewDate') as string}: {new Intl.DateTimeFormat('he-u-ca-hebrew', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(form.date))}
-            </div>
-          )}
-          <div className="flex items-center">
-            <input
-              id="isAnnual"
-              type="checkbox"
-              checked={form.isAnnual}
-              onChange={(e) => setForm({ ...form, isAnnual: e.target.checked })}
-              className="mr-2"
-            />
-            <label htmlFor="isAnnual" className="text-text">{t('annualEvent')}</label>
-          </div>
-          <button
-            type="submit"
-            disabled={saving}
-            className="bg-primary text-white px-4 py-2 rounded hover:bg-secondary disabled:opacity-50"
-          >
-            {saving
-              ? t('saving')
-              : editEvent
-                ? t('updateEvent')
-                : t('addEvent')}
-          </button>
-        </form>
+        <EventFormContent
+          editEvent={editEvent}
+          onSuccess={() => {
+            setIsModalOpen(false);
+            setEditEvent(null);
+            setImageFile(null);
+            setImageSrc('');
+            fetchEvents(selectedDate.getFullYear(), selectedDate.getMonth());
+          }}
+        />
       </Modal>
 
       <Modal isOpen={!!selectedEvent} onClose={() => setSelectedEvent(null)}>
