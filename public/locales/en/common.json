@@ -352,5 +352,18 @@
   "blessingSubmittedMock": "Blessing submitted (mock)",
   "blessingsCount": "Blessings ({{count}})",
   "noBlessingsYet": "No blessings yet. Be the first to bless!",
-  "editBlessing": "Edit Blessing"
+  "editBlessing": "Edit Blessing",
+  "tapToSelectPhotos": "Tap to select photos",
+  "tapToSelectPhoto": "Tap to select photo",
+  "addDescription": "Add a description...",
+  "linkToAnniversary": "Link to Anniversary",
+  "optional": "optional",
+  "linkPhotoToAnniversaryHelp": "Link this photo to an anniversary to show it on the calendar",
+  "upload": "Upload",
+  "uploading": "Uploading...",
+  "pleaseSelectAtLeastOneImage": "Please select at least one image",
+  "pleaseSelectDate": "Please select a date",
+  "uploadFailed": "Upload failed",
+  "selectAnniversary": "Select an anniversary",
+  "none": "None"
 }

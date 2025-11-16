@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import I18nText from '@/components/I18nText';
 import ImageGrid from '@/components/media/ImageGrid';
@@ -23,6 +24,7 @@ import { getPlatformName } from '@/utils/platformName';
 import AvatarStack from '@/components/photos/AvatarStack';
 import LikersBottomSheet from '@/components/photos/LikersBottomSheet';
 import type { ImageLikeMeta } from '@/types/likes';
+import { useAddAction } from '@/hooks/useAddAction';
 
 type Occurrence = {
   id: string; // occurrence/gallery photo id
@@ -39,6 +41,7 @@ type AuthorInfo = { displayName: string; email: string };
 
 export default function PicturesFeedPage() {
   const { t, i18n } = useTranslation();
+  const router = useRouter();
   const user = useUserStore((state) => state.user);
   const memberRole = useMemberStore((state) => state.member?.role);
   const site = useSiteStore((state) => state.siteInfo);
@@ -55,6 +58,9 @@ export default function PicturesFeedPage() {
   const currentUserId = user?.user_id ?? '';
   const isAdmin = memberRole === 'admin';
   const textDirection: 'ltr' | 'rtl' = i18n.dir() === 'rtl' ? 'rtl' : 'ltr';
+
+  // Register add action - navigate to photo upload page
+  useAddAction(() => router.push('/app/photo/new'));
 
   const canEditOccurrence = useCallback(
     (creatorId?: string) => {

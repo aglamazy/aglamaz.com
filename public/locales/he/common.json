@@ -351,5 +351,18 @@
   "blessingSubmittedMock": "הברכה נשלחה (מוק)",
   "blessingsCount": "ברכות ({{count}})",
   "noBlessingsYet": "עדיין אין ברכות. היה הראשון לברך!",
-  "editBlessing": "ערוך ברכה"
+  "editBlessing": "ערוך ברכה",
+  "tapToSelectPhotos": "הקש כדי לבחור תמונות",
+  "tapToSelectPhoto": "הקש כדי לבחור תמונה",
+  "addDescription": "הוסף תיאור...",
+  "linkToAnniversary": "קשר לאירוע",
+  "optional": "אופציונלי",
+  "linkPhotoToAnniversaryHelp": "קשר תמונה זו לאירוע כדי להציג אותה ביומן",
+  "upload": "העלה",
+  "uploading": "מעלה...",
+  "pleaseSelectAtLeastOneImage": "אנא בחר לפחות תמונה אחת",
+  "pleaseSelectDate": "אנא בחר תאריך",
+  "uploadFailed": "העלאה נכשלה",
+  "selectAnniversary": "בחר אירוع",
+  "none": "ללא"
 }
