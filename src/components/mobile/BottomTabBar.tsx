@@ -8,6 +8,7 @@ import MemberAvatar from '@/components/MemberAvatar';
 import { useState } from 'react';
 import styles from './BottomTabBar.module.css';
 import PhotoUploadModal from '@/components/photos/PhotoUploadModal';
+import { triggerAddAction } from '@/hooks/useAddAction';
 
 interface TabItem {
   id: string;
@@ -26,18 +27,9 @@ export default function BottomTabBar() {
 
   // Determine what the Add button should do based on current page
   const handleAddClick = () => {
-    if (pathname?.startsWith('/app/blog')) {
-      // Navigate to new blog post page
-      router.push('/app/blog/new');
-    } else if (pathname?.startsWith('/app/calendar')) {
-      // TODO: Open add anniversary modal or navigate to add page
-      console.log('Add anniversary/event');
-    } else if (pathname === '/app' || pathname?.startsWith('/app/')) {
-      // Main app page (pictures feed) - upload photo
-      setPhotoModalOpen(true);
-    } else {
-      // Default: show a menu or do nothing
-      console.log('Add action');
+    const handled = triggerAddAction();
+    if (!handled) {
+      console.warn('No add action registered for current page:', pathname);
     }
   };
 
