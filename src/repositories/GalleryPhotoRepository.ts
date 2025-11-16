@@ -54,15 +54,23 @@ export class GalleryPhotoRepository {
     return data;
   }
 
-  async listBySite(siteId: string, locale?: string): Promise<GalleryPhoto[]> {
+  async listBySite(siteId: string, locale?: string, options?: { limit?: number; offset?: number }): Promise<GalleryPhoto[]> {
     const db = this.getDb();
-    const qs = await db
+    let query = db
       .collection(this.collection)
       .where('siteId', '==', siteId)
       .where('deletedAt', '==', null)
-      .orderBy('date', 'desc')
-      .get();
+      .orderBy('date', 'desc');
 
+    // Apply pagination if provided
+    if (options?.limit) {
+      query = query.limit(options.limit);
+    }
+    if (options?.offset) {
+      query = query.offset(options.offset);
+    }
+
+    const qs = await query.get();
     const items = qs.docs.map((d) => ({ id: d.id, ...d.data() } as GalleryPhoto));
 
     // If locale is specified, ensure and apply localization

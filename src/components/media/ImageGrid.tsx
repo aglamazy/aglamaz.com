@@ -10,6 +10,7 @@ import LikersPopover from '@/components/photos/LikersPopover';
 export interface GridItem {
   key: string;
   src: string;
+  lightboxSrc?: string; // Optional higher-res image for lightbox view
   title?: string;
   meta?: Record<string, unknown>;
   dir?: 'ltr' | 'rtl' | 'auto';
@@ -430,7 +431,7 @@ export default function ImageGrid({ items, getMeta, onToggle, onTitleClick }: Im
       {lightboxOpen && items.length > 0 && (
         <div className={styles.lightboxBackdrop} onClick={() => setLightboxOpen(false)}>
           <button className={styles.navBtn + ' ' + styles.navLeft} onClick={(e) => { e.stopPropagation(); setLightboxIndex((p) => (p - 1 + items.length) % items.length); }}>‹</button>
-          <img src={items[lightboxIndex].src} alt="" className={styles.lightboxImg} onClick={(e) => e.stopPropagation()} />
+          <img src={items[lightboxIndex].lightboxSrc || items[lightboxIndex].src} alt="" className={styles.lightboxImg} onClick={(e) => e.stopPropagation()} />
           <button className={styles.navBtn + ' ' + styles.navRight} onClick={(e) => { e.stopPropagation(); setLightboxIndex((p) => (p + 1) % items.length); }}>›</button>
         </div>
       )}

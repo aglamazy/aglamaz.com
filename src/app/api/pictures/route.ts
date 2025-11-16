@@ -4,6 +4,7 @@ import { AnniversaryRepository } from '@/repositories/AnniversaryRepository';
 import { GalleryPhotoRepository } from '@/repositories/GalleryPhotoRepository';
 import { GuardContext } from '@/app/api/types';
 import { FamilyRepository } from '@/repositories/FamilyRepository';
+import { getResizedImageDownloadUrl } from '@/services/FirebaseStorageService';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,16 +12,18 @@ const getHandler = async (req: Request, context: GuardContext) => {
   try {
     const member = context.member!;
 
-    // Get locale from query parameter (default to 'he')
+    // Get query parameters
     const url = new URL(req.url);
     const locale = url.searchParams.get('locale') || 'he';
+    const limit = parseInt(url.searchParams.get('limit') || '0', 10) || undefined;
+    const offset = parseInt(url.searchParams.get('offset') || '0', 10) || undefined;
 
-    // Fetch both anniversary occurrences and gallery photos with localization
+    // Fetch both anniversary occurrences and gallery photos with localization and pagination
     const occRepo = new AnniversaryOccurrenceRepository();
     const galleryRepo = new GalleryPhotoRepository();
     const [occurrences, galleryPhotos] = await Promise.all([
-      occRepo.listBySite(member.siteId, locale),
-      galleryRepo.listBySite(member.siteId, locale),
+      occRepo.listBySite(member.siteId, locale, { limit, offset }),
+      galleryRepo.listBySite(member.siteId, locale, { limit, offset }),
     ]);
 
     // Add type field to distinguish between them
@@ -72,7 +75,52 @@ const getHandler = async (req: Request, context: GuardContext) => {
         console.warn('[pictures] failed to load author', id, err);
       }
     }
-    return Response.json({ items, events, authors });
+
+    // Generate resized image URLs with proper tokens for all images
+    const itemsWithResizedUrls = await Promise.all(
+      items.map(async (item: any) => {
+        if (!item.images || !Array.isArray(item.images)) {
+          return item;
+        }
+
+        // For each image URL in the images array, generate resized versions
+        const resizedImages = await Promise.all(
+          item.images.map(async (imageUrl: string) => {
+            try {
+              // Generate URLs for all needed sizes
+              const [url400, url800, url1200] = await Promise.all([
+                getResizedImageDownloadUrl(imageUrl, '400x400'),
+                getResizedImageDownloadUrl(imageUrl, '800x800'),
+                getResizedImageDownloadUrl(imageUrl, '1200x1200'),
+              ]);
+
+              return {
+                original: imageUrl,
+                '400x400': url400,
+                '800x800': url800,
+                '1200x1200': url1200,
+              };
+            } catch (error) {
+              console.error('[pictures] Failed to generate resized URLs:', error);
+              // Fallback to original
+              return {
+                original: imageUrl,
+                '400x400': imageUrl,
+                '800x800': imageUrl,
+                '1200x1200': imageUrl,
+              };
+            }
+          })
+        );
+
+        return {
+          ...item,
+          imagesResized: resizedImages,
+        };
+      })
+    );
+
+    return Response.json({ items: itemsWithResizedUrls, events, authors });
   } catch (error) {
     console.error(error);
     return Response.json({ error: 'Failed to fetch pictures' }, { status: 500 });

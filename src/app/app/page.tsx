@@ -26,6 +26,13 @@ import LikersBottomSheet from '@/components/photos/LikersBottomSheet';
 import type { ImageLikeMeta } from '@/types/likes';
 import { useAddAction } from '@/hooks/useAddAction';
 
+type ImageResized = {
+  original: string;
+  '400x400': string;
+  '800x800': string;
+  '1200x1200': string;
+};
+
 type Occurrence = {
   id: string; // occurrence/gallery photo id
   type?: 'occurrence' | 'gallery'; // added by API
@@ -33,6 +40,7 @@ type Occurrence = {
   anniversaryId?: string; // anniversary id (for gallery photos)
   date: any;
   images?: string[];
+  imagesResized?: ImageResized[]; // Resized versions with proper tokens from API
   createdBy?: string;
   description?: string;
 };
@@ -40,24 +48,30 @@ type Occurrence = {
 type AuthorInfo = { displayName: string; email: string };
 
 export default function PicturesFeedPage() {
-  const { t, i18n } = useTranslation();
+  const { t, i18n} = useTranslation();
   const router = useRouter();
   const user = useUserStore((state) => state.user);
   const memberRole = useMemberStore((state) => state.member?.role);
   const site = useSiteStore((state) => state.siteInfo);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState('');
   const [items, setItems] = useState<Occurrence[]>([]);
+  const [hasMore, setHasMore] = useState(true);
+  const [page, setPage] = useState(0);
   const [eventNames, setEventNames] = useState<Record<string, { name: string }>>({});
   const [likes, setLikes] = useState<Record<string, ImageLikeMeta[]>>({}); // key: occId
   const [authors, setAuthors] = useState<Record<string, AuthorInfo>>({});
   const [editTarget, setEditTarget] = useState<{ annId: string; occId: string } | null>(null);
   const [galleryEditTarget, setGalleryEditTarget] = useState<string | null>(null);
   const [likersSheet, setLikersSheet] = useState<{ occId: string; imageIndex: number } | null>(null);
+  const [userHasScrolled, setUserHasScrolled] = useState(false);
   const mountedRef = useRef(true);
   const currentUserId = user?.user_id ?? '';
   const isAdmin = memberRole === 'admin';
   const textDirection: 'ltr' | 'rtl' = i18n.dir() === 'rtl' ? 'rtl' : 'ltr';
+
+  const ITEMS_PER_PAGE = 10;
 
   // Register add action - navigate to photo upload page
   useAddAction(() => router.push('/app/photo/new'));
@@ -87,20 +101,38 @@ export default function PicturesFeedPage() {
     }
   }, [editTarget, items, canEditOccurrence]);
 
-  const loadFeed = useCallback(async (): Promise<boolean> => {
+  const loadFeed = useCallback(async (pageNum = 0): Promise<boolean> => {
     if (!mountedRef.current) return false;
-    setLoading(true);
+    const isInitialLoad = pageNum === 0;
+    if (isInitialLoad) {
+      setLoading(true);
+    } else {
+      setLoadingMore(true);
+    }
     setError('');
     try {
+      const offset = pageNum * ITEMS_PER_PAGE;
       const data = await apiFetch<{
         items: Occurrence[];
         events?: Record<string, { name: string }>;
         authors?: Record<string, { displayName: string; email: string }>;
-      }>(`/api/pictures?locale=${i18n.language}`, { cache: 'no-store' });
+      }>(`/api/pictures?locale=${i18n.language}&limit=${ITEMS_PER_PAGE}&offset=${offset}`, { cache: 'no-store' });
       if (!mountedRef.current) return false;
       const list: Occurrence[] = Array.isArray(data.items) ? data.items : [];
-      setItems(list);
-      setEventNames(data.events || {});
+
+      // Check if there are more items to load
+      setHasMore(list.length === ITEMS_PER_PAGE);
+
+      // Append items for pagination, replace for initial load
+      if (isInitialLoad) {
+        setItems(list);
+      } else {
+        setItems(prev => [...prev, ...list]);
+      }
+
+      // Merge event names and authors
+      setEventNames(prev => ({ ...prev, ...(data.events || {}) }));
+
       const rawAuthors = data.authors;
       if (!rawAuthors || typeof rawAuthors !== 'object') {
         throw new Error('[PicturesFeedPage] authors payload missing');
@@ -118,7 +150,7 @@ export default function PicturesFeedPage() {
         normalizedAuthors[id] = { displayName, email };
       }
       if (!mountedRef.current) return true;
-      setAuthors(normalizedAuthors);
+      setAuthors(prev => ({ ...prev, ...normalizedAuthors }));
 
       const likesMap: Record<string, ImageLikeMeta[]> = {};
       await Promise.all(
@@ -140,14 +172,20 @@ export default function PicturesFeedPage() {
         })
       );
       if (!mountedRef.current) return true;
-      setLikes(likesMap);
+      setLikes(prev => ({ ...prev, ...likesMap }));
       return true;
     } catch (e) {
       console.error('[feed] load error', e);
       if (mountedRef.current) setError('load');
       return false;
     } finally {
-      if (mountedRef.current) setLoading(false);
+      if (mountedRef.current) {
+        if (isInitialLoad) {
+          setLoading(false);
+        } else {
+          setLoadingMore(false);
+        }
+      }
     }
   }, [i18n.language]);
 
@@ -155,9 +193,45 @@ export default function PicturesFeedPage() {
     void loadFeed();
   }, [loadFeed]);
 
+  const loadMore = useCallback(async () => {
+    if (loadingMore || !hasMore) return;
+    const nextPage = page + 1;
+    const success = await loadFeed(nextPage);
+    if (success) {
+      setPage(nextPage);
+    }
+  }, [loadFeed, loadingMore, hasMore, page]);
+
+  // Infinite scroll detection
+  useEffect(() => {
+    const handleScroll = () => {
+      // Trigger lazy loading of 3rd+ images on first scroll
+      if (!userHasScrolled) {
+        setUserHasScrolled(true);
+      }
+
+      if (loadingMore || !hasMore) return;
+
+      const scrollHeight = document.documentElement.scrollHeight;
+      const scrollTop = document.documentElement.scrollTop;
+      const clientHeight = document.documentElement.clientHeight;
+
+      // Trigger load more when user is within 500px of bottom
+      if (scrollHeight - scrollTop - clientHeight < 500) {
+        void loadMore();
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [loadMore, loadingMore, hasMore, userHasScrolled]);
+
   const feed = useMemo(() => {
     const flat: Array<{
       src: string;
+      srcMobile: string;
+      srcDesktopGrid: string;
+      srcDesktopLightbox: string;
       occId: string;
       annId: string;
       idx: number;
@@ -170,7 +244,9 @@ export default function PicturesFeedPage() {
       dateText: string;
       showHeader: boolean;
       type?: 'occurrence' | 'gallery';
+      globalImageIndex: number;
     }> = [];
+    let globalImageIndex = 0;
     for (const occ of items) {
       const arr = Array.isArray(occ.images) ? occ.images : [];
       const occDescriptionRaw = typeof occ.description === 'string' ? occ.description : '';
@@ -190,8 +266,18 @@ export default function PicturesFeedPage() {
         }
         // Allow edit for both occurrences and gallery photos (if user is creator or admin)
         const canEdit = canEditOccurrence(creatorId);
+
+        // Get resized URLs from API response if available
+        const resized = occ.imagesResized?.[i];
+        const srcMobile = resized?.['800x800'] || src;
+        const srcDesktopGrid = resized?.['400x400'] || src;
+        const srcDesktopLightbox = resized?.['1200x1200'] || src;
+
         flat.push({
           src,
+          srcMobile,
+          srcDesktopGrid,
+          srcDesktopLightbox,
           occId: occ.id,
           annId,
           idx: i,
@@ -204,6 +290,7 @@ export default function PicturesFeedPage() {
           dateText,
           showHeader: i === 0,
           type: occ.type,
+          globalImageIndex: globalImageIndex++,
         });
       });
     }
@@ -307,8 +394,16 @@ export default function PicturesFeedPage() {
   const heroTitle = t('welcomeToSite', { name: siteDisplayName }) as string;
   const aboutFamily = site?.aboutFamily;
 
+  // Preload first image for faster LCP
+  const firstImageSrc = feed.length > 0 ? feed[0].src : null;
+
   return (
     <>
+      {/* Preload first image for faster LCP */}
+      {firstImageSrc && (
+        <link rel="preload" as="image" href={firstImageSrc} />
+      )}
+
       {/* Desktop WelcomeHero - hidden on mobile */}
       {aboutFamily && (
         <div className="desktop-only">
@@ -328,10 +423,16 @@ export default function PicturesFeedPage() {
             }
             const baseLabel = item.occDescription || item.eventName;
             const headerText = item.showHeader ? [baseLabel, item.dateText].filter(Boolean).join(' — ') : undefined;
+
+            // Image loading strategy: first 3 load eagerly (to fill viewport), rest lazy load
+            // First image gets high priority for fastest LCP
+            const imageLoading: 'eager' | 'lazy' = item.globalImageIndex < 3 ? 'eager' : 'lazy';
+            const imagePriority: 'high' | 'low' | 'auto' = item.globalImageIndex === 0 ? 'high' : 'auto';
+
             return (
               <MobileFeedItem
                 key={item.key}
-                item={item}
+                item={{ ...item, src: item.srcMobile }}
                 title={headerText}
                 meta={meta}
                 author={author}
@@ -342,9 +443,16 @@ export default function PicturesFeedPage() {
                 canEdit={item.canEdit}
                 titleDir={item.dir}
                 onGalleryEdit={(photoId) => setGalleryEditTarget(photoId)}
+                imageLoading={imageLoading}
+                imagePriority={imagePriority}
               />
             );
           })}
+          {loadingMore && (
+            <div className="p-4 text-center text-gray-500">
+              {t('loading')}...
+            </div>
+          )}
           </div>
         </div>
       </div>
@@ -359,9 +467,11 @@ export default function PicturesFeedPage() {
             items={feed.map((f) => {
               const baseLabel = f.occDescription || f.eventName;
               const title = f.showHeader ? [baseLabel, f.dateText].filter(Boolean).join(' — ') : undefined;
+              // Desktop grid uses 400x400 thumbnails, lightbox will use 1200x1200
               return {
                 key: f.key,
-                src: f.src,
+                src: f.srcDesktopGrid,
+                lightboxSrc: f.srcDesktopLightbox,
                 title,
                 dir: f.dir,
                 meta: { annId: f.annId, occId: f.occId, creatorId: f.creatorId, canEdit: f.canEdit },
@@ -382,6 +492,11 @@ export default function PicturesFeedPage() {
               openOccurrenceModal(meta.annId, meta.occId, meta.creatorId);
             }}
           />
+          {loadingMore && (
+            <div className="p-4 text-center text-gray-500">
+              {t('loading')}...
+            </div>
+          )}
         </CardContent>
 
         {/* Lightbox handled inside ImageGrid */}
@@ -425,9 +540,11 @@ interface MobileFeedItemProps {
   canEdit: boolean;
   titleDir: 'ltr' | 'rtl';
   onGalleryEdit?: (photoId: string) => void;
+  imageLoading?: 'eager' | 'lazy';
+  imagePriority?: 'high' | 'low' | 'auto';
 }
 
-function MobileFeedItem({ item, title, meta, author, onToggle, onShowLikers, t, onTitleClick, canEdit, titleDir, onGalleryEdit }: MobileFeedItemProps) {
+function MobileFeedItem({ item, title, meta, author, onToggle, onShowLikers, t, onTitleClick, canEdit, titleDir, onGalleryEdit, imageLoading = 'eager', imagePriority = 'auto' }: MobileFeedItemProps) {
   const [loaded, setLoaded] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const wrapperClass = feedStyles.mobileContinuousImageWrap;
@@ -476,6 +593,8 @@ function MobileFeedItem({ item, title, meta, author, onToggle, onShowLikers, t, 
           visibleClassName={feedStyles.mobileContinuousImageVisible}
           shimmerClassName={feedStyles.mobileShimmer}
           onLoadStateChange={setLoaded}
+          loading={imageLoading}
+          fetchPriority={imagePriority}
         />
         <div className={metaRowClass}>
           <div className={feedStyles.mobileAuthorAvatar}>

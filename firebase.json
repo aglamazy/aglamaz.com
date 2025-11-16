@@ -16,5 +16,8 @@
       "enabled": true,
       "port": 4000
     }
+  },
+  "extensions": {
+    "storage-resize-images-ryoh": "firebase/storage-resize-images@0.2.10"
   }
-} 
+}
