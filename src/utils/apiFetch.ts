@@ -58,6 +58,7 @@ export async function apiFetch<T = unknown>(
   // 4) After response is ready, check if token needs refresh in next event loop (fire and forget)
   setTimeout(() => {
     if (shouldRefreshToken()) {
+      console.log('[apiFetch] 🔄 Triggering proactive token refresh (>80% TTL)');
       void refreshOnce(); // Background refresh for next request
     }
   }, 0);
@@ -103,6 +104,7 @@ export async function apiFetchSilent<T = unknown>(
   // After response is ready, check if token needs refresh in next event loop (fire and forget)
   setTimeout(() => {
     if (shouldRefreshToken()) {
+      console.log('[apiFetchSilent] 🔄 Triggering proactive token refresh (>80% TTL)');
       void refreshOnce(); // Background refresh for next request
     }
   }, 0);

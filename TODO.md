@@ -229,3 +229,144 @@ Instead of immediate hard delete, consider a two-step process:
 - Manual version bumps:
   - Minor: `npm version minor` (1.0.5 → 1.1.0)
   - Major: `npm version major` (1.1.0 → 2.0.0)
+
+---
+
+# Performance Optimization - Feed Loading
+
+## Goal
+**Beat the current 35-second load time!**
+
+Current baseline (3G throttling, cache disabled, no images): **~35 seconds**
+
+## Root Cause Analysis
+
+### Critical Issues (Phase 0 - Must Fix First!) 🚨
+From latest waterfall analysis with all feeds disabled:
+- ❌ **`/api/auth/me` returns 401** - causing 2+ second delay
+- ❌ **`/api/site` client fetch** - should be SSR'd in layout (currently IS server-fetched but not hydrated properly)
+- ❌ **`/api/user/member-info` client fetch** - should be SSR'd in layout
+
+**Current Architecture:**
+- ✅ Layout DOES fetch `siteInfo` on server (line 30-36 in `app/layout.tsx`)
+- ✅ Layout DOES inject `window.__SITE_INFO__` for hydration (line 45-50)
+- ❌ BUT `ClientLayoutShell` STILL calls `/api/site` on line 96
+- ❌ `UserStore.checkAuth()` calls `User.me()` which calls `/api/auth/me`
+- ❌ `MemberStore.fetchMember()` calls `/api/user/member-info`
+
+**Fix Strategy:**
+1. SSR user data in layout (similar to siteInfo)
+2. SSR member data in layout
+3. Inject both via `window.__USER__` and `window.__MEMBER__`
+4. Update stores to hydrate from window instead of API calls
+
+### Secondary Issues (Phase 1+)
+- ❌ Loading ALL photos/anniversaries at once (~50+ parallel API calls)
+- ❌ Each API call fetches individual photo/anniversary/likes data
+- ❌ Network congestion from too many parallel requests
+- ❌ Images not optimized for mobile (full resolution)
+
+## Phase 0: Fix SSR Hydration (MUST DO FIRST!) ⚡
+
+**Goal**: Eliminate 3 unnecessary API calls on every page load
+**Expected improvement**: ~6 seconds faster (3 API calls × 2s each)
+
+### Backend Changes
+- [ ] Add user data fetching in `app/layout.tsx` server component
+  - Use existing `getMemberFromToken()` helper
+  - Get user from Firebase Auth token
+- [ ] Add member data fetching in `app/layout.tsx`
+  - Already have `member` from `getMemberFromToken()`
+  - Just need to pass it to client
+- [ ] Inject user and member data into HTML:
+  ```tsx
+  <script id="__USER__" dangerouslySetInnerHTML={{
+    __html: `window.__USER__=${JSON.stringify(userData ?? null)};`,
+  }} />
+  <script id="__MEMBER__" dangerouslySetInnerHTML={{
+    __html: `window.__MEMBER__=${JSON.stringify(member ?? null)};`,
+  }} />
+  ```
+
+### Frontend Changes
+- [ ] Add `hydrateFromWindow()` to `UserStore`
+  - Read from `window.__USER__` on mount
+  - Skip `/api/auth/me` call if hydrated
+- [ ] Update `UserStore.checkAuth()` to try hydration first
+- [ ] Add `hydrateFromWindow()` to `MemberStore` (already exists!)
+- [ ] Update `ClientLayoutShell` to call both hydrations on mount
+- [ ] Remove `/api/site` fetch in `ClientLayoutShell` line 96 (already hydrated!)
+
+### Expected Impact
+- Remove 3 API calls: `/api/auth/me`, `/api/site`, `/api/user/member-info`
+- Save ~6 seconds on initial page load
+- User/member/site data available immediately (no loading states)
+
+## Phase 1: Pagination (Biggest Win) 🎯
+
+**Goal**: Reduce initial API calls from ~50 to ~10 (5x improvement)
+**Expected load time**: ~7 seconds (5x faster than 35s)
+
+### Backend Changes
+- [ ] Update `GalleryPhotoRepository.listBySite()` to accept `{ limit, offset }` options
+- [ ] Update `AnniversaryOccurrenceRepository.listBySite()` to accept `{ limit, offset }` options
+- [ ] Modify `/api/pictures` endpoint to:
+  - Accept `limit` query param (default: 10)
+  - Accept `offset` query param (default: 0)
+  - Return total count for pagination UI
+
+### Frontend Changes
+- [ ] Uncomment feed content in `/app/page.tsx`
+- [ ] Update `loadFeed()` to accept pagination params
+- [ ] Load initial batch (10 items) on mount
+- [ ] Implement infinite scroll:
+  - Detect when user scrolls near bottom (e.g., 80% scrolled)
+  - Load next batch (10 more items)
+  - Append to existing feed
+  - Show loading indicator
+- [ ] Only fetch likes for currently loaded items (not all at once)
+- [ ] Handle empty state and end of feed
+
+## Phase 2: Image Optimization 📸
+
+**Goal**: Reduce image bandwidth by ~70%
+**Expected improvement**: Faster rendering, less network congestion
+
+### Backend Investigation
+- [ ] Check if images are being resized/optimized for mobile
+- [ ] Verify Firebase Storage is serving appropriate sizes
+- [ ] Consider creating thumbnail versions (e.g., 400px wide for mobile feed)
+- [ ] Update `ImageStore.uploadGalleryPhoto()` to create multiple sizes if needed:
+  - Thumbnail: 400px (for feed)
+  - Medium: 800px (for lightbox on mobile)
+  - Full: 1600px (for desktop)
+
+### Frontend Verification
+- [ ] Verify CSS properly hides desktop-size images on mobile
+- [ ] Ensure mobile only loads mobile-optimized versions
+- [ ] Check `ShimmerImage` component isn't loading full-res unnecessarily
+- [ ] Use `<picture>` element with srcset for responsive images
+
+## Phase 3: Testing & Validation ✅
+
+- [ ] Test with 3G throttling, cache disabled (current test environment)
+- [ ] Measure load time after Phase 1 implementation
+- [ ] Measure load time after Phase 2 implementation
+- [ ] Verify smooth infinite scroll UX (no jank)
+- [ ] Test on actual mobile device (iOS/Android)
+- [ ] Test with cache enabled (production scenario)
+
+## Success Criteria 🎉
+
+- **Primary Goal**: < 10 seconds (with 3G throttling, cache disabled)
+- **Stretch Goal**: < 7 seconds
+- Smooth scroll experience with no UI jank
+- Progressive loading feels natural to users
+- No regression in features or UX
+
+## Implementation Notes
+
+- Start with Phase 1 (pagination) - biggest ROI
+- Phase 2 can be done in parallel or after Phase 1
+- Keep original code commented for easy rollback if needed
+- Consider adding performance metrics logging

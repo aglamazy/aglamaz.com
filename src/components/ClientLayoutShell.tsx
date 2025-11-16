@@ -21,7 +21,7 @@ interface ClientLayoutShellProps {
 }
 
 export default function ClientLayoutShell({ children }: ClientLayoutShellProps) {
-  const { user, loading, logout, checkAuth } = useUserStore();
+  const { user, loading, logout, checkAuth, hydrateFromWindow: hydrateUser } = useUserStore();
   const siteInfo = useSiteStore((state) => state.siteInfo);
   const hydrateSiteInfo = useSiteStore((state) => state.hydrateFromWindow);
   const member = useMemberStore((state) => state.member);
@@ -37,6 +37,11 @@ export default function ClientLayoutShell({ children }: ClientLayoutShellProps) 
   const presentationModeActive = usePresentationModeStore((state) => state.active);
   const getSiteForLocale = useSiteStore((state) => state.getSiteForLocale);
   const cacheSiteForLocale = useSiteStore((state) => state.cacheSiteForLocale);
+
+  // Hydrate user from window on mount (before checkAuth)
+  useEffect(() => {
+    hydrateUser();
+  }, [hydrateUser]);
 
   useEffect(() => {
     checkAuth()
@@ -90,12 +95,16 @@ export default function ClientLayoutShell({ children }: ClientLayoutShellProps) 
       return;
     }
 
-    // Not cached, fetch from API
+    // If siteInfo is already hydrated, cache it first to avoid refetch on initial mount
+    if (siteInfo && !cached) {
+      cacheSiteForLocale(i18n.language, siteInfo);
+      return;
+    }
+
+    // Fetch localized site from API (only on actual locale change)
     const fetchLocalizedSite = async () => {
       try {
-        const response = await fetch(`/api/site?locale=${i18n.language}`);
-        if (!response.ok) throw new Error('Failed to fetch site info');
-        const data = await response.json();
+        const data = await apiFetch(`/api/site?locale=${i18n.language}`);
         cacheSiteForLocale(i18n.language, data);
       } catch (error) {
         console.error('[ClientLayoutShell] Failed to fetch localized site:', error);

@@ -48,7 +48,7 @@ const computeInitials = (name?: string, email?: string): string => {
 const readBootstrapMemberInfo = (): IMember | null => {
   if (typeof window === 'undefined') return null; // SSR guard
   const w = window as any;
-  if (w.__MEMBER_INFO__) return w.__MEMBER_INFO__ as IMember;
+  if (w.__MEMBER__) return w.__MEMBER__ as IMember;
 
   return null;
 };

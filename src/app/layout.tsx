@@ -58,13 +58,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html>
       <body>
-        {/* Inject memberInfo for client-side access */}
-        <script
-          id="__MEMBER_INFO__"
-          dangerouslySetInnerHTML={{
-            __html: `window.__MEMBER_INFO__=${JSON.stringify(memberInfo ?? null)};`,
-          }}
-        />
         {children}
       </body>
     </html>

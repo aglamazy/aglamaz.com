@@ -15,6 +15,9 @@ export interface AppClaims {
   firstName: string;
   lastName?: string;
   email?: string;
+  email_verified?: boolean;
+  name?: string;
+  picture?: string;
   needsCredentialSetup?: boolean;
 }
 
