@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
       email: decoded.email || '',
       needsCredentialSetup: false,
     };
-    const accessMin = 10;
+    const accessMin = 60; // Increased from 10 to 60 minutes to reduce refresh frequency
     const refreshDays = 30;
     const access = signAccessToken(appClaims, accessMin);
     const refresh = signRefreshToken(appClaims, refreshDays);

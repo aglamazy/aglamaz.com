@@ -8,17 +8,23 @@ export const dynamic = 'force-dynamic';
 export async function POST(req: NextRequest) {
   const token = req.cookies.get(REFRESH_TOKEN)?.value;
   if (!token) {
-    console.error('Missing refresh token');
+    console.error('[refresh] Missing refresh token');
     return NextResponse.json({ error: 'Unauthorized (refresh, nt)' }, { status: 401 });
   }
 
   const payload = verifyRefreshToken(token);
   if (!payload) {
-    console.error('Refresh token invalid or reuse detected');
+    console.error('[refresh] Refresh token invalid or reuse detected');
     return NextResponse.json({ error: 'Unauthorized (refresh)' }, { status: 401 });
   }
 
   const now = Date.now();
+
+  console.log('[refresh] ✅ Proactive token refresh triggered', {
+    userId: payload.sub,
+    email: payload.email,
+    timestamp: new Date().toISOString(),
+  });
 
   const access = signAccessToken(payload);
   const newRefresh = rotateRefreshToken(payload);

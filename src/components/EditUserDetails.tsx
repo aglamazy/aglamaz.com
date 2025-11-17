@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/utils/apiFetch';
 import { useUserStore } from '@/store/UserStore';
 import { useEditUserModalStore } from '@/store/EditUserModalStore';
@@ -14,7 +15,8 @@ import { SUPPORTED_LOCALES } from '@/i18n';
 import { LANGUAGES } from '@/constants/languages';
 import { Select } from '@/components/ui/select';
 
-export default function EditUserDetails({ standalone = false }: { standalone?: boolean }) {
+export default function EditUserDetails({ standalone = false, returnTo }: { standalone?: boolean; returnTo?: string }) {
+  const router = useRouter();
   const { user, setUser } = useUserStore();
   const member = useMemberStore((state) => state.member);
   const setMember = useMemberStore((state) => state.setMember);
@@ -285,6 +287,9 @@ const mapAvatarError = (code: string) => {
       if (latestMember) {
         setMember(latestMember);
       }
+
+      const localeChanged = defaultLocale !== i18n.language;
+
       const payload = await apiFetch<{ member: IMember }>(`/api/user/profile?siteId=${currentSiteId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -294,7 +299,28 @@ const mapAvatarError = (code: string) => {
         setUser({ ...user, name: name.trim() });
       }
       setMember(payload.member);
-      if (!standalone) {
+
+      // If locale changed, navigate with new locale
+      if (localeChanged) {
+        i18n.changeLanguage(defaultLocale);
+        if (standalone) {
+          // Navigate to returnTo URL with new locale
+          const targetUrl = returnTo || '/app';
+          const urlWithLocale = targetUrl.includes('?')
+            ? `${targetUrl}&locale=${defaultLocale}`
+            : `${targetUrl}?locale=${defaultLocale}`;
+          router.push(urlWithLocale);
+        } else {
+          // In modal mode, just reload the page
+          window.location.reload();
+        }
+        return; // Exit early
+      }
+
+      // Close dialog/navigate back after successful save (when locale didn't change)
+      if (standalone) {
+        router.back();
+      } else {
         close();
       }
     } catch (err) {

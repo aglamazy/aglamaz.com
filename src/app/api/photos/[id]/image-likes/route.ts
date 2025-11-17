@@ -31,7 +31,7 @@ const getHandler = async (request: Request, context: GuardContext & { params: Pr
     const likeRepo = new ImageLikeRepository();
     const items = [];
 
-    for (let i = 0; i < photo.images.length; i++) {
+    for (let i = 0; i < photo.imagesWithDimensions.length; i++) {
       const result = await likeRepo.getLikesForImage(
         id,
         i,
@@ -85,7 +85,7 @@ const postHandler = async (request: Request, context: GuardContext & { params: P
     }
 
     // Verify imageIndex is valid
-    if (imageIndex >= photo.images.length) {
+    if (imageIndex >= photo.imagesWithDimensions.length) {
       return Response.json({ error: 'Invalid imageIndex' }, { status: 400 });
     }
 

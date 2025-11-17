@@ -14,6 +14,7 @@ import { useUserStore } from '@/store/UserStore';
 import { useSiteStore } from '@/store/SiteStore';
 import { useMemberStore } from '@/store/MemberStore';
 import styles from './BlogPage.module.css';
+import { useAddAction } from '@/hooks/useAddAction';
 
 export default function BlogPage() {
   const { t, i18n } = useTranslation();
@@ -24,6 +25,9 @@ export default function BlogPage() {
   const [posts, setPosts] = useState<LocalizedBlogPost[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Register add action - navigate to new blog post
+  useAddAction(() => router.push('/app/blog/new'));
 
   const isAdmin = member?.role === 'admin';
   const canEditPost = (post: LocalizedBlogPost) => isAdmin || post.post.authorId === user?.user_id;

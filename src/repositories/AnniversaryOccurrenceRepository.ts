@@ -1,6 +1,7 @@
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { initAdmin } from '@/firebase/admin';
 import { LocalizableDocument } from '@/services/LocalizationService';
+import { ImageWithDimension } from '@/entities/ImageWithDimension';
 
 export interface AnniversaryOccurrence extends LocalizableDocument {
   id: string;
@@ -9,7 +10,7 @@ export interface AnniversaryOccurrence extends LocalizableDocument {
   date: any; // Firestore Timestamp
   createdAt: any;
   createdBy: string;
-  images?: string[];
+  imagesWithDimensions?: ImageWithDimension[]; // Images with dimensions for CLS prevention
 }
 
 export class AnniversaryOccurrenceRepository {
@@ -20,7 +21,14 @@ export class AnniversaryOccurrenceRepository {
     return getFirestore();
   }
 
-  async create(data: { siteId: string; eventId: string; date: Date; createdBy: string; imageUrl?: string; images?: string[]; description?: string }): Promise<AnniversaryOccurrence> {
+  async create(data: {
+    siteId: string;
+    eventId: string;
+    date: Date;
+    createdBy: string;
+    imagesWithDimensions?: ImageWithDimension[];
+    description?: string;
+  }): Promise<AnniversaryOccurrence> {
     const db = this.getDb();
     const ref = await db.collection(this.collection).add({
       siteId: data.siteId,
@@ -28,7 +36,7 @@ export class AnniversaryOccurrenceRepository {
       date: Timestamp.fromDate(data.date),
       createdAt: Timestamp.now(),
       createdBy: data.createdBy,
-      images: Array.isArray(data.images) ? data.images : [],
+      imagesWithDimensions: data.imagesWithDimensions || [],
       description: data.description || '',
     });
     const doc = await ref.get();
@@ -48,14 +56,22 @@ export class AnniversaryOccurrenceRepository {
     return qs.docs.map((d) => ({ id: d.id, ...d.data() } as AnniversaryOccurrence));
   }
 
-  async listBySite(siteId: string, locale?: string): Promise<AnniversaryOccurrence[]> {
+  async listBySite(siteId: string, locale?: string, options?: { limit?: number; offset?: number }): Promise<AnniversaryOccurrence[]> {
     const db = this.getDb();
-    const qs = await db
+    let query = db
       .collection(this.collection)
       .where('siteId', '==', siteId)
-      .orderBy('date', 'desc')
-      .get();
+      .orderBy('date', 'desc');
 
+    // Apply pagination if provided
+    if (options?.limit) {
+      query = query.limit(options.limit);
+    }
+    if (options?.offset) {
+      query = query.offset(options.offset);
+    }
+
+    const qs = await query.get();
     const items = qs.docs.map((d) => ({ id: d.id, ...d.data() } as AnniversaryOccurrence));
 
     // If locale is specified, ensure and apply localization
@@ -92,11 +108,15 @@ export class AnniversaryOccurrenceRepository {
     return items;
   }
 
-  async update(id: string, updates: { date?: Date; imageUrl?: string | null; images?: string[]; description?: string }): Promise<void> {
+  async update(id: string, updates: {
+    date?: Date;
+    imagesWithDimensions?: ImageWithDimension[];
+    description?: string;
+  }): Promise<void> {
     const db = this.getDb();
     const data: any = {};
     if (updates.date) data.date = Timestamp.fromDate(updates.date);
-    if (updates.images !== undefined) data.images = updates.images;
+    if (updates.imagesWithDimensions !== undefined) data.imagesWithDimensions = updates.imagesWithDimensions;
     if (updates.description !== undefined) data.description = updates.description;
     await db.collection(this.collection).doc(id).update(data);
   }

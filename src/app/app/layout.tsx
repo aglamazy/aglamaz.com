@@ -2,7 +2,7 @@ import ClientLayoutShell from '../../components/ClientLayoutShell';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 import { headers } from 'next/headers';
 import { resolveSiteId } from '@/utils/resolveSiteId';
-import { getMemberFromToken } from '@/utils/serverAuth';
+import { getMemberFromToken, getUserFromToken } from '@/utils/serverAuth';
 import I18nProvider from '@/components/I18nProvider';
 import { resolveLocaleForPrivateRoutes } from '@/utils/resolveLocale';
 import { fetchSiteInfo } from '@/firebase/admin';
@@ -15,7 +15,18 @@ export default async function RootLayout({ children }: AppLayoutProps) {
   const headerStore = await headers();
   const isAuthGate = headerStore.get('x-auth-gate') === '1';
 
-  // Get member preference for locale resolution
+  // Get user from token for SSR
+  const userToken = await getUserFromToken();
+  const userData = userToken ? {
+    user_id: userToken.sub!,
+    email: userToken.email!,
+    email_verified: userToken.email_verified!,
+    name: userToken.name!,
+    picture: userToken.picture!,
+    needsCredentialSetup: userToken.needsCredentialSetup!,
+  } : null;
+
+  // Get member and site info for SSR
   const siteId = await resolveSiteId();
   const member = siteId ? await getMemberFromToken(siteId) : null;
 
@@ -41,11 +52,23 @@ export default async function RootLayout({ children }: AppLayoutProps) {
         <>{children}</>
       ) : (
         <>
-          {/* Inject siteInfo for client-side access */}
+          {/* Inject server-side data for client-side hydration */}
           <script
             id="__SITE_INFO__"
             dangerouslySetInnerHTML={{
               __html: `window.__SITE_INFO__=${JSON.stringify(siteInfo ?? null)};`,
+            }}
+          />
+          <script
+            id="__USER__"
+            dangerouslySetInnerHTML={{
+              __html: `window.__USER__=${JSON.stringify(userData ?? null)};`,
+            }}
+          />
+          <script
+            id="__MEMBER__"
+            dangerouslySetInnerHTML={{
+              __html: `window.__MEMBER__=${JSON.stringify(member ?? null)};`,
             }}
           />
           <I18nProvider initialLocale={baseLocale} resolvedLocale={resolvedLocale}>

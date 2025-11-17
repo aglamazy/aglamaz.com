@@ -1,6 +1,8 @@
 import { withMemberGuard } from '@/lib/withMemberGuard';
 import { GuardContext } from '@/app/api/types';
 import { AnniversaryOccurrenceRepository } from '@/repositories/AnniversaryOccurrenceRepository';
+import { extractImageDimensions } from '@/utils/imageDimensions';
+import type { ImageWithDimension } from '@/entities/ImageWithDimension';
 
 export const dynamic = 'force-dynamic';
 
@@ -41,7 +43,7 @@ const putHandler = async (request: Request, context: GuardContext) => {
       return Response.json({ error: 'Event not found' }, { status: 404 });
     }
     const body = await request.json();
-    const { date, imageUrl, addImages, removeImages, images, description } = body;
+    const { date, addImages, removeImages, images, description } = body;
 
     // Allow any member to add/remove images; restrict date edits to owner/admin
     if (date && !(occ.createdBy === user.userId || member.role === 'admin')) {
@@ -49,20 +51,39 @@ const putHandler = async (request: Request, context: GuardContext) => {
     }
 
     // Build new images array if add/remove/images are provided
-    let nextImages: string[] | undefined = undefined;
+    let nextImageUrls: string[] | undefined = undefined;
     if (Array.isArray(images)) {
-      nextImages = images.filter((s) => typeof s === 'string' && s.length > 0);
+      nextImageUrls = images.filter((s) => typeof s === 'string' && s.length > 0);
     } else if (Array.isArray(addImages) || Array.isArray(removeImages)) {
-      const base: string[] = Array.isArray((occ as any).images) ? ((occ as any).images as string[]) : [];
+      // Extract current URLs from imagesWithDimensions
+      const currentImages = occ.imagesWithDimensions || [];
+      const baseUrls = currentImages.map(img => img.url);
       const add = (Array.isArray(addImages) ? addImages : []).filter(Boolean) as string[];
       const del = new Set((Array.isArray(removeImages) ? removeImages : []) as string[]);
-      nextImages = [...base.filter((u) => !del.has(u)), ...add];
+      nextImageUrls = [...baseUrls.filter((u) => !del.has(u)), ...add];
+    }
+
+    // Extract dimensions if we have new images
+    let nextImagesWithDimensions: ImageWithDimension[] | undefined = undefined;
+    if (nextImageUrls && nextImageUrls.length > 0) {
+      console.log('[anniversaries/events/update] Extracting dimensions for', nextImageUrls.length, 'images');
+      const dimensions = await extractImageDimensions(nextImageUrls);
+      nextImagesWithDimensions = nextImageUrls.map((url, index) => {
+        const dim = dimensions[index];
+        if (!dim) {
+          throw new Error(`Failed to extract dimensions for image at index ${index}`);
+        }
+        return {
+          url,
+          width: dim.width,
+          height: dim.height
+        };
+      });
     }
 
     await occRepo.update(occurrenceId, {
       date: date ? new Date(date) : undefined,
-      imageUrl, // legacy
-      images: nextImages,
+      imagesWithDimensions: nextImagesWithDimensions,
       description: typeof description === 'string' ? description : undefined,
     });
     const updated = await occRepo.getById(occurrenceId);

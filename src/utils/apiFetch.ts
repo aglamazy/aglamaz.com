@@ -1,4 +1,5 @@
 import { landingPage } from "@/app/settings";
+import { shouldRefreshToken } from "@/auth/clientAuth";
 
 let refreshPromise: Promise<Response> | null = null;
 
@@ -50,9 +51,19 @@ export async function apiFetch<T = unknown>(
   if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
 
   const ct = res.headers.get('content-type') || '';
-  return ct.includes('application/json')
+  const result = ct.includes('application/json')
     ? (res.json() as Promise<T>)
     : ((await res.text()) as unknown as T);
+
+  // 4) After response is ready, check if token needs refresh in next event loop (fire and forget)
+  setTimeout(() => {
+    if (shouldRefreshToken()) {
+      console.log('[apiFetch] 🔄 Triggering proactive token refresh (>80% TTL)');
+      void refreshOnce(); // Background refresh for next request
+    }
+  }, 0);
+
+  return result;
 }
 
 // Same as apiFetch, but never redirects on 401. Useful for probes like /api/auth/me
@@ -86,7 +97,17 @@ export async function apiFetchSilent<T = unknown>(
   if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
 
   const ct = res.headers.get('content-type') || '';
-  return ct.includes('application/json')
+  const result = ct.includes('application/json')
     ? (res.json() as Promise<T>)
     : ((await res.text()) as unknown as T);
+
+  // After response is ready, check if token needs refresh in next event loop (fire and forget)
+  setTimeout(() => {
+    if (shouldRefreshToken()) {
+      console.log('[apiFetchSilent] 🔄 Triggering proactive token refresh (>80% TTL)');
+      void refreshOnce(); // Background refresh for next request
+    }
+  }, 0);
+
+  return result;
 }

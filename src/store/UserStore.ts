@@ -11,6 +11,7 @@ interface UserState {
   setLoading: (loading: boolean) => void;
   checkAuth: () => Promise<void>;
   logout: () => Promise<void>;
+  hydrateFromWindow: () => void;
 }
 
 export const useUserStore = create<UserState>((set, get) => ({
@@ -32,7 +33,28 @@ export const useUserStore = create<UserState>((set, get) => ({
     memberStore.fetchMember(userId, siteId);
   },
   setLoading: (loading) => set({ loading }),
+  hydrateFromWindow: () => {
+    if (typeof window === 'undefined') return;
+    const hydrated = (window as any).__USER__;
+    if (hydrated) {
+      set({ user: hydrated, loading: false });
+    }
+  },
   checkAuth: async () => {
+    // Try hydration first
+    const current = get().user;
+    if (current) {
+      // Already hydrated
+      return;
+    }
+
+    // Try window hydration if not already loaded
+    if (typeof window !== 'undefined' && (window as any).__USER__) {
+      get().hydrateFromWindow();
+      return;
+    }
+
+    // Fall back to API call
     try {
       const userData = await User.me();
       set({ user: userData, loading: false });

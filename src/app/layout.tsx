@@ -57,14 +57,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   return (
     <html>
+      <head>
+        {/* Preconnect to Firebase Storage for faster image loading (LCP optimization) */}
+        <link rel="preconnect" href="https://firebasestorage.googleapis.com" />
+        <link rel="dns-prefetch" href="https://firebasestorage.googleapis.com" />
+      </head>
       <body>
-        {/* Inject memberInfo for client-side access */}
-        <script
-          id="__MEMBER_INFO__"
-          dangerouslySetInnerHTML={{
-            __html: `window.__MEMBER_INFO__=${JSON.stringify(memberInfo ?? null)};`,
-          }}
-        />
         {children}
       </body>
     </html>
