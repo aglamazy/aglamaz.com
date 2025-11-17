@@ -24,13 +24,13 @@ const getHandler = async (_request: Request, context: GuardContext) => {
     if (!occ || occ.siteId !== member.siteId || occ.eventId !== id) {
       return Response.json({ error: 'Event not found' }, { status: 404 });
     }
-    const images: string[] = Array.isArray((occ as any).images) ? ((occ as any).images as string[]) : [];
+    const imagesWithDimensions = occ.imagesWithDimensions || [];
 
     // Fetch likes for all images (with first 3 likers for avatar stack)
     const likeRepo = new ImageLikeRepository();
     const items = [];
 
-    for (let i = 0; i < images.length; i++) {
+    for (let i = 0; i < imagesWithDimensions.length; i++) {
       const result = await likeRepo.getLikesForOccurrenceImage(
         resolvedEventId,
         i,
@@ -78,10 +78,10 @@ const postHandler = async (request: Request, context: GuardContext) => {
     if (!occ || occ.siteId !== member.siteId || occ.eventId !== id) {
       return Response.json({ error: 'Event not found' }, { status: 404 });
     }
-    const imgs: string[] = Array.isArray((occ as any).images) ? ((occ as any).images as string[]) : [];
+    const imagesWithDimensions = occ.imagesWithDimensions || [];
 
     // Verify imageIndex is valid
-    if (imageIndex >= imgs.length) {
+    if (imageIndex >= imagesWithDimensions.length) {
       return Response.json({ error: 'Invalid imageIndex' }, { status: 400 });
     }
 

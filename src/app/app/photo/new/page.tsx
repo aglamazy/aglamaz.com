@@ -12,7 +12,7 @@ import ImageUploadArea from '@/components/ui/ImageUploadArea';
 import DateInput from '@/components/ui/DateInput';
 
 export default function NewPhotoPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const router = useRouter();
   const [date, setDate] = useState(() => {
     const today = new Date();
@@ -115,6 +115,7 @@ export default function NewPhotoPage() {
           images: imageUrls,
           description: description.trim() || undefined,
           anniversaryId: anniversaryId || undefined,
+          locale: i18n.language,
         }),
       });
 

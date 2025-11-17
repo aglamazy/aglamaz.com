@@ -79,13 +79,14 @@ const getHandler = async (req: Request, context: GuardContext) => {
     // Generate resized image URLs with proper tokens for all images
     const itemsWithResizedUrls = await Promise.all(
       items.map(async (item: any) => {
-        if (!item.images || !Array.isArray(item.images)) {
+        if (!item.imagesWithDimensions || !Array.isArray(item.imagesWithDimensions)) {
           return item;
         }
 
-        // For each image URL in the images array, generate resized versions
+        // For each image in imagesWithDimensions array, generate resized versions
         const resizedImages = await Promise.all(
-          item.images.map(async (imageUrl: string) => {
+          item.imagesWithDimensions.map(async (imageWithDim: any) => {
+            const imageUrl = imageWithDim.url;
             try {
               // Generate URLs for all needed sizes
               const [url400, url800, url1200] = await Promise.all([
@@ -99,6 +100,8 @@ const getHandler = async (req: Request, context: GuardContext) => {
                 '400x400': url400,
                 '800x800': url800,
                 '1200x1200': url1200,
+                width: imageWithDim.width,
+                height: imageWithDim.height,
               };
             } catch (error) {
               console.error('[pictures] Failed to generate resized URLs:', error);
@@ -108,6 +111,8 @@ const getHandler = async (req: Request, context: GuardContext) => {
                 '400x400': imageUrl,
                 '800x800': imageUrl,
                 '1200x1200': imageUrl,
+                width: imageWithDim.width,
+                height: imageWithDim.height,
               };
             }
           })

@@ -57,6 +57,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   return (
     <html>
+      <head>
+        {/* Preconnect to Firebase Storage for faster image loading (LCP optimization) */}
+        <link rel="preconnect" href="https://firebasestorage.googleapis.com" />
+        <link rel="dns-prefetch" href="https://firebasestorage.googleapis.com" />
+      </head>
       <body>
         {children}
       </body>

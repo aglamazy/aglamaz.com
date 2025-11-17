@@ -42,7 +42,7 @@ export default function BottomTabBar() {
         />
       ),
       label: 'Profile',
-      path: '/app/profile',
+      path: `/app/profile?returnTo=${encodeURIComponent(pathname || '/app')}`,
     },
     {
       id: 'gallery',

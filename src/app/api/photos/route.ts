@@ -1,6 +1,7 @@
 import { withMemberGuard } from '@/lib/withMemberGuard';
 import { GalleryPhotoRepository } from '@/repositories/GalleryPhotoRepository';
 import { GuardContext } from '@/app/api/types';
+import { extractImageDimensions } from '@/utils/imageDimensions';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,7 +14,7 @@ const postHandler = async (request: Request, context: GuardContext) => {
     const member = context.member!;
     const user = context.user!;
     const body = await request.json();
-    const { date, images, description, anniversaryId } = body;
+    const { date, images, description, anniversaryId, locale } = body;
 
     // Validation
     if (!date) {
@@ -24,6 +25,10 @@ const postHandler = async (request: Request, context: GuardContext) => {
       return Response.json({ error: 'At least one image is required' }, { status: 400 });
     }
 
+    if (!locale || typeof locale !== 'string') {
+      return Response.json({ error: 'locale is required' }, { status: 400 });
+    }
+
     // Validate image URLs
     for (const img of images) {
       if (typeof img !== 'string' || !img.startsWith('https://')) {
@@ -31,14 +36,32 @@ const postHandler = async (request: Request, context: GuardContext) => {
       }
     }
 
+    // Extract dimensions for all images
+    console.log('[photos] Extracting dimensions for', images.length, 'images');
+    const dimensions = await extractImageDimensions(images);
+
+    // Combine URLs with dimensions
+    const imagesWithDimensions = images.map((url, index) => {
+      const dim = dimensions[index];
+      if (!dim) {
+        throw new Error(`Failed to extract dimensions for image at index ${index}`);
+      }
+      return {
+        url,
+        width: dim.width,
+        height: dim.height
+      };
+    });
+
     const repo = new GalleryPhotoRepository();
     const photo = await repo.create({
       siteId: member.siteId,
       createdBy: user.userId,
       date: new Date(date),
-      images,
-      description: description?.trim() || undefined,
+      imagesWithDimensions,
+      description: description?.trim() || '',
       anniversaryId: anniversaryId || undefined,
+      locale,
     });
 
     return Response.json({ photo }, { status: 201 });

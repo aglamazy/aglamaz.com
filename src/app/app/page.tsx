@@ -11,6 +11,7 @@ import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { ShimmerImage } from "@/components/mobile/ShimmerImagePreview";
 import md5 from 'blueimp-md5';
+import type { ImageWithDimension } from '@/entities/ImageWithDimension';
 import { MoreVertical } from 'lucide-react';
 import OccurrenceEditModal, { OccurrenceForEdit } from '@/components/anniversaries/OccurrenceEditModal';
 import GalleryPhotoEditModal, { GalleryPhotoForEdit } from '@/components/photos/GalleryPhotoEditModal';
@@ -26,11 +27,13 @@ import LikersBottomSheet from '@/components/photos/LikersBottomSheet';
 import type { ImageLikeMeta } from '@/types/likes';
 import { useAddAction } from '@/hooks/useAddAction';
 
-type ImageResized = {
+type ImageSizes = {
   original: string;
   '400x400': string;
   '800x800': string;
   '1200x1200': string;
+  width: number;
+  height: number;
 };
 
 type Occurrence = {
@@ -39,8 +42,7 @@ type Occurrence = {
   eventId?: string; // anniversary id (for occurrences)
   anniversaryId?: string; // anniversary id (for gallery photos)
   date: any;
-  images?: string[];
-  imagesResized?: ImageResized[]; // Resized versions with proper tokens from API
+  imagesResized?: ImageSizes[]; // Images with multiple sizes and dimensions from API
   createdBy?: string;
   description?: string;
 };
@@ -245,10 +247,13 @@ export default function PicturesFeedPage() {
       showHeader: boolean;
       type?: 'occurrence' | 'gallery';
       globalImageIndex: number;
+      width?: number;
+      height?: number;
     }> = [];
     let globalImageIndex = 0;
     for (const occ of items) {
-      const arr = Array.isArray(occ.images) ? occ.images : [];
+      // Note: "occurrence" is called "event" in the code (anniversary event)
+      const eventImages = occ.imagesResized || [];
       const occDescriptionRaw = typeof occ.description === 'string' ? occ.description : '';
       const occDescription = occDescriptionRaw.trim();
       // Handle both occurrence (eventId) and gallery (anniversaryId)
@@ -259,7 +264,8 @@ export default function PicturesFeedPage() {
       const sec = d?._seconds ?? d?.seconds;
       const js = typeof sec === 'number' ? new Date(sec * 1000) : (d?.toDate ? d.toDate() : new Date(d));
       const dateText = formatLocalizedDate(js, i18n.language);
-      arr.forEach((src, i) => {
+
+      eventImages.forEach((image, i) => {
         const creatorId = occ.createdBy;
         if (!creatorId) {
           throw new Error(`[PicturesFeedPage] missing creatorId for ${occ.type || 'item'} ${occ.id}`);
@@ -267,11 +273,11 @@ export default function PicturesFeedPage() {
         // Allow edit for both occurrences and gallery photos (if user is creator or admin)
         const canEdit = canEditOccurrence(creatorId);
 
-        // Get resized URLs from API response if available
-        const resized = occ.imagesResized?.[i];
-        const srcMobile = resized?.['800x800'] || src;
-        const srcDesktopGrid = resized?.['400x400'] || src;
-        const srcDesktopLightbox = resized?.['1200x1200'] || src;
+        // Extract different sizes for different contexts
+        const src = image.original;
+        const srcMobile = image['800x800'] || src;
+        const srcDesktopGrid = image['400x400'] || src;
+        const srcDesktopLightbox = image['1200x1200'] || src;
 
         flat.push({
           src,
@@ -291,6 +297,8 @@ export default function PicturesFeedPage() {
           showHeader: i === 0,
           type: occ.type,
           globalImageIndex: globalImageIndex++,
+          width: image.width,
+          height: image.height,
         });
       });
     }
@@ -445,6 +453,8 @@ export default function PicturesFeedPage() {
                 onGalleryEdit={(photoId) => setGalleryEditTarget(photoId)}
                 imageLoading={imageLoading}
                 imagePriority={imagePriority}
+                imageWidth={item.width}
+                imageHeight={item.height}
               />
             );
           })}
@@ -542,9 +552,11 @@ interface MobileFeedItemProps {
   onGalleryEdit?: (photoId: string) => void;
   imageLoading?: 'eager' | 'lazy';
   imagePriority?: 'high' | 'low' | 'auto';
+  imageWidth?: number;
+  imageHeight?: number;
 }
 
-function MobileFeedItem({ item, title, meta, author, onToggle, onShowLikers, t, onTitleClick, canEdit, titleDir, onGalleryEdit, imageLoading = 'eager', imagePriority = 'auto' }: MobileFeedItemProps) {
+function MobileFeedItem({ item, title, meta, author, onToggle, onShowLikers, t, onTitleClick, canEdit, titleDir, onGalleryEdit, imageLoading = 'eager', imagePriority = 'auto', imageWidth, imageHeight }: MobileFeedItemProps) {
   const [loaded, setLoaded] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const wrapperClass = feedStyles.mobileContinuousImageWrap;
@@ -595,6 +607,8 @@ function MobileFeedItem({ item, title, meta, author, onToggle, onShowLikers, t, 
           onLoadStateChange={setLoaded}
           loading={imageLoading}
           fetchPriority={imagePriority}
+          width={imageWidth}
+          height={imageHeight}
         />
         <div className={metaRowClass}>
           <div className={feedStyles.mobileAuthorAvatar}>

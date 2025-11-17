@@ -16,7 +16,7 @@ interface PhotoUploadModalProps {
 }
 
 export default function PhotoUploadModal({ isOpen, onClose, onSuccess }: PhotoUploadModalProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [date, setDate] = useState('');
   const [description, setDescription] = useState('');
   const [imageFiles, setImageFiles] = useState<File[]>([]);
@@ -156,7 +156,7 @@ export default function PhotoUploadModal({ isOpen, onClose, onSuccess }: PhotoUp
       setUploading(false);
 
       // POST to /api/photos
-      const response = await fetch('/api/photos', {
+      await apiFetch('/api/photos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -164,13 +164,9 @@ export default function PhotoUploadModal({ isOpen, onClose, onSuccess }: PhotoUp
           images: imageUrls,
           description: description.trim() || undefined,
           anniversaryId: anniversaryId || undefined,
+          locale: i18n.language,
         }),
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to save photo');
-      }
 
       // Clean up
       previews.forEach(url => URL.revokeObjectURL(url));

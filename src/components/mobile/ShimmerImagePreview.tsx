@@ -36,6 +36,8 @@ interface ShimmerImageProps {
   onLoadStateChange?: (loaded: boolean) => void;
   loading?: 'eager' | 'lazy';
   fetchPriority?: 'high' | 'low' | 'auto';
+  width?: number;
+  height?: number;
 }
 
 export function ShimmerImage({
@@ -51,6 +53,8 @@ export function ShimmerImage({
   onLoadStateChange,
   loading = 'eager',
   fetchPriority = 'auto',
+  width,
+  height,
 }: ShimmerImageProps) {
   const [loaded, setLoaded] = useState(false);
 
@@ -98,6 +102,8 @@ export function ShimmerImage({
         onError={handleLoaded}
         loading={loading}
         fetchPriority={fetchPriority}
+        width={width}
+        height={height}
       />
     </div>
   );

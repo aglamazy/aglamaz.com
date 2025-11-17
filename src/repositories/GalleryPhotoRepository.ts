@@ -1,6 +1,7 @@
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { initAdmin } from '@/firebase/admin';
 import { LocalizableDocument } from '@/services/LocalizationService';
+import { ImageWithDimension } from '@/entities/ImageWithDimension';
 
 export interface GalleryPhoto extends LocalizableDocument {
   id: string;
@@ -8,7 +9,7 @@ export interface GalleryPhoto extends LocalizableDocument {
   createdBy: string;
   createdAt: Timestamp;
   date: Timestamp; // Display date for the photo
-  images: string[]; // Array of Firebase Storage URLs
+  imagesWithDimensions: ImageWithDimension[]; // Images with dimensions
   anniversaryId?: string; // Optional link to anniversary
   deletedAt: Timestamp | null; // null for active, Timestamp for soft delete
 }
@@ -25,21 +26,41 @@ export class GalleryPhotoRepository {
     siteId: string;
     createdBy: string;
     date: Date;
-    images: string[];
-    description?: string;
+    imagesWithDimensions: ImageWithDimension[];
+    description: string;
     anniversaryId?: string;
+    locale: string;
   }): Promise<GalleryPhoto> {
     const db = this.getDb();
-    const ref = await db.collection(this.collection).add({
+
+    // Validate images
+    if (!Array.isArray(data.imagesWithDimensions) || data.imagesWithDimensions.length === 0) {
+      throw new Error('At least one image with dimensions is required');
+    }
+
+    const now = Timestamp.now();
+
+    // Build localized description structure (nested object for add(), not dot notation)
+    const docToSave = {
       siteId: data.siteId,
       createdBy: data.createdBy,
       date: Timestamp.fromDate(data.date),
-      createdAt: Timestamp.now(),
-      images: data.images,
-      description: data.description || '',
+      createdAt: now,
+      imagesWithDimensions: data.imagesWithDimensions,
       anniversaryId: data.anniversaryId || null,
       deletedAt: null,
-    });
+      locales: {
+        [data.locale]: {
+          description: data.description,
+          description$meta: {
+            source: 'manual',
+            updatedAt: now,
+          },
+        },
+      },
+    };
+
+    const ref = await db.collection(this.collection).add(docToSave);
     const doc = await ref.get();
     return { id: doc.id, ...doc.data() } as GalleryPhoto;
   }
@@ -109,7 +130,7 @@ export class GalleryPhotoRepository {
     id: string,
     updates: {
       date?: Date;
-      images?: string[];
+      imagesWithDimensions?: ImageWithDimension[];
       description?: string;
       anniversaryId?: string | null;
     }
@@ -117,7 +138,7 @@ export class GalleryPhotoRepository {
     const db = this.getDb();
     const data: any = {};
     if (updates.date) data.date = Timestamp.fromDate(updates.date);
-    if (updates.images !== undefined) data.images = updates.images;
+    if (updates.imagesWithDimensions !== undefined) data.imagesWithDimensions = updates.imagesWithDimensions;
     if (updates.description !== undefined) data.description = updates.description;
     if (updates.anniversaryId !== undefined) data.anniversaryId = updates.anniversaryId;
     await db.collection(this.collection).doc(id).update(data);
