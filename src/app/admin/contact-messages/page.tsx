@@ -4,6 +4,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { useSiteStore } from '@/store/SiteStore';
 import { MessageCircle } from 'lucide-react';
 import { apiFetch } from '@/utils/apiFetch';
+import { ApiRoute } from '@/entities/Routes';
 import { useTranslation } from 'react-i18next';
 import { formatLocalizedDateTime } from '@/utils/dateFormat';
 
@@ -22,7 +23,9 @@ export default function ContactMessagesPage() {
 
   useEffect(() => {
     const load = async () => {
-      const data = await apiFetch<{messages: ContactMessage[]}>(`/api/admin/contact?siteId=${site?.id}`);
+      const data = await apiFetch<{ messages: ContactMessage[] }>(ApiRoute.ADMIN_CONTACT_MESSAGES, {
+        queryParams: { siteId: site?.id },
+      });
       setMessages(data.messages || []);
     };
     if (site?.id) load();

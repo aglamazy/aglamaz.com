@@ -44,6 +44,8 @@ export async function exchangeCodeForToken(code: string, origin: string) {
   body.set('code', code);
   body.set('redirect_uri', getRedirectUri(origin));
 
+  // External Geni call – allow native fetch
+  // eslint-disable-next-line no-restricted-globals
   const res = await fetch(TOKEN_URL, {
     method: 'POST',
     headers: { 'content-type': 'application/x-www-form-urlencoded', 'accept': 'application/json' },
@@ -64,6 +66,7 @@ export async function exchangeCodeForToken(code: string, origin: string) {
 }
 
 export async function fetchGeniMe(accessToken: string) {
+  // eslint-disable-next-line no-restricted-globals
   const res = await fetch(ME_URL, {
     headers: { Authorization: `Bearer ${accessToken}`, Accept: 'application/json' },
     cache: 'no-store',
@@ -77,6 +80,7 @@ export async function fetchGeniMe(accessToken: string) {
 
 export async function fetchGeniImmediateFamily(accessToken: string, guid: string) {
   const url = PROFILE_FAMILY_PATH(guid);
+  // eslint-disable-next-line no-restricted-globals
   const res = await fetch(url, {
     headers: { Authorization: `Bearer ${accessToken}`, Accept: 'application/json' },
     cache: 'no-store',

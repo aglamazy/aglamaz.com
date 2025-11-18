@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Modal from '@/components/ui/Modal';
 import { Button } from '@/components/ui/button';
 import { apiFetch } from '@/utils/apiFetch';
+import { ApiRoute } from '@/entities/Routes';
 import { useTranslation } from 'react-i18next';
 
 export interface OccurrenceForEdit {
@@ -90,7 +91,8 @@ export default function OccurrenceEditModal({
     (async () => {
       try {
         const data = await apiFetch<{ event: OccurrenceForEdit }>(
-          `/api/anniversaries/${anniversaryId}/events/${occurrenceId}`
+          ApiRoute.SITE_ANNIVERSARY_EVENT_BY_ID,
+          { pathParams: { anniversaryId, eventId: occurrenceId } }
         );
         if (cancelled) return;
         setOccurrence(data.event);
@@ -120,13 +122,14 @@ export default function OccurrenceEditModal({
     setSaving(true);
     setError('');
     try {
-      await apiFetch(`/api/anniversaries/${anniversaryId}/events/${occurrenceId}`, {
+      await apiFetch(ApiRoute.SITE_ANNIVERSARY_EVENT_BY_ID, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date: dateValue, description }),
+        pathParams: { anniversaryId, eventId: occurrenceId },
+        body: { date: dateValue, description },
       });
       const refreshed = await apiFetch<{ event: OccurrenceForEdit }>(
-        `/api/anniversaries/${anniversaryId}/events/${occurrenceId}`
+        ApiRoute.SITE_ANNIVERSARY_EVENT_BY_ID,
+        { pathParams: { anniversaryId, eventId: occurrenceId } }
       );
       setOccurrence(refreshed.event);
       onUpdated?.(refreshed.event);

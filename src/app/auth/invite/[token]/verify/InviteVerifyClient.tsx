@@ -66,6 +66,7 @@ export default function InviteVerifyClient({ token }: InviteVerifyClientProps) {
     let active = true;
     (async () => {
       try {
+        // Unauthenticated invite verify uses plain fetch; no token handling needed
         // eslint-disable-next-line no-restricted-globals
         const res = await fetch('/api/invite/verify', {
           method: 'POST',

@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { apiFetch } from '@/utils/apiFetch';
+import { ApiRoute } from '@/entities/Routes';
 import { Loader2, Save, Check, Languages } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useSiteStore } from '@/store/SiteStore';
@@ -79,7 +80,6 @@ export default function SiteDescriptionEditor() {
     if (site?.id) {
       loadSiteInfo(currentLocale);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentLocale, site?.id]);
 
   useEffect(() => {
@@ -92,7 +92,9 @@ export default function SiteDescriptionEditor() {
     try {
       setLoading(true);
       setError('');
-      const data = await apiFetch<SiteResponse>(`/api/site/${site.id}/description?locale=${encodeURIComponent(locale)}`);
+      const data = await apiFetch<SiteResponse>(ApiRoute.SITE_DESCRIPTION, {
+        queryParams: { locale: encodeURIComponent(locale) },
+      });
       setSiteInfo(data.site);
       updateFormFields(locale, data.site);
     } catch (err) {
@@ -120,16 +122,15 @@ export default function SiteDescriptionEditor() {
       setError('');
       setSaved(false);
 
-      await apiFetch(`/api/site/${site.id}/description`, {
+      await apiFetch(ApiRoute.SITE_DESCRIPTION, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+        body: {
           locale: currentLocale,
           name,
           aboutFamily,
           platformName,
           requestTranslations,
-        }),
+        },
       });
 
       // Reload site info

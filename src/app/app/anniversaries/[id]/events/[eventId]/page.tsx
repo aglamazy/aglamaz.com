@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import I18nText from '@/components/I18nText';
 import { apiFetch } from '@/utils/apiFetch';
+import { ApiRoute } from '@/entities/Routes';
+import { useSiteStore } from '@/store/SiteStore';
 import { initFirebase, ensureFirebaseSignedIn, auth } from '@/firebase/client';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import AddFab from '@/components/ui/AddFab';
@@ -30,6 +32,7 @@ interface EventDoc {
 
 export default function OccurrenceDetailsPage({ params }: { params: { id: string; eventId: string } }) {
   const { t } = useTranslation();
+  const siteId = useSiteStore((state) => state.siteInfo?.id);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [event, setEvent] = useState<EventDoc | null>(null);
@@ -47,12 +50,19 @@ export default function OccurrenceDetailsPage({ params }: { params: { id: string
     const run = async () => {
       setLoading(true);
       setError('');
+      if (!siteId) {
+        setError('site');
+        setLoading(false);
+        return;
+      }
       try {
         const ae = await apiFetch<{ event: { id: string; name: string } }>(
-          `/api/anniversaries/${params.id}`
+          ApiRoute.SITE_ANNIVERSARY_BY_ID,
+          { pathParams: { anniversaryId: params.id } }
         );
         const bo = await apiFetch<{ event: { id: string; date: any } }>(
-          `/api/anniversaries/${params.id}/events/${params.eventId}`
+          ApiRoute.SITE_ANNIVERSARY_EVENT_BY_ID,
+          { pathParams: { anniversaryId: params.id, eventId: params.eventId } }
         );
         if (!mounted) return;
         setEvent(ae.event as any);
@@ -69,21 +79,22 @@ export default function OccurrenceDetailsPage({ params }: { params: { id: string
     return () => {
       mounted = false;
     };
-  }, [params.id, params.eventId]);
+  }, [params.id, params.eventId, siteId]);
 
   useEffect(() => {
     (async () => {
-      if (!occ) return;
+      if (!occ || !siteId) return;
       try {
         const data = await apiFetch<{ items: Array<{ index: number; count: number; likedByMe: boolean }> }>(
-          `/api/anniversaries/${params.id}/events/${params.eventId}/image-likes`
+          ApiRoute.SITE_ANNIVERSARY_EVENT_IMAGE_LIKES,
+          { pathParams: { anniversaryId: params.id, eventId: params.eventId } }
         );
         setLikes(data.items || []);
       } catch (e) {
         console.error('[likes] fetch failed', e);
       }
     })();
-  }, [occ?.id, params.id, params.eventId]);
+  }, [occ?.id, params.eventId, params.id, siteId]);
 
   const visibleImages = Array.isArray(occ?.images) ? (occ?.images as string[]) : [];
 
@@ -164,19 +175,21 @@ export default function OccurrenceDetailsPage({ params }: { params: { id: string
           return await getDownloadURL(storageRef);
         })
       );
-      await apiFetch(`/api/anniversaries/${occ.eventId}/events/${occ.id}`, {
+      await apiFetch(ApiRoute.SITE_ANNIVERSARY_EVENT_BY_ID, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ addImages: uploads }),
+        pathParams: { anniversaryId: params.id, eventId: occ.id },
+        body: { addImages: uploads },
       });
       // refresh
       const refreshed = await apiFetch<{ event: OccurrenceDoc }>(
-        `/api/anniversaries/${occ.eventId}/events/${occ.id}`
+        ApiRoute.SITE_ANNIVERSARY_EVENT_BY_ID,
+        { pathParams: { anniversaryId: params.id, eventId: occ.id } }
       );
       setOcc(refreshed.event as any);
       try {
         const data = await apiFetch<{ items: Array<{ index: number; count: number; likedByMe: boolean }> }>(
-          `/api/anniversaries/${params.id}/events/${params.eventId}/image-likes`
+          ApiRoute.SITE_ANNIVERSARY_EVENT_IMAGE_LIKES,
+          { pathParams: { anniversaryId: params.id, eventId: params.eventId } }
         );
         setLikes(data.items || []);
       } catch {}
@@ -207,11 +220,11 @@ export default function OccurrenceDetailsPage({ params }: { params: { id: string
     });
     try {
       const res = await apiFetch<{ index: number; count: number; likedByMe: boolean }>(
-        `/api/anniversaries/${params.id}/events/${params.eventId}/image-likes`,
+        ApiRoute.SITE_ANNIVERSARY_EVENT_IMAGE_LIKES,
         {
+          pathParams: { anniversaryId: params.id, eventId: params.eventId },
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ imageIndex: idx, like: !meta.likedByMe }),
+          body: { imageIndex: idx, like: !meta.likedByMe },
         }
       );
       setLikes((cur) => {

@@ -2,6 +2,8 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { apiFetch } from '@/utils/apiFetch';
+import { ApiRoute } from '@/entities/Routes';
 
 type PostLite = {
   id: string;
@@ -33,10 +35,9 @@ export default function TranslationTrigger({ posts, lang }: { posts: PostLite[];
 
         for (const p of need) {
           try {
-            await fetch('/api/blog/translate', {
+            await apiFetch(ApiRoute.SITE_BLOG_TRANSLATE, {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ postId: p.id, lang })
+              body: { postId: p.id, lang },
             });
           } catch (e) {
             console.error('sync translate failed', e);
@@ -53,4 +54,3 @@ export default function TranslationTrigger({ posts, lang }: { posts: PostLite[];
 
   return null;
 }
-

@@ -7,6 +7,7 @@ import { useUserStore } from '@/store/UserStore';
 import { useMemberStore } from '@/store/MemberStore';
 import { useSiteStore } from '@/store/SiteStore';
 import { apiFetch } from '@/utils/apiFetch';
+import { ApiRoute } from '@/entities/Routes';
 import { normalizeSlug } from '@/utils/slug';
 
 interface BlogSetupModalProps {
@@ -107,8 +108,13 @@ export default function BlogSetupModal({ open, onClose, onSuccess }: BlogSetupMo
     const timeout = setTimeout(async () => {
       try {
         const data = await apiFetch<{ slug: string; available: boolean }>(
-          `/api/user/${user.user_id}/blog/register?siteId=${site.id}&slug=${encodeURIComponent(slug)}`,
-          { method: 'GET', signal: controller.signal },
+          ApiRoute.USER_BLOG_REGISTER,
+          {
+            method: 'GET',
+            signal: controller.signal,
+            pathParams: { userId: user.user_id },
+            queryParams: { siteId: site.id, slug },
+          },
         );
         if (cancelled) return;
         setSlug(data.slug);
@@ -146,11 +152,12 @@ export default function BlogSetupModal({ open, onClose, onSuccess }: BlogSetupMo
 
     try {
       const response = await apiFetch<{ ok: boolean; slug: string }>(
-        `/api/user/${user.user_id}/blog/register?siteId=${site.id}`,
+        ApiRoute.USER_BLOG_REGISTER,
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ slug }),
+          pathParams: { userId: user.user_id },
+          queryParams: { siteId: site.id },
+          body: { slug },
         },
       );
       if (response.ok) {

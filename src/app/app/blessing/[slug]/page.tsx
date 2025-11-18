@@ -4,8 +4,10 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
 import { apiFetch } from '@/utils/apiFetch';
+import { ApiRoute } from '@/entities/Routes';
 import { useUserStore } from '@/store/UserStore';
 import { useMemberStore } from '@/store/MemberStore';
+import { useSiteStore } from '@/store/SiteStore';
 import EditorRich from '@/components/ui/EditorRich';
 import AddFab from '@/components/ui/AddFab';
 
@@ -23,6 +25,7 @@ export default function BlessingPage() {
   const { t, i18n } = useTranslation();
   const { user } = useUserStore();
   const member = useMemberStore((state) => state.member);
+  const siteId = useSiteStore((state) => state.siteInfo?.id);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [blessingPage, setBlessingPage] = useState<any>(null);
@@ -35,9 +38,11 @@ export default function BlessingPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const fetchBlessings = async (blessingPageId: string) => {
+    if (!siteId) return;
     try {
       const data = await apiFetch<{ blessings: Blessing[] }>(
-        `/api/blessing-pages/${blessingPageId}/blessings`
+        ApiRoute.SITE_BLESSING_PAGE_BLESSINGS,
+        { pathParams: { pageId: blessingPageId } }
       );
       setBlessings(data.blessings || []);
     } catch (err) {
@@ -47,10 +52,12 @@ export default function BlessingPage() {
 
   useEffect(() => {
     const fetchBlessingPage = async () => {
+      if (!siteId) return;
       try {
         setLoading(true);
         const data = await apiFetch<{ blessingPage: any; event: any }>(
-          `/api/blessing-pages/by-slug/${slug}`
+          ApiRoute.SITE_BLESSING_PAGES_BY_SLUG,
+          { pathParams: { slug } }
         );
         setBlessingPage(data.blessingPage);
         setEvent(data.event);
@@ -69,7 +76,7 @@ export default function BlessingPage() {
     if (slug) {
       fetchBlessingPage();
     }
-  }, [slug]);
+  }, [siteId, slug]);
 
   if (loading) {
     return (
@@ -218,8 +225,9 @@ export default function BlessingPage() {
                 emojis={['🎂', '🥳', '🎊', '🍷', '🎁', '🕯️', '❤️', '💙']}
                 onDelete={editingBlessing ? async () => {
                   if (!blessingPage?.id || !editingBlessing) return;
-                  await apiFetch(`/api/blessing-pages/${blessingPage.id}/blessings/${editingBlessing.id}`, {
+                  await apiFetch(ApiRoute.SITE_BLESSING_BY_ID, {
                     method: 'DELETE',
+                    pathParams: { pageId: blessingPage.id, blessingId: editingBlessing.id },
                   });
                   setBlessingContent('');
                   setEditingBlessing(null);
@@ -247,17 +255,17 @@ export default function BlessingPage() {
                     setSubmitting(true);
                     if (editingBlessing) {
                       // Update existing blessing
-                      await apiFetch(`/api/blessing-pages/${blessingPage.id}/blessings/${editingBlessing.id}`, {
+                      await apiFetch(ApiRoute.SITE_BLESSING_BY_ID, {
                         method: 'PUT',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ content: blessingContent }),
+                        pathParams: { pageId: blessingPage.id, blessingId: editingBlessing.id },
+                        body: { content: blessingContent },
                       });
                     } else {
                       // Create new blessing
-                      await apiFetch(`/api/blessing-pages/${blessingPage.id}/blessings`, {
+                      await apiFetch(ApiRoute.SITE_BLESSING_PAGE_BLESSINGS, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ content: blessingContent }),
+                        pathParams: { pageId: blessingPage.id },
+                        body: { content: blessingContent },
                       });
                     }
                     setBlessingContent('');

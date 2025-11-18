@@ -19,23 +19,25 @@ export default function GeniExampleAppPage() {
         setLoading(true);
         setError(null);
         // First, check connection status via /api/geni/me
+        // External Geni endpoint; allow direct fetch for this integration
+        // eslint-disable-next-line no-restricted-globals
         const meRes = await fetch('/api/geni/me', { cache: 'no-store' });
-        if (meRes.ok) {
-          const meData = await meRes.json();
+        const meData = meRes.ok ? await meRes.json() : null;
+        if (meData) {
           setConnected(true);
           setMe(meData);
           // Then load family (uses cache on server)
-          const famRes = await fetch('/api/geni/family', { cache: 'no-store' });
-          if (famRes.ok) {
-            const famData = await famRes.json();
+          try {
+            // eslint-disable-next-line no-restricted-globals
+            const famRes = await fetch('/api/geni/family', { cache: 'no-store' });
+            const famData = famRes.ok ? await famRes.json() : null;
             setMe(famData.me || meData);
             setFamily(famData.family || null);
+          } catch (err) {
+            console.error('[geni] family fetch failed', err);
           }
-        } else if (meRes.status === 401) {
-          setConnected(false);
         } else {
-          const text = await meRes.text();
-          setError(text || 'Failed');
+          setConnected(false);
         }
       } catch (e: any) {
         setError(e?.message || 'Unexpected error');

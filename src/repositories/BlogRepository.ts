@@ -157,6 +157,7 @@ export class BlogRepository {
       isPublic: boolean;
       likeCount: number;
       shareCount: number;
+      deletedAt: Timestamp | null;
       createdAt: Timestamp;
       updatedAt: Timestamp;
     } = {
@@ -276,6 +277,14 @@ export class BlogRepository {
       .where('siteId', '==', siteId)
       .where('isPublic', '==', true)
       .where('createdAt', '>=', since)
+      .get();
+    return snap.size;
+  }
+
+  async countPublicBySite(siteId: string): Promise<number> {
+    const snap = await this.getBaseQuery()
+      .where('siteId', '==', siteId)
+      .where('isPublic', '==', true)
       .get();
     return snap.size;
   }

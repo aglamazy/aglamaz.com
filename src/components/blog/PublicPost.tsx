@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { IBlogPost, BlogPostLocalizedFields } from '@/entities/BlogPost';
 import { Button } from '@/components/ui/button';
+import { apiFetch } from '@/utils/apiFetch';
+import { ApiRoute } from '@/entities/Routes';
 import styles from './PublicPost.module.css';
 
 interface Props {
@@ -20,8 +22,10 @@ export default function PublicPost({ post, localized }: Props) {
   const handleLike = async () => {
     setLiking(true);
     try {
-      const res = await fetch(`/api/blog/${post.id}/like`, { method: 'POST' });
-      const data = await res.json();
+      const data = await apiFetch<{ likeCount?: number }>(ApiRoute.SITE_BLOG_LIKE, {
+        method: 'POST',
+        pathParams: { postId: post.id },
+      });
       setLikes(data.likeCount ?? likes + 1);
       return true;
     } catch (error) {
@@ -40,7 +44,10 @@ export default function PublicPost({ post, localized }: Props) {
       } else {
         await navigator.clipboard.writeText(url);
       }
-      await fetch(`/api/blog/${post.id}/share`, { method: 'POST' });
+      await apiFetch(ApiRoute.SITE_BLOG_SHARE, {
+        method: 'POST',
+        pathParams: { postId: post.id },
+      });
       setShares((s) => s + 1);
       return true;
     } catch (error) {

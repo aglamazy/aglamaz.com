@@ -5,6 +5,7 @@ import { Settings, Save } from 'lucide-react';
 import { useSiteStore } from '@/store/SiteStore';
 import type { ISite } from '@/entities/Site';
 import { apiFetch } from '@/utils/apiFetch';
+import { ApiRoute } from '@/entities/Routes';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 
@@ -28,7 +29,7 @@ export default function SiteSettingsPage() {
           aboutFamily: string;
           sourceLang: string;
           aboutTranslations: Record<string, string>;
-        }>(`/api/site/${site.id}/settings`);
+        }>(ApiRoute.SITE_SETTINGS);
         setAboutFamily(data.aboutFamily || '');
         setSourceLang(data.sourceLang || 'he');
       } catch (err) {
@@ -49,9 +50,9 @@ export default function SiteSettingsPage() {
     setSuccessMessage('');
 
     try {
-      await apiFetch(`/api/site/${site.id}/settings`, {
+      await apiFetch(ApiRoute.SITE_SETTINGS, {
         method: 'PUT',
-        body: JSON.stringify({ aboutFamily, sourceLang }),
+        body: { aboutFamily, sourceLang },
       });
       setSuccessMessage(t('settingsSavedSuccessfully'));
       setTimeout(() => setSuccessMessage(''), 3000);

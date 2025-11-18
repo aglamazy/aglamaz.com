@@ -20,6 +20,7 @@ import { useLoginModalStore } from '@/store/LoginModalStore';
 import SignupForm from '@/components/SignupForm';
 import { useTranslation } from 'react-i18next';
 import { usePendingMemberModalStore } from '@/store/PendingMemberModalStore';
+import { apiFetch } from '@/utils/apiFetch';
 
 interface LoginPageProps {
   redirectPath?: string;
@@ -65,7 +66,6 @@ export default function LoginPage({ redirectPath = '/app', onAuthenticated }: Lo
     return () => {
       isMounted = false;
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const afterAuth = useCallback(async () => {
@@ -80,13 +80,13 @@ export default function LoginPage({ redirectPath = '/app', onAuthenticated }: Lo
   const completeLogin = async (firebaseUser: User) => {
     const idToken = await getIdToken(firebaseUser);
 
-    const sessionRes = await fetch('/api/auth/login', {
+    const sessionRes = await apiFetch<{ ok: boolean }>('/api/auth/login' as any, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ idToken }),
       credentials: 'include',
-    });
-    if (!sessionRes.ok) throw new Error('Session creation failed');
+    } as any);
+    if (!sessionRes?.ok) throw new Error('Session creation failed');
 
     setUser({
       name: firebaseUser.displayName || firebaseUser.email,
@@ -176,14 +176,13 @@ export default function LoginPage({ redirectPath = '/app', onAuthenticated }: Lo
       setError('');
       setPasswordResetMessage('');
 
-      const res = await fetch('/api/auth/password/reset', {
+      const data = await apiFetch<{ error?: string }>('/api/auth/password/reset' as any, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({ email, locale: i18n.language }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
+      } as any).catch(() => ({} as { error?: string }));
+      if (!data || (data as any).error) {
         const message = typeof data?.error === 'string' ? data.error : t('failedToSendResetEmail');
         setError(message);
         return;

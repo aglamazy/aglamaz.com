@@ -6,6 +6,7 @@ export interface ContactMessage {
   name: string;
   email: string;
   message: string;
+  siteId?: string;
   createdAt: Timestamp;
 }
 
