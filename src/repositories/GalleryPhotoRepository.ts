@@ -133,15 +133,47 @@ export class GalleryPhotoRepository {
       imagesWithDimensions?: ImageWithDimension[];
       description?: string;
       anniversaryId?: string | null;
+      locale?: string;
     }
   ): Promise<void> {
     const db = this.getDb();
+    const existing = await this.getById(id);
+    if (!existing) {
+      throw new Error(`GalleryPhoto ${id} not found`);
+    }
+
+    if (!updates.locale) {
+      throw new Error('locale is required for update');
+    }
+    const locale = updates.locale;
     const data: any = {};
+
+    // Handle localized description field
+    if (updates.description !== undefined) {
+      data.description = updates.description; // Keep for backward compatibility
+
+      // Update locales structure using LocalizationService
+      const docRef = db.collection(this.collection).doc(id);
+      const { saveLocalizedContent } = await import('@/services/LocalizationService');
+      await saveLocalizedContent(
+        docRef,
+        existing,
+        locale,
+        { description: updates.description },
+        'manual',
+        Timestamp.now()
+      );
+    }
+
+    // Handle non-localized fields
     if (updates.date) data.date = Timestamp.fromDate(updates.date);
     if (updates.imagesWithDimensions !== undefined) data.imagesWithDimensions = updates.imagesWithDimensions;
-    if (updates.description !== undefined) data.description = updates.description;
     if (updates.anniversaryId !== undefined) data.anniversaryId = updates.anniversaryId;
-    await db.collection(this.collection).doc(id).update(data);
+
+    // Only update non-localized fields if there are any
+    if (Object.keys(data).length > 0) {
+      await db.collection(this.collection).doc(id).update(data);
+    }
   }
 
   async delete(id: string): Promise<void> {
