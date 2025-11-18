@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { apiFetch } from '@/utils/apiFetch';
+import { ApiRoute } from '@/entities/Routes';
 import EditorRich from '@/components/ui/EditorRich';
 import { useUserStore } from '@/store/UserStore';
 import { useMemberStore } from '@/store/MemberStore';
@@ -26,6 +27,7 @@ export default function NewPostPage() {
   const [saving, setSaving] = useState(false);
   const [showSetup, setShowSetup] = useState(false);
   const [requestedMember, setRequestedMember] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     if (!requestedMember && user?.user_id && site?.id) {
@@ -62,17 +64,26 @@ export default function NewPostPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user?.user_id) return;
+    if (!user?.user_id || !site?.id) {
+      setError(t('failedToSaveBlogPost', { defaultValue: 'Failed to save blog post' }) as string);
+      return;
+    }
+    if (!title.trim() || !content.trim()) {
+      setError(t('pleaseFillAllFields', { defaultValue: 'Please fill all fields' }) as string);
+      return;
+    }
     setSaving(true);
+    setError('');
     try {
-      await apiFetch('/api/blog', {
+      await apiFetch(ApiRoute.SITE_BLOG, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ authorId: user.user_id, title, content, isPublic, lang: i18n.language })
+        body: { authorId: user.user_id, title, content, isPublic, lang: i18n.language }
       });
       router.push('/app/blog');
     } catch (error) {
-      console.error(error);
+      console.error('[blog-new] failed to save post', error);
+      setError(t('failedToSaveBlogPost', { defaultValue: 'Failed to save blog post' }) as string);
     } finally {
       setSaving(false);
     }
@@ -88,6 +99,7 @@ export default function NewPostPage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
+            {error ? <div className="text-red-600 text-sm">{error}</div> : null}
             <input
               value={title}
               onChange={e => setTitle(e.target.value)}
