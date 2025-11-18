@@ -103,6 +103,10 @@ const apiRoutePaths: Record<ApiRoute, string> = {
   [ApiRoute.AUTH_LOGIN]: '/api/auth/login',
   [ApiRoute.AUTH_SIGNUP_REQUEST_VERIFICATION]: '/api/signup/request-verification',
   [ApiRoute.AUTH_SIGNUP_COMPLETE_VERIFICATION]: '/api/signup/complete-verification',
+  [ApiRoute.AUTH_SIGNUP_VERIFY]: '/api/signup/verify',
+  [ApiRoute.AUTH_ME_FIREBASE_TOKEN]: '/api/auth/me/firebase-token',
+  [ApiRoute.AUTH_INVITE_ME]: '/api/auth/me',
+  [ApiRoute.AUTH_INVITE_BY_TOKEN]: '/api/invite/{token}',
 
   // Site info
   [ApiRoute.SITE_INFO]: '/api/site/{siteId}',

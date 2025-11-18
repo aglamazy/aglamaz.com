@@ -67,7 +67,8 @@ export default function AdminDashboard() {
     setClearingCache(true);
     setCacheCleared(false);
     try {
-      await apiFetch('/api/admin/cache/revalidate', {
+      await apiFetch(ApiRoute.SITE_ADMIN_CACHE_REVALIDATE, {
+        pathParams: { siteId: siteInfo?.id || '' },
         method: 'POST',
       });
       setCacheCleared(true);

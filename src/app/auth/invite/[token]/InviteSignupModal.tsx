@@ -5,6 +5,7 @@ import Modal from '@/components/ui/Modal';
 import SignupForm from '@/components/SignupForm';
 import { useTranslation } from 'react-i18next';
 import { apiFetch } from '@/utils/apiFetch';
+import { ApiRoute } from '@/entities/Routes';
 
 interface InviteSignupModalProps {
   token: string;
@@ -24,12 +25,14 @@ export default function InviteSignupModal({ token, onSubmitted }: InviteSignupMo
     const checkExistingMembership = async () => {
       try {
         // Try to get current user info
-        const userData = await apiFetch<{ user_id: string; siteId: string }>('/api/auth/me');
+        const userData = await apiFetch<{ user_id: string; siteId: string }>(ApiRoute.AUTH_INVITE_ME);
 
         // If we got user data, check if they're a member of this invite's site
         if (userData.user_id && userData.siteId) {
           // Fetch invite details to get siteId
-          const inviteData = await apiFetch<{ invite: { siteId: string } }>(`/api/invite/${token}`);
+          const inviteData = await apiFetch<{ invite: { siteId: string } }>(ApiRoute.AUTH_INVITE_BY_TOKEN, {
+            pathParams: { token },
+          });
 
           // If user's siteId matches the invite's siteId, they're already a member
           if (userData.siteId === inviteData.invite.siteId) {

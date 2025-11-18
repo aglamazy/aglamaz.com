@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
 import { apiFetch } from '@/utils/apiFetch';
+import { ApiRoute } from '@/entities/Routes';
 import { landingPage } from '@/app/settings';
 
 export default function PendingMemberContent() {
@@ -13,7 +14,7 @@ export default function PendingMemberContent() {
   const router = useRouter();
 
   const handleLogout = async () => {
-    await apiFetch<void>('/api/auth/logout', { method: 'POST' });
+    await apiFetch<void>(ApiRoute.AUTH_LOGOUT, { method: 'POST' });
     router.push(landingPage);
   };
 

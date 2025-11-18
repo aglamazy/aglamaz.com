@@ -68,13 +68,24 @@ export async function apiFetch<T = unknown>(
     // Auth routes don't need siteId
     const authPaths: Record<string, string> = {
       AUTH_ME: '/api/auth/me',
+      AUTH_INVITE_ME: '/api/auth/me',
       AUTH_LOGOUT: '/api/auth/logout',
       AUTH_REFRESH: '/api/auth/refresh',
       AUTH_LOGIN: '/api/auth/login',
       AUTH_SIGNUP_REQUEST_VERIFICATION: '/api/signup/request-verification',
       AUTH_SIGNUP_COMPLETE_VERIFICATION: '/api/signup/complete-verification',
+      AUTH_SIGNUP_VERIFY: '/api/signup/verify',
+      AUTH_ME_FIREBASE_TOKEN: '/api/auth/me/firebase-token',
     };
     url = authPaths[route];
+    // Replace any path params in auth routes (e.g., token)
+    if (pathParams) {
+      Object.entries(pathParams).forEach(([key, value]) => {
+        if (value !== undefined) {
+          url = url.replace(`{${key}}`, value);
+        }
+      });
+    }
     if (!url) {
       throw new Error(`[apiFetch] Unknown auth route: ${route}`);
     }
