@@ -11,6 +11,8 @@ import type { IUser } from '@/entities/User';
 import type { ISite } from '@/entities/Site';
 import { useTranslation } from 'react-i18next';
 import { apiFetch } from '@/utils/apiFetch';
+import { ApiRoute } from '@/entities/Routes';
+import { ApiRoute } from '@/entities/Routes';
 import { formatLocalizedDate } from '@/utils/dateFormat';
 
 interface FirestoreTimestamp {
@@ -38,11 +40,13 @@ export default function PendingMembersPage() {
   const { t, i18n } = useTranslation();
 
   useEffect(() => {
-    const load = async (uid: string, sid: string) => {
+    const load = async (_uid: string, sid: string) => {
       try {
         setLoading(true);
         setError('');
-        const data = await apiFetch<{data: PendingMember[]}>(`/api/user/${uid}/pending-members/${sid}`);
+        const data = await apiFetch<{ data: PendingMember[] }>(ApiRoute.SITE_PENDING_MEMBERS, {
+          pathParams: { siteId: sid },
+        });
         setPendingMembers(data?.data || []);
       } catch (error) {
         setError(t('failedToLoadPendingMembers'));
@@ -67,12 +71,9 @@ export default function PendingMembersPage() {
     try {
       setActionLoading(memberId);
       setMessage(null);
-      await apiFetch<void>(`/api/user/${user?.user_id}/${action}-member?siteId=${site?.id}`, {
+      await apiFetch<void>(ApiRoute.SITE_PENDING_MEMBERS, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ signupRequestId: memberId }),
+        body: { signupRequestId: memberId, action },
       });
 
       setMessage({
