@@ -71,6 +71,8 @@ export async function apiFetch<T = unknown>(
       AUTH_LOGOUT: '/api/auth/logout',
       AUTH_REFRESH: '/api/auth/refresh',
       AUTH_LOGIN: '/api/auth/login',
+      AUTH_SIGNUP_REQUEST_VERIFICATION: '/api/signup/request-verification',
+      AUTH_SIGNUP_COMPLETE_VERIFICATION: '/api/signup/complete-verification',
     };
     url = authPaths[route];
     if (!url) {
