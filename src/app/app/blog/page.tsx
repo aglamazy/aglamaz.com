@@ -26,6 +26,7 @@ export default function BlogPage() {
   const [posts, setPosts] = useState<LocalizedBlogPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [hydrated, setHydrated] = useState(false);
 
   // Register add action - navigate to new blog post
   useAddAction(() => router.push('/app/blog/new'));
@@ -55,9 +56,14 @@ export default function BlogPage() {
     fetchPosts();
   }, [i18n.language, siteInfo?.id]);
 
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
+
   const headerTitle = useMemo(() => {
+    if (!hydrated) return '';
     return siteInfo?.name;
-  }, [siteInfo, t]);
+  }, [hydrated, siteInfo, t]);
 
   const loadError = error ? (t('failedToLoadBlogPosts', { defaultValue: 'Failed to load blog posts' }) as string) : '';
 
