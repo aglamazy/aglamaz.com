@@ -1,12 +1,15 @@
 import { LocalizableDocument } from '@/services/LocalizationService';
 
+export type AnniversaryType = 'birthday' | 'death' | 'wedding' | 'other';
+
 export interface AnniversaryEvent extends LocalizableDocument {
   id: string;
   siteId: string;
   ownerId: string;
   name: string;
   description?: string;
-  type: 'birthday' | 'death' | 'wedding';
+  type: AnniversaryType;
+  burialDate?: string;
   date: any;
   month: number;
   day: number;

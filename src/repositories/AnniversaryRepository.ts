@@ -1,6 +1,6 @@
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { initAdmin } from '../firebase/admin';
-import type { AnniversaryEvent } from '@/entities/Anniversary';
+import type { AnniversaryEvent, AnniversaryType } from '@/entities/Anniversary';
 import { formatHebrewDisplay, formatHebrewKey, findGregorianForHebrewKeyInYear } from '@/utils/hebrew';
 import { ConfigRepository } from '@/repositories/ConfigRepository';
 
@@ -18,7 +18,7 @@ export class AnniversaryRepository {
     ownerId: string;
     name: string;
     description?: string;
-    type: 'birthday' | 'death' | 'wedding';
+    type: AnniversaryType;
     date: Date;
     isAnnual: boolean;
     createdBy: string;

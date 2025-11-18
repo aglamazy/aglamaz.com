@@ -16,6 +16,8 @@ interface DateInputProps {
   onChange: (value: string) => void;
   required?: boolean;
   className?: string;
+  context?: 'past' | 'nearFuture';
+  todayIcon?: string;
 }
 
 // Custom input component for react-datepicker
@@ -32,8 +34,8 @@ const CustomInput = forwardRef<HTMLInputElement, any>(({ value, onClick, placeho
 ));
 CustomInput.displayName = 'CustomInput';
 
-export default function DateInput({ value, onChange, required, className = '' }: DateInputProps) {
-  const { i18n } = useTranslation();
+export default function DateInput({ value, onChange, required, className = '', context, todayIcon }: DateInputProps) {
+  const { i18n, t } = useTranslation();
   const [isPickerOpen, setPickerOpen] = useState(false);
   const [pickerStep, setPickerStep] = useState<'decade' | 'year' | 'month' | 'day'>('decade');
   const [draftDecadeStart, setDraftDecadeStart] = useState<number>(() => {
@@ -47,15 +49,27 @@ export default function DateInput({ value, onChange, required, className = '' }:
     return value ? new Date(value + 'T00:00:00').getMonth() : null;
   });
 
+  const nowYear = useMemo(() => new Date().getFullYear(), []);
+  const minYear = 1900;
+  const maxYear = context === 'past' ? nowYear : context === 'nearFuture' ? nowYear + 1 : nowYear + 100;
+  const minDecade = Math.floor(minYear / 10) * 10;
+  const maxDecade = Math.floor(maxYear / 10) * 10;
+
   // Parse YYYY-MM-DD into Date object
-  const selectedDate = value ? new Date(value + 'T00:00:00') : null;
+  const selectedDate = value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? new Date(value + 'T00:00:00') : null;
+  const today = useMemo(() => new Date(), []);
+  const isSameDay = (a?: Date | null, b?: Date | null) => {
+    if (!a || !b) return false;
+    return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  };
 
   const handleChange = (date: Date | null) => {
     if (date) {
-      // Format to YYYY-MM-DD
-      const year = date.getFullYear();
+      const year = Math.min(Math.max(date.getFullYear(), minYear), maxYear);
+      const daysInMonth = new Date(year, date.getMonth() + 1, 0).getDate();
+      const safeDay = Math.min(date.getDate(), daysInMonth);
       const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
+      const day = String(safeDay).padStart(2, '0');
       onChange(`${year}-${month}-${day}`);
     } else {
       onChange('');
@@ -63,8 +77,9 @@ export default function DateInput({ value, onChange, required, className = '' }:
   };
 
   const decadeYears = useMemo(() => {
-    return Array.from({ length: 10 }, (_, idx) => draftDecadeStart + idx);
-  }, [draftDecadeStart]);
+    const start = Math.min(Math.max(draftDecadeStart, minDecade), maxDecade);
+    return Array.from({ length: 10 }, (_, idx) => start + idx).filter((y) => y >= minYear && y <= maxYear);
+  }, [draftDecadeStart, minDecade, maxDecade, minYear, maxYear]);
 
   const monthLabels = useMemo(() => {
     return Array.from({ length: 12 }, (_, idx) =>
@@ -81,10 +96,15 @@ export default function DateInput({ value, onChange, required, className = '' }:
     if (/^\d{4}-\d{2}-\d{2}$/.test(next)) {
       const parsed = new Date(next + 'T00:00:00');
       if (!Number.isNaN(parsed.getTime())) {
-        onChange(next);
-        setDraftYear(parsed.getFullYear());
-        setDraftMonth(parsed.getMonth());
-        setDraftDecadeStart(Math.floor(parsed.getFullYear() / 10) * 10);
+        let year = parsed.getFullYear();
+        year = Math.min(Math.max(year, minYear), maxYear);
+        const month = parsed.getMonth();
+        const day = Math.min(parsed.getDate(), new Date(year, month + 1, 0).getDate());
+        const normalized = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        onChange(normalized);
+        setDraftYear(year);
+        setDraftMonth(month);
+        setDraftDecadeStart(Math.floor(year / 10) * 10);
         return;
       }
     }
@@ -100,34 +120,58 @@ export default function DateInput({ value, onChange, required, className = '' }:
 
   return (
     <div className={className}>
-      <ReactDatePicker
-        selected={selectedDate}
-        onChange={handleChange}
-        dateFormat="yyyy-MM-dd"
-        locale={i18n.language}
-        customInput={<CustomInput onChange={handleManualInput} />}
-        placeholderText="YYYY-MM-DD"
-        showPopperArrow={false}
-        popperPlacement="bottom-start"
-        open={false}
-      />
-      <div className="mt-2 flex gap-2">
+      <div className="flex gap-2 items-center flex-wrap justify-center">
         <button
           type="button"
           className="px-3 py-2 text-sm border rounded bg-white hover:bg-gray-50"
           onClick={() => {
-            if (selectedDate) {
-              const y = selectedDate.getFullYear();
-              setDraftYear(y);
-              setDraftMonth(selectedDate.getMonth());
-              setDraftDecadeStart(Math.floor(y / 10) * 10);
-            }
+            const baseYear = selectedDate?.getFullYear() ?? Math.min(maxYear, nowYear);
+            setDraftYear(Math.min(Math.max(baseYear, minYear), maxYear));
+            setDraftMonth(selectedDate?.getMonth() ?? null);
+            setDraftDecadeStart(Math.min(Math.max(Math.floor(baseYear / 10) * 10, minDecade), maxDecade));
             setPickerStep('decade');
             setPickerOpen(true);
           }}
         >
-          📅 {i18n.language === 'he' ? 'בחירת תאריך' : 'Pick date'}
+          📅 {t('pickDateLabel', { defaultValue: 'Pick a date' }) as string}
         </button>
+        <button
+          type="button"
+          className={`px-3 py-2 text-sm border rounded bg-white hover:bg-gray-50 ${
+            selectedDate && isSameDay(selectedDate, new Date())
+              ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
+              : ''
+          }`}
+          onClick={() => {
+            const today = new Date();
+            const year = Math.min(Math.max(today.getFullYear(), minYear), maxYear);
+            const month = today.getMonth();
+            const day = today.getDate();
+            const safeDay = Math.min(day, new Date(year, month + 1, 0).getDate());
+            const formatted = `${year}-${String(month + 1).padStart(2, '0')}-${String(safeDay).padStart(2, '0')}`;
+            onChange(formatted);
+            setDraftYear(year);
+            setDraftMonth(month);
+            setDraftDecadeStart(Math.floor(year / 10) * 10);
+            setPickerOpen(false);
+          }}
+        >
+          {todayIcon || '👶'}{' '}
+          {t('today', { defaultValue: 'Today' })}
+        </button>
+        <div className="min-w-[120px] max-w-[150px]">
+          <ReactDatePicker
+            selected={selectedDate}
+            onChange={handleChange}
+            dateFormat={i18n.language === 'he' ? 'dd/MM/yyyy' : 'yyyy-MM-dd'}
+            locale={i18n.language}
+            customInput={<CustomInput onChange={handleManualInput} />}
+            placeholderText={i18n.language === 'he' ? 'dd/mm/yyyy' : 'yyyy-mm-dd'}
+            showPopperArrow={false}
+            popperPlacement="bottom-start"
+            open={false}
+          />
+        </div>
       </div>
 
       {isPickerOpen && (
@@ -136,7 +180,7 @@ export default function DateInput({ value, onChange, required, className = '' }:
             <div className="space-y-2">
               <div className="flex justify-between items-center">
                 <span className="font-semibold text-sm">
-                  {i18n.language === 'he' ? 'בחר עשור' : 'Choose decade'}
+                  {t('chooseDecade', { defaultValue: 'Choose decade' })}
                 </span>
                 <div className="flex gap-2">
                   <button
@@ -155,22 +199,28 @@ export default function DateInput({ value, onChange, required, className = '' }:
                   </button>
                 </div>
               </div>
-              <div className="grid grid-cols-5 gap-2">
-                {Array.from({ length: 10 }, (_, idx) => draftDecadeStart - 20 + idx * 10).map((dec) => (
-                  <button
-                    key={dec}
-                    type="button"
-                    className={`px-2 py-2 text-xs border rounded ${
-                      dec === draftDecadeStart ? 'border-emerald-500 text-emerald-700' : 'border-gray-200'
-                    }`}
-                    onClick={() => {
-                      setDraftDecadeStart(dec);
-                      setPickerStep('year');
-                    }}
-                  >
-                    {dec}s
-                  </button>
-                ))}
+              <div className="grid grid-cols-3 gap-2">
+                {Array.from({ length: 12 }, (_, idx) => {
+                  const raw = draftDecadeStart - 30 + idx * 10;
+                  const dec = Math.min(Math.max(raw, minDecade), maxDecade);
+                  return dec;
+                })
+                  .filter((dec, idx, arr) => arr.indexOf(dec) === idx)
+                  .map((dec) => (
+                    <button
+                      key={dec}
+                      type="button"
+                      className={`px-2 py-2 text-xs border rounded ${
+                        dec === draftDecadeStart ? 'border-emerald-500 text-emerald-700' : 'border-gray-200'
+                      }`}
+                      onClick={() => {
+                        setDraftDecadeStart(dec);
+                        setPickerStep('year');
+                      }}
+                    >
+                      {dec}s
+                    </button>
+                  ))}
               </div>
             </div>
           )}
@@ -183,7 +233,7 @@ export default function DateInput({ value, onChange, required, className = '' }:
                   className="text-sm text-sage-700"
                   onClick={() => setPickerStep('decade')}
                 >
-                  ← {i18n.language === 'he' ? 'עשרות' : 'Decades'}
+                  ← {t('decadesLabel', { defaultValue: 'Decades' })}
                 </button>
                 <span className="font-semibold text-sm">{draftDecadeStart}–{draftDecadeStart + 9}</span>
               </div>
@@ -195,6 +245,7 @@ export default function DateInput({ value, onChange, required, className = '' }:
                     className={`px-2 py-2 text-xs border rounded ${
                       y === draftYear ? 'border-emerald-500 text-emerald-700' : 'border-gray-200'
                     }`}
+                    disabled={y < minYear || y > maxYear}
                     onClick={() => {
                       setDraftYear(y);
                       setPickerStep('month');
@@ -215,7 +266,7 @@ export default function DateInput({ value, onChange, required, className = '' }:
                   className="text-sm text-sage-700"
                   onClick={() => setPickerStep('year')}
                 >
-                  ← {i18n.language === 'he' ? 'שנה' : 'Year'}
+                  ← {t('yearLabel', { defaultValue: 'Year' })}
                 </button>
                 <span className="font-semibold text-sm">{draftYear}</span>
               </div>
@@ -247,7 +298,7 @@ export default function DateInput({ value, onChange, required, className = '' }:
                   className="text-sm text-sage-700"
                   onClick={() => setPickerStep('month')}
                 >
-                  ← {i18n.language === 'he' ? 'חודש' : 'Month'}
+                  ← {t('monthLabel', { defaultValue: 'Month' })}
                 </button>
                 <span className="font-semibold text-sm">
                   {monthLabels[draftMonth]} {draftYear}
@@ -277,7 +328,7 @@ export default function DateInput({ value, onChange, required, className = '' }:
               className="px-3 py-2 text-sm border rounded"
               onClick={() => setPickerOpen(false)}
             >
-              {i18n.language === 'he' ? 'סגור' : 'Close'}
+              {t('close', { defaultValue: 'Close' })}
             </button>
           </div>
         </div>

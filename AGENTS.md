@@ -28,3 +28,6 @@ See `docs/architecture.md` for:
 - Repository Pattern (all Firestore access via repositories)
 - Localization implementation (in repositories, not API endpoints)
 - Localization storage format (`locales.{locale}.{field}`)
+
+# Workflow
+Wait for the user to run testing before git commit.
