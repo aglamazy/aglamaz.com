@@ -42,9 +42,9 @@ export async function POST(
       });
       return NextResponse.json({ success: true });
     }
-    const saved = await contactRepository.addContactMessage({ name, email, message });
+    const saved = await contactRepository.addContactMessage({ name, email, message, siteId });
     const origin = new URL(req.url).origin;
-    await adminNotificationService.notify('contact_form', { name, email, message }, origin);
+    await adminNotificationService.notify('contact_form', { name, email, message, siteId }, origin);
     return NextResponse.json({ success: true, data: saved });
   } catch (err) {
     console.error('Contact form error:', err);
