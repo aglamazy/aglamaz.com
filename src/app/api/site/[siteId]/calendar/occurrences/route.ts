@@ -6,7 +6,18 @@ export const dynamic = 'force-dynamic';
 
 const getHandler = async (req: Request, context: GuardContext) => {
   try {
-    const member = context.member!;
+    const params = await context.params;
+    const siteId = params?.siteId as string;
+
+    if (!siteId) {
+      return Response.json({ error: 'Site ID is required' }, { status: 400 });
+    }
+
+    // Verify member has access to this site
+    if (context.member?.siteId !== siteId) {
+      return Response.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const { searchParams } = new URL(req.url);
     const year = Number(searchParams.get('year'));
     const month = Number(searchParams.get('month'));
@@ -17,7 +28,7 @@ const getHandler = async (req: Request, context: GuardContext) => {
     const start = new Date(Date.UTC(year, month, 1, 0, 0, 0));
     const end = new Date(Date.UTC(year, month + 1, 1, 0, 0, 0));
     const repo = new AnniversaryOccurrenceRepository();
-    const items = await repo.listBySiteAndRange(member.siteId, start, end);
+    const items = await repo.listBySiteAndRange(siteId, start, end);
     return Response.json({ items });
   } catch (error) {
     console.error('[calendar][occurrences] error', error);

@@ -1,10 +1,11 @@
 'use client';
-import { useState, useEffect } from 'react';
-import { Loader2, CheckCircle } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { CheckCircle, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/utils/apiFetch';
 import { useTranslation } from 'react-i18next';
 import { useSpamProtection } from '@/hooks/useSpamProtection';
+import { ApiRoute } from '@/utils/urls';
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -37,16 +38,15 @@ export default function ContactPage() {
     setError('');
     try {
       const { honeyputValue, timeToSubmitMs } = getSubmissionMetadata();
-      await apiFetch<void>('/api/contact', {
+      await apiFetch<void>(ApiRoute.SITE_CONTACT, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+        body: {
           name: trimmedName,
           email: trimmedEmail,
           message: trimmedMessage,
           honeyputValue,
           timeToSubmitMs,
-        })
+        },
       });
       setSuccess(true);
       setName('');

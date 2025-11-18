@@ -5,20 +5,35 @@ import { GuardContext } from '@/app/api/types';
 
 export const dynamic = 'force-dynamic';
 
-const getHandler = async (_request: Request, context: GuardContext) => {
+const getHandler = async (_request: Request, context: GuardContext & { params: Promise<{ siteId: string; anniversaryId: string }> }) => {
   try {
+    const params = await context.params;
+    const siteId = params?.siteId;
+    const anniversaryId = params?.anniversaryId;
+
+    if (!siteId) {
+      return Response.json({ error: 'Site ID is required' }, { status: 400 });
+    }
+
+    if (!anniversaryId) {
+      return Response.json({ error: 'Anniversary ID is required' }, { status: 400 });
+    }
+
+    // Verify member has access to this site
+    if (context.member?.siteId !== siteId) {
+      return Response.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const repo = new AnniversaryRepository();
-    const member = context.member!;
-    const params = context.params instanceof Promise ? await context.params : context.params;
-    const { id } = params ?? {};
-    const existing = await repo.getById(id!);
-    if (!existing || existing.siteId !== member.siteId) {
+    const existing = await repo.getById(anniversaryId);
+
+    if (!existing || existing.siteId !== siteId) {
       return Response.json({ error: 'Event not found' }, { status: 404 });
     }
 
     // Fetch blessing pages for this event
     const blessingPageRepo = new BlessingPageRepository();
-    const blessingPages = await blessingPageRepo.listByEvent(id!);
+    const blessingPages = await blessingPageRepo.listByEvent(anniversaryId);
 
     return Response.json({
       event: {
@@ -32,15 +47,31 @@ const getHandler = async (_request: Request, context: GuardContext) => {
   }
 };
 
-const putHandler = async (request: Request, context: GuardContext) => {
+const putHandler = async (request: Request, context: GuardContext & { params: Promise<{ siteId: string; anniversaryId: string }> }) => {
   try {
+    const params = await context.params;
+    const siteId = params?.siteId;
+    const anniversaryId = params?.anniversaryId;
+
+    if (!siteId) {
+      return Response.json({ error: 'Site ID is required' }, { status: 400 });
+    }
+
+    if (!anniversaryId) {
+      return Response.json({ error: 'Anniversary ID is required' }, { status: 400 });
+    }
+
+    // Verify member has access to this site
+    if (context.member?.siteId !== siteId) {
+      return Response.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const repo = new AnniversaryRepository();
     const member = context.member!;
     const user = context.user!;
-    const params = context.params instanceof Promise ? await context.params : context.params;
-    const { id } = params ?? {};
-    const existing = await repo.getById(id!);
-    if (!existing || existing.siteId !== member.siteId) {
+
+    const existing = await repo.getById(anniversaryId);
+    if (!existing || existing.siteId !== siteId) {
       return Response.json({ error: 'Event not found' }, { status: 404 });
     }
     if (existing.ownerId !== user.userId && member.role !== 'admin') {
@@ -52,7 +83,7 @@ const putHandler = async (request: Request, context: GuardContext) => {
     // Get locale from header (injected by proxy from query param)
     const locale = request.headers.get('x-locale') || 'he';
 
-    await repo.update(id!, {
+    await repo.update(anniversaryId, {
       name,
       description,
       type,
@@ -62,7 +93,7 @@ const putHandler = async (request: Request, context: GuardContext) => {
       useHebrew,
       locale,
     });
-      const updated = await repo.getById(id!);
+    const updated = await repo.getById(anniversaryId);
     return Response.json({ event: updated });
   } catch (error) {
     console.error(error);
@@ -70,21 +101,37 @@ const putHandler = async (request: Request, context: GuardContext) => {
   }
 };
 
-const deleteHandler = async (request: Request, context: GuardContext) => {
+const deleteHandler = async (request: Request, context: GuardContext & { params: Promise<{ siteId: string; anniversaryId: string }> }) => {
   try {
+    const params = await context.params;
+    const siteId = params?.siteId;
+    const anniversaryId = params?.anniversaryId;
+
+    if (!siteId) {
+      return Response.json({ error: 'Site ID is required' }, { status: 400 });
+    }
+
+    if (!anniversaryId) {
+      return Response.json({ error: 'Anniversary ID is required' }, { status: 400 });
+    }
+
+    // Verify member has access to this site
+    if (context.member?.siteId !== siteId) {
+      return Response.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const repo = new AnniversaryRepository();
     const member = context.member!;
     const user = context.user!;
-    const params = context.params instanceof Promise ? await context.params : context.params;
-    const { id } = params ?? {};
-    const existing = await repo.getById(id!);
-    if (!existing || existing.siteId !== member.siteId) {
+
+    const existing = await repo.getById(anniversaryId);
+    if (!existing || existing.siteId !== siteId) {
       return Response.json({ error: 'Event not found' }, { status: 404 });
     }
     if (existing.ownerId !== user.userId && member.role !== 'admin') {
       return Response.json({ error: 'Forbidden' }, { status: 403 });
     }
-    await repo.delete(id!);
+    await repo.delete(anniversaryId);
     return Response.json({ success: true });
   } catch (error) {
     console.error(error);

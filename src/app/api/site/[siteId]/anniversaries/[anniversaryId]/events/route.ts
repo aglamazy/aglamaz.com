@@ -6,19 +6,34 @@ import { extractImageDimensions } from '@/utils/imageDimensions';
 
 export const dynamic = 'force-dynamic';
 
-const getHandler = async (_request: Request, context: GuardContext) => {
+const getHandler = async (_request: Request, context: GuardContext & { params: Promise<{ siteId: string; anniversaryId: string }> }) => {
   try {
+    const params = await context.params;
+    const siteId = params?.siteId;
+    const anniversaryId = params?.anniversaryId;
+
+    if (!siteId) {
+      return Response.json({ error: 'Site ID is required' }, { status: 400 });
+    }
+
+    if (!anniversaryId) {
+      return Response.json({ error: 'Anniversary ID is required' }, { status: 400 });
+    }
+
+    // Verify member has access to this site
+    if (context.member?.siteId !== siteId) {
+      return Response.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const member = context.member!;
-    const params = context.params instanceof Promise ? await context.params : context.params;
-    const { id } = params ?? {}; // eventId
     const annRepo = new AnniversaryRepository();
     const occRepo = new AnniversaryOccurrenceRepository();
 
-    const event = await annRepo.getById(id!);
-    if (!event || event.siteId !== member.siteId) {
+    const event = await annRepo.getById(anniversaryId);
+    if (!event || event.siteId !== siteId) {
       return Response.json({ error: 'Event not found' }, { status: 404 });
     }
-    const items = await occRepo.listByEvent(id!);
+    const items = await occRepo.listByEvent(anniversaryId);
     return Response.json({ events: items });
   } catch (error) {
     console.error(error);
@@ -26,12 +41,27 @@ const getHandler = async (_request: Request, context: GuardContext) => {
   }
 };
 
-const postHandler = async (request: Request, context: GuardContext) => {
+const postHandler = async (request: Request, context: GuardContext & { params: Promise<{ siteId: string; anniversaryId: string }> }) => {
   try {
+    const params = await context.params;
+    const siteId = params?.siteId;
+    const anniversaryId = params?.anniversaryId;
+
+    if (!siteId) {
+      return Response.json({ error: 'Site ID is required' }, { status: 400 });
+    }
+
+    if (!anniversaryId) {
+      return Response.json({ error: 'Anniversary ID is required' }, { status: 400 });
+    }
+
+    // Verify member has access to this site
+    if (context.member?.siteId !== siteId) {
+      return Response.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const member = context.member!;
     const user = context.user!;
-    const params = context.params instanceof Promise ? await context.params : context.params;
-    const { id } = params ?? {}; // eventId
     const body = await request.json();
     const { date, images, description } = body;
     if (!date) {
@@ -39,8 +69,8 @@ const postHandler = async (request: Request, context: GuardContext) => {
     }
     const annRepo = new AnniversaryRepository();
     const occRepo = new AnniversaryOccurrenceRepository();
-    const event = await annRepo.getById(id!);
-    if (!event || event.siteId !== member.siteId) {
+    const event = await annRepo.getById(anniversaryId);
+    if (!event || event.siteId !== siteId) {
       return Response.json({ error: 'Event not found' }, { status: 404 });
     }
 
@@ -66,8 +96,8 @@ const postHandler = async (request: Request, context: GuardContext) => {
     }
 
     const occ = await occRepo.create({
-      siteId: member.siteId,
-      eventId: id!,
+      siteId: siteId,
+      eventId: anniversaryId,
       date: new Date(date),
       createdBy: user.userId,
       imagesWithDimensions,

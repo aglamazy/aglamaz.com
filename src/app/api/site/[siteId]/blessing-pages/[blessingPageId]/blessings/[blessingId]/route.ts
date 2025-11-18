@@ -4,12 +4,24 @@ import { GuardContext } from '@/app/api/types';
 
 export const dynamic = 'force-dynamic';
 
-const putHandler = async (request: Request, context: GuardContext) => {
+const putHandler = async (request: Request, context: GuardContext & { params: Promise<{ siteId: string; blessingPageId: string; blessingId: string }> }) => {
   try {
+    const params = await context.params;
+    const siteId = params?.siteId;
+    const blessingPageId = params?.blessingPageId;
+    const blessingId = params?.blessingId;
+
+    if (!siteId || !blessingPageId || !blessingId) {
+      return Response.json({ error: 'Invalid parameters' }, { status: 400 });
+    }
+
+    // Verify member has access to this site
+    if (context.member?.siteId !== siteId) {
+      return Response.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const user = context.user!;
     const member = context.member!;
-    const params = context.params instanceof Promise ? await context.params : context.params;
-    const { blessingId } = params ?? {};
     const body = await request.json();
     const { content } = body;
 
@@ -19,8 +31,8 @@ const putHandler = async (request: Request, context: GuardContext) => {
 
     // Verify blessing exists
     const blessingRepo = new BlessingRepository();
-    const existing = await blessingRepo.getById(blessingId!);
-    if (!existing || existing.siteId !== member.siteId) {
+    const existing = await blessingRepo.getById(blessingId);
+    if (!existing || existing.siteId !== siteId) {
       return Response.json({ error: 'Blessing not found' }, { status: 404 });
     }
 
@@ -33,7 +45,7 @@ const putHandler = async (request: Request, context: GuardContext) => {
     const locale = request.headers.get('x-locale') || 'he';
 
     // Update blessing
-    await blessingRepo.update(blessingId!, { content, locale });
+    await blessingRepo.update(blessingId, { content, locale });
 
     return Response.json({ success: true });
   } catch (error) {
@@ -42,17 +54,29 @@ const putHandler = async (request: Request, context: GuardContext) => {
   }
 };
 
-const deleteHandler = async (request: Request, context: GuardContext) => {
+const deleteHandler = async (request: Request, context: GuardContext & { params: Promise<{ siteId: string; blessingPageId: string; blessingId: string }> }) => {
   try {
+    const params = await context.params;
+    const siteId = params?.siteId;
+    const blessingPageId = params?.blessingPageId;
+    const blessingId = params?.blessingId;
+
+    if (!siteId || !blessingPageId || !blessingId) {
+      return Response.json({ error: 'Invalid parameters' }, { status: 400 });
+    }
+
+    // Verify member has access to this site
+    if (context.member?.siteId !== siteId) {
+      return Response.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const user = context.user!;
     const member = context.member!;
-    const params = context.params instanceof Promise ? await context.params : context.params;
-    const { blessingId } = params ?? {};
 
     // Verify blessing exists
     const blessingRepo = new BlessingRepository();
-    const existing = await blessingRepo.getById(blessingId!);
-    if (!existing || existing.siteId !== member.siteId) {
+    const existing = await blessingRepo.getById(blessingId);
+    if (!existing || existing.siteId !== siteId) {
       return Response.json({ error: 'Blessing not found' }, { status: 404 });
     }
 
@@ -62,7 +86,7 @@ const deleteHandler = async (request: Request, context: GuardContext) => {
     }
 
     // Soft delete
-    await blessingRepo.softDelete(blessingId!);
+    await blessingRepo.softDelete(blessingId);
 
     return Response.json({ success: true });
   } catch (error) {

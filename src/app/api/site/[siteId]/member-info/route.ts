@@ -6,10 +6,11 @@ export const dynamic = 'force-dynamic';
 
 const handler: RouteHandler = async (request: Request, context: GuardContext) => {
   try {
-    const url = new URL(request.url);
-    const siteId = url.searchParams.get('siteId');
+    const params = await context.params;
+    const siteId = params?.siteId as string;
+
     if (!siteId) {
-      return Response.json({ error: 'Missing required field: siteId' }, { status: 400 });
+      return Response.json({ error: 'Site ID is required' }, { status: 400 });
     }
 
     const userId = context.user?.sub;

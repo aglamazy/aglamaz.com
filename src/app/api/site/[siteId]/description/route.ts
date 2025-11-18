@@ -5,6 +5,7 @@ import { SiteRepository, SiteNotFoundError, TranslationDisabledError } from '@/r
 import { SUPPORTED_LOCALES as CONFIG_LOCALES } from '@/constants/i18n';
 import { normalizeLang } from '@/services/LocalizationService';
 import { withAdminGuard } from '@/lib/withAdminGuard';
+import { withMemberGuard } from '@/lib/withMemberGuard';
 import { GuardContext } from '@/app/api/types';
 
 const SUPPORTED_LOCALES = CONFIG_LOCALES.map((locale) => locale as string);
@@ -12,41 +13,35 @@ const SUPPORTED_LOCALES = CONFIG_LOCALES.map((locale) => locale as string);
 export const dynamic = 'force-dynamic';
 
 /**
- * GET /api/admin/site-description
- * Fetches the current site info for the admin to edit
+ * GET /api/site/[siteId]/description
+ * Fetches the current site info (available to all members of that site)
  */
-export async function GET(request: NextRequest) {
+const getHandler = async (request: Request, context: GuardContext) => {
   try {
-    const requestedLocaleRaw = request.nextUrl.searchParams.get('locale');
+    const url = new URL(request.url);
+    const requestedLocaleRaw = url.searchParams.get('locale');
     const requestedLocale = normalizeLang(requestedLocaleRaw);
 
-    const token = request.cookies.get(ACCESS_TOKEN)?.value;
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const params = context.params instanceof Promise ? await context.params : context.params;
+    const siteId = params?.siteId as string;
 
-    const payload = verifyAccessToken(token);
-    if (!payload || !payload.sub) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const siteId = process.env.NEXT_SITE_ID;
     if (!siteId) {
-      return NextResponse.json({ error: 'Site ID not configured' }, { status: 500 });
+      return Response.json({ error: 'Site ID is required' }, { status: 400 });
+    }
+
+    // Verify member has access to this site
+    if (context.member?.siteId !== siteId) {
+      return Response.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const repository = new SiteRepository();
     const site = await repository.get(siteId, requestedLocale);
 
     if (!site) {
-      return NextResponse.json({ error: 'Site not found' }, { status: 404 });
+      return Response.json({ error: 'Site not found' }, { status: 404 });
     }
 
-    // Get most recent locale for each field (to determine "source" locale for backwards compatibility)
-    const { getMostRecentFieldVersion } = await import('@/services/LocalizationService');
-    const nameSource = getMostRecentFieldVersion(site, 'name');
-
-    return NextResponse.json({
+    return Response.json({
       site: {
         id: site.id,
         name: site.name,
@@ -57,29 +52,37 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     if (error instanceof TranslationDisabledError) {
-      return NextResponse.json(
+      return Response.json(
         { error: 'Translation service disabled' },
         { status: 503 }
       );
     }
     console.error('[site-description] GET error:', error);
-    return NextResponse.json(
+    return Response.json(
       { error: 'Failed to fetch site info' },
       { status: 500 }
     );
   }
-}
+};
+
+export const GET = withMemberGuard(getHandler);
 
 /**
- * POST /api/admin/site-description
+ * POST /api/site/[siteId]/description
  * Saves site information with translations (requires admin role)
  */
 const postHandler = async (request: Request, context: GuardContext) => {
   try {
-    const siteId = context.member?.siteId || process.env.NEXT_SITE_ID;
+    const params = context.params instanceof Promise ? await context.params : context.params;
+    const siteId = params?.siteId as string;
 
     if (!siteId) {
-      return Response.json({ error: 'Site ID not configured' }, { status: 500 });
+      return Response.json({ error: 'Site ID is required' }, { status: 400 });
+    }
+
+    // Verify admin has access to this site
+    if (context.member?.siteId !== siteId) {
+      return Response.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     // Parse request body

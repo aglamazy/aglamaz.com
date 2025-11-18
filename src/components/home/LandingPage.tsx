@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { BookOpen, Images, Link as LinkIcon, MessageCircle, Calendar } from 'lucide-react';
+import { BookOpen as BookOpenIcon, Images, Link as LinkIcon, MessageCircle, Calendar } from 'lucide-react';
 import ArrowCTA from '@/components/ArrowCTA';
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
@@ -115,18 +115,15 @@ export default async function LandingPage({ siteInfo, siteDescription, platformD
 
   const heroTitle = t('welcomeToSite', { name: siteName }) as string;
 
-  // ISite already has flattened aboutFamily for convenient access
+  // ISite already has flattened aboutFamily for convenient access (localized by SiteRepository)
   const aboutFamily = siteInfo?.aboutFamily;
-  if (!aboutFamily) {
-    throw new Error(`aboutFamily is missing for locale: ${normalizedLang}`);
-  }
 
   const secondarySubtitle = t('createYourFamilySite') as string;
 
   const spotlight = [
     {
       href: '/blog',
-      icon: BookOpen,
+      icon: BookOpenIcon,
       title: t('familyBlog') as string,
       description: t('catchUpOnFamilyNews') as string,
       cta: t('openBlog') as string,
@@ -194,15 +191,17 @@ export default async function LandingPage({ siteInfo, siteDescription, platformD
 
   return (
     <div className="bg-cream-50">
-      <section className="border-b border-sage-100">
-        <div className="max-w-6xl mx-auto px-4 py-16 text-center" dir={isRTL ? 'rtl' : 'ltr'}>
-          <h1 className="text-4xl md:text-5xl font-bold text-charcoal mb-4">{heroTitle}</h1>
-          <div
-            className={`text-lg md:text-xl text-sage-600 mx-auto max-w-2xl leading-relaxed prose prose-sage ${isRTL ? 'text-right' : 'text-left'}`}
-            dangerouslySetInnerHTML={{ __html: aboutFamily }}
-          />
-        </div>
-      </section>
+      {aboutFamily && (
+        <section className="border-b border-sage-100">
+          <div className="max-w-6xl mx-auto px-4 py-16 text-center" dir={isRTL ? 'rtl' : 'ltr'}>
+            <h1 className="text-4xl md:text-5xl font-bold text-charcoal mb-4">{heroTitle}</h1>
+            <div
+              className={`text-lg md:text-xl text-sage-600 mx-auto max-w-2xl leading-relaxed prose prose-sage ${isRTL ? 'text-right' : 'text-left'}`}
+              dangerouslySetInnerHTML={{ __html: aboutFamily }}
+            />
+          </div>
+        </section>
+      )}
 
       {/* Site Description Section - Editable by site admin */}
       {siteDescContent && (

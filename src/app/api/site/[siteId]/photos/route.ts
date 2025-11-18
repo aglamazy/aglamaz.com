@@ -6,12 +6,23 @@ import { extractImageDimensions } from '@/utils/imageDimensions';
 export const dynamic = 'force-dynamic';
 
 /**
- * POST /api/photos
+ * POST /api/site/[siteId]/photos
  * Create a new gallery photo
  */
 const postHandler = async (request: Request, context: GuardContext) => {
   try {
-    const member = context.member!;
+    const params = await context.params;
+    const siteId = params?.siteId as string;
+
+    if (!siteId) {
+      return Response.json({ error: 'Site ID is required' }, { status: 400 });
+    }
+
+    // Verify member has access to this site
+    if (context.member?.siteId !== siteId) {
+      return Response.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const user = context.user!;
     const body = await request.json();
     const { date, images, description, anniversaryId, locale } = body;
@@ -55,7 +66,7 @@ const postHandler = async (request: Request, context: GuardContext) => {
 
     const repo = new GalleryPhotoRepository();
     const photo = await repo.create({
-      siteId: member.siteId,
+      siteId,
       createdBy: user.userId,
       date: new Date(date),
       imagesWithDimensions,
@@ -75,14 +86,25 @@ const postHandler = async (request: Request, context: GuardContext) => {
 };
 
 /**
- * GET /api/photos
+ * GET /api/site/[siteId]/photos
  * List all gallery photos for the current site
  */
 const getHandler = async (request: Request, context: GuardContext) => {
   try {
-    const member = context.member!;
+    const params = await context.params;
+    const siteId = params?.siteId as string;
+
+    if (!siteId) {
+      return Response.json({ error: 'Site ID is required' }, { status: 400 });
+    }
+
+    // Verify member has access to this site
+    if (context.member?.siteId !== siteId) {
+      return Response.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const repo = new GalleryPhotoRepository();
-    const photos = await repo.listBySite(member.siteId);
+    const photos = await repo.listBySite(siteId);
     return Response.json({ photos });
   } catch (error) {
     console.error('[photos] GET error:', error);

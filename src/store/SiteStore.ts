@@ -20,7 +20,7 @@ const readBootstrapSiteInfo = (): ISite | null => {
 };
 
 export const useSiteStore = create<SiteStore>((set, get) => ({
-  siteInfo: null,
+  siteInfo: readBootstrapSiteInfo(), // Hydrate immediately on store creation
   siteCache: {},
   setSiteInfo: (info) => set({ siteInfo: info }),
   hydrateFromWindow: () => {

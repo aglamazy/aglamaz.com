@@ -8,6 +8,8 @@ import { Select } from '@/components/ui/select';
 import { apiFetch } from '@/utils/apiFetch';
 import { initFirebase, ensureFirebaseSignedIn, auth } from '@/firebase/client';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { useSiteStore } from '@/store/SiteStore';
+import { ApiRoute, getApiPath } from '@/utils/urls';
 
 interface PhotoUploadModalProps {
   isOpen: boolean;
@@ -17,6 +19,7 @@ interface PhotoUploadModalProps {
 
 export default function PhotoUploadModal({ isOpen, onClose, onSuccess }: PhotoUploadModalProps) {
   const { t, i18n } = useTranslation();
+  const site = useSiteStore((state) => state.siteInfo);
   const [date, setDate] = useState('');
   const [description, setDescription] = useState('');
   const [imageFiles, setImageFiles] = useState<File[]>([]);
@@ -47,6 +50,10 @@ export default function PhotoUploadModal({ isOpen, onClose, onSuccess }: PhotoUp
 
   const loadAnniversaries = async () => {
     try {
+      if (!site?.id) {
+        throw new Error('Site ID not found');
+      }
+
       // Fetch anniversaries from previous month and current month
       // (photos are from the past, not future events)
       const now = new Date();
@@ -58,10 +65,16 @@ export default function PhotoUploadModal({ isOpen, onClose, onSuccess }: PhotoUp
 
       const [prevRes, currRes] = await Promise.all([
         apiFetch<{ events: Array<{ id: string; name: string }> }>(
-          `/api/anniversaries?month=${prevDate.getMonth()}&year=${prevDate.getFullYear()}`
+          getApiPath(ApiRoute.SITE_ANNIVERSARIES, site.id, {
+            month: String(prevDate.getMonth()),
+            year: String(prevDate.getFullYear()),
+          })
         ),
         apiFetch<{ events: Array<{ id: string; name: string }> }>(
-          `/api/anniversaries?month=${currentMonth}&year=${currentYear}`
+          getApiPath(ApiRoute.SITE_ANNIVERSARIES, site.id, {
+            month: String(currentMonth),
+            year: String(currentYear),
+          })
         ),
       ]);
 

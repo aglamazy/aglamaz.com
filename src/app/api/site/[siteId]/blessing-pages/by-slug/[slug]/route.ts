@@ -5,17 +5,30 @@ import { GuardContext } from '@/app/api/types';
 
 export const dynamic = 'force-dynamic';
 
-const getHandler = async (request: Request, context: GuardContext) => {
+const getHandler = async (request: Request, context: GuardContext & { params: Promise<{ siteId: string; slug: string }> }) => {
   try {
-    const member = context.member!;
-    const params = context.params instanceof Promise ? await context.params : context.params;
-    const { slug } = params ?? {};
+    const params = await context.params;
+    const siteId = params?.siteId;
+    const slug = params?.slug;
+
+    if (!siteId) {
+      return Response.json({ error: 'Site ID is required' }, { status: 400 });
+    }
+
+    if (!slug) {
+      return Response.json({ error: 'Slug is required' }, { status: 400 });
+    }
+
+    // Verify member has access to this site
+    if (context.member?.siteId !== siteId) {
+      return Response.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     // Get blessing page by slug
     const bpRepo = new BlessingPageRepository();
-    const blessingPage = await bpRepo.getBySlug(slug!);
+    const blessingPage = await bpRepo.getBySlug(slug);
 
-    if (!blessingPage || blessingPage.siteId !== member.siteId) {
+    if (!blessingPage || blessingPage.siteId !== siteId) {
       return Response.json({ error: 'Blessing page not found' }, { status: 404 });
     }
 
@@ -23,7 +36,7 @@ const getHandler = async (request: Request, context: GuardContext) => {
     const anniversaryRepo = new AnniversaryRepository();
     const event = await anniversaryRepo.getById(blessingPage.eventId);
 
-    if (!event || event.siteId !== member.siteId) {
+    if (!event || event.siteId !== siteId) {
       return Response.json({ error: 'Event not found' }, { status: 404 });
     }
 

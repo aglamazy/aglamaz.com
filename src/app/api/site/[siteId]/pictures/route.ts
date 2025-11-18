@@ -10,7 +10,17 @@ export const dynamic = 'force-dynamic';
 
 const getHandler = async (req: Request, context: GuardContext) => {
   try {
-    const member = context.member!;
+    const params = await context.params;
+    const siteId = params?.siteId as string;
+
+    if (!siteId) {
+      return Response.json({ error: 'Site ID is required' }, { status: 400 });
+    }
+
+    // Verify member has access to this site
+    if (context.member?.siteId !== siteId) {
+      return Response.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     // Get query parameters
     const url = new URL(req.url);
@@ -22,8 +32,8 @@ const getHandler = async (req: Request, context: GuardContext) => {
     const occRepo = new AnniversaryOccurrenceRepository();
     const galleryRepo = new GalleryPhotoRepository();
     const [occurrences, galleryPhotos] = await Promise.all([
-      occRepo.listBySite(member.siteId, locale, { limit, offset }),
-      galleryRepo.listBySite(member.siteId, locale, { limit, offset }),
+      occRepo.listBySite(siteId, locale, { limit, offset }),
+      galleryRepo.listBySite(siteId, locale, { limit, offset }),
     ]);
 
     // Add type field to distinguish between them
@@ -58,7 +68,7 @@ const getHandler = async (req: Request, context: GuardContext) => {
     const authors: Record<string, { displayName: string; email: string }> = {};
     for (const id of authorIds) {
       try {
-        const authorMember = await familyRepo.getMemberByUserId(id, member.siteId);
+        const authorMember = await familyRepo.getMemberByUserId(id, siteId);
         if (!authorMember) continue;
         const displayName = (authorMember.displayName || authorMember.firstName || authorMember.email || '').trim();
         if (!displayName) {

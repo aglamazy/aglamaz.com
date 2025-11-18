@@ -26,6 +26,7 @@ import AvatarStack from '@/components/photos/AvatarStack';
 import LikersBottomSheet from '@/components/photos/LikersBottomSheet';
 import type { ImageLikeMeta } from '@/types/likes';
 import { useAddAction } from '@/hooks/useAddAction';
+import { ApiRoute } from '@/utils/urls';
 
 type ImageSizes = {
   original: string;
@@ -105,6 +106,7 @@ export default function PicturesFeedPage() {
 
   const loadFeed = useCallback(async (pageNum = 0): Promise<boolean> => {
     if (!mountedRef.current) return false;
+
     const isInitialLoad = pageNum === 0;
     if (isInitialLoad) {
       setLoading(true);
@@ -118,7 +120,13 @@ export default function PicturesFeedPage() {
         items: Occurrence[];
         events?: Record<string, { name: string }>;
         authors?: Record<string, { displayName: string; email: string }>;
-      }>(`/api/pictures?locale=${i18n.language}&limit=${ITEMS_PER_PAGE}&offset=${offset}`, { cache: 'no-store' });
+      }>(ApiRoute.SITE_PICTURES, {
+        queryParams: {
+          locale: i18n.language,
+          limit: String(ITEMS_PER_PAGE),
+          offset: String(offset),
+        },
+      });
       if (!mountedRef.current) return false;
       const list: Occurrence[] = Array.isArray(data.items) ? data.items : [];
 
@@ -159,14 +167,14 @@ export default function PicturesFeedPage() {
         list.map(async (occ) => {
           try {
             // Use different endpoints for occurrence vs gallery photos
-            const endpoint = occ.type === 'gallery'
-              ? `/api/photos/${occ.id}/image-likes`
-              : `/api/anniversaries/${occ.eventId}/events/${occ.id}/image-likes`;
+            const likeResponse = occ.type === 'gallery'
+              ? await apiFetch<{ items: ImageLikeMeta[] }>(ApiRoute.SITE_PHOTO_IMAGE_LIKES, {
+                  pathParams: { photoId: occ.id },
+                })
+              : await apiFetch<{ items: ImageLikeMeta[] }>(ApiRoute.SITE_ANNIVERSARY_EVENT_IMAGE_LIKES, {
+                  pathParams: { anniversaryId: occ.eventId!, eventId: occ.id },
+                });
 
-            const likeResponse = await apiFetch<{ items: ImageLikeMeta[] }>(
-              endpoint,
-              { cache: 'no-store' }
-            );
             likesMap[occ.id] = Array.isArray(likeResponse.items) ? likeResponse.items : [];
           } catch (err) {
             console.error('[feed] like fetch failed', err);
@@ -373,18 +381,18 @@ export default function PicturesFeedPage() {
     setLikes((cur) => ({ ...cur, [occId]: [...(cur[occId] || []).filter((l) => l.index !== idx), next].sort((a, b) => a.index - b.index) }));
     try {
       // Use different endpoints for occurrence vs gallery photos
-      const endpoint = type === 'gallery'
-        ? `/api/photos/${occId}/image-likes`
-        : `/api/anniversaries/${annId}/events/${occId}/image-likes`;
+      const data = type === 'gallery'
+        ? await apiFetch<ImageLikeMeta>(ApiRoute.SITE_PHOTO_IMAGE_LIKES, {
+            method: 'POST',
+            pathParams: { photoId: occId },
+            body: { imageIndex: idx, like: !meta.likedByMe },
+          })
+        : await apiFetch<ImageLikeMeta>(ApiRoute.SITE_ANNIVERSARY_EVENT_IMAGE_LIKES, {
+            method: 'POST',
+            pathParams: { anniversaryId: annId, eventId: occId },
+            body: { imageIndex: idx, like: !meta.likedByMe },
+          });
 
-      const data = await apiFetch<ImageLikeMeta>(
-        endpoint,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ imageIndex: idx, like: !meta.likedByMe }),
-        }
-      );
       // Update with full response including refreshed likers array
       setLikes((cur) => ({ ...cur, [occId]: [...(cur[occId] || []).filter((l) => l.index !== idx), data].sort((a, b) => a.index - b.index) }));
     } catch (e) {
@@ -396,6 +404,28 @@ export default function PicturesFeedPage() {
 
   if (loading) return <div className="p-4"><I18nText k="loading" /></div>;
   if (error) return <div className="p-4"><I18nText k="somethingWentWrong" /></div>;
+
+  // Empty state when no pictures
+  if (!loading && items.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] p-8 text-center">
+        <div className="max-w-md space-y-4">
+          <p className="text-lg text-sage-600 font-medium">
+            {t('noPicturesYet')}
+          </p>
+          <p className="text-sage-500">
+            {t('wouldYouLikeToPostFirst')}
+          </p>
+          <button
+            onClick={() => router.push('/app/photo/new')}
+            className="mt-6 px-6 py-3 bg-sage-600 text-white rounded-lg hover:bg-sage-700 transition-colors"
+          >
+            {t('uploadPhoto')}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // Desktop welcome hero
   const siteDisplayName = site?.name?.trim() || getPlatformName(site);

@@ -1,7 +1,7 @@
 import { withAdminGuard } from '@/lib/withAdminGuard';
 import { FamilyRepository } from '@/repositories/FamilyRepository';
 import type { GuardContext } from '@/app/api/types';
-import { getUrl, AppRoute } from '@/utils/urls';
+import { getUrl, AppRoute } from '@/utils/serverUrls';
 
 export const dynamic = 'force-dynamic';
 

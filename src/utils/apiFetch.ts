@@ -1,7 +1,15 @@
 import { landingPage } from "@/app/settings";
 import { shouldRefreshToken } from "@/auth/clientAuth";
+import { ApiRoute, getApiPath } from './urls';
+import { useSiteStore } from '@/store/SiteStore';
 
 let refreshPromise: Promise<Response> | null = null;
+
+interface ApiFetchOptions extends Omit<RequestInit, 'body'> {
+  body?: any;
+  pathParams?: Record<string, string | undefined>;
+  queryParams?: Record<string, string | undefined>;
+}
 
 function refreshOnce() {
   return (refreshPromise ??= fetch('/api/auth/refresh', {
@@ -15,12 +23,88 @@ function refreshOnce() {
 // Endpoints that should bypass refresh logic
 const AUTH_RE = /^\/api\/auth\/(refresh|login|logout)(?:$|\?)/;
 
+/**
+ * Type-safe API fetch function that only accepts ApiRoute enums
+ *
+ * Automatically handles:
+ * - siteId injection from store (for non-AUTH routes)
+ * - Path parameter substitution (photoId, memberId, etc.)
+ * - Query parameter appending
+ * - Token refresh on 401
+ * - JSON serialization
+ *
+ * @example
+ * // Simple site-scoped request
+ * await apiFetch(ApiRoute.SITE_PICTURES)
+ *
+ * @example
+ * // With query params
+ * await apiFetch(ApiRoute.SITE_PICTURES, {
+ *   queryParams: { limit: '10', offset: '0' }
+ * })
+ *
+ * @example
+ * // With path params
+ * await apiFetch(ApiRoute.SITE_PHOTO_BY_ID, {
+ *   pathParams: { photoId: 'abc123' }
+ * })
+ *
+ * @example
+ * // POST with body
+ * await apiFetch(ApiRoute.SITE_PHOTOS, {
+ *   method: 'POST',
+ *   body: { date: '2024-01-01', images: [...] }
+ * })
+ */
 export async function apiFetch<T = unknown>(
-  input: RequestInfo | URL,
-  init: RequestInit = {}
+  route: ApiRoute,
+  options: ApiFetchOptions = {}
 ): Promise<T> {
-  const url = typeof input === 'string' ? input : (input as URL).toString();
-  const req = () => fetch(input, { ...init, credentials: 'include' });
+  const { pathParams, queryParams, body, ...fetchOptions } = options;
+
+  // Build URL based on route type
+  let url: string;
+  if (route.startsWith('AUTH_')) {
+    // Auth routes don't need siteId
+    const authPaths: Record<string, string> = {
+      AUTH_ME: '/api/auth/me',
+      AUTH_LOGOUT: '/api/auth/logout',
+      AUTH_REFRESH: '/api/auth/refresh',
+      AUTH_LOGIN: '/api/auth/login',
+    };
+    url = authPaths[route];
+    if (!url) {
+      throw new Error(`[apiFetch] Unknown auth route: ${route}`);
+    }
+  } else {
+    // Site-scoped routes need siteId
+    const siteId = useSiteStore.getState().siteInfo?.id;
+    if (!siteId) {
+      throw new Error(`[apiFetch] Cannot call ${route}: siteId not available in store`);
+    }
+    url = getApiPath(route, siteId, pathParams, queryParams);
+  }
+
+  // Prepare fetch options
+  const init: RequestInit = {
+    ...fetchOptions,
+    credentials: 'include',
+  };
+
+  // Handle body serialization
+  if (body !== undefined) {
+    if (typeof body === 'string') {
+      init.body = body;
+    } else {
+      init.body = JSON.stringify(body);
+      init.headers = {
+        'Content-Type': 'application/json',
+        ...init.headers,
+      };
+    }
+  }
+
+  const req = () => fetch(url, init);
 
   // 1) Never run refresh logic on login/logout/refresh endpoints themselves
   if (AUTH_RE.test(url)) {

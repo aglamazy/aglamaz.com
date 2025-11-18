@@ -2,7 +2,7 @@ import { GmailService } from './GmailService';
 import { notificationRepository, AdminNotification } from '../repositories/NotificationRepository';
 import { fetchSiteInfo, adminAuth } from '../firebase/admin';
 import { DEFAULT_LOCALE } from '@/i18n';
-import { getUrl, AppRoute } from '@/utils/urls';
+import { getUrl, AppRoute } from '@/utils/serverUrls';
 import path from 'path';
 import pug from 'pug';
 

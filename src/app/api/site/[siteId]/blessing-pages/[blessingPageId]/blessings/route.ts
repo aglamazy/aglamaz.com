@@ -6,16 +6,29 @@ import { GuardContext } from '@/app/api/types';
 
 export const dynamic = 'force-dynamic';
 
-const getHandler = async (request: Request, context: GuardContext) => {
+const getHandler = async (request: Request, context: GuardContext & { params: Promise<{ siteId: string; blessingPageId: string }> }) => {
   try {
-    const member = context.member!;
-    const params = context.params instanceof Promise ? await context.params : context.params;
-    const { id } = params ?? {};
+    const params = await context.params;
+    const siteId = params?.siteId;
+    const blessingPageId = params?.blessingPageId;
+
+    if (!siteId) {
+      return Response.json({ error: 'Site ID is required' }, { status: 400 });
+    }
+
+    if (!blessingPageId) {
+      return Response.json({ error: 'Blessing Page ID is required' }, { status: 400 });
+    }
+
+    // Verify member has access to this site
+    if (context.member?.siteId !== siteId) {
+      return Response.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     // Verify blessing page exists and belongs to member's site
     const bpRepo = new BlessingPageRepository();
-    const blessingPage = await bpRepo.getById(id!);
-    if (!blessingPage || blessingPage.siteId !== member.siteId) {
+    const blessingPage = await bpRepo.getById(blessingPageId);
+    if (!blessingPage || blessingPage.siteId !== siteId) {
       return Response.json({ error: 'Blessing page not found' }, { status: 404 });
     }
 
@@ -24,7 +37,7 @@ const getHandler = async (request: Request, context: GuardContext) => {
 
     // Fetch blessings
     const blessingRepo = new BlessingRepository();
-    const blessings = await blessingRepo.listByBlessingPage(id!, locale);
+    const blessings = await blessingRepo.listByBlessingPage(blessingPageId, locale);
 
     return Response.json({ blessings });
   } catch (error) {
@@ -33,12 +46,27 @@ const getHandler = async (request: Request, context: GuardContext) => {
   }
 };
 
-const postHandler = async (request: Request, context: GuardContext) => {
+const postHandler = async (request: Request, context: GuardContext & { params: Promise<{ siteId: string; blessingPageId: string }> }) => {
   try {
+    const params = await context.params;
+    const siteId = params?.siteId;
+    const blessingPageId = params?.blessingPageId;
+
+    if (!siteId) {
+      return Response.json({ error: 'Site ID is required' }, { status: 400 });
+    }
+
+    if (!blessingPageId) {
+      return Response.json({ error: 'Blessing Page ID is required' }, { status: 400 });
+    }
+
+    // Verify member has access to this site
+    if (context.member?.siteId !== siteId) {
+      return Response.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const user = context.user!;
     const member = context.member!;
-    const params = context.params instanceof Promise ? await context.params : context.params;
-    const { id } = params ?? {};
     const body = await request.json();
     const { content } = body;
 
@@ -48,8 +76,8 @@ const postHandler = async (request: Request, context: GuardContext) => {
 
     // Verify blessing page exists and belongs to member's site
     const bpRepo = new BlessingPageRepository();
-    const blessingPage = await bpRepo.getById(id!);
-    if (!blessingPage || blessingPage.siteId !== member.siteId) {
+    const blessingPage = await bpRepo.getById(blessingPageId);
+    if (!blessingPage || blessingPage.siteId !== siteId) {
       return Response.json({ error: 'Blessing page not found' }, { status: 404 });
     }
 
@@ -64,8 +92,8 @@ const postHandler = async (request: Request, context: GuardContext) => {
     // Create blessing
     const blessingRepo = new BlessingRepository();
     const blessing = await blessingRepo.create({
-      blessingPageId: id!,
-      siteId: member.siteId,
+      blessingPageId: blessingPageId,
+      siteId: siteId,
       authorId: user.userId,
       authorName,
       content,

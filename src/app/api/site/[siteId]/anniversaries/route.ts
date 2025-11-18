@@ -6,7 +6,18 @@ export const dynamic = 'force-dynamic';
 
 const getHandler = async (request: Request, context: GuardContext) => {
   try {
-    const member = context.member!;
+    const params = await context.params;
+    const siteId = params?.siteId as string;
+
+    if (!siteId) {
+      return Response.json({ error: 'Site ID is required' }, { status: 400 });
+    }
+
+    // Verify member has access to this site
+    if (context.member?.siteId !== siteId) {
+      return Response.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const url = new URL(request.url);
     const monthParam = url.searchParams.get('month');
     const yearParam = url.searchParams.get('year');
@@ -19,8 +30,8 @@ const getHandler = async (request: Request, context: GuardContext) => {
 
     const repo = new AnniversaryRepository();
     // Push site-specific horizon forward and compute occurrences if needed
-    await repo.ensureHebrewHorizonForYear(member.siteId, year);
-    const events = await repo.getEventsForMonth(member.siteId, month, year, locale);
+    await repo.ensureHebrewHorizonForYear(siteId, year);
+    const events = await repo.getEventsForMonth(siteId, month, year, locale);
     return Response.json({ events });
   } catch (error) {
     console.error(error);
@@ -30,8 +41,19 @@ const getHandler = async (request: Request, context: GuardContext) => {
 
 const postHandler = async (request: Request, context: GuardContext) => {
   try {
+    const params = await context.params;
+    const siteId = params?.siteId as string;
+
+    if (!siteId) {
+      return Response.json({ error: 'Site ID is required' }, { status: 400 });
+    }
+
+    // Verify member has access to this site
+    if (context.member?.siteId !== siteId) {
+      return Response.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const user = context.user!;
-    const member = context.member!;
     const body = await request.json();
     const { name, description, type, date, isAnnual, imageUrl, useHebrew } = body;
     if (!name || !date || !type) {
@@ -43,7 +65,7 @@ const postHandler = async (request: Request, context: GuardContext) => {
 
     const repo = new AnniversaryRepository();
     const event = await repo.create({
-      siteId: member.siteId,
+      siteId,
       ownerId: user.userId,
       name,
       description,

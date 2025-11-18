@@ -2,8 +2,18 @@ import { NextRequest, NextResponse } from 'next/server';
 import { contactRepository } from '@/repositories/ContactRepository';
 import { adminNotificationService } from '@/services/AdminNotificationService';
 
-export async function POST(req: NextRequest) {
+export async function POST(
+  req: NextRequest,
+  context: { params: Promise<{ siteId: string }> }
+) {
   try {
+    const params = await context.params;
+    const siteId = params?.siteId as string;
+
+    if (!siteId) {
+      return NextResponse.json({ error: 'Site ID is required' }, { status: 400 });
+    }
+
     const { name, email, message, honeyputValue, timeToSubmitMs } = await req.json();
     if (!name || !email || !message) {
       return NextResponse.json({ error: 'Missing fields' }, { status: 400 });

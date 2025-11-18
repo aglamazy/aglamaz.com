@@ -6,24 +6,40 @@ import { GuardContext } from '@/app/api/types';
 export const dynamic = 'force-dynamic';
 
 /**
- * GET /api/photos/[id]/image-likes
+ * GET /api/site/[siteId]/photos/[photoId]/image-likes
  * Get likes for all images in a gallery photo (with first 3 likers for avatar stack)
  */
-const getHandler = async (request: Request, context: GuardContext & { params: Promise<{ id: string }> }) => {
+const getHandler = async (request: Request, context: GuardContext & { params: Promise<{ siteId: string; photoId: string }> }) => {
   try {
-    const { id } = await context.params;
+    const params = await context.params;
+    const siteId = params?.siteId;
+    const photoId = params?.photoId;
+
+    if (!siteId) {
+      return Response.json({ error: 'Site ID is required' }, { status: 400 });
+    }
+
+    if (!photoId) {
+      return Response.json({ error: 'Photo ID is required' }, { status: 400 });
+    }
+
+    // Verify member has access to this site
+    if (context.member?.siteId !== siteId) {
+      return Response.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const member = context.member!;
     const user = context.user!;
 
     const photoRepo = new GalleryPhotoRepository();
-    const photo = await photoRepo.getById(id);
+    const photo = await photoRepo.getById(photoId);
 
     if (!photo) {
       return Response.json({ error: 'Photo not found' }, { status: 404 });
     }
 
-    // Verify photo belongs to user's site
-    if (photo.siteId !== member.siteId) {
+    // Verify photo belongs to this site
+    if (photo.siteId !== siteId) {
       return Response.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -33,7 +49,7 @@ const getHandler = async (request: Request, context: GuardContext & { params: Pr
 
     for (let i = 0; i < photo.imagesWithDimensions.length; i++) {
       const result = await likeRepo.getLikesForImage(
-        id,
+        photoId,
         i,
         user.userId,
         member.siteId,
@@ -44,7 +60,7 @@ const getHandler = async (request: Request, context: GuardContext & { params: Pr
 
     return Response.json({ items });
   } catch (error) {
-    console.error('[photos/id/image-likes] GET error:', error);
+    console.error('[photos/photoId/image-likes] GET error:', error);
     return Response.json(
       { error: 'Failed to fetch likes' },
       { status: 500 }
@@ -53,12 +69,28 @@ const getHandler = async (request: Request, context: GuardContext & { params: Pr
 };
 
 /**
- * POST /api/photos/[id]/image-likes
+ * POST /api/site/[siteId]/photos/[photoId]/image-likes
  * Like/unlike a specific image in a gallery photo
  */
-const postHandler = async (request: Request, context: GuardContext & { params: Promise<{ id: string }> }) => {
+const postHandler = async (request: Request, context: GuardContext & { params: Promise<{ siteId: string; photoId: string }> }) => {
   try {
-    const { id } = await context.params;
+    const params = await context.params;
+    const siteId = params?.siteId;
+    const photoId = params?.photoId;
+
+    if (!siteId) {
+      return Response.json({ error: 'Site ID is required' }, { status: 400 });
+    }
+
+    if (!photoId) {
+      return Response.json({ error: 'Photo ID is required' }, { status: 400 });
+    }
+
+    // Verify member has access to this site
+    if (context.member?.siteId !== siteId) {
+      return Response.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const member = context.member!;
     const user = context.user!;
     const body = await request.json();
@@ -73,14 +105,14 @@ const postHandler = async (request: Request, context: GuardContext & { params: P
     }
 
     const photoRepo = new GalleryPhotoRepository();
-    const photo = await photoRepo.getById(id);
+    const photo = await photoRepo.getById(photoId);
 
     if (!photo) {
       return Response.json({ error: 'Photo not found' }, { status: 404 });
     }
 
-    // Verify photo belongs to user's site
-    if (photo.siteId !== member.siteId) {
+    // Verify photo belongs to this site
+    if (photo.siteId !== siteId) {
       return Response.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -92,7 +124,7 @@ const postHandler = async (request: Request, context: GuardContext & { params: P
     // Toggle like using repository
     const likeRepo = new ImageLikeRepository();
     const result = await likeRepo.toggleLikeForImage(
-      id,
+      photoId,
       imageIndex,
       user.userId,
       like,
@@ -102,7 +134,7 @@ const postHandler = async (request: Request, context: GuardContext & { params: P
 
     return Response.json(result);
   } catch (error) {
-    console.error('[photos/id/image-likes] POST error:', error);
+    console.error('[photos/photoId/image-likes] POST error:', error);
     return Response.json(
       { error: 'Failed to update like' },
       { status: 500 }
