@@ -3,12 +3,14 @@
 import { useState, useRef, useEffect, ChangeEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { apiFetch } from '@/utils/apiFetch';
+import { ApiRoute } from '@/entities/Routes';
 import type { AnniversaryEvent } from '@/entities/Anniversary';
 import styles from '@/app/app/calendar/page.module.css';
 import { ImageStore } from '@/store/ImageStore';
 import ImageUploadArea from '@/components/ui/ImageUploadArea';
 import { Select } from '@/components/ui/select';
 import DateInput from '@/components/ui/DateInput';
+import { useSiteStore } from '@/store/SiteStore';
 
 interface EventFormContentProps {
   editEvent?: AnniversaryEvent | null;
@@ -17,6 +19,7 @@ interface EventFormContentProps {
 
 export default function EventFormContent({ editEvent, onSuccess }: EventFormContentProps) {
   const { t, i18n } = useTranslation();
+  const site = useSiteStore((state) => state.siteInfo);
   const [form, setForm] = useState({
     name: '',
     description: '',
@@ -119,18 +122,21 @@ export default function EventFormContent({ editEvent, onSuccess }: EventFormCont
         imageUrl = await ImageStore.uploadAnniversaryImage(imageFile);
       }
 
+      if (!site?.id) {
+        throw new Error('Site ID not found');
+      }
+
       const payload = { ...form, imageUrl };
       if (editEvent) {
-        await apiFetch<void>(`/api/anniversaries/${editEvent.id}`, {
+        await apiFetch<void>(ApiRoute.SITE_ANNIVERSARY_BY_ID, {
+          pathParams: { anniversaryId: editEvent.id },
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
+          body: payload,
         });
       } else {
-        await apiFetch<void>('/api/anniversaries', {
+        await apiFetch<void>(ApiRoute.SITE_ANNIVERSARIES, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
+          body: payload,
         });
       }
 
