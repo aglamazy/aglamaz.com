@@ -167,6 +167,7 @@ export class BlogRepository {
       isPublic: post.isPublic,
       likeCount: 0,
       shareCount: 0,
+      deletedAt: null,
       createdAt: now,
       updatedAt: now,
     };
