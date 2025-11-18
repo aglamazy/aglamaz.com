@@ -132,6 +132,8 @@ const apiRoutePaths: Record<ApiRoute, string> = {
   [ApiRoute.SITE_MEMBERS_APPROVE]: '/api/site/{siteId}/members/approve',
   [ApiRoute.SITE_MEMBERS_REJECT]: '/api/site/{siteId}/members/reject',
   [ApiRoute.SITE_PENDING_MEMBERS]: '/api/site/{siteId}/pending-members',
+  [ApiRoute.SITE_PENDING_MEMBERS_APPROVE]: '/api/site/{siteId}/pending-members/approve',
+  [ApiRoute.SITE_PENDING_MEMBERS_REJECT]: '/api/site/{siteId}/pending-members/reject',
   [ApiRoute.SITE_INVITES]: '/api/site/{siteId}/invites',
 
   // Profile

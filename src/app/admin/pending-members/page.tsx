@@ -12,7 +12,6 @@ import type { ISite } from '@/entities/Site';
 import { useTranslation } from 'react-i18next';
 import { apiFetch } from '@/utils/apiFetch';
 import { ApiRoute } from '@/entities/Routes';
-import { ApiRoute } from '@/entities/Routes';
 import { formatLocalizedDate } from '@/utils/dateFormat';
 
 interface FirestoreTimestamp {
@@ -71,9 +70,11 @@ export default function PendingMembersPage() {
     try {
       setActionLoading(memberId);
       setMessage(null);
-      await apiFetch<void>(ApiRoute.SITE_PENDING_MEMBERS, {
+      const route = action === 'approve' ? ApiRoute.SITE_PENDING_MEMBERS_APPROVE : ApiRoute.SITE_PENDING_MEMBERS_REJECT;
+      await apiFetch<void>(route, {
+        pathParams: { siteId: site?.id || '' },
         method: 'POST',
-        body: { signupRequestId: memberId, action },
+        body: { signupRequestId: memberId },
       });
 
       setMessage({

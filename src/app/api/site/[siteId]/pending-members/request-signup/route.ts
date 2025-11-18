@@ -3,12 +3,12 @@ import { FamilyRepository } from '@/repositories/FamilyRepository';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ siteId: string }> }
 ) {
   try {
-    const { id } = await params;
+    const { siteId } = await params;
     const body = await request.json();
-    const { firstName, email, siteId } = body;
+    const { firstName, email, userId } = body;
 
     if (!firstName || !email || !siteId) {
       return NextResponse.json(
@@ -20,20 +20,22 @@ export async function POST(
     const familyRepository = new FamilyRepository();
     const origin = new URL(request.url).origin;
 
-    const signupRequest = await familyRepository.createSignupRequest({
-      firstName,
-      email,
-      siteId,
-      userId: id,
-      status: 'pending'
-    }, origin);
+    const signupRequest = await familyRepository.createSignupRequest(
+      {
+        firstName,
+        email,
+        siteId,
+        userId,
+        status: 'pending',
+      },
+      origin
+    );
 
     return NextResponse.json({
       success: true,
       message: 'Signup request submitted successfully',
-      data: signupRequest
+      data: signupRequest,
     });
-
   } catch (error) {
     console.error('Signup request error:', error);
     return NextResponse.json(
@@ -41,4 +43,4 @@ export async function POST(
       { status: 500 }
     );
   }
-} 
+}
