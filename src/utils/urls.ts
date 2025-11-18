@@ -5,48 +5,15 @@
  * especially for emails and external links.
  */
 
-export enum AppRoute {
-  // Public pages
-  HOME = 'HOME',
-  CONTACT = 'CONTACT',
-  BLOG = 'BLOG',
-  BLOG_POST = 'BLOG_POST',
+import { AppRoute, ApiRoute, type UrlParams } from '@/entities/Routes';
 
-  // Auth pages
-  AUTH_SIGNUP = 'AUTH_SIGNUP',
-  AUTH_SIGNUP_VERIFY = 'AUTH_SIGNUP_VERIFY',
-  AUTH_INVITE = 'AUTH_INVITE',
-  AUTH_INVITE_VERIFY = 'AUTH_INVITE_VERIFY',
-  AUTH_WELCOME_CREDENTIALS = 'AUTH_WELCOME_CREDENTIALS',
-  AUTH_PASSWORD_RESET = 'AUTH_PASSWORD_RESET',
-
-  // App pages (member area)
-  APP_DASHBOARD = 'APP_DASHBOARD',
-  APP_CALENDAR = 'APP_CALENDAR',
-  APP_BLOG = 'APP_BLOG',
-  APP_SETTINGS = 'APP_SETTINGS',
-
-  // Admin pages
-  ADMIN_DASHBOARD = 'ADMIN_DASHBOARD',
-  ADMIN_SITE_MEMBERS = 'ADMIN_SITE_MEMBERS',
-  ADMIN_PENDING_MEMBERS = 'ADMIN_PENDING_MEMBERS',
-  ADMIN_ANNIVERSARIES = 'ADMIN_ANNIVERSARIES',
-}
-
-interface UrlParams {
-  locale?: string;
-  token?: string;
-  siteId?: string;
-  id?: string;
-  handle?: string;
-  code?: string;
-  [key: string]: string | undefined;
-}
+// Re-export for convenience
+export { AppRoute, ApiRoute, type UrlParams };
 
 /**
  * Route definitions with their path templates
  */
-const routePaths: Record<AppRoute, string> = {
+export const routePaths: Record<AppRoute, string> = {
   // Public pages
   [AppRoute.HOME]: '/{locale}',
   [AppRoute.CONTACT]: '/{locale}/contact',
@@ -74,67 +41,19 @@ const routePaths: Record<AppRoute, string> = {
   [AppRoute.ADMIN_ANNIVERSARIES]: '/admin/anniversaries',
 };
 
-/**
- * Get the base URL for a specific site by looking up its domain mapping
- *
- * @param siteId - The site ID to get the domain for
- * @returns Base URL with protocol (e.g., "https://aglamaz.com")
- * @throws Error if domain mapping not found for siteId
- */
-export async function getBaseUrlForSite(siteId: string): Promise<string> {
-  const { SiteRepository } = await import('@/repositories/SiteRepository');
-  const repo = new SiteRepository();
-
-  const domain = await repo.getDomainBySiteId(siteId, { cached: true });
-
-  if (!domain || !domain.trim()) {
-    throw new Error(
-      `No domain mapping found for siteId: ${siteId}. ` +
-      'Please create a domainMappings document in Firebase.'
-    );
-  }
-
-  // Use https for production domains, http for localhost
-  const protocol = domain.includes('localhost') ? 'http' : 'https';
-  return `${protocol}://${domain}`;
-}
 
 /**
- * Generate a URL for a specific route for a given site
- *
- * Looks up the site's domain from domain_mappings collection and builds the full URL.
- *
- * @param route - The route enum value
- * @param siteId - The site ID to generate URL for
- * @param params - Parameters to substitute in the path template
- * @param queryParams - Optional query parameters to append
+ * Get a relative path (without base URL) for a route
  *
  * @example
- * // Simple route
- * await getUrl(AppRoute.ADMIN_SITE_MEMBERS, 'XFptrxZIKXV6P2TjtGCL')
- * // => "https://aglamaz.com/admin/site-members"
- *
- * @example
- * // Route with parameters
- * await getUrl(AppRoute.AUTH_INVITE, 'XFptrxZIKXV6P2TjtGCL', { token: 'abc123' })
- * // => "https://aglamaz.com/auth/invite/abc123"
- *
- * @example
- * // Route with query parameters
- * await getUrl(AppRoute.AUTH_INVITE_VERIFY,
- *   'XFptrxZIKXV6P2TjtGCL',
- *   { token: 'abc123' },
- *   { code: 'xyz789', locale: 'he' }
- * )
- * // => "https://aglamaz.com/auth/invite/abc123/verify?code=xyz789&locale=he"
+ * getPath(AppRoute.ADMIN_SITE_MEMBERS)
+ * // => "/admin/site-members"
  */
-export async function getUrl(
+export function getPath(
   route: AppRoute,
-  siteId: string,
   params?: UrlParams,
   queryParams?: Record<string, string | undefined>
-): Promise<string> {
-  const base = await getBaseUrlForSite(siteId);
+): string {
   let path = routePaths[route];
 
   // Substitute path parameters
@@ -169,26 +88,103 @@ export async function getUrl(
     }
   }
 
-  return `${base}${path}`;
+  return path;
 }
 
 /**
- * Get a relative path (without base URL) for a route
+ * API route path templates
+ * Routes with {id}, {photoId}, {pageId}, {userId}, {memberId} etc. should be passed via pathParams
+ */
+const apiRoutePaths: Record<ApiRoute, string> = {
+  // Auth routes (non-site-scoped)
+  [ApiRoute.AUTH_ME]: '/api/auth/me',
+  [ApiRoute.AUTH_LOGOUT]: '/api/auth/logout',
+  [ApiRoute.AUTH_REFRESH]: '/api/auth/refresh',
+  [ApiRoute.AUTH_LOGIN]: '/api/auth/login',
+
+  // Site info
+  [ApiRoute.SITE_INFO]: '/api/site/{siteId}',
+  [ApiRoute.SITE_DESCRIPTION]: '/api/site/{siteId}/description',
+  [ApiRoute.SITE_SETTINGS]: '/api/site/{siteId}/settings',
+
+  // Pictures & Photos
+  [ApiRoute.SITE_PICTURES]: '/api/site/{siteId}/pictures',
+  [ApiRoute.SITE_PHOTOS]: '/api/site/{siteId}/photos',
+  [ApiRoute.SITE_PHOTO_BY_ID]: '/api/site/{siteId}/photos/{photoId}',
+  [ApiRoute.SITE_PHOTO_IMAGE_LIKES]: '/api/site/{siteId}/photos/{photoId}/image-likes',
+
+  // Anniversaries & Calendar
+  [ApiRoute.SITE_ANNIVERSARIES]: '/api/site/{siteId}/anniversaries',
+  [ApiRoute.SITE_ANNIVERSARY_BY_ID]: '/api/site/{siteId}/anniversaries/{anniversaryId}',
+  [ApiRoute.SITE_ANNIVERSARY_EVENT_IMAGE_LIKES]: '/api/site/{siteId}/anniversaries/{anniversaryId}/events/{eventId}/image-likes',
+  [ApiRoute.SITE_ANNIVERSARY_EVENTS]: '/api/site/{siteId}/anniversaries/{anniversaryId}/events',
+  [ApiRoute.SITE_ANNIVERSARY_BLESSING_PAGES]: '/api/site/{siteId}/anniversaries/{anniversaryId}/blessing-pages',
+  [ApiRoute.SITE_CALENDAR_OCCURRENCES]: '/api/site/{siteId}/calendar/occurrences',
+
+  // Members
+  [ApiRoute.SITE_MEMBER_INFO]: '/api/site/{siteId}/member-info',
+  [ApiRoute.SITE_MEMBERS]: '/api/site/{siteId}/members',
+  [ApiRoute.SITE_MEMBERS_PUBLIC]: '/api/site/{siteId}/members/public',
+  [ApiRoute.SITE_MEMBERS_COUNT]: '/api/site/{siteId}/members/count',
+  [ApiRoute.SITE_MEMBER_BY_ID]: '/api/site/{siteId}/members/{memberId}',
+  [ApiRoute.SITE_MEMBERS_APPROVE]: '/api/site/{siteId}/members/approve',
+  [ApiRoute.SITE_MEMBERS_REJECT]: '/api/site/{siteId}/members/reject',
+  [ApiRoute.SITE_PENDING_MEMBERS]: '/api/site/{siteId}/pending-members',
+  [ApiRoute.SITE_INVITES]: '/api/site/{siteId}/invites',
+
+  // Profile
+  [ApiRoute.SITE_PROFILE]: '/api/site/{siteId}/profile',
+  [ApiRoute.SITE_PROFILE_AVATAR]: '/api/site/{siteId}/profile/avatar',
+
+  // Blog
+  [ApiRoute.SITE_BLOG]: '/api/site/{siteId}/blog',
+  [ApiRoute.SITE_BLOG_COUNT]: '/api/site/{siteId}/blog/count',
+  [ApiRoute.SITE_BLOG_ENABLE]: '/api/site/{siteId}/blog/enable',
+  [ApiRoute.SITE_BLOG_SLUG_CHECK]: '/api/site/{siteId}/blog/check-handle',
+
+  // Blessing Pages
+  [ApiRoute.SITE_BLESSING_PAGES_BY_SLUG]: '/api/site/{siteId}/blessing-pages/by-slug/{slug}',
+  [ApiRoute.SITE_BLESSING_PAGE_BLESSINGS]: '/api/site/{siteId}/blessing-pages/{pageId}/blessings',
+  [ApiRoute.SITE_BLESSING_BY_ID]: '/api/site/{siteId}/blessing-pages/{pageId}/blessings/{blessingId}',
+
+  // Admin
+  [ApiRoute.SITE_ADMIN_CONTACT]: '/api/site/{siteId}/admin/contact',
+  [ApiRoute.SITE_ADMIN_CACHE_REVALIDATE]: '/api/site/{siteId}/admin/cache/revalidate',
+  [ApiRoute.SITE_ADMIN_USER_HARD_DELETE]: '/api/site/{siteId}/admin/users/{userId}/hard-delete',
+
+  // Contact
+  [ApiRoute.SITE_CONTACT]: '/api/site/{siteId}/contact',
+};
+
+/**
+ * Get an API path with siteId and path params substituted
  *
  * @example
- * getPath(AppRoute.ADMIN_SITE_MEMBERS)
- * // => "/admin/site-members"
+ * getApiPath(ApiRoute.SITE_PICTURES, 'abc123')
+ * // => "/api/site/abc123/pictures"
+ *
+ * @example
+ * getApiPath(ApiRoute.SITE_PHOTO_BY_ID, 'abc123', { photoId: 'photo_123' })
+ * // => "/api/site/abc123/photos/photo_123"
+ *
+ * @example
+ * getApiPath(ApiRoute.SITE_ANNIVERSARIES, 'abc123', {}, { month: '5', year: '2024' })
+ * // => "/api/site/abc123/anniversaries?month=5&year=2024"
  */
-export function getPath(
-  route: AppRoute,
-  params?: UrlParams,
+export function getApiPath(
+  route: ApiRoute,
+  siteId: string,
+  pathParams?: Record<string, string | undefined>,
   queryParams?: Record<string, string | undefined>
 ): string {
-  let path = routePaths[route];
+  let path = apiRoutePaths[route];
 
-  // Substitute path parameters
-  if (params) {
-    Object.entries(params).forEach(([key, value]) => {
+  // Substitute siteId
+  path = path.replace('{siteId}', siteId);
+
+  // Substitute path parameters (photoId, memberId, etc.)
+  if (pathParams) {
+    Object.entries(pathParams).forEach(([key, value]) => {
       if (value !== undefined) {
         path = path.replace(`{${key}}`, value);
       }
@@ -199,8 +195,8 @@ export function getPath(
   const unsubstituted = path.match(/\{([^}]+)\}/);
   if (unsubstituted) {
     throw new Error(
-      `Missing required parameter "${unsubstituted[1]}" for route ${route}. ` +
-      `Path template: "${routePaths[route]}"`
+      `Missing required path parameter "${unsubstituted[1]}" for route ${route}. ` +
+      `Path template: "${apiRoutePaths[route]}"`
     );
   }
 
