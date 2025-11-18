@@ -61,7 +61,7 @@ export default function ClientDesktopShell({
         <Header user={user ?? undefined} member={member ?? undefined} onLogout={handleLogout} siteInfo={siteInfo!} />
       ) : null}
       <main className={mainClassName}>{children}</main>
-      {siteInfo && !presentationModeActive ? <Footer siteInfo={siteInfo} /> : null}
+      {headerReady && !presentationModeActive ? <Footer siteInfo={siteInfo!} /> : null}
       <Modal isOpen={isLoginOpen} onClose={closeLogin}>
         <LoginPage/>
       </Modal>

@@ -10,6 +10,7 @@ import { apiFetch } from '@/utils/apiFetch';
 import { ImageStore } from '@/store/ImageStore';
 import ImageUploadArea from '@/components/ui/ImageUploadArea';
 import DateInput from '@/components/ui/DateInput';
+import { ApiRoute } from '@/utils/urls';
 
 export default function NewPhotoPage() {
   const { t, i18n } = useTranslation();
@@ -43,12 +44,18 @@ export default function NewPhotoPage() {
       const prevDate = new Date(currentYear, currentMonth - 1, 1);
 
       const [prevRes, currRes] = await Promise.all([
-        apiFetch<{ events: Array<{ id: string; name: string }> }>(
-          `/api/anniversaries?month=${prevDate.getMonth()}&year=${prevDate.getFullYear()}`
-        ),
-        apiFetch<{ events: Array<{ id: string; name: string }> }>(
-          `/api/anniversaries?month=${currentMonth}&year=${currentYear}`
-        ),
+        apiFetch<{ events: Array<{ id: string; name: string }> }>(ApiRoute.SITE_ANNIVERSARIES, {
+          queryParams: {
+            month: String(prevDate.getMonth()),
+            year: String(prevDate.getFullYear()),
+          },
+        }),
+        apiFetch<{ events: Array<{ id: string; name: string }> }>(ApiRoute.SITE_ANNIVERSARIES, {
+          queryParams: {
+            month: String(currentMonth),
+            year: String(currentYear),
+          },
+        }),
       ]);
 
       const allEvents = [...(prevRes.events || []), ...(currRes.events || [])];
@@ -106,17 +113,16 @@ export default function NewPhotoPage() {
 
       setUploading(false);
 
-      // POST to /api/photos
-      await apiFetch('/api/photos', {
+      // POST to /api/site/[siteId]/photos
+      await apiFetch(ApiRoute.SITE_PHOTOS, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+        body: {
           date,
           images: imageUrls,
           description: description.trim() || undefined,
           anniversaryId: anniversaryId || undefined,
           locale: i18n.language,
-        }),
+        },
       });
 
       // Navigate back to feed

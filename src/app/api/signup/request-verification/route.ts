@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { FamilyRepository } from '../../../../repositories/FamilyRepository';
 import { GmailService } from '../../../../services/GmailService';
-import { getUrl, AppRoute } from '@/utils/urls';
+import { getUrl, AppRoute } from '@/utils/serverUrls';
 
 export async function POST(request: NextRequest) {
   try {

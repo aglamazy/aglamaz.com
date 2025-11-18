@@ -308,6 +308,16 @@ export class SiteRepository {
     revalidateTag('site-description', 'max');
   }
 
+  async updateOwner(siteId: string, ownerUid: string): Promise<void> {
+    const docRef = this.siteDocRef(siteId);
+    const snap = await docRef.get();
+    if (!snap.exists) {
+      throw new SiteNotFoundError(siteId);
+    }
+    await docRef.update({ ownerUid, updatedAt: Timestamp.now() });
+    await this.revalidateSite(siteId);
+  }
+
   private async fetchSite(siteId: string, locale?: string): Promise<ISite | null> {
     const docRef = this.siteDocRef(siteId);
     const snap = await docRef.get();

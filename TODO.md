@@ -41,6 +41,17 @@
 
 ## When refresh token is needed, it is done correctly, but the page is not redirected to /app
 
+# Profile Data Model Split
+
+Current state: profile data is site-scoped via member documents (per-site fields include shared items like displayName/email defaultLocale/avatar).
+
+Plan: centralize shared fields on a global user doc and keep site-only data on members.
+- [ ] Create global User doc (per uid) with displayName/firstName/email/avatarUrl/defaultLocale.
+- [ ] Keep Member doc per site with role/siteId/uid and site-specific toggles (blogEnabled/blogHandle/etc.); optionally denorm display/email for listings.
+- [ ] Add/adjust APIs so `/api/user/profile*` serves the global user; member endpoints return site-only fields but can join user data.
+- [ ] Migrate existing member docs: backfill user docs from member fields; then remove/ignore shared fields on members (or keep as cache).
+- [ ] Update client flows (EditUserDetails/profile) to use global user profile; remove site-scoped profile endpoints after migration.
+
 # Translation Architecture Migration
 
 ## BlogPost Collection

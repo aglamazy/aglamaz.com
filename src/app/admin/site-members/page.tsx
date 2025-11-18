@@ -6,6 +6,7 @@ import { useSiteStore } from '@/store/SiteStore';
 import type { ISite } from '@/entities/Site';
 import type { IMember } from '@/entities/Member';
 import { apiFetch } from '@/utils/apiFetch';
+import { ApiRoute } from '@/entities/Routes';
 import MemberAvatar from '@/components/MemberAvatar';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { useTranslation } from 'react-i18next';
@@ -27,7 +28,8 @@ function InviteLinkGenerator() {
     setError('');
     setCopied(false);
     try {
-      const response = await apiFetch<{ invite: { expiresAt: string }; url: string }>(`/api/site/${site.id}/invites`, {
+      const response = await apiFetch<{ invite: { expiresAt: string }; url: string }>(ApiRoute.SITE_INVITES, {
+        pathParams: { siteId: site.id },
         method: 'POST',
       });
       setInviteUrl(response.url);
@@ -119,7 +121,9 @@ export default function SiteMembersPage() {
 
   useEffect(() => {
     if (!site?.id) return;
-    apiFetch<{ members: IMember[] }>(`/api/site/${site.id}/members`)
+    apiFetch<{ members: IMember[] }>(ApiRoute.SITE_MEMBERS, {
+      pathParams: { siteId: site.id },
+    })
       .then(data => setMembers(data.members || []));
   }, [site?.id]);
 
@@ -148,10 +152,10 @@ export default function SiteMembersPage() {
     setSavingId(member.id);
     setError('');
     try {
-      await apiFetch(`/api/site/${site.id}/members/${member.id}`, {
+      await apiFetch(ApiRoute.SITE_MEMBER_BY_ID, {
+        pathParams: { siteId: site.id, memberId: member.id },
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(changes)
+        body: changes,
       });
       setMembers((prev) => prev.map(m => m.id === member.id ? { ...m, ...changes } : m));
       return true;
@@ -175,7 +179,10 @@ export default function SiteMembersPage() {
     setDeleting(true);
     setDeleteError('');
     try {
-      await apiFetch(`/api/site/${site.id}/members/${deleteTarget.id}`, { method: 'DELETE' });
+      await apiFetch(ApiRoute.SITE_MEMBER_BY_ID, {
+        pathParams: { siteId: site.id, memberId: deleteTarget.id },
+        method: 'DELETE',
+      });
       setMembers((prev) => prev.filter(m => m.id !== deleteTarget.id));
       setConfirmOpen(false);
       setDeleteTarget(null);
@@ -199,7 +206,10 @@ export default function SiteMembersPage() {
     setHardDeleting(true);
     setHardDeleteError('');
     try {
-      await apiFetch(`/api/admin/users/${hardDeleteTarget.uid}/hard-delete`, { method: 'DELETE' });
+      await apiFetch(ApiRoute.SITE_ADMIN_USER_HARD_DELETE, {
+        pathParams: { siteId: site?.id || '', userId: hardDeleteTarget.uid },
+        method: 'DELETE',
+      });
       setMembers((prev) => prev.filter(m => m.id !== hardDeleteTarget.id));
       setHardDeleteConfirmOpen(false);
       setHardDeleteTarget(null);

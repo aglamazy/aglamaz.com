@@ -128,8 +128,16 @@ export async function proxy(request: NextRequest) {
     }
 
     if (!isPublic) {
-      const siteId = process.env.NEXT_SITE_ID!;
-      const res = await apiFetchFromMiddleware(request, `/api/user/member-info?siteId=${siteId}`);
+      // Resolve siteId from domain
+      const { resolveSiteId } = await import('@/utils/resolveSiteId');
+      const siteId = await resolveSiteId();
+
+      if (!siteId) {
+        // No site configured, redirect to under construction or error page
+        return NextResponse.redirect(new URL('/', request.url));
+      }
+
+      const res = await apiFetchFromMiddleware(request, `/api/site/${siteId}/member-info`);
 
       if (res instanceof NextResponse) {
         return res;

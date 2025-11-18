@@ -3,6 +3,7 @@ import { IUser, User } from '../entities/User';
 import { useMemberStore } from './MemberStore';
 import { useSiteStore } from './SiteStore';
 import { apiFetch } from "@/utils/apiFetch";
+import { ApiRoute } from '@/utils/urls';
 
 interface UserState {
   user: IUser;
@@ -63,7 +64,7 @@ export const useUserStore = create<UserState>((set, get) => ({
     }
   },
   logout: async () => {
-    await apiFetch<void>('/api/auth/logout', { method: 'POST', credentials: 'include' });
+    await apiFetch<void>(ApiRoute.AUTH_LOGOUT, { method: 'POST' });
     set({ user: null });
     const memberStore = useMemberStore.getState();
     memberStore.clearMember();

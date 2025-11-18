@@ -5,7 +5,7 @@ import type { IMember } from '@/entities/Member';
 import type { ISite } from '@/entities/Site';
 import { fetchSiteInfo } from '@/firebase/admin';
 import { getPlatformName } from '@/utils/platformName';
-import { getUrl, AppRoute } from '@/utils/urls';
+import { getUrl, AppRoute } from '@/utils/serverUrls';
 
 export class UserNotificationService {
   private async renderTemplate(template: string, data: any, siteId: string) {

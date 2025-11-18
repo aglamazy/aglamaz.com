@@ -1,5 +1,6 @@
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import I18nProvider from '@/components/I18nProvider';
+import AuthLayoutShell from '@/components/AuthLayoutShell';
 import { resolveLocaleForPrivateRoutes } from '@/utils/resolveLocale';
 import { fetchSiteInfo } from '@/firebase/admin';
 import { resolveSiteId } from '@/utils/resolveSiteId';
@@ -16,9 +17,7 @@ export default async function AuthLayout({ children }: AuthLayoutProps) {
   const siteId = await resolveSiteId();
   let siteInfo = null;
   try {
-    siteInfo = siteId
-      ? await fetchSiteInfo(siteId, baseLocale)
-      : await fetchSiteInfo(undefined, baseLocale);
+    siteInfo = siteId ? await fetchSiteInfo(siteId, baseLocale) : null;
   } catch (error) {
     console.error('Failed to fetch site info:', error);
   }
@@ -33,7 +32,9 @@ export default async function AuthLayout({ children }: AuthLayoutProps) {
         }}
       />
       <I18nProvider initialLocale={baseLocale} resolvedLocale={resolvedLocale}>
-        {children}
+        <AuthLayoutShell siteInfo={siteInfo}>
+          {children}
+        </AuthLayoutShell>
       </I18nProvider>
     </ErrorBoundary>
   );

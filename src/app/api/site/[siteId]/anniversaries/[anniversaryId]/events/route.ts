@@ -1,0 +1,114 @@
+import { withMemberGuard } from '@/lib/withMemberGuard';
+import { GuardContext } from '@/app/api/types';
+import { AnniversaryRepository } from '@/repositories/AnniversaryRepository';
+import { AnniversaryOccurrenceRepository } from '@/repositories/AnniversaryOccurrenceRepository';
+import { extractImageDimensions } from '@/utils/imageDimensions';
+
+export const dynamic = 'force-dynamic';
+
+const getHandler = async (_request: Request, context: GuardContext & { params: Promise<{ siteId: string; anniversaryId: string }> }) => {
+  try {
+    const params = await context.params;
+    const siteId = params?.siteId;
+    const anniversaryId = params?.anniversaryId;
+
+    if (!siteId) {
+      return Response.json({ error: 'Site ID is required' }, { status: 400 });
+    }
+
+    if (!anniversaryId) {
+      return Response.json({ error: 'Anniversary ID is required' }, { status: 400 });
+    }
+
+    // Verify member has access to this site
+    if (context.member?.siteId !== siteId) {
+      return Response.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const member = context.member!;
+    const annRepo = new AnniversaryRepository();
+    const occRepo = new AnniversaryOccurrenceRepository();
+
+    const event = await annRepo.getById(anniversaryId);
+    if (!event || event.siteId !== siteId) {
+      return Response.json({ error: 'Event not found' }, { status: 404 });
+    }
+    const items = await occRepo.listByEvent(anniversaryId);
+    return Response.json({ events: items });
+  } catch (error) {
+    console.error(error);
+    return Response.json({ error: 'Failed to fetch events' }, { status: 500 });
+  }
+};
+
+const postHandler = async (request: Request, context: GuardContext & { params: Promise<{ siteId: string; anniversaryId: string }> }) => {
+  try {
+    const params = await context.params;
+    const siteId = params?.siteId;
+    const anniversaryId = params?.anniversaryId;
+
+    if (!siteId) {
+      return Response.json({ error: 'Site ID is required' }, { status: 400 });
+    }
+
+    if (!anniversaryId) {
+      return Response.json({ error: 'Anniversary ID is required' }, { status: 400 });
+    }
+
+    // Verify member has access to this site
+    if (context.member?.siteId !== siteId) {
+      return Response.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const member = context.member!;
+    const user = context.user!;
+    const body = await request.json();
+    const { date, images, description } = body;
+    if (!date) {
+      return Response.json({ error: 'Missing date' }, { status: 400 });
+    }
+    const annRepo = new AnniversaryRepository();
+    const occRepo = new AnniversaryOccurrenceRepository();
+    const event = await annRepo.getById(anniversaryId);
+    if (!event || event.siteId !== siteId) {
+      return Response.json({ error: 'Event not found' }, { status: 404 });
+    }
+
+    // All members can create events (previously occurrences)
+    const defaultDesc = typeof description === 'string' ? description : (event.description || '');
+
+    // Extract dimensions if images are provided - REQUIRED for new uploads
+    let imagesWithDimensions;
+    if (Array.isArray(images) && images.length > 0) {
+      console.log('[anniversaries/events] Extracting dimensions for', images.length, 'images');
+      const dimensions = await extractImageDimensions(images);
+      imagesWithDimensions = images.map((url, index) => {
+        const dim = dimensions[index];
+        if (!dim) {
+          throw new Error(`Failed to extract dimensions for image at index ${index}`);
+        }
+        return {
+          url,
+          width: dim.width,
+          height: dim.height
+        };
+      });
+    }
+
+    const occ = await occRepo.create({
+      siteId: siteId,
+      eventId: anniversaryId,
+      date: new Date(date),
+      createdBy: user.userId,
+      imagesWithDimensions,
+      description: defaultDesc
+    });
+    return Response.json({ event: occ }, { status: 201 });
+  } catch (error) {
+    console.error(error);
+    return Response.json({ error: 'Failed to create event' }, { status: 500 });
+  }
+};
+
+export const GET = withMemberGuard(getHandler);
+export const POST = withMemberGuard(postHandler);

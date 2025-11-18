@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import md5 from 'blueimp-md5';
 import type { IMember } from '@/entities/Member';
 import { apiFetch } from '@/utils/apiFetch';
+import { ApiRoute } from '@/utils/urls';
 
 export enum MembershipStatus {
   Member = 'member',
@@ -92,7 +93,7 @@ export const useMemberStore = create<MemberState>((set, get) => ({
 
       set({ loading: true, error: null });
 
-      const data = await apiFetch<{ status: string; member?: IMember }>(`/api/user/member-info?siteId=${siteId}`);
+      const data = await apiFetch<{ status: string; member?: IMember }>(ApiRoute.SITE_MEMBER_INFO);
       if (data.member) {
         set({ member: data.member, loading: false });
       } else {

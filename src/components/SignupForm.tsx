@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Loader2, CheckCircle } from 'lucide-react';
 import { apiFetch } from '@/utils/apiFetch';
+import { ApiRoute } from '@/entities/Routes';
 import { useSiteStore } from '@/store/SiteStore';
 import { useTranslation } from 'react-i18next';
 
@@ -29,16 +30,18 @@ export default function SignupForm({
   const [emailSent, setEmailSent] = useState(false);
   const { t, i18n } = useTranslation();
 
-  const siteId =
-    useSiteStore((s) => s.siteInfo?.id) ||
-    process.env.NEXT_SITE_ID ||
-    'default';
+  const siteId = useSiteStore((s) => s.siteInfo?.id) || process.env.NEXT_SITE_ID || '';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!firstName.trim() || !email.trim()) {
       setError(t('pleaseFillAllFields'));
+      return;
+    }
+
+    if (!siteId) {
+      setError(t('failedToSendVerification'));
       return;
     }
 
@@ -57,21 +60,15 @@ export default function SignupForm({
         onSuccess();
       } else {
         // Step 1: Send email verification request (no Firebase auth yet)
-        const data = await apiFetch<{ success: boolean }>(
-          '/api/signup/request-verification',
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              firstName: firstName.trim(),
-              email: email.trim(),
-              siteId,
-              language: i18n.language,
-            }),
+        const data = await apiFetch<{ success: boolean }>(ApiRoute.AUTH_SIGNUP_REQUEST_VERIFICATION, {
+          method: 'POST',
+          body: {
+            firstName: firstName.trim(),
+            email: email.trim(),
+            siteId,
+            language: i18n.language,
           },
-        );
+        });
         console.log('request verification', data);
 
         setIsSubmitted(true);

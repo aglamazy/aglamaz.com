@@ -7,7 +7,10 @@ import { Button } from '@/components/ui/button';
 import { useTranslation } from 'react-i18next';
 import ArrowCTA from '@/components/ArrowCTA';
 import { apiFetch } from '@/utils/apiFetch';
+import { ApiRoute } from '@/entities/Routes';
 import { useState } from 'react';
+import { useEffect } from 'react';
+import { useSiteStore } from '@/store/SiteStore';
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -15,6 +18,19 @@ export default function AdminDashboard() {
   const isRTL = i18n.language?.startsWith('he');
   const [clearingCache, setClearingCache] = useState(false);
   const [cacheCleared, setCacheCleared] = useState(false);
+  const siteInfo = useSiteStore((state) => state.siteInfo);
+  const setSiteInfo = useSiteStore((state) => state.setSiteInfo);
+  const [adminEmailInput, setAdminEmailInput] = useState('');
+  const [adminEmailSaving, setAdminEmailSaving] = useState(false);
+  const [adminEmailError, setAdminEmailError] = useState('');
+  const [adminEmailSaved, setAdminEmailSaved] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
+  const missingAdminEmail = hydrated && !siteInfo?.ownerUid;
+
+  useEffect(() => {
+    useSiteStore.getState().hydrateFromWindow();
+    setHydrated(true);
+  }, []);
 
   const adminFeatures = [
     {
@@ -64,6 +80,32 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleSaveAdminEmail = async () => {
+    if (!adminEmailInput.trim()) {
+      setAdminEmailError(t('pleaseFillAllFields') || 'Please fill all fields');
+      return;
+    }
+    setAdminEmailSaving(true);
+    setAdminEmailError('');
+    setAdminEmailSaved(false);
+    try {
+      const res = await apiFetch<{ ownerUid: string; email: string | null }>(ApiRoute.SITE_ADMIN_OWNER, {
+        method: 'POST',
+        body: { email: adminEmailInput.trim() },
+      });
+      if (siteInfo) {
+        setSiteInfo({ ...siteInfo, ownerUid: res.ownerUid });
+      }
+      setAdminEmailSaved(true);
+      setTimeout(() => setAdminEmailSaved(false), 3000);
+    } catch (error) {
+      console.error('[admin] failed to set admin email', error);
+      setAdminEmailError(t('failedToSaveSettings') || 'Failed to save');
+    } finally {
+      setAdminEmailSaving(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-cream-50" dir={isRTL ? 'rtl' : 'ltr'}>
       {/* Header */}
@@ -88,6 +130,42 @@ export default function AdminDashboard() {
               {cacheCleared ? (t('cacheCleared') || 'Cache Cleared!') : (t('clearCache') || 'Clear Cache')}
             </Button>
           </div>
+          {missingAdminEmail && (
+            <div className="mt-6 border border-amber-200 bg-amber-50 rounded-lg p-4 flex flex-col gap-3">
+              <div className="text-amber-800 font-semibold">
+                {t('adminEmailMissing', { defaultValue: 'Admin email is missing' })}
+              </div>
+              <div className="text-amber-700 text-sm">
+                {t('adminEmailMissingDesc', {
+                  defaultValue: 'Set an admin email to receive contact form and member approval notifications.',
+                })}
+              </div>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <input
+                  type="email"
+                  value={adminEmailInput}
+                  onChange={(e) => setAdminEmailInput(e.target.value)}
+                  className="w-full sm:w-96 border border-amber-200 rounded-md px-3 py-2"
+                  placeholder={t('adminEmailPlaceholder', { defaultValue: 'admin@example.com' }) as string}
+                />
+                <Button
+                  onClick={handleSaveAdminEmail}
+                  disabled={adminEmailSaving}
+                  className="sm:w-auto"
+                >
+                  {adminEmailSaving ? (t('saving') || 'Saving...') : (t('save') || 'Save')}
+                </Button>
+              </div>
+              {adminEmailError && (
+                <div className="text-red-600 text-sm">{adminEmailError}</div>
+              )}
+              {adminEmailSaved && (
+                <div className="text-green-700 text-sm">
+                  {t('settingsSavedSuccessfully') || 'Saved successfully'}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 

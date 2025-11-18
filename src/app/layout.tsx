@@ -10,7 +10,8 @@ const GOOGLE_VERIFICATION = process.env.GOOGLE_SITE_VERIFICATION || '';
 
 export async function generateMetadata(): Promise<Metadata> {
   try {
-    const siteInfo = await fetchSiteInfo(undefined, DEFAULT_LOCALE);
+    const siteId = await resolveSiteId();
+    const siteInfo = siteId ? await fetchSiteInfo(siteId, DEFAULT_LOCALE) : null;
     const siteName = siteInfo?.name?.trim();
 
     return {
