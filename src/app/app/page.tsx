@@ -50,6 +50,16 @@ type Occurrence = {
 
 type AuthorInfo = { displayName: string; email: string };
 
+type FeedCachePayload = {
+  items: Occurrence[];
+  events: Record<string, { name: string }>;
+  authors: Record<string, AuthorInfo>;
+  hasMore: boolean;
+  savedAt: number;
+};
+
+const FEED_CACHE_PREFIX = 'photoFeedCache';
+
 export default function PicturesFeedPage() {
   const { t, i18n} = useTranslation();
   const router = useRouter();
@@ -70,9 +80,15 @@ export default function PicturesFeedPage() {
   const [likersSheet, setLikersSheet] = useState<{ occId: string; imageIndex: number } | null>(null);
   const [userHasScrolled, setUserHasScrolled] = useState(false);
   const mountedRef = useRef(true);
+  const [cacheHydrated, setCacheHydrated] = useState(false);
   const currentUserId = user?.user_id ?? '';
   const isAdmin = memberRole === 'admin';
   const textDirection: 'ltr' | 'rtl' = i18n.dir() === 'rtl' ? 'rtl' : 'ltr';
+  const storageKey = useMemo(() => {
+    const siteId = site?.id ?? 'default';
+    const locale = i18n.language || 'default';
+    return `${FEED_CACHE_PREFIX}:${siteId}:${locale}`;
+  }, [site?.id, i18n.language]);
 
   const ITEMS_PER_PAGE = 10;
 
@@ -96,6 +112,42 @@ export default function PicturesFeedPage() {
     };
   }, []);
 
+  const persistFeedCache = useCallback((payload: FeedCachePayload) => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage.setItem(storageKey, JSON.stringify(payload));
+    } catch (e) {
+      console.error('[feed] cache save failed', e);
+    }
+  }, [storageKey]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    try {
+      const raw = window.localStorage.getItem(storageKey);
+      if (!raw) {
+        setCacheHydrated(true);
+        return;
+      }
+      const parsed = JSON.parse(raw) as FeedCachePayload;
+      if (!parsed || !Array.isArray(parsed.items)) {
+        setCacheHydrated(true);
+        return;
+      }
+
+      setItems(parsed.items);
+      setEventNames(parsed.events || {});
+      setAuthors(parsed.authors || {});
+      setHasMore(Boolean(parsed.hasMore));
+      setLoading(false);
+    } catch (e) {
+      console.error('[feed] cache read failed', e);
+    } finally {
+      setCacheHydrated(true);
+    }
+  }, [storageKey]);
+
   useEffect(() => {
     if (!editTarget) return;
     const occ = items.find((item) => item.id === editTarget.occId);
@@ -109,7 +161,9 @@ export default function PicturesFeedPage() {
 
     const isInitialLoad = pageNum === 0;
     if (isInitialLoad) {
-      setLoading(true);
+      if (!cacheHydrated) {
+        setLoading(true);
+      }
     } else {
       setLoadingMore(true);
     }
@@ -161,6 +215,15 @@ export default function PicturesFeedPage() {
       }
       if (!mountedRef.current) return true;
       setAuthors(prev => ({ ...prev, ...normalizedAuthors }));
+      if (isInitialLoad) {
+        persistFeedCache({
+          items: list,
+          events: data.events || {},
+          authors: normalizedAuthors,
+          hasMore: list.length === ITEMS_PER_PAGE,
+          savedAt: Date.now(),
+        });
+      }
 
       const likesMap: Record<string, ImageLikeMeta[]> = {};
       await Promise.all(
@@ -197,11 +260,12 @@ export default function PicturesFeedPage() {
         }
       }
     }
-  }, [i18n.language]);
+  }, [cacheHydrated, i18n.language, persistFeedCache]);
 
   useEffect(() => {
+    if (!cacheHydrated) return;
     void loadFeed();
-  }, [loadFeed]);
+  }, [loadFeed, cacheHydrated]);
 
   const loadMore = useCallback(async () => {
     if (loadingMore || !hasMore) return;
