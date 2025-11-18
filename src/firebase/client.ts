@@ -1,6 +1,7 @@
   import { initializeApp, getApps } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithCustomToken } from 'firebase/auth';
 import { apiFetch } from '@/utils/apiFetch';
+import { ApiRoute } from '@/entities/Routes';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || '',
@@ -35,6 +36,6 @@ export const googleProvider = new GoogleAuthProvider();
 // derived from the app session (cookies). Always aligns identities.
 export async function ensureFirebaseSignedIn(): Promise<void> {
   const a = auth();
-  const { token } = await apiFetch<{ token: string }>('/api/auth/me/firebase-token', { method: 'POST' });
+  const { token } = await apiFetch<{ token: string }>(ApiRoute.AUTH_ME_FIREBASE_TOKEN, { method: 'POST' });
   await signInWithCustomToken(a, token);
 }

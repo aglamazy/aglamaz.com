@@ -71,7 +71,7 @@ const postHandler = async (request: Request, context: GuardContext) => {
       description,
       type,
       date: new Date(date),
-      isAnnual: Boolean(isAnnual),
+      isAnnual: type !== 'other' && Boolean(isAnnual ?? true),
       createdBy: user.userId,
       imageUrl,
       useHebrew: Boolean(useHebrew),

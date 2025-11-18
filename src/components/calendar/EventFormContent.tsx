@@ -4,13 +4,13 @@ import { useState, useRef, useEffect, ChangeEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { apiFetch } from '@/utils/apiFetch';
 import { ApiRoute } from '@/entities/Routes';
-import type { AnniversaryEvent } from '@/entities/Anniversary';
+import type { AnniversaryEvent, AnniversaryType } from '@/entities/Anniversary';
 import styles from '@/app/app/calendar/page.module.css';
 import { ImageStore } from '@/store/ImageStore';
 import ImageUploadArea from '@/components/ui/ImageUploadArea';
-import { Select } from '@/components/ui/select';
 import DateInput from '@/components/ui/DateInput';
 import { useSiteStore } from '@/store/SiteStore';
+import TouchSelect from '@/components/ui/TouchSelect';
 
 interface EventFormContentProps {
   editEvent?: AnniversaryEvent | null;
@@ -24,7 +24,8 @@ export default function EventFormContent({ editEvent, onSuccess }: EventFormCont
     name: '',
     description: '',
     date: '',
-    type: 'birthday',
+    burialDate: '',
+    type: 'other' as AnniversaryType | '',
     isAnnual: true,
     imageUrl: '',
     useHebrew: false,
@@ -45,7 +46,8 @@ export default function EventFormContent({ editEvent, onSuccess }: EventFormCont
         name: editEvent.name,
         description: editEvent.description || '',
         date: `${editEvent.year}-${String(editEvent.month + 1).padStart(2, '0')}-${String(editEvent.day).padStart(2, '0')}`,
-        type: editEvent.type,
+        burialDate: (editEvent as any)?.burialDate ? String((editEvent as any).burialDate) : '',
+        type: editEvent.type as AnniversaryType,
         isAnnual: editEvent.isAnnual,
         imageUrl: '',
         useHebrew: Boolean((editEvent as any).useHebrew),
@@ -55,7 +57,8 @@ export default function EventFormContent({ editEvent, onSuccess }: EventFormCont
         name: '',
         description: '',
         date: '',
-        type: 'birthday',
+        burialDate: '',
+        type: 'other' as AnniversaryType | '',
         isAnnual: true,
         imageUrl: '',
         useHebrew: false,
@@ -127,6 +130,11 @@ export default function EventFormContent({ editEvent, onSuccess }: EventFormCont
       }
 
       const payload = { ...form, imageUrl };
+      if (!payload.type) {
+        setError(t('pleaseFillAllFields'));
+        setSaving(false);
+        return;
+      }
       if (editEvent) {
         await apiFetch<void>(ApiRoute.SITE_ANNIVERSARY_BY_ID, {
           pathParams: { anniversaryId: editEvent.id },
@@ -146,6 +154,20 @@ export default function EventFormContent({ editEvent, onSuccess }: EventFormCont
       setSaving(false);
     }
   };
+
+  const dateContext =
+    form.type === 'birthday' || form.type === 'death'
+      ? 'past'
+      : form.type === 'wedding'
+        ? 'nearFuture'
+        : undefined;
+
+  const anniversaryTypeOptions = [
+    { value: 'birthday', label: `🎂 ${t('birthday')}` },
+    { value: 'wedding', label: `💍 ${t('wedding')}` },
+    { value: 'death', label: `🕯️ ${t('death')}` },
+    { value: 'other', label: `⭐ ${t('other', { defaultValue: 'Other' })}` },
+  ];
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 max-w-md">
@@ -167,28 +189,40 @@ export default function EventFormContent({ editEvent, onSuccess }: EventFormCont
           onChange={(e) => setForm({ ...form, description: e.target.value })}
         />
       </div>
-      <div>
-        <label className="block mb-1 text-sm text-text">{t('date')}</label>
+      <div className="flex flex-col items-center gap-4">
+        <TouchSelect
+          value={form.type}
+          options={anniversaryTypeOptions}
+          onChange={(val) => setForm({ ...form, type: val as typeof form.type })}
+          columns={4}
+        />
         <DateInput
           value={form.date}
           onChange={(value) => setForm({ ...form, date: value })}
           required
+          context={dateContext}
+          todayIcon={
+            form.type === 'death' ? '🕯️' : form.type === 'wedding' ? '💍' : '👶'
+          }
+          className="mx-auto"
         />
       </div>
-      <div>
-        <label className="block mb-1 text-sm text-text">{t('type')}</label>
-        <Select
-          value={form.type}
-          onChange={(value) => setForm({ ...form, type: value })}
-          options={[
-            { value: 'birthday', label: t('birthday') },
-            { value: 'death', label: t('death') },
-            { value: 'wedding', label: t('wedding') },
-            { value: 'death_anniversary', label: t('death_anniversary') },
-          ]}
-          placeholder={t('type') as string}
-        />
-      </div>
+      {form.type === 'death' && (
+        <div>
+          <label className="block mb-1 text-sm text-text">
+            {t('burialDate', { defaultValue: 'Burial date' })}
+          </label>
+          <DateInput
+            value={form.burialDate}
+            onChange={(value) => setForm((prev) => ({ ...prev, burialDate: value }))}
+            context="past"
+            todayIcon="🕯️"
+          />
+          <p className="text-xs text-sage-600 mt-1">
+            {t('burialDateHelp', { defaultValue: 'Optional: if burial occurred on a different date.' })}
+          </p>
+        </div>
+      )}
       <div>
         <label className="block mb-1 text-sm text-text">{t('image')}</label>
         {editEvent?.imageUrl && !imageSrc && !form.imageUrl && (
@@ -256,16 +290,6 @@ export default function EventFormContent({ editEvent, onSuccess }: EventFormCont
           {t('hebrewDate') as string}: {new Intl.DateTimeFormat('he-u-ca-hebrew', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(form.date))}
         </div>
       )}
-      <div className="flex items-center">
-        <input
-          id="isAnnual"
-          type="checkbox"
-          checked={form.isAnnual}
-          onChange={(e) => setForm({ ...form, isAnnual: e.target.checked })}
-          className="mr-2"
-        />
-        <label htmlFor="isAnnual" className="text-text">{t('annualEvent')}</label>
-      </div>
       <button
         type="submit"
         disabled={saving}

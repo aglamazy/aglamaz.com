@@ -8,6 +8,7 @@ import { signInWithPopup, getIdToken } from 'firebase/auth';
 import { useUserStore } from '@/store/UserStore';
 import { apiFetch } from '@/utils/apiFetch';
 import { landingPage } from "@/app/settings";
+import { ApiRoute } from '@/entities/Routes';
 
 interface VerifySignupClientProps {
   token: string | null;
@@ -28,12 +29,9 @@ export default function VerifySignupClient({ token }: VerifySignupClientProps) {
       }
 
       try {
-        await apiFetch<void>('/api/signup/verify', {
+        await apiFetch<void>(ApiRoute.AUTH_SIGNUP_VERIFY, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ token })
+          body: { token }
         });
 
         initFirebase();
@@ -52,16 +50,15 @@ export default function VerifySignupClient({ token }: VerifySignupClientProps) {
         };
         setUser(userData);
 
-        await apiFetch<void>('/api/signup/complete-verification', {
+        await apiFetch<void>(ApiRoute.AUTH_SIGNUP_COMPLETE_VERIFICATION, {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
             'Authorization': `Bearer ${firebaseToken}`
           },
-          body: JSON.stringify({
+          body: {
             token,
             userId: result.user.uid
-          })
+          }
         });
 
         setStatus('success');

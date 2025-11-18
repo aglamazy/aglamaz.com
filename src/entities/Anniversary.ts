@@ -1,18 +1,22 @@
 import { LocalizableDocument } from '@/services/LocalizationService';
 
+export type AnniversaryType = 'birthday' | 'death' | 'wedding' | 'other';
+
 export interface AnniversaryEvent extends LocalizableDocument {
   id: string;
   siteId: string;
   ownerId: string;
   name: string;
   description?: string;
-  type: 'birthday' | 'death' | 'wedding';
+  type: AnniversaryType;
+  burialDate?: string;
   date: any;
   month: number;
   day: number;
   year: number;
   isAnnual: boolean;
   useHebrew?: boolean;
+  deletedAt?: any;
   hebrewDate?: string; // Display like "ג' אלול תש"ל" (server formatted)
   hebrewKey?: string; // Matching key (e.g., "Elul 3")
   hebrewOccurrences?: Array<{

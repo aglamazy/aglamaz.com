@@ -16,7 +16,10 @@
     "test:links": "tsx tests/link-checker.ts",
     "test:links:auth": "tsx tests/link-checker.ts --authenticated",
     "test:links:verbose": "tsx tests/link-checker.ts --verbose",
-    "prepare": "husky"
+    "prepare": "husky",
+    "migrate:anniversaries:deletedAt": "npx tsx scripts/migrations/20250404-anniversaries-add-deletedAt.ts",
+    "firestore:pull": "firebase firestore:indexes > firebase/firestore.indexes.json",
+    "firestore:push": "firebase deploy --only firestore:indexes"
   },
   "dependencies": {
     "@tinymce/tinymce-react": "^6.3.0",
