@@ -151,6 +151,7 @@ const apiRoutePaths: Record<ApiRoute, string> = {
   [ApiRoute.SITE_ADMIN_CONTACT]: '/api/site/{siteId}/admin/contact',
   [ApiRoute.SITE_ADMIN_CACHE_REVALIDATE]: '/api/site/{siteId}/admin/cache/revalidate',
   [ApiRoute.SITE_ADMIN_USER_HARD_DELETE]: '/api/site/{siteId}/admin/users/{userId}/hard-delete',
+  [ApiRoute.SITE_ADMIN_OWNER]: '/api/site/{siteId}/admin/owner',
 
   // Contact
   [ApiRoute.SITE_CONTACT]: '/api/site/{siteId}/contact',
