@@ -130,14 +130,7 @@ const getHandler = async (request: Request, context: GuardContext & { params: Pr
       return Response.json({ post, localized: localized.localized, lang });
     }
     const authorId = url.searchParams.get('authorId');
-    console.log('[site/blog] fetch posts', { siteId, authorId: authorId || null, lang });
     const posts = authorId ? await repo.getByAuthor(authorId) : await repo.getBySite(siteId);
-    console.log('[site/blog] fetched count', {
-      siteId,
-      authorId: authorId || null,
-      total: posts.length,
-      sampleIds: posts.slice(0, 5).map((p) => p.id),
-    });
     const localizedPosts: LocalizedBlogPost[] = [];
     for (const post of posts) {
       await maybeEnqueueTranslation(post, lang, repo);
