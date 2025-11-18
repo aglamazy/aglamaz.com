@@ -12,6 +12,11 @@ config({ path: '.env.local' });
  *
  * This sets deletedAt: null on all anniversary documents that don't already have the field,
  * so soft-delete filters (deletedAt == null) include existing events.
+ *
+ * Ensure indexes:
+ * - Collection group: anniversaries
+ *   Fields: siteId (ASC), month (ASC), deletedAt (ASC), day (ASC)
+ *   Density: SPARSE_ALL
  */
 async function run() {
   initAdmin();

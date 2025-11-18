@@ -62,6 +62,67 @@
       "density": "SPARSE_ALL"
     },
     {
+      "collectionGroup": "blessingPages",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "eventId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "year",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "__name__",
+          "order": "DESCENDING"
+        }
+      ],
+      "density": "SPARSE_ALL"
+    },
+    {
+      "collectionGroup": "blessingPages",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "siteId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "year",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "__name__",
+          "order": "DESCENDING"
+        }
+      ],
+      "density": "SPARSE_ALL"
+    },
+    {
+      "collectionGroup": "blessings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "blessingPageId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "deleted",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "__name__",
+          "order": "DESCENDING"
+        }
+      ],
+      "density": "SPARSE_ALL"
+    },
+    {
       "collectionGroup": "blogPosts",
       "queryScope": "COLLECTION",
       "fields": [
@@ -86,6 +147,29 @@
       "fields": [
         {
           "fieldPath": "deletedAt",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "__name__",
+          "order": "DESCENDING"
+        }
+      ],
+      "density": "SPARSE_ALL"
+    },
+    {
+      "collectionGroup": "blogPosts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "deletedAt",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "siteId",
           "order": "ASCENDING"
         },
         {
@@ -276,26 +360,7 @@
       "density": "SPARSE_ALL"
     },
     {
-      "collectionGroup": "blessingPages",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "eventId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "year",
-          "order": "DESCENDING"
-        },
-        {
-          "fieldPath": "__name__",
-          "order": "DESCENDING"
-        }
-      ],
-      "density": "SPARSE_ALL"
-    },
-    {
-      "collectionGroup": "blessingPages",
+      "collectionGroup": "anniversaries",
       "queryScope": "COLLECTION",
       "fields": [
         {
@@ -303,35 +368,20 @@
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "year",
-          "order": "DESCENDING"
-        },
-        {
-          "fieldPath": "__name__",
-          "order": "DESCENDING"
-        }
-      ],
-      "density": "SPARSE_ALL"
-    },
-    {
-      "collectionGroup": "blessings",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "blessingPageId",
+          "fieldPath": "month",
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "deleted",
+          "fieldPath": "deletedAt",
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "createdAt",
-          "order": "DESCENDING"
+          "fieldPath": "day",
+          "order": "ASCENDING"
         },
         {
           "fieldPath": "__name__",
-          "order": "DESCENDING"
+          "order": "ASCENDING"
         }
       ],
       "density": "SPARSE_ALL"
