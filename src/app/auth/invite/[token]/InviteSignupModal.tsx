@@ -79,6 +79,7 @@ export default function InviteSignupModal({ token, onSubmitted }: InviteSignupMo
     async ({ firstName, email }: { firstName: string; email: string }) => {
       setIsSubmitting(true);
       try {
+        // Unauthenticated invite registration uses plain fetch; no token handling needed
         // eslint-disable-next-line no-restricted-globals
         const response = await fetch(`/api/invite/${token}/register`, {
           method: 'POST',

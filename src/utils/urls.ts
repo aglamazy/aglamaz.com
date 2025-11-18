@@ -95,7 +95,7 @@ export function getPath(
  * API route path templates
  * Routes with {id}, {photoId}, {pageId}, {userId}, {memberId} etc. should be passed via pathParams
  */
-const apiRoutePaths: Record<ApiRoute, string> = {
+export const apiRoutePaths: Record<ApiRoute, string> = {
   // Auth routes (non-site-scoped)
   [ApiRoute.AUTH_ME]: '/api/auth/me',
   [ApiRoute.AUTH_LOGOUT]: '/api/auth/logout',
@@ -107,6 +107,12 @@ const apiRoutePaths: Record<ApiRoute, string> = {
   [ApiRoute.AUTH_ME_FIREBASE_TOKEN]: '/api/auth/me/firebase-token',
   [ApiRoute.AUTH_INVITE_ME]: '/api/auth/me',
   [ApiRoute.AUTH_INVITE_BY_TOKEN]: '/api/invite/{token}',
+
+  // Non-site scoped
+  [ApiRoute.SITE_PUBLIC_INFO]: '/api/site',
+  [ApiRoute.ADMIN_CONTACT_MESSAGES]: '/api/admin/contact',
+  [ApiRoute.USER_BLOG_ENABLE]: '/api/user/{userId}/blog/enable',
+  [ApiRoute.USER_BLOG_REGISTER]: '/api/user/{userId}/blog/register',
 
   // Site info
   [ApiRoute.SITE_INFO]: '/api/site/{siteId}',
@@ -122,6 +128,7 @@ const apiRoutePaths: Record<ApiRoute, string> = {
   // Anniversaries & Calendar
   [ApiRoute.SITE_ANNIVERSARIES]: '/api/site/{siteId}/anniversaries',
   [ApiRoute.SITE_ANNIVERSARY_BY_ID]: '/api/site/{siteId}/anniversaries/{anniversaryId}',
+  [ApiRoute.SITE_ANNIVERSARY_EVENT_BY_ID]: '/api/site/{siteId}/anniversaries/{anniversaryId}/events/{eventId}',
   [ApiRoute.SITE_ANNIVERSARY_EVENT_IMAGE_LIKES]: '/api/site/{siteId}/anniversaries/{anniversaryId}/events/{eventId}/image-likes',
   [ApiRoute.SITE_ANNIVERSARY_EVENTS]: '/api/site/{siteId}/anniversaries/{anniversaryId}/events',
   [ApiRoute.SITE_ANNIVERSARY_BLESSING_PAGES]: '/api/site/{siteId}/anniversaries/{anniversaryId}/blessing-pages',
@@ -149,6 +156,9 @@ const apiRoutePaths: Record<ApiRoute, string> = {
   [ApiRoute.SITE_BLOG_COUNT]: '/api/site/{siteId}/blog/count',
   [ApiRoute.SITE_BLOG_ENABLE]: '/api/site/{siteId}/blog/enable',
   [ApiRoute.SITE_BLOG_SLUG_CHECK]: '/api/site/{siteId}/blog/check-handle',
+  [ApiRoute.SITE_BLOG_TRANSLATE]: '/api/site/{siteId}/blog/translate',
+  [ApiRoute.SITE_BLOG_LIKE]: '/api/site/{siteId}/blog/{postId}/like',
+  [ApiRoute.SITE_BLOG_SHARE]: '/api/site/{siteId}/blog/{postId}/share',
 
   // Blessing Pages
   [ApiRoute.SITE_BLESSING_PAGES_BY_SLUG]: '/api/site/{siteId}/blessing-pages/by-slug/{slug}',

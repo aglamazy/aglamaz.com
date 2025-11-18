@@ -5,6 +5,7 @@ import { Badge } from "./ui/badge";
 import { Calendar, Users, Camera, MessageCircle } from "lucide-react";
 import { useSiteStore } from '@/store/SiteStore';
 import { apiFetch } from '@/utils/apiFetch';
+import { ApiRoute } from '@/entities/Routes';
 import Link from 'next/link';
 import { useTranslation } from 'react-i18next';
 
@@ -18,7 +19,7 @@ export default function FamilyOverview() {
     (async () => {
       try {
         if (!site?.id) return;
-        const data = await apiFetch<{ count: number }>(`/api/site/${site.id}/members/count`);
+        const data = await apiFetch<{ count: number }>(ApiRoute.SITE_MEMBERS_COUNT);
         setMemberCount(data.count);
       } catch {
         setMemberCount(null);
@@ -30,7 +31,7 @@ export default function FamilyOverview() {
     (async () => {
       try {
         if (!site?.id) return;
-        const data = await apiFetch<{ count: number }>(`/api/site/${site.id}/blog/count`);
+        const data = await apiFetch<{ count: number }>(ApiRoute.SITE_BLOG_COUNT);
         setBlogCount(data.count);
       } catch {
         setBlogCount(null);

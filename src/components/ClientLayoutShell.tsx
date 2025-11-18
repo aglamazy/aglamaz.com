@@ -16,6 +16,7 @@ import { usePresentationModeStore } from '@/store/PresentationModeStore';
 import ClientDesktopShell from '@/components/ClientDesktopShell';
 import ClientMobileShell from '@/components/ClientMobileShell';
 import { apiFetch } from '@/utils/apiFetch';
+import { ApiRoute } from '@/entities/Routes';
 import { ISite } from '@/entities/Site';
 
 interface ClientLayoutShellProps {
@@ -106,7 +107,9 @@ export default function ClientLayoutShell({ children }: ClientLayoutShellProps) 
     // Fetch localized site from API (only on actual locale change)
     const fetchLocalizedSite = async () => {
       try {
-        const data = await apiFetch<ISite>(`/api/site?locale=${i18n.language}`);
+        const data = await apiFetch<ISite>(ApiRoute.SITE_PUBLIC_INFO, {
+          queryParams: { locale: i18n.language },
+        });
         cacheSiteForLocale(i18n.language, data);
       } catch (error) {
         console.error('[ClientLayoutShell] Failed to fetch localized site:', error);

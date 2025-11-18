@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
 import MemberAvatar from '@/components/MemberAvatar';
 import { apiFetch } from '@/utils/apiFetch';
+import { ApiRoute } from '@/entities/Routes';
 import styles from './member-profile.module.css';
 import { formatLocalizedDate } from '@/utils/dateFormat';
 
@@ -30,7 +31,9 @@ export default function MemberProfilePage() {
     (async () => {
       try {
         setLoading(true);
-        const data = await apiFetch<{ member: MemberSummary }>(`/api/members/${params.memberId}`);
+        const data = await apiFetch<{ member: MemberSummary }>(ApiRoute.SITE_MEMBER_BY_ID, {
+          pathParams: { memberId: params.memberId },
+        });
         if (!active) return;
         setMember(data.member);
       } catch (err) {

@@ -1,6 +1,6 @@
 import { landingPage } from "@/app/settings";
 import { shouldRefreshToken } from "@/auth/clientAuth";
-import { ApiRoute, getApiPath } from './urls';
+import { ApiRoute, apiRoutePaths, getApiPath } from './urls';
 import { useSiteStore } from '@/store/SiteStore';
 
 let refreshPromise: Promise<Response> | null = null;
@@ -56,17 +56,14 @@ const AUTH_RE = /^\/api\/auth\/(refresh|login|logout)(?:$|\?)/;
  *   body: { date: '2024-01-01', images: [...] }
  * })
  */
-export async function apiFetch<T = unknown>(
-  route: ApiRoute,
-  options: ApiFetchOptions = {}
-): Promise<T> {
+export async function apiFetch<T = unknown>(route: ApiRoute, options: ApiFetchOptions = {}): Promise<T> {
   const { pathParams, queryParams, body, ...fetchOptions } = options;
 
   // Build URL based on route type
   let url: string;
   if (route.startsWith('AUTH_')) {
     // Auth routes don't need siteId
-    const authPaths: Record<string, string> = {
+    const authPaths: Partial<Record<ApiRoute, string>> = {
       AUTH_ME: '/api/auth/me',
       AUTH_INVITE_ME: '/api/auth/me',
       AUTH_LOGOUT: '/api/auth/logout',
@@ -90,11 +87,18 @@ export async function apiFetch<T = unknown>(
       throw new Error(`[apiFetch] Unknown auth route: ${route}`);
     }
   } else {
-    // Site-scoped routes need siteId
-    const siteId = useSiteStore.getState().siteInfo?.id;
-    if (!siteId) {
-      throw new Error(`[apiFetch] Cannot call ${route}: siteId not available in store`);
+    // Determine if this route requires a siteId
+    const template = apiRoutePaths[route];
+    const needsSiteId = template.includes('{siteId}');
+
+    let siteId = '';
+    if (needsSiteId) {
+      siteId = useSiteStore.getState().siteInfo?.id || '';
+      if (!siteId) {
+        throw new Error(`[apiFetch] Cannot call ${route}: siteId not available in store`);
+      }
     }
+
     url = getApiPath(route, siteId, pathParams, queryParams);
   }
 

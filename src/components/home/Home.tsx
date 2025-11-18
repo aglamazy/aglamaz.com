@@ -7,6 +7,7 @@ import FamilyOverview from "../FamilyOverview";
 import { useMemberStore } from "@/store/MemberStore";
 import { useSiteStore } from "@/store/SiteStore";
 import { apiFetch } from "@/utils/apiFetch";
+import { ApiRoute } from '@/entities/Routes';
 import { useUserStore } from "@/store/UserStore";
 import { useTranslation } from 'react-i18next';
 import { useLoginModalStore } from '@/store/LoginModalStore';
@@ -63,10 +64,11 @@ export default function Home() {
                     className="bg-sage-600 text-white px-4 py-2 rounded-lg"
                     onClick={async () => {
                       try {
-                        await apiFetch(`/api/user/${user.user_id}/blog/enable?siteId=${site?.id}`, {
+                        await apiFetch(ApiRoute.USER_BLOG_ENABLE, {
                           method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ enabled: true })
+                          pathParams: { userId: user.user_id },
+                          queryParams: { siteId: site?.id },
+                          body: { enabled: true }
                         });
                         const fetchMember = useMemberStore.getState().fetchMember;
                         if (user?.user_id && site?.id) await fetchMember(user.user_id, site.id);

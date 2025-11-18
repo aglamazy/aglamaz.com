@@ -6,6 +6,8 @@ import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { apiFetch } from '@/utils/apiFetch';
+import { ApiRoute } from '@/entities/Routes';
+import { useSiteStore } from '@/store/SiteStore';
 import { initFirebase, ensureFirebaseSignedIn, auth } from '@/firebase/client';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
@@ -14,6 +16,7 @@ export default function NewOccurrencePage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
   const eventId = params?.id || '';
+  const siteId = useSiteStore((state) => state.siteInfo?.id);
   const [date, setDate] = useState('');
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
@@ -29,8 +32,12 @@ export default function NewOccurrencePage() {
   // Default occurrence date to same day/month as anniversary (current year)
   useEffect(() => {
     (async () => {
+      if (!siteId || !eventId) return;
       try {
-        const res = await apiFetch<{ event: { month?: number; day?: number; useHebrew?: boolean; hebrewOccurrences?: Array<{ year: number; month: number; day: number }> } }>(`/api/anniversaries/${eventId}`);
+        const res = await apiFetch<{ event: { month?: number; day?: number; useHebrew?: boolean; hebrewOccurrences?: Array<{ year: number; month: number; day: number }> } }>(
+          ApiRoute.SITE_ANNIVERSARY_BY_ID,
+          { pathParams: { anniversaryId: eventId } }
+        );
         const now = new Date();
         let m = (res.event?.month ?? now.getMonth());
         let d = (res.event?.day ?? now.getDate());
@@ -46,7 +53,7 @@ export default function NewOccurrencePage() {
         // leave empty if fetch fails
       }
     })();
-  }, [eventId]);
+  }, [eventId, siteId]);
 
   async function resizeToWebp(file: File, maxWidth = 1600, quality = 0.9): Promise<Blob> {
     const img = document.createElement('img');
@@ -75,11 +82,11 @@ export default function NewOccurrencePage() {
     setError('');
     try {
       const data = await apiFetch<{ event: { id: string } }>(
-        `/api/anniversaries/${eventId}/events`,
+        ApiRoute.SITE_ANNIVERSARY_EVENTS,
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ date }),
+          pathParams: { anniversaryId: eventId },
+          body: { date },
         }
       );
       const id = data?.event?.id;
@@ -103,10 +110,10 @@ export default function NewOccurrencePage() {
               return await getDownloadURL(storageRef);
             })
           );
-          await apiFetch(`/api/anniversaries/${eventId}/events/${id}`, {
+          await apiFetch(ApiRoute.SITE_ANNIVERSARY_EVENT_BY_ID, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ addImages: uploads }),
+            pathParams: { anniversaryId: eventId, eventId: id },
+            body: { addImages: uploads },
           });
         } catch (e) {
           console.error('Occurrence image upload failed', e);

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSiteStore } from '@/store/SiteStore';
 import { apiFetch } from '@/utils/apiFetch';
+import { ApiRoute } from '@/entities/Routes';
 
 interface MemberLite {
   id: string;
@@ -26,7 +27,7 @@ export default function FamilyMembersPage() {
       try {
         if (!site?.id) return;
         setLoading(true);
-        const data = await apiFetch<{ members: MemberLite[] }>(`/api/site/${site.id}/members/public`);
+        const data = await apiFetch<{ members: MemberLite[] }>(ApiRoute.SITE_MEMBERS_PUBLIC);
         setMembers(data.members || []);
       } catch (e) {
         setError('Failed to load members');

@@ -7,6 +7,7 @@ import { useMemberStore } from '@/store/MemberStore';
 import { useUserStore } from '@/store/UserStore';
 import { useSiteStore } from '@/store/SiteStore';
 import { apiFetch } from '@/utils/apiFetch';
+import { ApiRoute } from '@/entities/Routes';
 
 export default function BlogSettingsPage() {
   const { t } = useTranslation();
@@ -31,10 +32,11 @@ export default function BlogSettingsPage() {
     setSaving(true);
     setError(null);
     try {
-      await apiFetch(`/api/user/${user.user_id}/blog/enable?siteId=${site.id}`, {
+      await apiFetch(ApiRoute.USER_BLOG_ENABLE, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ enabled }),
+        pathParams: { userId: user.user_id },
+        queryParams: { siteId: site.id },
+        body: { enabled },
       });
       await fetchMember(user.user_id, site.id);
     } catch (err) {
