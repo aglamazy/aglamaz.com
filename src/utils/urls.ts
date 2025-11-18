@@ -101,6 +101,8 @@ const apiRoutePaths: Record<ApiRoute, string> = {
   [ApiRoute.AUTH_LOGOUT]: '/api/auth/logout',
   [ApiRoute.AUTH_REFRESH]: '/api/auth/refresh',
   [ApiRoute.AUTH_LOGIN]: '/api/auth/login',
+  [ApiRoute.AUTH_SIGNUP_REQUEST_VERIFICATION]: '/api/signup/request-verification',
+  [ApiRoute.AUTH_SIGNUP_COMPLETE_VERIFICATION]: '/api/signup/complete-verification',
 
   // Site info
   [ApiRoute.SITE_INFO]: '/api/site/{siteId}',
