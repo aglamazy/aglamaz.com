@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { apiFetch } from '@/utils/apiFetch';
+import { ApiRoute } from '@/entities/Routes';
 import EditorRich from '@/components/ui/EditorRich';
 import type { IBlogPost, BlogPostLocalizedFields } from '@/entities/BlogPost';
 import { localizeBlogPost } from '@/utils/blogLocales';
@@ -34,7 +35,9 @@ export default function EditPostPage() {
     const load = async () => {
       try {
         setLoading(true);
-        const data = await apiFetch<{ post: IBlogPost; localized?: BlogPostLocalizedFields }>(`/api/blog?id=${params.postId}&lang=${i18n.language}`);
+        const data = await apiFetch<{ post: IBlogPost; localized?: BlogPostLocalizedFields }>(ApiRoute.SITE_BLOG, {
+          queryParams: { id: params.postId, lang: i18n.language },
+        });
         setPost(data.post);
         const localizedData = data.localized ?? localizeBlogPost(data.post, {
           preferredLocale: i18n.language,
@@ -69,7 +72,7 @@ export default function EditPostPage() {
     if (!post) return;
     setSaving(true);
     try {
-      await apiFetch(`/api/blog`, {
+      await apiFetch(ApiRoute.SITE_BLOG, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -94,7 +97,7 @@ export default function EditPostPage() {
     setDeleting(true);
     setError(null);
     try {
-      await apiFetch(`/api/blog`, {
+      await apiFetch(ApiRoute.SITE_BLOG, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: post.id }),
