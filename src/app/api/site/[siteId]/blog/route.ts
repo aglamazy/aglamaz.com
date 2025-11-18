@@ -96,8 +96,20 @@ function localize(post: IBlogPost, locale: string | undefined): LocalizedBlogPos
   });
 }
 
-const getHandler = async (request: Request, _context: GuardContext) => {
+const getHandler = async (request: Request, context: GuardContext & { params: Promise<{ siteId: string }> }) => {
   try {
+    const params = await context.params;
+    const siteId = params?.siteId;
+
+    if (!siteId) {
+      return Response.json({ error: 'Site ID is required' }, { status: 400 });
+    }
+
+    // Verify member has access to this site
+    if (context.member?.siteId !== siteId) {
+      return Response.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const repo = new BlogRepository();
     const url = new URL(request.url);
     const id = url.searchParams.get('id');
@@ -109,12 +121,23 @@ const getHandler = async (request: Request, _context: GuardContext) => {
       if (!post) {
         return Response.json({ error: 'Post not found' }, { status: 404 });
       }
+      // Verify post belongs to this site
+      if (post.siteId !== siteId) {
+        return Response.json({ error: 'Forbidden' }, { status: 403 });
+      }
       await maybeEnqueueTranslation(post, lang, repo);
       const localized = localize(post, lang);
       return Response.json({ post, localized: localized.localized, lang });
     }
     const authorId = url.searchParams.get('authorId');
-    const posts = authorId ? await repo.getByAuthor(authorId) : await repo.getAll();
+    console.log('[site/blog] fetch posts', { siteId, authorId: authorId || null, lang });
+    const posts = authorId ? await repo.getByAuthor(authorId) : await repo.getBySite(siteId);
+    console.log('[site/blog] fetched count', {
+      siteId,
+      authorId: authorId || null,
+      total: posts.length,
+      sampleIds: posts.slice(0, 5).map((p) => p.id),
+    });
     const localizedPosts: LocalizedBlogPost[] = [];
     for (const post of posts) {
       await maybeEnqueueTranslation(post, lang, repo);
@@ -127,11 +150,22 @@ const getHandler = async (request: Request, _context: GuardContext) => {
   }
 };
 
-const postHandler = async (request: Request, context: GuardContext) => {
+const postHandler = async (request: Request, context: GuardContext & { params: Promise<{ siteId: string }> }) => {
   try {
+    const params = await context.params;
+    const siteId = params?.siteId;
+
+    if (!siteId) {
+      return Response.json({ error: 'Site ID is required' }, { status: 400 });
+    }
+
+    // Verify member has access to this site
+    if (context.member?.siteId !== siteId) {
+      return Response.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const repo = new BlogRepository();
     const user = context.user!;
-    const member = context.member!;
     const body = await request.json();
     const { title, content, isPublic, lang } = body;
     if (!title || !content) {
@@ -142,7 +176,7 @@ const postHandler = async (request: Request, context: GuardContext) => {
     const primaryLocale = (parseLocaleInput(lang) || headerLang || DEFAULT_LANG).toLowerCase();
     const post = await repo.create({
       authorId: user.userId,
-      siteId: member.siteId,
+      siteId: siteId,
       primaryLocale,
       localeContent: {
         title,
@@ -160,8 +194,20 @@ const postHandler = async (request: Request, context: GuardContext) => {
   }
 };
 
-const putHandler = async (request: Request, context: GuardContext) => {
+const putHandler = async (request: Request, context: GuardContext & { params: Promise<{ siteId: string }> }) => {
   try {
+    const params = await context.params;
+    const siteId = params?.siteId;
+
+    if (!siteId) {
+      return Response.json({ error: 'Site ID is required' }, { status: 400 });
+    }
+
+    // Verify member has access to this site
+    if (context.member?.siteId !== siteId) {
+      return Response.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const repo = new BlogRepository();
     const user = context.user!;
     const member = context.member!;
@@ -180,12 +226,16 @@ const putHandler = async (request: Request, context: GuardContext) => {
     if (!existing) {
       return Response.json({ error: 'Post not found' }, { status: 404 });
     }
+    // Verify post belongs to this site
+    if (existing.siteId !== siteId) {
+      return Response.json({ error: 'Forbidden' }, { status: 403 });
+    }
     if (existing.authorId !== user.userId && member.role !== 'admin') {
       return Response.json({ error: 'Forbidden' }, { status: 403 });
     }
     const updates: Record<string, unknown> = {};
     if (!(existing as any).siteId) {
-      updates.siteId = member.siteId;
+      updates.siteId = siteId;
     }
     if (typeof isPublic === 'boolean') {
       updates.isPublic = !!isPublic;
@@ -222,8 +272,20 @@ const putHandler = async (request: Request, context: GuardContext) => {
   }
 };
 
-const deleteHandler = async (request: Request, context: GuardContext) => {
+const deleteHandler = async (request: Request, context: GuardContext & { params: Promise<{ siteId: string }> }) => {
   try {
+    const params = await context.params;
+    const siteId = params?.siteId;
+
+    if (!siteId) {
+      return Response.json({ error: 'Site ID is required' }, { status: 400 });
+    }
+
+    // Verify member has access to this site
+    if (context.member?.siteId !== siteId) {
+      return Response.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const repo = new BlogRepository();
     const user = context.user!;
     const member = context.member!;
@@ -244,6 +306,10 @@ const deleteHandler = async (request: Request, context: GuardContext) => {
     const existing = await repo.getById(id);
     if (!existing) {
       return Response.json({ error: 'Post not found' }, { status: 404 });
+    }
+    // Verify post belongs to this site
+    if (existing.siteId !== siteId) {
+      return Response.json({ error: 'Forbidden' }, { status: 403 });
     }
     if (existing.authorId !== user.userId && member.role !== 'admin') {
       return Response.json({ error: 'Forbidden' }, { status: 403 });
