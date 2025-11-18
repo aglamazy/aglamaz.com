@@ -50,6 +50,7 @@ export class AnniversaryRepository {
       day: eventData.date.getDate(),
       year: eventData.date.getFullYear(),
       isAnnual: eventData.isAnnual,
+      deletedAt: null,
       imageUrl: eventData.imageUrl || '',
       locales: {
         [eventData.locale]: localeData
@@ -84,6 +85,7 @@ export class AnniversaryRepository {
       .collection(this.collection)
       .where('siteId', '==', siteId)
       .where('month', '==', month)
+      .where('deletedAt', '==', null)
       .orderBy('day', 'asc')
       .get();
     const eventsBase = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as AnniversaryEvent[];
@@ -93,6 +95,7 @@ export class AnniversaryRepository {
       .collection(this.collection)
       .where('siteId', '==', siteId)
       .where('useHebrew', '==', true)
+      .where('deletedAt', '==', null)
       .get();
     const hebEventsAll = hebSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as AnniversaryEvent[];
     const hebEventsForMonth: AnniversaryEvent[] = [];
@@ -250,7 +253,9 @@ export class AnniversaryRepository {
 
   async delete(id: string): Promise<void> {
     const db = this.getDb();
-    await db.collection(this.collection).doc(id).delete();
+    await db.collection(this.collection).doc(id).update({
+      deletedAt: Timestamp.now(),
+    });
   }
 
   // Ensure horizon covers the requested year; if not, extend and backfill occurrences for Hebrew events

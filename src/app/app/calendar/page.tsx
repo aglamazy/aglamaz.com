@@ -801,10 +801,18 @@ export default function AnniversariesPage() {
       </Modal>
       <ConfirmDialog
         isOpen={confirmOpen}
-        title={'Delete Event?'}
-        message={deleteTarget ? `${deleteTarget.name} — ${deleteTarget.day}/${deleteTarget.month + 1}/${deleteTarget.year}` : ''}
-        confirmLabel={'Delete'}
-        cancelLabel={'Cancel'}
+        title={t('deleteEventTitle', { defaultValue: 'Delete event?' })}
+        message={
+          deleteTarget
+            ? t('deleteEventMessage', {
+                defaultValue: '{{name}} — {{date}}',
+                name: deleteTarget.name,
+                date: `${deleteTarget.day}/${deleteTarget.month + 1}/${deleteTarget.year}`,
+              })
+            : ''
+        }
+        confirmLabel={t('delete', { defaultValue: 'Delete' })}
+        cancelLabel={t('cancel', { defaultValue: 'Cancel' })}
         destructive
         loading={deleting}
         error={deleteError}

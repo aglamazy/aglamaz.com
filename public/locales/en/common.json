@@ -135,6 +135,8 @@
   "burialDateHelp": "Optional: if burial occurred on a different date.",
   "pickDateLabel": "Pick a date",
   "other": "Other",
+  "deleteEventTitle": "Delete event?",
+  "deleteEventMessage": "{{name}} — {{date}}",
   "failedToLoadMemberProfile": "Failed to load profile details",
   "uploadPhoto": "Upload photo",
   "removePhoto": "Remove photo",

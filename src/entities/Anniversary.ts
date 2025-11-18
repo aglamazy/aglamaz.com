@@ -16,6 +16,7 @@ export interface AnniversaryEvent extends LocalizableDocument {
   year: number;
   isAnnual: boolean;
   useHebrew?: boolean;
+  deletedAt?: any;
   hebrewDate?: string; // Display like "ג' אלול תש"ל" (server formatted)
   hebrewKey?: string; // Matching key (e.g., "Elul 3")
   hebrewOccurrences?: Array<{

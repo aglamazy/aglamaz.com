@@ -134,6 +134,8 @@
   "burialDateHelp": "אופציונלי: אם הקבורה הייתה בתאריך שונה.",
   "pickDateLabel": "בחר תאריך",
   "other": "אחר",
+  "deleteEventTitle": "למחוק אירוע?",
+  "deleteEventMessage": "{{name}} — {{date}}",
   "failedToLoadMemberProfile": "לא הצלחנו לטעון את פרטי הפרופיל",
   "uploadPhoto": "העלה תמונה",
   "removePhoto": "הסר תמונה",
