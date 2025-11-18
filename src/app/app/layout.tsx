@@ -38,9 +38,7 @@ export default async function RootLayout({ children }: AppLayoutProps) {
   // Fetch site info with resolved locale for client-side hydration
   let siteInfo = null;
   try {
-    siteInfo = siteId
-      ? await fetchSiteInfo(siteId, baseLocale)
-      : await fetchSiteInfo(undefined, baseLocale);
+    siteInfo = siteId ? await fetchSiteInfo(siteId, baseLocale) : null;
   } catch (error) {
     console.error('Failed to fetch site info:', error);
     // Don't throw - let the app render with null siteInfo

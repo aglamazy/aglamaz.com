@@ -3,7 +3,7 @@ import { initAdmin, adminAuth } from '@/firebase/admin';
 import { FamilyRepository } from '@/repositories/FamilyRepository';
 import { GmailService } from '@/services/GmailService';
 import { randomUUID } from 'crypto';
-import { getUrl, AppRoute } from '@/utils/urls';
+import { getUrl, AppRoute } from '@/utils/serverUrls';
 
 export const dynamic = 'force-dynamic';
 

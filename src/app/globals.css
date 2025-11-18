@@ -59,6 +59,12 @@
   --theme-border-strong: rgba(17, 24, 39, 0.2);
   --theme-accent: var(--sage-600);
 
+  /* Danger/Error colors */
+  --danger-50: #FEF2F2;
+  --danger-100: #FEE2E2;
+  --danger-600: #DC2626;
+  --danger-700: #B91C1C;
+
   /* Card tint colors - light mode */
   --tint-blue: #E6F2FF;
   --tint-green: #E8F8EF;
@@ -101,6 +107,13 @@
 .border-sage-600 { border-color: var(--sage-600); }
 .hover\:bg-sage-700:hover { background-color: var(--sage-700); }
 .hover\:border-sage-300:hover { border-color: var(--sage-300); }
+
+/* Danger/Error utility classes */
+.text-danger { color: var(--danger-600); }
+.bg-danger { background-color: var(--danger-600); }
+.bg-danger-50 { background-color: var(--danger-50); }
+.hover\:bg-danger-50:hover { background-color: var(--danger-50); }
+.hover\:bg-danger-700:hover { background-color: var(--danger-700); }
 
 /* Responsive visibility utilities - for SSR-safe mobile/desktop rendering */
 .hide-on-mobile {

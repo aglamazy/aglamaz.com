@@ -11,6 +11,7 @@ import { useUserStore } from '@/store/UserStore';
 import { useMemberStore } from '@/store/MemberStore';
 import { useSiteStore } from '@/store/SiteStore';
 import { apiFetch } from '@/utils/apiFetch';
+import { ApiRoute } from '@/entities/Routes';
 import styles from './page.module.css';
 import AddFab from '@/components/ui/AddFab';
 import { Button } from '@/components/ui/button';
@@ -82,8 +83,9 @@ export default function AnniversariesPage() {
   const fetchEvents = async (y: number, m: number) => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ year: String(y), month: String(m) });
-      const data = await apiFetch<{ events: AnniversaryEvent[] }>(`/api/anniversaries?${params.toString()}`);
+      const data = await apiFetch<{ events: AnniversaryEvent[] }>(ApiRoute.SITE_ANNIVERSARIES, {
+        queryParams: { year: String(y), month: String(m) },
+      });
       setEvents(data.events || []);
     } finally {
       setLoading(false);
@@ -98,8 +100,10 @@ export default function AnniversariesPage() {
     // also fetch month occurrences (events that happened this month)
     (async () => {
       try {
-        const params = new URLSearchParams({ year: String(y), month: String(m) });
-        const res = await apiFetch<{ items: Array<{ id: string; eventId: string; date: any; images?: string[] }> }>(`/api/calendar/occurrences?${params.toString()}`);
+        const res = await apiFetch<{ items: Array<{ id: string; eventId: string; date: any; images?: string[] }> }>(
+          ApiRoute.SITE_CALENDAR_OCCURRENCES,
+          { queryParams: { year: String(y), month: String(m) } }
+        );
         setMonthOccs(Array.isArray(res.items) ? res.items : []);
       } catch (e) {
         console.error('[Anniversaries] month occurrences fetch failed', e);
@@ -149,7 +153,8 @@ export default function AnniversariesPage() {
       setOccError('');
       try {
         const data = await apiFetch<{ events: Array<{ id: string; date: any }> }>(
-          `/api/anniversaries/${selectedEvent.id}/events`
+          ApiRoute.SITE_ANNIVERSARY_EVENTS,
+          { pathParams: { anniversaryId: selectedEvent.id } }
         );
         setOccurrences(Array.isArray(data.events) ? data.events : []);
         return true;
@@ -275,16 +280,15 @@ export default function AnniversariesPage() {
 
       const payload = { ...form, imageUrl };
       if (editEvent) {
-        await apiFetch<void>(`/api/anniversaries/${editEvent.id}`, {
+        await apiFetch<void>(ApiRoute.SITE_ANNIVERSARY_BY_ID, {
+          pathParams: { anniversaryId: editEvent.id },
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
+          body: payload,
         });
       } else {
-        await apiFetch<void>('/api/anniversaries', {
+        await apiFetch<void>(ApiRoute.SITE_ANNIVERSARIES, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
+          body: payload,
         });
       }
       setForm({ name: '', description: '', date: '', type: 'birthday', isAnnual: true, imageUrl: '', useHebrew: false });
@@ -309,11 +313,11 @@ export default function AnniversariesPage() {
 
       // Call API to create blessing page
       const { blessingPage } = await apiFetch<{ blessingPage: { year: number; slug: string } }>(
-        `/api/anniversaries/${selectedEvent.id}/blessing-pages`,
+        ApiRoute.SITE_ANNIVERSARY_BLESSING_PAGES,
         {
+          pathParams: { anniversaryId: selectedEvent.id },
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ year: currentYear }),
+          body: { year: currentYear },
         }
       );
 
@@ -349,7 +353,10 @@ export default function AnniversariesPage() {
     setDeleting(true);
     setDeleteError('');
     try {
-      await apiFetch<void>(`/api/anniversaries/${deleteTarget.id}`, { method: 'DELETE' });
+      await apiFetch<void>(ApiRoute.SITE_ANNIVERSARY_BY_ID, {
+        pathParams: { anniversaryId: deleteTarget.id },
+        method: 'DELETE',
+      });
       setConfirmOpen(false);
       setDeleteTarget(null);
       setSelectedEvent(null);
@@ -466,7 +473,9 @@ export default function AnniversariesPage() {
                 onClick={async () => {
                   // Fetch full event details including blessing pages
                   try {
-                    const { event } = await apiFetch<{ event: AnniversaryEvent }>(`/api/anniversaries/${ev.id}`);
+                    const { event } = await apiFetch<{ event: AnniversaryEvent }>(ApiRoute.SITE_ANNIVERSARY_BY_ID, {
+                      pathParams: { anniversaryId: ev.id },
+                    });
                     setSelectedEvent(event);
                   } catch (err) {
                     console.error('Failed to fetch event details:', err);
@@ -493,15 +502,17 @@ export default function AnniversariesPage() {
               return (
                 <div
                   key={key}
-                  onClick={async () => {
-                    // Fetch full event details including blessing pages
-                    try {
-                      const { event } = await apiFetch<{ event: AnniversaryEvent }>(`/api/anniversaries/${ev.id}`);
-                      setSelectedEvent(event);
-                    } catch (err) {
-                      console.error('Failed to fetch event details:', err);
-                      setSelectedEvent(ev);
-                    }
+                onClick={async () => {
+                  // Fetch full event details including blessing pages
+                  try {
+                    const { event } = await apiFetch<{ event: AnniversaryEvent }>(ApiRoute.SITE_ANNIVERSARY_BY_ID, {
+                      pathParams: { anniversaryId: ev.id },
+                    });
+                    setSelectedEvent(event);
+                  } catch (err) {
+                    console.error('Failed to fetch event details:', err);
+                    setSelectedEvent(ev);
+                  }
                   }}
                   className={`mt-6 sm:mt-7 flex flex-col items-center gap-1 text-xs cursor-pointer ${
                   imageUrl ? 'p-0 bg-transparent' : 'bg-blue-100 text-blue-800 px-2 py-1 rounded-full'
@@ -790,10 +801,18 @@ export default function AnniversariesPage() {
       </Modal>
       <ConfirmDialog
         isOpen={confirmOpen}
-        title={'Delete Event?'}
-        message={deleteTarget ? `${deleteTarget.name} — ${deleteTarget.day}/${deleteTarget.month + 1}/${deleteTarget.year}` : ''}
-        confirmLabel={'Delete'}
-        cancelLabel={'Cancel'}
+        title={t('deleteEventTitle', { defaultValue: 'Delete event?' })}
+        message={
+          deleteTarget
+            ? t('deleteEventMessage', {
+                defaultValue: '{{name}} — {{date}}',
+                name: deleteTarget.name,
+                date: `${deleteTarget.day}/${deleteTarget.month + 1}/${deleteTarget.year}`,
+              })
+            : ''
+        }
+        confirmLabel={t('delete', { defaultValue: 'Delete' })}
+        cancelLabel={t('cancel', { defaultValue: 'Cancel' })}
         destructive
         loading={deleting}
         error={deleteError}

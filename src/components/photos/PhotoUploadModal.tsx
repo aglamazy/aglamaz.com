@@ -8,6 +8,8 @@ import { Select } from '@/components/ui/select';
 import { apiFetch } from '@/utils/apiFetch';
 import { initFirebase, ensureFirebaseSignedIn, auth } from '@/firebase/client';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { useSiteStore } from '@/store/SiteStore';
+import { ApiRoute } from '@/entities/Routes';
 
 interface PhotoUploadModalProps {
   isOpen: boolean;
@@ -17,6 +19,7 @@ interface PhotoUploadModalProps {
 
 export default function PhotoUploadModal({ isOpen, onClose, onSuccess }: PhotoUploadModalProps) {
   const { t, i18n } = useTranslation();
+  const site = useSiteStore((state) => state.siteInfo);
   const [date, setDate] = useState('');
   const [description, setDescription] = useState('');
   const [imageFiles, setImageFiles] = useState<File[]>([]);
@@ -47,6 +50,10 @@ export default function PhotoUploadModal({ isOpen, onClose, onSuccess }: PhotoUp
 
   const loadAnniversaries = async () => {
     try {
+      if (!site?.id) {
+        throw new Error('Site ID not found');
+      }
+
       // Fetch anniversaries from previous month and current month
       // (photos are from the past, not future events)
       const now = new Date();
@@ -57,12 +64,20 @@ export default function PhotoUploadModal({ isOpen, onClose, onSuccess }: PhotoUp
       const prevDate = new Date(currentYear, currentMonth - 1, 1);
 
       const [prevRes, currRes] = await Promise.all([
-        apiFetch<{ events: Array<{ id: string; name: string }> }>(
-          `/api/anniversaries?month=${prevDate.getMonth()}&year=${prevDate.getFullYear()}`
-        ),
-        apiFetch<{ events: Array<{ id: string; name: string }> }>(
-          `/api/anniversaries?month=${currentMonth}&year=${currentYear}`
-        ),
+        apiFetch<{ events: Array<{ id: string; name: string }> }>(ApiRoute.SITE_ANNIVERSARIES, {
+          pathParams: { siteId: site.id },
+          queryParams: {
+            month: String(prevDate.getMonth()),
+            year: String(prevDate.getFullYear()),
+          },
+        }),
+        apiFetch<{ events: Array<{ id: string; name: string }> }>(ApiRoute.SITE_ANNIVERSARIES, {
+          pathParams: { siteId: site.id },
+          queryParams: {
+            month: String(currentMonth),
+            year: String(currentYear),
+          },
+        }),
       ]);
 
       // Combine and deduplicate by id
@@ -156,16 +171,16 @@ export default function PhotoUploadModal({ isOpen, onClose, onSuccess }: PhotoUp
       setUploading(false);
 
       // POST to /api/photos
-      await apiFetch('/api/photos', {
+      await apiFetch(ApiRoute.SITE_PHOTOS, {
+        pathParams: { siteId: site?.id || '' },
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+        body: {
           date,
           images: imageUrls,
           description: description.trim() || undefined,
           anniversaryId: anniversaryId || undefined,
           locale: i18n.language,
-        }),
+        },
       });
 
       // Clean up

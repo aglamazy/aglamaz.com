@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { apiFetch } from '@/utils/apiFetch';
 import { Loader2, Save, Check, Languages } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { useSiteStore } from '@/store/SiteStore';
 import dynamic from 'next/dynamic';
 
 const EditorRich = dynamic(() => import('@/components/ui/EditorRich'), { ssr: false });
@@ -61,6 +62,7 @@ const findLocaleContent = (info: SiteInfo | null, locale: string): SiteLocaleCon
 
 export default function SiteDescriptionEditor() {
   const { t, i18n } = useTranslation();
+  const site = useSiteStore(state => state.siteInfo);
   const [currentLocale, setCurrentLocale] = useState(() => normalizeLocale(i18n.language || 'en') || 'en');
   const [siteInfo, setSiteInfo] = useState<SiteInfo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -74,9 +76,11 @@ export default function SiteDescriptionEditor() {
   const [platformName, setPlatformName] = useState('');
 
   useEffect(() => {
-    loadSiteInfo(currentLocale);
+    if (site?.id) {
+      loadSiteInfo(currentLocale);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentLocale]);
+  }, [currentLocale, site?.id]);
 
   useEffect(() => {
     const locale = normalizeLocale(i18n.language || 'en') || 'en';
@@ -84,11 +88,11 @@ export default function SiteDescriptionEditor() {
   }, [i18n.language]);
 
   const loadSiteInfo = async (locale: string) => {
-    if (!locale) return;
+    if (!locale || !site?.id) return;
     try {
       setLoading(true);
       setError('');
-      const data = await apiFetch<SiteResponse>(`/api/admin/site-description?locale=${encodeURIComponent(locale)}`);
+      const data = await apiFetch<SiteResponse>(`/api/site/${site.id}/description?locale=${encodeURIComponent(locale)}`);
       setSiteInfo(data.site);
       updateFormFields(locale, data.site);
     } catch (err) {
@@ -109,14 +113,14 @@ export default function SiteDescriptionEditor() {
   };
 
   const handleSave = async (requestTranslations = false) => {
-    if (!siteInfo) return;
+    if (!siteInfo || !site?.id) return;
 
     try {
       setSaving(true);
       setError('');
       setSaved(false);
 
-      await apiFetch('/api/admin/site-description', {
+      await apiFetch(`/api/site/${site.id}/description`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

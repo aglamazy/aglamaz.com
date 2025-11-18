@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/utils/apiFetch';
+import { ApiRoute } from '@/entities/Routes';
 import { useUserStore } from '@/store/UserStore';
 import { useEditUserModalStore } from '@/store/EditUserModalStore';
 import { useMemberStore, computeMemberAvatar } from '@/store/MemberStore';
@@ -80,7 +81,7 @@ export default function EditUserDetails({ standalone = false, returnTo }: { stan
 
     setProfileLoading(true);
     setError('');
-    void apiFetch<{ member: IMember }>(`/api/user/profile?siteId=${currentSiteId}`)
+    void apiFetch<{ member: IMember }>(ApiRoute.SITE_PROFILE)
       .then(({ member: payload }) => {
         const displayName = payload.displayName || payload.firstName || fallbackName;
         setName(displayName || '');
@@ -141,7 +142,7 @@ async function resizeToWebp(file: File, maxWidth = 800, quality = 0.9): Promise<
 }
 
 const deleteAvatar = async (siteId: string): Promise<IMember> => {
-  const data = await apiFetch<{ member: IMember }>(`/api/user/profile/avatar?siteId=${siteId}`, {
+  const data = await apiFetch<{ member: IMember }>(ApiRoute.SITE_PROFILE_AVATAR, {
     method: 'DELETE',
   });
   return data.member;
@@ -170,7 +171,7 @@ const uploadAvatar = async (siteId: string): Promise<IMember> => {
   });
   const downloadUrl = await getDownloadURL(storageRef);
 
-  const data = await apiFetch<{ member: IMember }>(`/api/user/profile/avatar?siteId=${siteId}`, {
+  const data = await apiFetch<{ member: IMember }>(ApiRoute.SITE_PROFILE_AVATAR, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ avatarUrl: downloadUrl, avatarStoragePath: storagePath }),
@@ -290,7 +291,7 @@ const mapAvatarError = (code: string) => {
 
       const localeChanged = defaultLocale !== i18n.language;
 
-      const payload = await apiFetch<{ member: IMember }>(`/api/user/profile?siteId=${currentSiteId}`, {
+      const payload = await apiFetch<{ member: IMember }>(ApiRoute.SITE_PROFILE, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ displayName: name.trim(), defaultLocale }),

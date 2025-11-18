@@ -14,16 +14,15 @@ import { fetchSiteIdByDomain } from '@/firebase/admin';
 export async function resolveSiteId(): Promise<string | null> {
   const headersList = await headers();
   const host = headersList.get('host') || '';
-  const hostname = host.split(':')[0]; // Remove port if present
 
-  // 1. Try domain mapping lookup
+  // 1. Try domain mapping lookup with full host (including port)
   try {
-    const mappedSiteId = await fetchSiteIdByDomain(hostname);
+    const mappedSiteId = await fetchSiteIdByDomain(host);
     if (mappedSiteId) {
       return mappedSiteId;
     }
   } catch (error) {
-    console.error(`[resolveSiteId] failed to fetch domain mapping for ${hostname}`, error);
+    console.error(`[resolveSiteId] failed to fetch domain mapping for ${host}`, error);
   }
 
   // 2. Fall back to NEXT_SITE_ID env variable (temporary - will remove later)

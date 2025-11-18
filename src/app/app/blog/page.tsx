@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { LocalizedBlogPost } from '@/entities/BlogPost';
 import { apiFetch } from '@/utils/apiFetch';
+import { ApiRoute } from '@/entities/Routes';
 import { useUserStore } from '@/store/UserStore';
 import { useSiteStore } from '@/store/SiteStore';
 import { useMemberStore } from '@/store/MemberStore';
@@ -23,8 +24,9 @@ export default function BlogPage() {
   const member = useMemberStore((state) => state.member);
   const siteInfo = useSiteStore((state) => state.siteInfo);
   const [posts, setPosts] = useState<LocalizedBlogPost[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [hydrated, setHydrated] = useState(false);
 
   // Register add action - navigate to new blog post
   useAddAction(() => router.push('/app/blog/new'));
@@ -33,12 +35,16 @@ export default function BlogPage() {
   const canEditPost = (post: LocalizedBlogPost) => isAdmin || post.post.authorId === user?.user_id;
 
   useEffect(() => {
+    if (!siteInfo?.id) return;
+
     const fetchPosts = async () => {
       setLoading(true);
       setError('');
       try {
         // Fetch all blog posts in the site (no authorId filter)
-        const data = await apiFetch<{ posts: LocalizedBlogPost[] }>(`/api/blog?lang=${i18n.language}`);
+        const data = await apiFetch<{ posts: LocalizedBlogPost[] }>(ApiRoute.SITE_BLOG, {
+          queryParams: { lang: i18n.language },
+        });
         setPosts(data.posts || []);
       } catch (e) {
         console.error(e);
@@ -48,11 +54,16 @@ export default function BlogPage() {
       }
     };
     fetchPosts();
-  }, [i18n.language]);
+  }, [i18n.language, siteInfo?.id]);
+
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
 
   const headerTitle = useMemo(() => {
+    if (!hydrated) return '';
     return siteInfo?.name;
-  }, [siteInfo, t]);
+  }, [hydrated, siteInfo, t]);
 
   const loadError = error ? (t('failedToLoadBlogPosts', { defaultValue: 'Failed to load blog posts' }) as string) : '';
 
@@ -97,7 +108,9 @@ export default function BlogPage() {
         })}
       </div>
       {posts.length === 0 && !loading && !error ? (
-        <div className={styles.emptyState}>{t('noPostsYet')}</div>
+        <div className={styles.emptyState}>
+          {t('noPostsYetCreateFirst', { defaultValue: "No posts yet, let's create the first." })}
+        </div>
       ) : null}
     </div>
   );

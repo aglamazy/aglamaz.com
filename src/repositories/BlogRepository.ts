@@ -148,18 +148,32 @@ export class BlogRepository {
     const now = Timestamp.now();
     const localeKey = post.primaryLocale.toLowerCase();
     const localeSnapshot = this.makeLocaleSnapshot(localeKey, post.localeContent, now);
-    const data = {
+    const data: {
+      authorId: string;
+      siteId: string;
+      primaryLocale: string;
+      locales: Record<string, BlogPostLocale>;
+      translationMeta?: IBlogPost['translationMeta'];
+      isPublic: boolean;
+      likeCount: number;
+      shareCount: number;
+      createdAt: Timestamp;
+      updatedAt: Timestamp;
+    } = {
       authorId: post.authorId,
       siteId: post.siteId,
       primaryLocale: localeKey,
       locales: { [localeKey]: localeSnapshot },
-      translationMeta: post.translationMeta,
       isPublic: post.isPublic,
       likeCount: 0,
       shareCount: 0,
+      deletedAt: null,
       createdAt: now,
       updatedAt: now,
     };
+    if (post.translationMeta !== undefined) {
+      data.translationMeta = post.translationMeta;
+    }
     await ref.set(data);
     return { id: ref.id, ...data };
   }
@@ -234,6 +248,14 @@ export class BlogRepository {
   async getByAuthor(authorId: string): Promise<IBlogPost[]> {
     const snap = await this.getBaseQuery()
       .where('authorId', '==', authorId)
+      .orderBy('createdAt', 'desc')
+      .get();
+    return snap.docs.map((doc) => this.mapDoc(doc));
+  }
+
+  async getBySite(siteId: string): Promise<IBlogPost[]> {
+    const snap = await this.getBaseQuery()
+      .where('siteId', '==', siteId)
       .orderBy('createdAt', 'desc')
       .get();
     return snap.docs.map((doc) => this.mapDoc(doc));

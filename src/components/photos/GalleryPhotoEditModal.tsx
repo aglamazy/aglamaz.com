@@ -5,6 +5,8 @@ import { useTranslation } from 'react-i18next';
 import { X, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { apiFetch } from '@/utils/apiFetch';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import { ApiRoute } from '@/utils/urls';
 
 export interface GalleryPhotoForEdit {
   id: string;
@@ -33,6 +35,7 @@ export default function GalleryPhotoEditModal({
   const [description, setDescription] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Initialize form with photo data
   useEffect(() => {
@@ -64,14 +67,14 @@ export default function GalleryPhotoEditModal({
     setError('');
 
     try {
-      await apiFetch(`/api/photos/${photoId}`, {
+      await apiFetch(ApiRoute.SITE_PHOTO_BY_ID, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+        pathParams: { photoId },
+        body: {
           date,
           description: description.trim(),
           locale: i18n.language,
-        }),
+        },
       });
 
       onUpdated?.({
@@ -90,17 +93,18 @@ export default function GalleryPhotoEditModal({
     }
   };
 
-  const handleDelete = async () => {
-    if (!confirm(t('confirmDeletePhoto') || 'Are you sure you want to delete this photo?')) {
-      return;
-    }
+  const handleDeleteClick = () => {
+    setShowDeleteConfirm(true);
+  };
 
+  const handleDeleteConfirm = async () => {
     setSaving(true);
     setError('');
 
     try {
-      await apiFetch(`/api/photos/${photoId}`, {
+      await apiFetch(ApiRoute.SITE_PHOTO_BY_ID, {
         method: 'DELETE',
+        pathParams: { photoId },
       });
 
       // Trigger update to remove from feed
@@ -111,6 +115,7 @@ export default function GalleryPhotoEditModal({
         images: [],
       });
 
+      setShowDeleteConfirm(false);
       onClose();
     } catch (err) {
       console.error('Delete failed:', err);
@@ -178,9 +183,9 @@ export default function GalleryPhotoEditModal({
           <div className="flex gap-2 pt-2">
             <Button
               type="button"
-              onClick={handleDelete}
+              onClick={handleDeleteClick}
               variant="outline"
-              className="text-red-600 hover:bg-red-50"
+              className="text-danger hover:bg-danger-50"
               disabled={saving}
             >
               {t('delete') || 'Delete'}
@@ -204,6 +209,18 @@ export default function GalleryPhotoEditModal({
           </div>
         </form>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        title={t('deletePhoto') || 'Delete Photo'}
+        message={t('confirmDeletePhoto') || 'Are you sure you want to delete this photo?'}
+        destructive={true}
+        loading={saving}
+        error={error}
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
     </div>
   );
 }
