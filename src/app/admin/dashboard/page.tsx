@@ -9,6 +9,7 @@ import ArrowCTA from '@/components/ArrowCTA';
 import { apiFetch } from '@/utils/apiFetch';
 import { ApiRoute } from '@/entities/Routes';
 import { useState } from 'react';
+import { useEffect } from 'react';
 import { useSiteStore } from '@/store/SiteStore';
 
 export default function AdminDashboard() {
@@ -23,7 +24,13 @@ export default function AdminDashboard() {
   const [adminEmailSaving, setAdminEmailSaving] = useState(false);
   const [adminEmailError, setAdminEmailError] = useState('');
   const [adminEmailSaved, setAdminEmailSaved] = useState(false);
-  const missingAdminEmail = !siteInfo?.ownerUid;
+  const [hydrated, setHydrated] = useState(false);
+  const missingAdminEmail = hydrated && !siteInfo?.ownerUid;
+
+  useEffect(() => {
+    useSiteStore.getState().hydrateFromWindow();
+    setHydrated(true);
+  }, []);
 
   const adminFeatures = [
     {
