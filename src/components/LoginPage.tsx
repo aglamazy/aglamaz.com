@@ -81,13 +81,12 @@ export default function LoginPage({ redirectPath = '/app', onAuthenticated }: Lo
   const completeLogin = async (firebaseUser: User) => {
     const idToken = await getIdToken(firebaseUser);
 
-    const sessionRes = await apiFetch<{ ok: boolean }>(ApiRoute.AUTH_LOGIN, {
+    await apiFetch(ApiRoute.AUTH_LOGIN, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ idToken }),
       credentials: 'include',
     });
-    if (!sessionRes?.ok) throw new Error('Session creation failed');
 
     setUser({
       name: firebaseUser.displayName || firebaseUser.email,

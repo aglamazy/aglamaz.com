@@ -357,7 +357,6 @@ const mapAvatarError = (code: string) => {
 
   return (
     <div className="w-full max-w-md" dir={i18n.dir()} lang={i18n.language}>
-      <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">{t('editProfile')}</h2>
       {error && (
         <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">{error}</div>
       )}

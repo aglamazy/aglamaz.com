@@ -9,7 +9,8 @@
 .header {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  justify-content: space-between;
+  gap: 0.75rem;
   padding: 1rem;
   background-color: var(--theme-bg-secondary);
   border-bottom: 1px solid var(--theme-border);
@@ -40,6 +41,20 @@
   font-size: 1.25rem;
   font-weight: 600;
   color: var(--theme-text);
+  text-align: center;
+}
+
+.headerTitle {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--theme-text);
+  margin: 0;
+}
+
+.headerSpacer {
+  width: 40px;
+  height: 1px;
+  visibility: hidden;
 }
 
 .content {
@@ -49,4 +64,46 @@
   flex-direction: column;
   align-items: center;
   overflow-y: auto;
+}
+
+.actions {
+  width: 100%;
+  max-width: 520px;
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 1rem 0;
+}
+
+.logoutButton {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: 0.75rem;
+  border: none;
+  background: var(--danger-50);
+  color: var(--danger-700);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.logoutButton:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.logoutButton:not(:disabled):active {
+  background: var(--danger-100);
+}
+
+.errorText {
+  color: var(--danger-700);
+  font-size: 0.9rem;
+  text-align: center;
 }
