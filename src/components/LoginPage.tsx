@@ -21,6 +21,7 @@ import SignupForm from '@/components/SignupForm';
 import { useTranslation } from 'react-i18next';
 import { usePendingMemberModalStore } from '@/store/PendingMemberModalStore';
 import { apiFetch } from '@/utils/apiFetch';
+import { ApiRoute } from '@/utils/urls';
 
 interface LoginPageProps {
   redirectPath?: string;
@@ -80,13 +81,12 @@ export default function LoginPage({ redirectPath = '/app', onAuthenticated }: Lo
   const completeLogin = async (firebaseUser: User) => {
     const idToken = await getIdToken(firebaseUser);
 
-    const sessionRes = await apiFetch<{ ok: boolean }>('/api/auth/login' as any, {
+    await apiFetch(ApiRoute.AUTH_LOGIN, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ idToken }),
       credentials: 'include',
-    } as any);
-    if (!sessionRes?.ok) throw new Error('Session creation failed');
+    });
 
     setUser({
       name: firebaseUser.displayName || firebaseUser.email,
