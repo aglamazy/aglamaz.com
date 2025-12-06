@@ -108,6 +108,11 @@ export default function LoginPage({ redirectPath = '/app', onAuthenticated }: Lo
       if (auth && googleProvider) {
         const firebaseAuth = auth();
         const result = await signInWithPopup(firebaseAuth, googleProvider);
+
+        if (!result?.user) {
+          throw new Error('Sign-in result missing user data');
+        }
+
         console.log('[login] popup sign-in success', { user: result.user.uid });
         await completeLogin(result.user);
       }
