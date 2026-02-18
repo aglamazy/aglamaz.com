@@ -33,6 +33,8 @@ export const routePaths: Record<AppRoute, string> = {
   [AppRoute.APP_CALENDAR]: '/app/calendar',
   [AppRoute.APP_BLOG]: '/app/blog',
   [AppRoute.APP_SETTINGS]: '/app/settings',
+  [AppRoute.APP_ANNIVERSARY_EVENT]: '/app/anniversaries/{id}/events/{eventId}',
+  [AppRoute.APP_ANNIVERSARY_EVENT_NEW]: '/app/anniversaries/{id}/events/new',
 
   // Admin pages
   [AppRoute.ADMIN_DASHBOARD]: '/admin',

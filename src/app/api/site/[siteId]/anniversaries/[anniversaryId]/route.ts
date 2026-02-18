@@ -1,5 +1,6 @@
 import { withMemberGuard } from '@/lib/withMemberGuard';
 import { AnniversaryRepository } from '@/repositories/AnniversaryRepository';
+import { AnniversaryOccurrenceRepository } from '@/repositories/AnniversaryOccurrenceRepository';
 import { BlessingPageRepository } from '@/repositories/BlessingPageRepository';
 import { GuardContext } from '@/app/api/types';
 
@@ -31,6 +32,10 @@ const getHandler = async (_request: Request, context: GuardContext & { params: P
       return Response.json({ error: 'Event not found' }, { status: 404 });
     }
 
+    // Lazily ensure occurrence 0 exists for this event
+    const occRepo = new AnniversaryOccurrenceRepository();
+    const originalOccurrence = await occRepo.ensureOriginalOccurrence(existing, existing.ownerId);
+
     // Fetch blessing pages for this event
     const blessingPageRepo = new BlessingPageRepository();
     const blessingPages = await blessingPageRepo.listByEvent(anniversaryId);
@@ -38,6 +43,7 @@ const getHandler = async (_request: Request, context: GuardContext & { params: P
     return Response.json({
       event: {
         ...existing,
+        originalOccurrenceId: originalOccurrence.id,
         blessingPages: blessingPages.map(bp => ({ year: bp.year, slug: bp.slug }))
       }
     });

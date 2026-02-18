@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { use, useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import I18nText from '@/components/I18nText';
 import { apiFetch } from '@/utils/apiFetch';
@@ -30,7 +30,8 @@ interface EventDoc {
   name: string;
 }
 
-export default function OccurrenceDetailsPage({ params }: { params: { id: string; eventId: string } }) {
+export default function OccurrenceDetailsPage({ params: paramsPromise }: { params: Promise<{ id: string; eventId: string }> }) {
+  const params = use(paramsPromise);
   const { t } = useTranslation();
   const siteId = useSiteStore((state) => state.siteInfo?.id);
   const [loading, setLoading] = useState(true);

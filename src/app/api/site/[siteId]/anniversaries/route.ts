@@ -1,5 +1,6 @@
 import { withMemberGuard } from '@/lib/withMemberGuard';
 import { AnniversaryRepository } from '@/repositories/AnniversaryRepository';
+import { AnniversaryOccurrenceRepository } from '@/repositories/AnniversaryOccurrenceRepository';
 import { GuardContext } from '@/app/api/types';
 
 export const dynamic = 'force-dynamic';
@@ -77,7 +78,11 @@ const postHandler = async (request: Request, context: GuardContext) => {
       useHebrew: Boolean(useHebrew),
       locale,
     });
-    return Response.json({ event }, { status: 201 });
+
+    const occRepo = new AnniversaryOccurrenceRepository();
+    const originalOccurrence = await occRepo.ensureOriginalOccurrence(event, user.userId);
+
+    return Response.json({ event: { ...event, originalOccurrenceId: originalOccurrence.id } }, { status: 201 });
   } catch (error) {
     console.error(error);
     return Response.json({ error: 'Failed to create event' }, { status: 500 });

@@ -2,6 +2,7 @@ import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { initAdmin } from '@/firebase/admin';
 import { LocalizableDocument } from '@/services/LocalizationService';
 import { ImageWithDimension } from '@/entities/ImageWithDimension';
+import { AnniversaryEvent } from '@/entities/Anniversary';
 
 export interface AnniversaryOccurrence extends LocalizableDocument {
   id: string;
@@ -10,6 +11,7 @@ export interface AnniversaryOccurrence extends LocalizableDocument {
   date: any; // Firestore Timestamp
   createdAt: any;
   createdBy: string;
+  isOriginal?: boolean;
   imagesWithDimensions?: ImageWithDimension[]; // Images with dimensions for CLS prevention
 }
 
@@ -26,11 +28,12 @@ export class AnniversaryOccurrenceRepository {
     eventId: string;
     date: Date;
     createdBy: string;
+    isOriginal?: boolean;
     imagesWithDimensions?: ImageWithDimension[];
     description?: string;
   }): Promise<AnniversaryOccurrence> {
     const db = this.getDb();
-    const ref = await db.collection(this.collection).add({
+    const docData: Record<string, any> = {
       siteId: data.siteId,
       eventId: data.eventId,
       date: Timestamp.fromDate(data.date),
@@ -38,7 +41,11 @@ export class AnniversaryOccurrenceRepository {
       createdBy: data.createdBy,
       imagesWithDimensions: data.imagesWithDimensions || [],
       description: data.description || '',
-    });
+    };
+    if (data.isOriginal) {
+      docData.isOriginal = true;
+    }
+    const ref = await db.collection(this.collection).add(docData);
     const doc = await ref.get();
     return { id: doc.id, ...doc.data() } as AnniversaryOccurrence;
   }
@@ -124,5 +131,28 @@ export class AnniversaryOccurrenceRepository {
   async delete(id: string): Promise<void> {
     const db = this.getDb();
     await db.collection(this.collection).doc(id).delete();
+  }
+
+  async ensureOriginalOccurrence(event: AnniversaryEvent, createdBy: string): Promise<AnniversaryOccurrence> {
+    const db = this.getDb();
+    const qs = await db
+      .collection(this.collection)
+      .where('eventId', '==', event.id)
+      .where('isOriginal', '==', true)
+      .limit(1)
+      .get();
+
+    if (!qs.empty) {
+      const doc = qs.docs[0];
+      return { id: doc.id, ...doc.data() } as AnniversaryOccurrence;
+    }
+
+    return this.create({
+      siteId: event.siteId,
+      eventId: event.id,
+      date: event.date.toDate ? event.date.toDate() : new Date(event.date),
+      createdBy,
+      isOriginal: true,
+    });
   }
 }

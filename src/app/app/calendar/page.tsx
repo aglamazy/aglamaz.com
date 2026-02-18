@@ -11,7 +11,8 @@ import { useUserStore } from '@/store/UserStore';
 import { useMemberStore } from '@/store/MemberStore';
 import { useSiteStore } from '@/store/SiteStore';
 import { apiFetch } from '@/utils/apiFetch';
-import { ApiRoute } from '@/entities/Routes';
+import { ApiRoute, AppRoute } from '@/entities/Routes';
+import { getPath } from '@/utils/urls';
 import styles from './page.module.css';
 import AddFab from '@/components/ui/AddFab';
 import { Button } from '@/components/ui/button';
@@ -455,7 +456,7 @@ export default function AnniversariesPage() {
               return (
                 <a
                   key={occ.id}
-                  href={`/anniversaries/${occ.eventId}/events/${occ.id}`}
+                  href={getPath(AppRoute.APP_ANNIVERSARY_EVENT, { id: occ.eventId, eventId: occ.id })}
                   className="bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded text-[10px] sm:text-xs"
                 >
                   {label}
@@ -545,7 +546,7 @@ export default function AnniversariesPage() {
                 return (
                   <a
                     key={occ.id}
-                    href={`/anniversaries/${occ.eventId}/events/${occ.id}`}
+                    href={getPath(AppRoute.APP_ANNIVERSARY_EVENT, { id: occ.eventId, eventId: occ.id })}
                     className={`mt-6 sm:mt-7 bg-emerald-100 text-emerald-800 px-2 py-1 rounded-full text-xs ${
                       isCurrentMonth ? '' : 'opacity-50'
                     }`}
@@ -709,7 +710,7 @@ export default function AnniversariesPage() {
             {/* Add event and linked items on a single row */}
             <div className="flex flex-wrap items-center gap-2 pt-2">
               <button
-                onClick={() => router.push(`/anniversaries/${selectedEvent.id}/events/new`)}
+                onClick={() => router.push(getPath(AppRoute.APP_ANNIVERSARY_EVENT_NEW, { id: selectedEvent.id }))}
                 className="px-3 py-1 bg-primary text-white rounded"
               >
                 {t('addEvent')}
@@ -757,7 +758,7 @@ export default function AnniversariesPage() {
                 return (
                   <a
                     key={occ.id}
-                    href={`/anniversaries/${selectedEvent.id}/events/${occ.id}`}
+                    href={getPath(AppRoute.APP_ANNIVERSARY_EVENT, { id: selectedEvent.id, eventId: occ.id })}
                     className="px-3 py-1 bg-primary text-white rounded text-sm"
                   >
                     {String(yearText)}
