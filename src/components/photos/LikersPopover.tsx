@@ -87,7 +87,7 @@ export default function LikersPopover({
         </button>
       </div>
       <div className={styles.content} dir={dir}>
-        {likers.length === 0 ? (
+        {(!likers || likers.length === 0) ? (
           <div className={styles.empty}>{emptyLabel}</div>
         ) : (
           <ul className={styles.list}>

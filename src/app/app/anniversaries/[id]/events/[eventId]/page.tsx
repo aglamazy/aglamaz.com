@@ -16,6 +16,9 @@ import ImageGrid, { LikeMeta } from '@/components/media/ImageGrid';
 import mediaStyles from '@/components/media/MediaLayout.module.css';
 import { useTranslation } from 'react-i18next';
 import OccurrenceEditModal from '@/components/anniversaries/OccurrenceEditModal';
+import DropboxImportModal from '@/components/dropbox/DropboxImportModal';
+import type { ImageWithDimension } from '@/entities/ImageWithDimension';
+import type { ImportSourceLink } from '@/entities/ImportSourceLink';
 
 interface OccurrenceDoc {
   id: string;
@@ -45,6 +48,7 @@ export default function OccurrenceDetailsPage({ params: paramsPromise }: { param
   const [previews, setPreviews] = useState<string[]>([]);
   const [likes, setLikes] = useState<Array<{ index: number; count: number; likedByMe: boolean }>>([]);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showDropboxImport, setShowDropboxImport] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -97,7 +101,9 @@ export default function OccurrenceDetailsPage({ params: paramsPromise }: { param
     })();
   }, [occ?.id, params.eventId, params.id, siteId]);
 
-  const visibleImages = Array.isArray(occ?.images) ? (occ?.images as string[]) : [];
+  const visibleImages = Array.isArray((occ as any)?.imagesWithDimensions) && (occ as any).imagesWithDimensions.length > 0
+    ? (occ as any).imagesWithDimensions.map((img: any) => img.url)
+    : Array.isArray(occ?.images) ? (occ?.images as string[]) : [];
 
 
   if (loading) {
@@ -276,8 +282,9 @@ export default function OccurrenceDetailsPage({ params: paramsPromise }: { param
           )}
           {uploadError && <div className="text-red-600 mb-1"><I18nText k="somethingWentWrong" /></div>}
           <div className="mb-2"><span className="font-medium"><I18nText k="date" />:</span> {dateText}</div>
-          <div className="mb-3">
+          <div className="mb-3 flex gap-2">
             <Button onClick={() => setShowEditModal(true)}>{t('edit')}</Button>
+            <Button variant="outline" onClick={() => setShowDropboxImport(true)}>Import from Dropbox</Button>
           </div>
           <div>
             <a className="text-blue-600 hover:underline" href="/app/calendar">
@@ -321,6 +328,30 @@ export default function OccurrenceDetailsPage({ params: paramsPromise }: { param
         setOcc((prev) => ({ ...(prev as any), ...updated }));
       }}
       initialOccurrence={occ as any}
+    />
+
+    <DropboxImportModal
+      isOpen={showDropboxImport}
+      onClose={() => setShowDropboxImport(false)}
+      previousLinks={(occ as any)?.importSources as ImportSourceLink[] | undefined}
+      onImported={async () => {
+        // Refresh occurrence data
+        try {
+          const refreshed = await apiFetch<{ event: OccurrenceDoc }>(
+            ApiRoute.SITE_ANNIVERSARY_EVENT_BY_ID,
+            { pathParams: { anniversaryId: params.id, eventId: params.eventId } }
+          );
+          setOcc(refreshed.event as any);
+          const likesData = await apiFetch<{ items: Array<{ index: number; count: number; likedByMe: boolean }> }>(
+            ApiRoute.SITE_ANNIVERSARY_EVENT_IMAGE_LIKES,
+            { pathParams: { anniversaryId: params.id, eventId: params.eventId } }
+          );
+          setLikes(likesData.items || []);
+        } catch (e) {
+          console.error('[dropbox] refresh failed', e);
+        }
+      }}
+      target={{ anniversaryId: params.id, occurrenceId: params.eventId }}
     />
 
     {/* Lightbox handled by ImageGrid */}

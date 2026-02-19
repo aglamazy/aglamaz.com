@@ -2,12 +2,14 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import type { IBlogPost } from '@/entities/BlogPost';
 import { BlogRepository } from '@/repositories/BlogRepository';
 import { FamilyRepository } from '@/repositories/FamilyRepository';
-import { headers } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import TranslationTrigger from '@/components/blog/TranslationTrigger';
 import I18nText from '@/components/I18nText';
 import blogStyles from '@/components/blog/PublicPost.module.css';
 import AuthorPostActions from '@/components/blog/AuthorPostActions';
 import { stripScriptTags, cleanJsonLd } from '@/utils/jsonld';
+import { formatLocalizedDate } from '@/utils/dateFormat';
+import { resolveDateLocale } from '@/utils/timezoneRegion';
 import { fetchSiteInfo } from '@/firebase/admin';
 import { resolveSiteId } from '@/utils/resolveSiteId';
 import { getServerT } from '@/utils/serverTranslations';
@@ -79,6 +81,10 @@ export default async function AuthorBlogPage({ params }: { params: Promise<Autho
     const host = h.get('host') || 'unknown';
     return <UnderConstruction domain={host} />;
   }
+
+  const cookieStore = await cookies();
+  const tz = cookieStore.get('tz')?.value;
+  const dateLocale = resolveDateLocale(locale, tz);
 
   const fam = new FamilyRepository();
 
@@ -163,6 +169,7 @@ export default async function AuthorBlogPage({ params }: { params: Promise<Autho
               <h1 className="text-2xl font-semibold text-charcoal m-0">{localized.title}</h1>
               <AuthorPostActions postId={post.id} authorId={post.authorId} />
             </div>
+            {post.createdAt && <div className="text-xs text-gray-500">{formatLocalizedDate(post.createdAt, dateLocale)}</div>}
           </CardHeader>
           <CardContent>
             <div

@@ -8,9 +8,11 @@ import BlogCTA from '@/components/blog/BlogCTA';
 import AddPostFab from '@/components/blog/AddPostFab';
 import I18nText from '@/components/I18nText';
 import TranslationTrigger from '@/components/blog/TranslationTrigger';
-import { headers } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import blogStyles from '@/components/blog/PublicPost.module.css';
 import { stripScriptTags, cleanJsonLd } from '@/utils/jsonld';
+import { formatLocalizedDate } from '@/utils/dateFormat';
+import { resolveDateLocale } from '@/utils/timezoneRegion';
 import { fetchSiteInfo } from '@/firebase/admin';
 import { resolveSiteId } from '@/utils/resolveSiteId';
 import { getServerT } from '@/utils/serverTranslations';
@@ -88,6 +90,10 @@ export default async function FamilyBlogPage({ params }: FamilyBlogPageProps) {
   const fam = new FamilyRepository();
   const posts: IBlogPost[] = await repo.getPublicBySite(siteId, 30);
 
+  const cookieStore = await cookies();
+  const tz = cookieStore.get('tz')?.value;
+  const dateLocale = resolveDateLocale(locale, tz);
+
   const h = await headers();
   const lang = locale;
   const baseLang = lang.split('-')[0]?.toLowerCase() || lang.toLowerCase();
@@ -155,6 +161,7 @@ export default async function FamilyBlogPage({ params }: FamilyBlogPageProps) {
                 <h1 className="text-2xl font-semibold text-charcoal m-0">{localized.title}</h1>
                 <div className="text-xs text-gray-500">
                   <a className="hover:underline" href={`/${locale}/blog/${handle}`}>{name}</a>
+                  {post.createdAt && <span> · {formatLocalizedDate(post.createdAt, dateLocale)}</span>}
                 </div>
               </div>
             </div>

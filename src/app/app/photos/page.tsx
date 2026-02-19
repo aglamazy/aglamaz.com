@@ -240,7 +240,7 @@ export default function PhotosPage() {
           lightboxSrc: image['1200x1200'] || image.original,
           title: i === 0 ? title : undefined,
           dir: textDirection,
-          meta: { occId: occ.id, annId, idx: i, canEdit, type: occ.type, creatorId },
+          meta: { occId: occ.id, annId, idx: i, canEdit, type: occ.type, creatorId, groupTitle: title },
         });
       });
     }
@@ -261,6 +261,12 @@ export default function PhotosPage() {
   const handleGridToggle = useCallback(async (item: GridItem) => {
     const m = item.meta as { occId: string; annId: string; idx: number; type?: 'occurrence' | 'gallery' };
     await toggleLike(m.annId, m.occId, m.idx, m.type);
+  }, []);
+
+  const getLightboxLink = useCallback((item: GridItem): string | undefined => {
+    const m = item.meta as { occId: string; annId: string; type?: 'occurrence' | 'gallery' };
+    if (m.type === 'gallery' || !m.annId) return undefined;
+    return `/app/anniversaries/${m.annId}/events/${m.occId}`;
   }, []);
 
   const handleTitleClick = useCallback((item: GridItem) => {
@@ -353,6 +359,7 @@ export default function PhotosPage() {
           getMeta={getGridMeta}
           onToggle={handleGridToggle}
           onTitleClick={handleTitleClick}
+          getLightboxLink={getLightboxLink}
         />
         {loadingMore && (
           <div className="p-4 text-center text-gray-500">

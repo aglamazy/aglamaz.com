@@ -1,19 +1,12 @@
 /**
- * Gets the appropriate locale for date/time formatting.
+ * Returns the locale string for date/time formatting.
  *
- * @param i18nLanguage - The i18n language setting (e.g., 'en', 'he', 'en-US')
- * @returns Locale string or array for toLocaleDateString/toLocaleString
- *
- * @remarks
- * When the i18n language is a base language (e.g., 'en' without a region),
- * this function uses the browser's locale preferences (navigator.languages)
- * to determine the format. This allows users to read content in one
- * language while seeing dates formatted according to their regional preferences.
+ * Callers should pass a fully resolved locale (e.g., 'he-IL', 'en-US')
+ * via resolveDateLocale() from timezoneRegion.ts. If a base language
+ * is passed (e.g., 'en'), it is used as-is.
  */
-function getLocale(i18nLanguage: string): string | string[] {
-  return i18nLanguage.includes('-')
-    ? i18nLanguage
-    : (typeof navigator !== 'undefined' ? Array.from(navigator.languages) : [i18nLanguage]);
+function getLocale(locale: string): string {
+  return locale;
 }
 
 /**

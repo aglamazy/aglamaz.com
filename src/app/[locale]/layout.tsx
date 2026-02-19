@@ -44,6 +44,7 @@ export default async function PublicLayout({ children, params }: LocaleLayoutPro
   return (
     <I18nProvider initialLocale={locale}>
       <I18nGate>
+        <script dangerouslySetInnerHTML={{ __html: `if(!document.cookie.match(/(?:^|;)\\s*tz=/)){document.cookie='tz='+Intl.DateTimeFormat().resolvedOptions().timeZone+';path=/;max-age=31536000;SameSite=Lax'}` }} />
         <PublicLayoutShell siteInfo={siteInfo} locale={locale} resolvedLocale={resolvedLocale}>
           {children}
         </PublicLayoutShell>

@@ -85,6 +85,51 @@
   z-index: 50;
 }
 
+.lightboxHeader {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: 1rem 4rem;
+  text-align: center;
+  z-index: 1;
+}
+
+.lightboxHeaderLink {
+  display: inline-block;
+  max-width: 80%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #f9fafb;
+  background: rgba(255,255,255,0.15);
+  padding: 0.4rem 1.25rem;
+  border-radius: 9999px;
+  font-size: 0.9rem;
+  text-decoration: none;
+  backdrop-filter: blur(8px);
+  transition: background 0.15s;
+  cursor: pointer;
+}
+
+.lightboxHeaderLink:hover {
+  background: rgba(255,255,255,0.25);
+}
+
+.lightboxHeaderText {
+  display: inline-block;
+  max-width: 80%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: rgba(255,255,255,0.6);
+  background: rgba(255,255,255,0.1);
+  padding: 0.4rem 1.25rem;
+  border-radius: 9999px;
+  font-size: 0.9rem;
+  backdrop-filter: blur(8px);
+}
+
 .lightboxImg {
   max-width: 90vw;
   max-height: 85vh;

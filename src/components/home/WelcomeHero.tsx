@@ -47,7 +47,7 @@ export default function WelcomeHero({ user, title, subtitle, aboutFamily, action
       title: t('browsePhotos') as string,
       description: t('explorePhotoAlbums') as string,
       icon: Images,
-      url: '/app/pictures/feed',
+      url: '/app',
       color: "from-purple-500 to-purple-600",
     },
     // {

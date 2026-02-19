@@ -173,6 +173,10 @@ export const apiRoutePaths: Record<ApiRoute, string> = {
   [ApiRoute.SITE_ADMIN_USER_HARD_DELETE]: '/api/site/{siteId}/admin/users/{userId}/hard-delete',
   [ApiRoute.SITE_ADMIN_OWNER]: '/api/site/{siteId}/admin/owner',
 
+  // Dropbox
+  [ApiRoute.SITE_DROPBOX_BROWSE]: '/api/site/{siteId}/dropbox/browse',
+  [ApiRoute.SITE_DROPBOX_IMPORT]: '/api/site/{siteId}/dropbox/import',
+
   // Contact
   [ApiRoute.SITE_CONTACT]: '/api/site/{siteId}/contact',
 };

@@ -6,6 +6,8 @@ import type { IBlogPost, BlogPostLocalizedFields } from '@/entities/BlogPost';
 import { Button } from '@/components/ui/button';
 import { apiFetch } from '@/utils/apiFetch';
 import { ApiRoute } from '@/entities/Routes';
+import { formatLocalizedDate } from '@/utils/dateFormat';
+import { resolveDateLocale } from '@/utils/timezoneRegion';
 import styles from './PublicPost.module.css';
 
 interface Props {
@@ -14,7 +16,9 @@ interface Props {
 }
 
 export default function PublicPost({ post, localized }: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const dateLocale = resolveDateLocale(i18n.language, tz);
   const [likes, setLikes] = useState(post.likeCount ?? 0);
   const [shares, setShares] = useState(post.shareCount ?? 0);
   const [liking, setLiking] = useState(false);
@@ -58,7 +62,8 @@ export default function PublicPost({ post, localized }: Props) {
 
   return (
     <article className={`prose max-w-none mx-auto py-8 ${styles.article}`}>
-      <h1 className="mb-4">{localized.title}</h1>
+      <h1 className="mb-1">{localized.title}</h1>
+      {post.createdAt && <div className="text-sm text-gray-500 mb-4">{formatLocalizedDate(post.createdAt, dateLocale)}</div>}
       <div dangerouslySetInnerHTML={{ __html: localized.content }} />
       <div className="flex items-center space-x-4 mt-6">
         <Button onClick={handleLike} disabled={liking}>

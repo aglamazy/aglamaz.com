@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import styles from './ImageGrid.module.css';
 import { useTranslation } from 'react-i18next';
 import { usePresentationModeStore } from '@/store/PresentationModeStore';
@@ -27,9 +28,10 @@ interface ImageGridProps {
   getMeta: (item: GridItem) => LikeMeta;
   onToggle: (item: GridItem) => Promise<void> | void;
   onTitleClick?: (item: GridItem) => void;
+  getLightboxLink?: (item: GridItem) => string | undefined;
 }
 
-export default function ImageGrid({ items, getMeta, onToggle, onTitleClick }: ImageGridProps) {
+export default function ImageGrid({ items, getMeta, onToggle, onTitleClick, getLightboxLink }: ImageGridProps) {
   const { t, i18n } = useTranslation();
   const [isMobile, setIsMobile] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -428,17 +430,33 @@ export default function ImageGrid({ items, getMeta, onToggle, onTitleClick }: Im
         })}
       </div>
 
-      {lightboxOpen && items.length > 0 && (
-        <div className={styles.lightboxBackdrop} onClick={() => setLightboxOpen(false)}>
-          <button className={styles.navBtn + ' ' + styles.navLeft} onClick={(e) => { e.stopPropagation(); setLightboxIndex((p) => (p - 1 + items.length) % items.length); }}>‹</button>
-          <img src={items[lightboxIndex].lightboxSrc || items[lightboxIndex].src} alt="" className={styles.lightboxImg} onClick={(e) => e.stopPropagation()} />
-          <button className={styles.navBtn + ' ' + styles.navRight} onClick={(e) => { e.stopPropagation(); setLightboxIndex((p) => (p + 1) % items.length); }}>›</button>
-        </div>
-      )}
+      {lightboxOpen && items.length > 0 && (() => {
+        const lbItem = items[lightboxIndex];
+        const lbLink = getLightboxLink?.(lbItem);
+        const lbTitle = lbItem.title || (lbItem.meta as Record<string, unknown> | undefined)?.groupTitle as string | undefined;
+        return (
+          <div className={styles.lightboxBackdrop} onClick={() => setLightboxOpen(false)}>
+            {lbTitle && (
+              <div className={styles.lightboxHeader} dir={i18n.dir()} onClick={(e) => e.stopPropagation()}>
+                {lbLink ? (
+                  <Link href={lbLink} className={styles.lightboxHeaderLink} onClick={() => setLightboxOpen(false)}>
+                    {lbTitle}
+                  </Link>
+                ) : (
+                  <span className={styles.lightboxHeaderText}>{lbTitle}</span>
+                )}
+              </div>
+            )}
+            <button className={styles.navBtn + ' ' + styles.navLeft} onClick={(e) => { e.stopPropagation(); setLightboxIndex((p) => (p - 1 + items.length) % items.length); }}>‹</button>
+            <img src={lbItem.lightboxSrc || lbItem.src} alt="" className={styles.lightboxImg} onClick={(e) => e.stopPropagation()} />
+            <button className={styles.navBtn + ' ' + styles.navRight} onClick={(e) => { e.stopPropagation(); setLightboxIndex((p) => (p + 1) % items.length); }}>›</button>
+          </div>
+        );
+      })()}
 
       {likersPopover && (
         <LikersPopover
-          likers={getMeta(likersPopover.item).likers}
+          likers={getMeta(likersPopover.item).likers || []}
           onClose={() => setLikersPopover(null)}
           title={t('whoLiked') as string || 'Who liked this'}
           emptyLabel={t('noLikes') as string || 'No likes yet'}

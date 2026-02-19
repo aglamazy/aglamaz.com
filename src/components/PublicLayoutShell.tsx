@@ -6,6 +6,8 @@ import Footer from '@/components/Footer';
 import Modal from '@/components/ui/Modal';
 import LoginPage from '@/components/LoginPage';
 import { useLoginModalStore } from '@/store/LoginModalStore';
+import { useEditUserModalStore } from '@/store/EditUserModalStore';
+import EditUserDetails from '@/components/EditUserDetails';
 import { useSiteStore } from '@/store/SiteStore';
 import { useUserStore } from '@/store/UserStore';
 import { useMemberStore } from '@/store/MemberStore';
@@ -23,6 +25,7 @@ interface PublicLayoutShellProps {
 
 export default function PublicLayoutShell({ siteInfo, children, locale, resolvedLocale }: PublicLayoutShellProps) {
   const { isOpen, close } = useLoginModalStore();
+  const { isOpen: isEditOpen, close: closeEdit } = useEditUserModalStore();
   const setSiteInfo = useSiteStore((s) => s.setSiteInfo);
   const site = useSiteStore((s) => s.siteInfo);
   const { user, checkAuth, logout } = useUserStore();
@@ -91,6 +94,9 @@ export default function PublicLayoutShell({ siteInfo, children, locale, resolved
       {siteInfo ? <Footer siteInfo={siteInfo} /> : null}
       <Modal isOpen={isOpen} onClose={close}>
         <LoginPage />
+      </Modal>
+      <Modal isOpen={isEditOpen} onClose={closeEdit}>
+        <EditUserDetails standalone={false} />
       </Modal>
     </div>
   );

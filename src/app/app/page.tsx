@@ -2,16 +2,12 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import I18nText from '@/components/I18nText';
-import ImageGrid from '@/components/media/ImageGrid';
-import layoutStyles from '@/components/media/MediaLayout.module.css';
 import feedStyles from '@/components/media/ImageGrid.module.css';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { ShimmerImage } from "@/components/mobile/ShimmerImagePreview";
 import md5 from 'blueimp-md5';
-import type { ImageWithDimension } from '@/entities/ImageWithDimension';
 import { MoreVertical } from 'lucide-react';
 import OccurrenceEditModal, { OccurrenceForEdit } from '@/components/anniversaries/OccurrenceEditModal';
 import GalleryPhotoEditModal, { GalleryPhotoForEdit } from '@/components/photos/GalleryPhotoEditModal';
@@ -20,7 +16,7 @@ import { useUserStore } from '@/store/UserStore';
 import { useMemberStore } from '@/store/MemberStore';
 import { useSiteStore } from '@/store/SiteStore';
 import { formatLocalizedDate } from '@/utils/dateFormat';
-import WelcomeHero from '@/components/home/WelcomeHero';
+import DashboardHome from '@/components/home/DashboardHome';
 import { getPlatformName } from '@/utils/platformName';
 import AvatarStack from '@/components/photos/AvatarStack';
 import LikersBottomSheet from '@/components/photos/LikersBottomSheet';
@@ -506,12 +502,10 @@ export default function PicturesFeedPage() {
         <link rel="preload" as="image" href={firstImageSrc} />
       )}
 
-      {/* Desktop WelcomeHero - hidden on mobile */}
-      {aboutFamily && (
-        <div className="desktop-only">
-          <WelcomeHero user={user} title={heroTitle} aboutFamily={aboutFamily} />
-        </div>
-      )}
+      {/* Desktop Dashboard - hidden on mobile */}
+      <div className="desktop-only">
+        <DashboardHome user={user} title={heroTitle} aboutFamily={aboutFamily} />
+      </div>
 
       {/* Mobile version - hidden on desktop */}
       <div className="mobile-only">
@@ -561,50 +555,6 @@ export default function PicturesFeedPage() {
         </div>
       </div>
 
-      {/* Desktop version - hidden on mobile */}
-      <Card className={`${layoutStyles.container} desktop-only`}>
-        <CardHeader>
-          <CardTitle>{t('picturesFeed')}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ImageGrid
-            items={feed.map((f) => {
-              const baseLabel = f.occDescription || f.eventName;
-              const title = f.showHeader ? [baseLabel, f.dateText].filter(Boolean).join(' — ') : undefined;
-              // Desktop grid uses 400x400 thumbnails, lightbox will use 1200x1200
-              return {
-                key: f.key,
-                src: f.srcDesktopGrid,
-                lightboxSrc: f.srcDesktopLightbox,
-                title,
-                dir: f.dir,
-                meta: { annId: f.annId, occId: f.occId, creatorId: f.creatorId, canEdit: f.canEdit },
-              };
-            })}
-            getMeta={(item) => {
-              const f = feed.find((x) => x.key === item.key)!;
-              return getLikeMeta(f.occId, f.idx);
-            }}
-            onToggle={(item) => {
-              const f = feed.find((x) => x.key === item.key)!;
-              return toggleLike(f.annId, f.occId, f.idx, f.type);
-            }}
-            onTitleClick={(item) => {
-              const meta = (item.meta || {}) as { annId?: string; occId?: string; creatorId?: string; canEdit?: boolean };
-              if (!meta.canEdit) return;
-              if (!meta.annId || !meta.occId) return;
-              openOccurrenceModal(meta.annId, meta.occId, meta.creatorId);
-            }}
-          />
-          {loadingMore && (
-            <div className="p-4 text-center text-gray-500">
-              {t('loading')}...
-            </div>
-          )}
-        </CardContent>
-
-        {/* Lightbox handled inside ImageGrid */}
-      </Card>
 
       {occurrenceModal}
       {galleryPhotoModal}

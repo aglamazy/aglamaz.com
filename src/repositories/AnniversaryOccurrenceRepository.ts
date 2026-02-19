@@ -3,6 +3,7 @@ import { initAdmin } from '@/firebase/admin';
 import { LocalizableDocument } from '@/services/LocalizationService';
 import { ImageWithDimension } from '@/entities/ImageWithDimension';
 import { AnniversaryEvent } from '@/entities/Anniversary';
+import { ImportSourceLink } from '@/entities/ImportSourceLink';
 
 export interface AnniversaryOccurrence extends LocalizableDocument {
   id: string;
@@ -13,6 +14,7 @@ export interface AnniversaryOccurrence extends LocalizableDocument {
   createdBy: string;
   isOriginal?: boolean;
   imagesWithDimensions?: ImageWithDimension[]; // Images with dimensions for CLS prevention
+  importSources?: ImportSourceLink[];
 }
 
 export class AnniversaryOccurrenceRepository {
@@ -21,6 +23,15 @@ export class AnniversaryOccurrenceRepository {
   private getDb() {
     initAdmin();
     return getFirestore();
+  }
+
+  /** Normalize legacy dropboxFolderUrl → importSources on read */
+  private normalizeImportSources(data: any): any {
+    if (data.dropboxFolderUrl && !data.importSources) {
+      data.importSources = [{ url: data.dropboxFolderUrl, type: 'dropbox' }];
+    }
+    delete data.dropboxFolderUrl;
+    return data;
   }
 
   async create(data: {
@@ -54,13 +65,13 @@ export class AnniversaryOccurrenceRepository {
     const db = this.getDb();
     const doc = await db.collection(this.collection).doc(id).get();
     if (!doc.exists) return null;
-    return { id: doc.id, ...doc.data() } as AnniversaryOccurrence;
+    return this.normalizeImportSources({ id: doc.id, ...doc.data() }) as AnniversaryOccurrence;
   }
 
   async listByEvent(eventId: string): Promise<AnniversaryOccurrence[]> {
     const db = this.getDb();
     const qs = await db.collection(this.collection).where('eventId', '==', eventId).get();
-    return qs.docs.map((d) => ({ id: d.id, ...d.data() } as AnniversaryOccurrence));
+    return qs.docs.map((d) => this.normalizeImportSources({ id: d.id, ...d.data() }) as AnniversaryOccurrence);
   }
 
   async listBySite(siteId: string, locale?: string, options?: { limit?: number; offset?: number }): Promise<AnniversaryOccurrence[]> {
@@ -79,7 +90,7 @@ export class AnniversaryOccurrenceRepository {
     }
 
     const qs = await query.get();
-    const items = qs.docs.map((d) => ({ id: d.id, ...d.data() } as AnniversaryOccurrence));
+    const items = qs.docs.map((d) => this.normalizeImportSources({ id: d.id, ...d.data() }) as AnniversaryOccurrence);
 
     // If locale is specified, ensure and apply localization
     if (locale) {
@@ -111,7 +122,7 @@ export class AnniversaryOccurrenceRepository {
       .where('date', '<', Timestamp.fromDate(end))
       .orderBy('date', 'asc')
       .get();
-    const items = qs.docs.map((d) => ({ id: d.id, ...d.data() } as AnniversaryOccurrence));
+    const items = qs.docs.map((d) => this.normalizeImportSources({ id: d.id, ...d.data() }) as AnniversaryOccurrence);
     return items;
   }
 
@@ -119,12 +130,19 @@ export class AnniversaryOccurrenceRepository {
     date?: Date;
     imagesWithDimensions?: ImageWithDimension[];
     description?: string;
+    importSource?: ImportSourceLink;
   }): Promise<void> {
     const db = this.getDb();
     const data: any = {};
     if (updates.date) data.date = Timestamp.fromDate(updates.date);
     if (updates.imagesWithDimensions !== undefined) data.imagesWithDimensions = updates.imagesWithDimensions;
     if (updates.description !== undefined) data.description = updates.description;
+    if (updates.importSource) {
+      const doc = await db.collection(this.collection).doc(id).get();
+      const existing: ImportSourceLink[] = doc.data()?.importSources || [];
+      const filtered = existing.filter((s) => s.url !== updates.importSource!.url);
+      data.importSources = [...filtered, updates.importSource];
+    }
     await db.collection(this.collection).doc(id).update(data);
   }
 
@@ -144,7 +162,7 @@ export class AnniversaryOccurrenceRepository {
 
     if (!qs.empty) {
       const doc = qs.docs[0];
-      return { id: doc.id, ...doc.data() } as AnniversaryOccurrence;
+      return this.normalizeImportSources({ id: doc.id, ...doc.data() }) as AnniversaryOccurrence;
     }
 
     return this.create({

@@ -381,3 +381,46 @@ From latest waterfall analysis with all feeds disabled:
 - Phase 2 can be done in parallel or after Phase 1
 - Keep original code commented for easy rollback if needed
 - Consider adding performance metrics logging
+
+---
+
+# Firestore Backup Strategy
+
+## Goal
+Ensure recoverability from data loss, bad migrations, or accidental deletes.
+
+## Tasks
+- [ ] Check if PITR is enabled: `gcloud firestore databases describe --database="(default)"`
+- [ ] Enable PITR if not already active (7-day rolling point-in-time recovery)
+- [ ] Set up scheduled exports to Cloud Storage (`gcloud firestore export gs://<bucket>`)
+- [ ] Define retention policy:
+  - Daily exports: keep 30 days
+  - Monthly exports: keep 1 year
+  - Yearly exports: keep indefinitely
+- [ ] Automate export schedule via Cloud Scheduler or Cloud Functions
+- [ ] Document restore procedure (import from export, PITR restore)
+
+---
+
+# Weekly Orphan Cleanup
+
+## Background
+When users are hard-deleted, their content references (likes, createdBy, authorId) remain as orphans. The `ImageLikeRepository` logs warnings like:
+```
+[ImageLikeRepository] Member not found for userId: fYIpefQTsIZL5SmoiYdOA67mmiN2
+```
+
+## Tasks
+- [ ] Write cleanup script using Firebase Admin SDK:
+  - Collection-group query `likes` subcollections
+  - For each like doc, check if userId (doc ID) exists in `members` for the site
+  - Delete like docs for non-existent members
+- [ ] Also consider cleaning orphaned references in:
+  - `galleryPhotos` (`createdBy`)
+  - `anniversaryOccurrences` (`createdBy`)
+  - `blessings` (`authorId`)
+  - `blogPosts` (`authorId`)
+  - `blessingPages` (`createdBy`)
+- [ ] Schedule to run weekly (Cloud Scheduler or Cloud Functions)
+- [ ] Add logging/alerting for orphan counts
+- [ ] Consider also fixing the hard-delete flow to clean up at delete time

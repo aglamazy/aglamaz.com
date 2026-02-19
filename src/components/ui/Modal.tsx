@@ -8,9 +8,10 @@ interface ModalProps {
   onClose: () => void;
   children: React.ReactNode;
   isClosable?: boolean;
+  className?: string;
 }
 
-const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, isClosable = true }) => {
+const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, isClosable = true, className }) => {
   const { t } = useTranslation();
 
   if (!isOpen) return null;
@@ -21,7 +22,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, isClosable = t
       role="dialog"
       aria-modal="true"
     >
-      <div className="relative bg-white p-6 rounded-xl shadow-lg max-w-md w-full">
+      <div className={`relative bg-white p-6 rounded-xl shadow-lg w-full ${className || 'max-w-md'}`}>
         {isClosable && (
           <button
             onClick={onClose}

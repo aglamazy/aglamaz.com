@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import Navigation from "@/components/Navigation";
 import { useTranslation } from 'react-i18next';
-import { LogOut, Users, MessageCircle, Home as HomeIcon, BookOpen, User, LayoutDashboard } from 'lucide-react';
+import { LogOut, Users, MessageCircle, Home as HomeIcon, BookOpen, User, LayoutDashboard, Images, Calendar } from 'lucide-react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { IUser } from "@/entities/User";
 import { IMember } from "@/entities/Member";
@@ -118,14 +118,17 @@ export default function Header({ user, member, onLogout, siteInfo }: HeaderProps
           <nav className="hidden md:flex items-center gap-6 text-sage-700">
             {(() => { const isRTL = (i18n.language || '').startsWith('he'); return (
               <>
-                <a className="hover:underline flex items-center gap-1" href={`/${currentLocale}`}>
+                <a className="hover:underline flex items-center gap-1" href="/app">
                   {isRTL ? (<><span>{t('home') as string}</span><HomeIcon size={18} /></>) : (<><HomeIcon size={18} /><span>{t('home') as string}</span></>)}
+                </a>
+                <a className="hover:underline flex items-center gap-1" href="/app/photos">
+                  {isRTL ? (<><span>{t('photos') as string}</span><Images size={18} /></>) : (<><Images size={18} /><span>{t('photos') as string}</span></>)}
+                </a>
+                <a className="hover:underline flex items-center gap-1" href="/app/calendar">
+                  {isRTL ? (<><span>{t('calendar') as string}</span><Calendar size={18} /></>) : (<><Calendar size={18} /><span>{t('calendar') as string}</span></>)}
                 </a>
                 <a className="hover:underline flex items-center gap-1" href={`/${currentLocale}/blog`}>
                   {isRTL ? (<><span>{t('blog') as string}</span><BookOpen size={18} /></>) : (<><BookOpen size={18} /><span>{t('blog') as string}</span></>)}
-                </a>
-                <a className="hover:underline flex items-center gap-1" href="/contact">
-                  {isRTL ? (<><span>{t('contactUs') as string}</span><MessageCircle size={18} /></>) : (<><MessageCircle size={18} /><span>{t('contactUs') as string}</span></>)}
                 </a>
               </>
             ); })()}
