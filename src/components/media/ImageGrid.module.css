@@ -720,3 +720,170 @@
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
+
+/* ── Slideshow ── */
+
+@keyframes kenBurns1 {
+  from { transform: scale(1); }
+  to   { transform: scale(1.15) translate(-2%, -1%); }
+}
+@keyframes kenBurns2 {
+  from { transform: scale(1.1) translate(-2%, 1%); }
+  to   { transform: scale(1) translate(1%, -1%); }
+}
+@keyframes kenBurns3 {
+  from { transform: scale(1) translate(1%, 1%); }
+  to   { transform: scale(1.12) translate(-1%, 0%); }
+}
+
+@keyframes slideshowProgress {
+  from { width: 0%; }
+  to   { width: 100%; }
+}
+
+.lightboxImageContainer {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 90vw;
+  max-height: 85vh;
+  overflow: hidden;
+  border-radius: 0.5rem;
+}
+
+.lightboxImageContainer img {
+  max-width: 90vw;
+  max-height: 85vh;
+  border-radius: 0.5rem;
+  display: block;
+}
+
+.crossfadeLayerBack {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 1s ease;
+  z-index: 0;
+}
+
+.crossfadeLayerFront {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+}
+
+.kenBurnsActive {
+  animation-timing-function: ease-in-out;
+  animation-fill-mode: both;
+}
+
+.kenBurns1 { animation-name: kenBurns1; }
+.kenBurns2 { animation-name: kenBurns2; }
+.kenBurns3 { animation-name: kenBurns3; }
+
+.slideshowControls {
+  position: absolute;
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  z-index: 2;
+}
+
+.slideshowPlayBtn {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 1.1rem;
+  border-radius: 9999px;
+  border: none;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: #f9fafb;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(8px);
+  transition: background 0.15s;
+}
+
+.slideshowPlayBtn:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.slideshowSlider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 5.5rem;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.25);
+  outline: none;
+  cursor: pointer;
+}
+
+.slideshowSlider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #f9fafb;
+  border: none;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+.slideshowSlider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #f9fafb;
+  border: none;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+.slideshowSliderLabel {
+  color: #f9fafb;
+  font-size: 0.8rem;
+  min-width: 2rem;
+  text-align: center;
+}
+
+.slideshowShareBtn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  font-size: 0.85rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #f9fafb;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(8px);
+  transition: background 0.15s;
+  margin-inline-start: 0.25rem;
+}
+
+.slideshowShareBtn:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.slideshowProgressBar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 0 1px 0 0;
+  animation: slideshowProgress linear;
+  z-index: 2;
+}

@@ -3,6 +3,7 @@ import { apiFetchFromMiddleware, verifyAccessToken } from 'src/lib/edgeAuth';
 import { NextRequest, NextResponse } from 'next/server';
 import { SUPPORTED_LOCALES as CONFIG_LOCALES } from '@/constants/i18n';
 import { findBestSupportedLocale, parseAcceptLanguage } from '@/utils/locale';
+import { AppRoute, getPath } from '@/utils/urls';
 
 const SUPPORTED_LOCALES = CONFIG_LOCALES.map((locale) => locale as string);
 const FALLBACK_LOCALE = SUPPORTED_LOCALES[0] || 'en';
@@ -66,9 +67,20 @@ function resolvePreferredLocale(request: NextRequest) {
   return findBestSupportedLocale(preferences, SUPPORTED_LOCALES) ?? FALLBACK_LOCALE;
 }
 
+const MOBILE_UA_RE = /Android|iPhone|iPad|iPod|webOS|BlackBerry|Opera Mini|IEMobile/i;
+
 export async function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
   const { locale: localeFromPath, path: normalizedPath } = stripLocale(pathname);
+
+  // Device-sensitive redirect: /app/slideshow → mobile /app, desktop /app/photos?slideshow=1
+  if (normalizedPath === getPath(AppRoute.APP_SLIDESHOW)) {
+    const ua = request.headers.get('user-agent') || '';
+    const target = MOBILE_UA_RE.test(ua)
+      ? getPath(AppRoute.APP_DASHBOARD)
+      : '/app/photos?slideshow=1';
+    return NextResponse.redirect(new URL(target, request.url));
+  }
   const preferredLocale = localeFromPath ?? resolvePreferredLocale(request);
   const isLocalized = Boolean(localeFromPath);
 

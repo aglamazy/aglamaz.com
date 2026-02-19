@@ -401,5 +401,6 @@
   "importedWithFailures": "Imported {{imported}}, failed {{failed}}",
   "sharedFolder": "Shared folder",
   "failedToBrowseFolder": "Failed to browse folder",
-  "importFailed": "Import failed"
+  "importFailed": "Import failed",
+  "slideshow": "Slideshow"
 }

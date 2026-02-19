@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import I18nText from '@/components/I18nText';
 import { useTranslation } from 'react-i18next';
 import ImageGrid, { type GridItem, type LikeMeta } from '@/components/media/ImageGrid';
@@ -43,6 +43,8 @@ const ITEMS_PER_PAGE = 10;
 export default function PhotosPage() {
   const { t, i18n } = useTranslation();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const autoSlideshow = searchParams.get('slideshow') === '1';
   const user = useUserStore((state) => state.user);
   const memberRole = useMemberStore((state) => state.member?.role);
   const site = useSiteStore((state) => state.siteInfo);
@@ -89,18 +91,20 @@ export default function PhotosPage() {
     }
   }, [editTarget, items, canEditOccurrence]);
 
-  const loadFeed = useCallback(async (pageNum = 0): Promise<boolean> => {
+  const offsetRef = useRef(0);
+
+  const loadFeed = useCallback(async (pageNum = 0, limit = ITEMS_PER_PAGE): Promise<boolean> => {
     if (!mountedRef.current) return false;
 
     const isInitialLoad = pageNum === 0;
     if (isInitialLoad) {
       setLoading(true);
+      offsetRef.current = 0;
     } else {
       setLoadingMore(true);
     }
     setError('');
     try {
-      const offset = pageNum * ITEMS_PER_PAGE;
       const data = await apiFetch<{
         items: Occurrence[];
         events?: Record<string, { name: string }>;
@@ -108,14 +112,15 @@ export default function PhotosPage() {
       }>(ApiRoute.SITE_PICTURES, {
         queryParams: {
           locale: i18n.language,
-          limit: String(ITEMS_PER_PAGE),
-          offset: String(offset),
+          limit: String(limit),
+          offset: String(offsetRef.current),
         },
       });
       if (!mountedRef.current) return false;
       const list: Occurrence[] = Array.isArray(data.items) ? data.items : [];
 
-      setHasMore(list.length === ITEMS_PER_PAGE);
+      offsetRef.current += list.length;
+      setHasMore(list.length === limit);
 
       if (isInitialLoad) {
         setItems(list);
@@ -144,26 +149,28 @@ export default function PhotosPage() {
       if (!mountedRef.current) return true;
       setAuthors(prev => ({ ...prev, ...normalizedAuthors }));
 
-      const likesMap: Record<string, ImageLikeMeta[]> = {};
-      await Promise.all(
-        list.map(async (occ) => {
-          try {
-            const likeResponse = occ.type === 'gallery'
-              ? await apiFetch<{ items: ImageLikeMeta[] }>(ApiRoute.SITE_PHOTO_IMAGE_LIKES, {
-                  pathParams: { photoId: occ.id },
-                })
-              : await apiFetch<{ items: ImageLikeMeta[] }>(ApiRoute.SITE_ANNIVERSARY_EVENT_IMAGE_LIKES, {
-                  pathParams: { anniversaryId: occ.eventId!, eventId: occ.id },
-                });
-
-            likesMap[occ.id] = Array.isArray(likeResponse.items) ? likeResponse.items : [];
-          } catch (err) {
-            console.error('[photos] like fetch failed', err);
-          }
+      // Fire-and-forget: batch-fetch likes in a single request, don't block rendering
+      const likesItems = list
+        .filter((occ) => (occ.imagesResized?.length ?? 0) > 0)
+        .map((occ) => ({
+          id: occ.id,
+          type: occ.type ?? 'occurrence',
+          imageCount: occ.imagesResized!.length,
+        }));
+      if (likesItems.length > 0) {
+        apiFetch<{ likes: Record<string, ImageLikeMeta[]> }>(ApiRoute.SITE_PICTURES_LIKES, {
+          method: 'POST',
+          body: { items: likesItems },
         })
-      );
-      if (!mountedRef.current) return true;
-      setLikes(prev => ({ ...prev, ...likesMap }));
+          .then((resp) => {
+            if (!mountedRef.current) return;
+            if (resp.likes) {
+              setLikes((prev) => ({ ...prev, ...resp.likes }));
+            }
+          })
+          .catch((err) => console.error('[photos] batch likes fetch failed', err));
+      }
+
       return true;
     } catch (e) {
       console.error('[photos] load error', e);
@@ -180,9 +187,19 @@ export default function PhotosPage() {
     }
   }, [i18n.language]);
 
+  // Initial load: in slideshow mode fetch just 1 item to start fast
   useEffect(() => {
-    void loadFeed();
-  }, [loadFeed]);
+    if (autoSlideshow) {
+      void loadFeed(0, 1).then((ok) => {
+        if (ok && mountedRef.current) {
+          // Immediately start loading the rest in the background
+          void loadFeed(1);
+        }
+      });
+    } else {
+      void loadFeed();
+    }
+  }, [loadFeed, autoSlideshow]);
 
   const loadMore = useCallback(async () => {
     if (loadingMore || !hasMore) return;
@@ -360,6 +377,7 @@ export default function PhotosPage() {
           onToggle={handleGridToggle}
           onTitleClick={handleTitleClick}
           getLightboxLink={getLightboxLink}
+          autoSlideshow={autoSlideshow}
         />
         {loadingMore && (
           <div className="p-4 text-center text-gray-500">

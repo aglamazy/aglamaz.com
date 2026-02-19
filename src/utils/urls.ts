@@ -35,6 +35,7 @@ export const routePaths: Record<AppRoute, string> = {
   [AppRoute.APP_SETTINGS]: '/app/settings',
   [AppRoute.APP_ANNIVERSARY_EVENT]: '/app/anniversaries/{id}/events/{eventId}',
   [AppRoute.APP_ANNIVERSARY_EVENT_NEW]: '/app/anniversaries/{id}/events/new',
+  [AppRoute.APP_SLIDESHOW]: '/app/slideshow',
 
   // Admin pages
   [AppRoute.ADMIN_DASHBOARD]: '/admin',
@@ -126,6 +127,7 @@ export const apiRoutePaths: Record<ApiRoute, string> = {
   [ApiRoute.SITE_PHOTOS]: '/api/site/{siteId}/photos',
   [ApiRoute.SITE_PHOTO_BY_ID]: '/api/site/{siteId}/photos/{photoId}',
   [ApiRoute.SITE_PHOTO_IMAGE_LIKES]: '/api/site/{siteId}/photos/{photoId}/image-likes',
+  [ApiRoute.SITE_PICTURES_LIKES]: '/api/site/{siteId}/pictures/likes',
 
   // Anniversaries & Calendar
   [ApiRoute.SITE_ANNIVERSARIES]: '/api/site/{siteId}/anniversaries',

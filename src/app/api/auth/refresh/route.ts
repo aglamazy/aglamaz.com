@@ -20,12 +20,6 @@ export async function POST(req: NextRequest) {
 
   const now = Date.now();
 
-  console.log('[refresh] ✅ Proactive token refresh triggered', {
-    userId: payload.sub,
-    email: payload.email,
-    timestamp: new Date().toISOString(),
-  });
-
   const access = signAccessToken(payload);
   const newRefresh = rotateRefreshToken(payload);
 

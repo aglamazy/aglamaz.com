@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { usePresentationModeStore } from '@/store/PresentationModeStore';
 import type { LikerInfo } from '@/types/likes';
 import LikersPopover from '@/components/photos/LikersPopover';
+import { AppRoute, getPath } from '@/utils/urls';
 
 export interface GridItem {
   key: string;
@@ -29,18 +30,24 @@ interface ImageGridProps {
   onToggle: (item: GridItem) => Promise<void> | void;
   onTitleClick?: (item: GridItem) => void;
   getLightboxLink?: (item: GridItem) => string | undefined;
+  autoSlideshow?: boolean;
 }
 
-export default function ImageGrid({ items, getMeta, onToggle, onTitleClick, getLightboxLink }: ImageGridProps) {
+export default function ImageGrid({ items, getMeta, onToggle, onTitleClick, getLightboxLink, autoSlideshow }: ImageGridProps) {
   const { t, i18n } = useTranslation();
   const [isMobile, setIsMobile] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
+  const [slideshowPlaying, setSlideshowPlaying] = useState(false);
+  const [slideshowSeconds, setSlideshowSeconds] = useState(6);
+  const [slideshowPrev, setSlideshowPrev] = useState<number | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showGestureHint, setShowGestureHint] = useState(false);
   const [presentationMode, setPresentationMode] = useState(false);
   const [likersPopover, setLikersPopover] = useState<{ item: GridItem; anchorEl: HTMLElement } | null>(null);
+  const [linkCopied, setLinkCopied] = useState(false);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const autoSlideshowTriggered = useRef(false);
   const prefetchedSrc = useRef<Set<string>>(new Set());
   const presentationListRef = useRef<HTMLDivElement | null>(null);
 
@@ -121,13 +128,64 @@ export default function ImageGrid({ items, getMeta, onToggle, onTitleClick, getL
     }
   }, [isMobile]);
 
+  // Stop slideshow when lightbox closes
+  useEffect(() => {
+    if (!lightboxOpen) {
+      setSlideshowPlaying(false);
+      setSlideshowPrev(null);
+    }
+  }, [lightboxOpen]);
+
+  // Auto-start slideshow when prop is set and items are ready
+  useEffect(() => {
+    if (!autoSlideshow || autoSlideshowTriggered.current || isMobile || items.length === 0) return;
+    autoSlideshowTriggered.current = true;
+    setLightboxIndex(0);
+    setLightboxOpen(true);
+    setSlideshowPlaying(true);
+  }, [autoSlideshow, isMobile, items.length]);
+
+  // Slideshow auto-advance timer
+  useEffect(() => {
+    if (!slideshowPlaying || !lightboxOpen || items.length <= 1) return;
+    const id = setInterval(() => {
+      setLightboxIndex((prev) => {
+        setSlideshowPrev(prev);
+        return (prev + 1) % items.length;
+      });
+    }, slideshowSeconds * 1000);
+    return () => clearInterval(id);
+  }, [slideshowPlaying, lightboxOpen, items.length, slideshowSeconds]);
+
+  // Clear slideshowPrev after crossfade transition
+  useEffect(() => {
+    if (slideshowPrev === null) return;
+    const id = setTimeout(() => setSlideshowPrev(null), 1100);
+    return () => clearTimeout(id);
+  }, [slideshowPrev]);
+
+  // Preload upcoming lightbox images during slideshow
+  useEffect(() => {
+    if (!slideshowPlaying || !lightboxOpen || items.length === 0) return;
+    for (let offset = 1; offset <= 2; offset++) {
+      const idx = (lightboxIndex + offset) % items.length;
+      const src = items[idx].lightboxSrc || items[idx].src;
+      if (src && !prefetchedSrc.current.has(src)) {
+        const img = new Image();
+        img.src = src;
+        prefetchedSrc.current.add(src);
+      }
+    }
+  }, [slideshowPlaying, lightboxOpen, lightboxIndex, items]);
+
   useEffect(() => {
     if (!lightboxOpen) return;
     const onKey = (e: KeyboardEvent) => {
       if (!lightboxOpen || items.length === 0) return;
-      if (e.key === 'Escape') { e.preventDefault(); setLightboxOpen(false); }
-      else if (e.key === 'ArrowLeft') { e.preventDefault(); setLightboxIndex((p) => (p - 1 + items.length) % items.length); }
-      else if (e.key === 'ArrowRight') { e.preventDefault(); setLightboxIndex((p) => (p + 1) % items.length); }
+      if (e.key === 'Escape') { e.preventDefault(); setSlideshowPlaying(false); setLightboxOpen(false); }
+      else if (e.key === ' ') { e.preventDefault(); setSlideshowPlaying((p) => !p); }
+      else if (e.key === 'ArrowLeft') { e.preventDefault(); setSlideshowPlaying(false); setLightboxIndex((p) => (p - 1 + items.length) % items.length); }
+      else if (e.key === 'ArrowRight') { e.preventDefault(); setSlideshowPlaying(false); setLightboxIndex((p) => (p + 1) % items.length); }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -434,8 +492,11 @@ export default function ImageGrid({ items, getMeta, onToggle, onTitleClick, getL
         const lbItem = items[lightboxIndex];
         const lbLink = getLightboxLink?.(lbItem);
         const lbTitle = lbItem.title || (lbItem.meta as Record<string, unknown> | undefined)?.groupTitle as string | undefined;
+        const kenBurnsClass = slideshowPlaying
+          ? styles.kenBurnsActive + ' ' + styles[`kenBurns${(lightboxIndex % 3) + 1}` as keyof typeof styles]
+          : '';
         return (
-          <div className={styles.lightboxBackdrop} onClick={() => setLightboxOpen(false)}>
+          <div className={styles.lightboxBackdrop} onClick={() => { setSlideshowPlaying(false); setLightboxOpen(false); }}>
             {lbTitle && (
               <div className={styles.lightboxHeader} dir={i18n.dir()} onClick={(e) => e.stopPropagation()}>
                 {lbLink ? (
@@ -447,9 +508,72 @@ export default function ImageGrid({ items, getMeta, onToggle, onTitleClick, getL
                 )}
               </div>
             )}
-            <button className={styles.navBtn + ' ' + styles.navLeft} onClick={(e) => { e.stopPropagation(); setLightboxIndex((p) => (p - 1 + items.length) % items.length); }}>‹</button>
-            <img src={lbItem.lightboxSrc || lbItem.src} alt="" className={styles.lightboxImg} onClick={(e) => e.stopPropagation()} />
-            <button className={styles.navBtn + ' ' + styles.navRight} onClick={(e) => { e.stopPropagation(); setLightboxIndex((p) => (p + 1) % items.length); }}>›</button>
+            <button className={styles.navBtn + ' ' + styles.navLeft} onClick={(e) => { e.stopPropagation(); setSlideshowPlaying(false); setLightboxIndex((p) => (p - 1 + items.length) % items.length); }}>‹</button>
+
+            {slideshowPlaying || slideshowPrev !== null ? (
+              <div className={styles.lightboxImageContainer} onClick={(e) => e.stopPropagation()}>
+                {slideshowPrev !== null && (
+                  <div className={styles.crossfadeLayerBack}>
+                    <img src={items[slideshowPrev].lightboxSrc || items[slideshowPrev].src} alt="" />
+                  </div>
+                )}
+                <div className={styles.crossfadeLayerFront}>
+                  <img
+                    src={lbItem.lightboxSrc || lbItem.src}
+                    alt=""
+                    className={kenBurnsClass}
+                    style={slideshowPlaying ? { animationDuration: `${slideshowSeconds}s` } : undefined}
+                    key={`kb-${lightboxIndex}`}
+                  />
+                </div>
+                {slideshowPlaying && (
+                  <div
+                    className={styles.slideshowProgressBar}
+                    style={{ animationDuration: `${slideshowSeconds}s` }}
+                    key={`prog-${lightboxIndex}`}
+                  />
+                )}
+              </div>
+            ) : (
+              <img src={lbItem.lightboxSrc || lbItem.src} alt="" className={styles.lightboxImg} onClick={(e) => e.stopPropagation()} />
+            )}
+
+            <button className={styles.navBtn + ' ' + styles.navRight} onClick={(e) => { e.stopPropagation(); setSlideshowPlaying(false); setLightboxIndex((p) => (p + 1) % items.length); }}>›</button>
+
+            <div className={styles.slideshowControls} onClick={(e) => e.stopPropagation()}>
+              <button
+                className={styles.slideshowPlayBtn}
+                onClick={() => setSlideshowPlaying((p) => !p)}
+                aria-label={t('slideshow') as string}
+              >
+                {slideshowPlaying ? '⏸' : '▶'}
+                <span>{t('slideshow')}</span>
+              </button>
+              <input
+                type="range"
+                min={2}
+                max={20}
+                step={1}
+                value={slideshowSeconds}
+                onChange={(e) => setSlideshowSeconds(Number(e.target.value))}
+                className={styles.slideshowSlider}
+                aria-label="Speed"
+              />
+              <span className={styles.slideshowSliderLabel}>{slideshowSeconds}s</span>
+              <button
+                className={styles.slideshowShareBtn}
+                onClick={() => {
+                  const url = new URL(getPath(AppRoute.APP_SLIDESHOW), window.location.origin);
+                  void navigator.clipboard.writeText(url.toString()).then(() => {
+                    setLinkCopied(true);
+                    setTimeout(() => setLinkCopied(false), 2000);
+                  });
+                }}
+                aria-label={t('copyLink') as string}
+              >
+                {linkCopied ? '✓' : '🔗'}
+              </button>
+            </div>
           </div>
         );
       })()}

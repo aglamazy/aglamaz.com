@@ -345,5 +345,6 @@
   "importedWithFailures": "{{imported}} içe aktarıldı, {{failed}} başarısız",
   "sharedFolder": "Paylaşılan klasör",
   "failedToBrowseFolder": "Klasöre göz atılamadı",
-  "importFailed": "İçe aktarma başarısız"
+  "importFailed": "İçe aktarma başarısız",
+  "slideshow": "Slayt Gösterisi"
 }

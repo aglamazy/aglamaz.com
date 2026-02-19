@@ -392,5 +392,6 @@
   "importedWithFailures": "יובאו {{imported}}, נכשלו {{failed}}",
   "sharedFolder": "תיקייה משותפת",
   "failedToBrowseFolder": "עיון בתיקייה נכשל",
-  "importFailed": "הייבוא נכשל"
+  "importFailed": "הייבוא נכשל",
+  "slideshow": "מצגת"
 }
