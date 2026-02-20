@@ -259,9 +259,9 @@ export default function PicturesFeedPage() {
   }, [cacheHydrated, i18n.language, persistFeedCache]);
 
   useEffect(() => {
-    if (!cacheHydrated) return;
+    if (!cacheHydrated || !memberRole) return;
     void loadFeed();
-  }, [loadFeed, cacheHydrated]);
+  }, [loadFeed, cacheHydrated, memberRole]);
 
   const loadMore = useCallback(async () => {
     if (loadingMore || !hasMore) return;

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { FamilyRepository } from '@/repositories/FamilyRepository';
 import { adminNotificationService } from '@/services/AdminNotificationService';
+import { sentMessageRepository } from '@/repositories/SentMessageRepository';
 
 export async function POST(request: NextRequest) {
   try {
@@ -25,6 +26,11 @@ export async function POST(request: NextRequest) {
       firstName: signupRequest.firstName,
       email: signupRequest.email,
     }, origin);
+
+    // Mark as sent so the login API side-effect won't send a duplicate
+    const email = signupRequest.email.toLowerCase().trim();
+    const key = `${signupRequest.siteId}_${email}`;
+    await sentMessageRepository.markSent('pending_member_reminder', key);
 
     return NextResponse.json({
       success: true,
