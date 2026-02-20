@@ -38,9 +38,9 @@ export const routePaths: Record<AppRoute, string> = {
   [AppRoute.APP_SLIDESHOW]: '/app/slideshow',
 
   // Admin pages
-  [AppRoute.ADMIN_DASHBOARD]: '/admin',
+  [AppRoute.ADMIN_DASHBOARD]: '/admin/dashboard',
   [AppRoute.ADMIN_SITE_MEMBERS]: '/admin/site-members',
-  [AppRoute.ADMIN_PENDING_MEMBERS]: '/admin/pending',
+  [AppRoute.ADMIN_PENDING_MEMBERS]: '/admin/pending-members',
   [AppRoute.ADMIN_ANNIVERSARIES]: '/admin/anniversaries',
 };
 
