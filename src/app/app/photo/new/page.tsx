@@ -11,6 +11,7 @@ import { ImageStore } from '@/store/ImageStore';
 import ImageUploadArea from '@/components/ui/ImageUploadArea';
 import DateInput from '@/components/ui/DateInput';
 import { ApiRoute } from '@/utils/urls';
+import { ensureDecodableImage } from '@/utils/heicConvert';
 
 export default function NewPhotoPage() {
   const { t, i18n } = useTranslation();
@@ -69,10 +70,11 @@ export default function NewPhotoPage() {
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    if (files.length === 0) return;
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const rawFiles = Array.from(e.target.files || []);
+    if (rawFiles.length === 0) return;
 
+    const files = await Promise.all(rawFiles.map(ensureDecodableImage));
     setImageFiles(files);
     setPreviews(files.map((f) => URL.createObjectURL(f)));
   };

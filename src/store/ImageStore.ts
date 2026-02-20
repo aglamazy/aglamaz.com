@@ -1,11 +1,13 @@
 import { initFirebase, auth, ensureFirebaseSignedIn } from '@/firebase/client';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ensureDecodableImage } from '@/utils/heicConvert';
 
 export class ImageStore {
   /**
    * Resize and convert image to WebP format
    */
   static async resizeToWebp(file: File, maxWidth = 1600, quality = 0.9): Promise<Blob> {
+    file = await ensureDecodableImage(file);
     const img = document.createElement('img');
     img.decoding = 'async';
     img.src = URL.createObjectURL(file);

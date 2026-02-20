@@ -16,7 +16,7 @@ export default function ImageUploadArea({
   onFileChange,
   onRemoveImage,
   multiple = false,
-  accept = 'image/*',
+  accept = 'image/*,.heic,.heif',
 }: ImageUploadAreaProps) {
   const { t } = useTranslation();
 
