@@ -38,6 +38,7 @@ export default function AnniversariesPage() {
   const [error, setError] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const calendarMonthKey = 'calendar-selected-month';
   const [selectedEvent, setSelectedEvent] = useState<AnniversaryEvent | null>(null);
   const [editEvent, setEditEvent] = useState<AnniversaryEvent | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -80,6 +81,23 @@ export default function AnniversariesPage() {
       imgRef.current.style.setProperty('--offset-y', `${offsetY}px`);
     }
   }, [offsetY]);
+
+  // Restore selected month from sessionStorage on mount
+  useEffect(() => {
+    const stored = sessionStorage.getItem(calendarMonthKey);
+    if (stored) {
+      const [y, m] = stored.split('-').map(Number);
+      if (!isNaN(y) && !isNaN(m)) {
+        setSelectedDate(new Date(y, m - 1, 1));
+      }
+    }
+  }, []);
+
+  // Persist selected month to sessionStorage whenever it changes
+  useEffect(() => {
+    const key = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}`;
+    sessionStorage.setItem(calendarMonthKey, key);
+  }, [selectedDate]);
 
   const fetchEvents = async (y: number, m: number) => {
     setLoading(true);
