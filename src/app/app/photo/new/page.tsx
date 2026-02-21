@@ -8,10 +8,12 @@ import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 import { apiFetch } from '@/utils/apiFetch';
 import { ImageStore } from '@/store/ImageStore';
-import ImageUploadArea from '@/components/ui/ImageUploadArea';
+import ImageUploadArea, { type PreviewItem } from '@/components/ui/ImageUploadArea';
 import DateInput from '@/components/ui/DateInput';
 import { ApiRoute } from '@/utils/urls';
 import { ensureDecodableImage } from '@/utils/heicConvert';
+
+const MAX_VIDEO_SIZE = 50 * 1024 * 1024; // 50 MB
 
 export default function NewPhotoPage() {
   const { t, i18n } = useTranslation();
@@ -25,7 +27,8 @@ export default function NewPhotoPage() {
   });
   const [description, setDescription] = useState('');
   const [imageFiles, setImageFiles] = useState<File[]>([]);
-  const [previews, setPreviews] = useState<string[]>([]);
+  const [videoFiles, setVideoFiles] = useState<File[]>([]);
+  const [previews, setPreviews] = useState<PreviewItem[]>([]);
   const [anniversaryId, setAnniversaryId] = useState<string>('');
   const [anniversaries, setAnniversaries] = useState<Array<{ id: string; name: string }>>([]);
   const [saving, setSaving] = useState(false);
@@ -74,15 +77,45 @@ export default function NewPhotoPage() {
     const rawFiles = Array.from(e.target.files || []);
     if (rawFiles.length === 0) return;
 
-    const files = await Promise.all(rawFiles.map(ensureDecodableImage));
-    setImageFiles(files);
-    setPreviews(files.map((f) => URL.createObjectURL(f)));
+    const newImages: File[] = [];
+    const newVideos: File[] = [];
+    const newPreviews: PreviewItem[] = [];
+
+    for (const file of rawFiles) {
+      if (file.type.startsWith('video/')) {
+        if (file.size > MAX_VIDEO_SIZE) {
+          setError(
+            t('videoTooLarge', { size: (file.size / 1024 / 1024).toFixed(1) }) ||
+            `Video "${file.name}" exceeds 50 MB limit (${(file.size / 1024 / 1024).toFixed(1)} MB)`
+          );
+          return;
+        }
+        newVideos.push(file);
+        newPreviews.push({ url: URL.createObjectURL(file), type: 'video' });
+      } else {
+        const decoded = await ensureDecodableImage(file);
+        newImages.push(decoded);
+        newPreviews.push({ url: URL.createObjectURL(decoded), type: 'image' });
+      }
+    }
+
+    setImageFiles(newImages);
+    setVideoFiles(newVideos);
+    setPreviews(newPreviews);
   };
 
   const removeImage = (index: number) => {
-    setImageFiles(prev => prev.filter((_, i) => i !== index));
+    // Determine which list this index falls into based on previews
+    const preview = previews[index];
+    if (preview.type === 'video') {
+      const videoIndex = previews.slice(0, index).filter(p => p.type === 'video').length;
+      setVideoFiles(prev => prev.filter((_, i) => i !== videoIndex));
+    } else {
+      const imageIndex = previews.slice(0, index).filter(p => p.type === 'image').length;
+      setImageFiles(prev => prev.filter((_, i) => i !== imageIndex));
+    }
     setPreviews(prev => {
-      URL.revokeObjectURL(prev[index]);
+      URL.revokeObjectURL(prev[index].url);
       return prev.filter((_, i) => i !== index);
     });
   };
@@ -91,8 +124,8 @@ export default function NewPhotoPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (imageFiles.length === 0) {
-      setError(t('pleaseSelectAtLeastOneImage') || 'Please select at least one image');
+    if (imageFiles.length === 0 && videoFiles.length === 0) {
+      setError(t('pleaseSelectAtLeastOneImage') || 'Please select at least one image or video');
       return;
     }
 
@@ -106,12 +139,15 @@ export default function NewPhotoPage() {
     setError('');
 
     try {
-      // Upload images to Firebase Storage
-      const imageUrls = await Promise.all(
-        imageFiles.map(async (file) => {
-          return await ImageStore.uploadGalleryPhoto(file, 1600, 0.9);
-        })
-      );
+      // Upload images and videos to Firebase Storage
+      const [imageUrls, videoUrls] = await Promise.all([
+        Promise.all(
+          imageFiles.map((file) => ImageStore.uploadGalleryPhoto(file, 1600, 0.9))
+        ),
+        Promise.all(
+          videoFiles.map((file) => ImageStore.uploadGalleryVideo(file))
+        ),
+      ]);
 
       setUploading(false);
 
@@ -121,14 +157,15 @@ export default function NewPhotoPage() {
         body: {
           date,
           images: imageUrls,
+          videos: videoUrls.length > 0 ? videoUrls : undefined,
           description: description.trim() || undefined,
           anniversaryId: anniversaryId || undefined,
           locale: i18n.language,
         },
       });
 
-      // Navigate back to feed
-      router.push('/app');
+      // Navigate back to the page that led here
+      router.back();
     } catch (err) {
       console.error('Upload failed:', err);
       setError((err as Error).message || t('uploadFailed') || 'Upload failed');
@@ -235,7 +272,7 @@ export default function NewPhotoPage() {
           <Button
             type="submit"
             className="flex-1"
-            disabled={saving || imageFiles.length === 0}
+            disabled={saving || (imageFiles.length === 0 && videoFiles.length === 0)}
           >
             {uploading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
             {saving ? (t('uploading') || 'Uploading...') : (t('upload') || 'Upload')}

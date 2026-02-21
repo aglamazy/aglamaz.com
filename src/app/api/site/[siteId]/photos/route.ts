@@ -25,15 +25,18 @@ const postHandler = async (request: Request, context: GuardContext) => {
 
     const user = context.user!;
     const body = await request.json();
-    const { date, images, description, anniversaryId, locale } = body;
+    const { date, images, videos, description, anniversaryId, locale } = body;
 
     // Validation
     if (!date) {
       return Response.json({ error: 'Date is required' }, { status: 400 });
     }
 
-    if (!Array.isArray(images) || images.length === 0) {
-      return Response.json({ error: 'At least one image is required' }, { status: 400 });
+    const hasImages = Array.isArray(images) && images.length > 0;
+    const hasVideos = Array.isArray(videos) && videos.length > 0;
+
+    if (!hasImages && !hasVideos) {
+      return Response.json({ error: 'At least one image or video is required' }, { status: 400 });
     }
 
     if (!locale || typeof locale !== 'string') {
@@ -41,28 +44,41 @@ const postHandler = async (request: Request, context: GuardContext) => {
     }
 
     // Validate image URLs
-    for (const img of images) {
-      if (typeof img !== 'string' || !img.startsWith('https://')) {
-        return Response.json({ error: 'Invalid image URL' }, { status: 400 });
+    if (hasImages) {
+      for (const img of images) {
+        if (typeof img !== 'string' || !img.startsWith('https://')) {
+          return Response.json({ error: 'Invalid image URL' }, { status: 400 });
+        }
       }
     }
 
-    // Extract dimensions for all images
-    console.log('[photos] Extracting dimensions for', images.length, 'images');
-    const dimensions = await extractImageDimensions(images);
-
-    // Combine URLs with dimensions
-    const imagesWithDimensions = images.map((url, index) => {
-      const dim = dimensions[index];
-      if (!dim) {
-        throw new Error(`Failed to extract dimensions for image at index ${index}`);
+    // Validate video URLs
+    if (hasVideos) {
+      for (const vid of videos) {
+        if (typeof vid !== 'string' || !vid.startsWith('https://')) {
+          return Response.json({ error: 'Invalid video URL' }, { status: 400 });
+        }
       }
-      return {
-        url,
-        width: dim.width,
-        height: dim.height
-      };
-    });
+    }
+
+    // Extract dimensions for images (skip if no images)
+    let imagesWithDimensions: Array<{ url: string; width: number; height: number }> = [];
+    if (hasImages) {
+      console.log('[photos] Extracting dimensions for', images.length, 'images');
+      const dimensions = await extractImageDimensions(images);
+
+      imagesWithDimensions = images.map((url: string, index: number) => {
+        const dim = dimensions[index];
+        if (!dim) {
+          throw new Error(`Failed to extract dimensions for image at index ${index}`);
+        }
+        return {
+          url,
+          width: dim.width,
+          height: dim.height
+        };
+      });
+    }
 
     const repo = new GalleryPhotoRepository();
     const photo = await repo.create({
@@ -70,6 +86,7 @@ const postHandler = async (request: Request, context: GuardContext) => {
       createdBy: user.userId,
       date: new Date(date),
       imagesWithDimensions,
+      videos: hasVideos ? videos : undefined,
       description: description?.trim() || '',
       anniversaryId: anniversaryId || undefined,
       locale,

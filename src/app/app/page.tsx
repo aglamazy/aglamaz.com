@@ -40,6 +40,7 @@ type Occurrence = {
   anniversaryId?: string; // anniversary id (for gallery photos)
   date: any;
   imagesResized?: ImageSizes[]; // Images with multiple sizes and dimensions from API
+  videos?: string[]; // Optional video URLs
   createdBy?: string;
   description?: string;
 };
@@ -152,8 +153,12 @@ export default function PicturesFeedPage() {
     }
   }, [editTarget, items, canEditOccurrence]);
 
+  const loadingRef = useRef(false);
+
   const loadFeed = useCallback(async (pageNum = 0): Promise<boolean> => {
     if (!mountedRef.current) return false;
+    if (loadingRef.current) return false;
+    loadingRef.current = true;
 
     const isInitialLoad = pageNum === 0;
     if (isInitialLoad) {
@@ -221,33 +226,35 @@ export default function PicturesFeedPage() {
         });
       }
 
-      const likesMap: Record<string, ImageLikeMeta[]> = {};
-      await Promise.all(
-        list.map(async (occ) => {
-          try {
-            // Use different endpoints for occurrence vs gallery photos
-            const likeResponse = occ.type === 'gallery'
-              ? await apiFetch<{ items: ImageLikeMeta[] }>(ApiRoute.SITE_PHOTO_IMAGE_LIKES, {
-                  pathParams: { photoId: occ.id },
-                })
-              : await apiFetch<{ items: ImageLikeMeta[] }>(ApiRoute.SITE_ANNIVERSARY_EVENT_IMAGE_LIKES, {
-                  pathParams: { anniversaryId: occ.eventId!, eventId: occ.id },
-                });
-
-            likesMap[occ.id] = Array.isArray(likeResponse.items) ? likeResponse.items : [];
-          } catch (err) {
-            console.error('[feed] like fetch failed', err);
+      // Batch-fetch likes for all items in a single request
+      const likesItems = list
+        .filter((occ) => (occ.imagesResized?.length ?? 0) + (occ.videos?.length ?? 0) > 0)
+        .map((occ) => ({
+          id: occ.id,
+          type: occ.type ?? 'occurrence',
+          imageCount: (occ.imagesResized?.length ?? 0) + (occ.videos?.length ?? 0),
+        }));
+      if (likesItems.length > 0) {
+        try {
+          const resp = await apiFetch<{ likes: Record<string, ImageLikeMeta[]> }>(ApiRoute.SITE_PICTURES_LIKES, {
+            method: 'POST',
+            body: { items: likesItems },
+          });
+          if (!mountedRef.current) return true;
+          if (resp.likes) {
+            setLikes(prev => ({ ...prev, ...resp.likes }));
           }
-        })
-      );
-      if (!mountedRef.current) return true;
-      setLikes(prev => ({ ...prev, ...likesMap }));
+        } catch (err) {
+          console.error('[feed] batch likes fetch failed', err);
+        }
+      }
       return true;
     } catch (e) {
       console.error('[feed] load error', e);
       if (mountedRef.current) setError('load');
       return false;
     } finally {
+      loadingRef.current = false;
       if (mountedRef.current) {
         if (isInitialLoad) {
           setLoading(false);
@@ -317,6 +324,7 @@ export default function PicturesFeedPage() {
       globalImageIndex: number;
       width?: number;
       height?: number;
+      mediaType?: 'image' | 'video';
     }> = [];
     let globalImageIndex = 0;
     for (const occ of items) {
@@ -333,14 +341,13 @@ export default function PicturesFeedPage() {
       const js = typeof sec === 'number' ? new Date(sec * 1000) : (d?.toDate ? d.toDate() : new Date(d));
       const dateText = formatLocalizedDate(js, i18n.language);
 
-      eventImages.forEach((image, i) => {
-        const creatorId = occ.createdBy;
-        if (!creatorId) {
-          throw new Error(`[PicturesFeedPage] missing creatorId for ${occ.type || 'item'} ${occ.id}`);
-        }
-        // Allow edit for both occurrences and gallery photos (if user is creator or admin)
-        const canEdit = canEditOccurrence(creatorId);
+      const creatorId = occ.createdBy;
+      if (!creatorId) {
+        throw new Error(`[PicturesFeedPage] missing creatorId for ${occ.type || 'item'} ${occ.id}`);
+      }
+      const canEdit = canEditOccurrence(creatorId);
 
+      eventImages.forEach((image, i) => {
         // Extract different sizes for different contexts
         const src = image.original;
         const srcMobile = image['800x800'] || src;
@@ -367,6 +374,31 @@ export default function PicturesFeedPage() {
           globalImageIndex: globalImageIndex++,
           width: image.width,
           height: image.height,
+        });
+      });
+
+      // Add video items
+      const occVideos = occ.videos || [];
+      occVideos.forEach((videoUrl, vi) => {
+        flat.push({
+          src: videoUrl,
+          srcMobile: videoUrl,
+          srcDesktopGrid: videoUrl,
+          srcDesktopLightbox: videoUrl,
+          occId: occ.id,
+          annId,
+          idx: eventImages.length + vi,
+          key: `${occ.id}:v${vi}`,
+          creatorId,
+          dir: textDirection,
+          canEdit,
+          eventName,
+          occDescription,
+          dateText,
+          showHeader: eventImages.length === 0 && vi === 0,
+          type: occ.type,
+          globalImageIndex: globalImageIndex++,
+          mediaType: 'video',
         });
       });
     }
@@ -492,8 +524,9 @@ export default function PicturesFeedPage() {
   const heroTitle = t('welcomeToSite', { name: siteDisplayName }) as string;
   const aboutFamily = site?.aboutFamily;
 
-  // Preload first image for faster LCP
-  const firstImageSrc = feed.length > 0 ? feed[0].src : null;
+  // Preload first image for faster LCP (skip videos)
+  const firstImageItem = feed.find(f => f.mediaType !== 'video');
+  const firstImageSrc = firstImageItem?.src ?? null;
 
   return (
     <>
@@ -583,6 +616,7 @@ interface MobileFeedItemProps {
     dateText: string;
     showHeader: boolean;
     type?: 'occurrence' | 'gallery';
+    mediaType?: 'image' | 'video';
   } & { occId: string; annId: string; idx: number };
   title?: string;
   meta: ImageLikeMeta;
@@ -638,22 +672,35 @@ function MobileFeedItem({ item, title, meta, author, onToggle, onShowLikers, t, 
         )
       ) : null}
       <div style={{ position: 'relative' }}>
-        <ShimmerImage
-          src={item.src}
-          alt={title || ''}
-          useDefaultStyles={false}
-          wrapperClassName={wrapperClass}
-          imageClassName={feedStyles.mobileContinuousImage}
-          loadingClassName={feedStyles.mobileContinuousImageWrapLoading}
-          hiddenClassName={feedStyles.mobileContinuousImageHidden}
-          visibleClassName={feedStyles.mobileContinuousImageVisible}
-          shimmerClassName={feedStyles.mobileShimmer}
-          onLoadStateChange={setLoaded}
-          loading={imageLoading}
-          fetchPriority={imagePriority}
-          width={imageWidth}
-          height={imageHeight}
-        />
+        {item.mediaType === 'video' ? (
+          <div className={wrapperClass}>
+            <video
+              src={item.src}
+              controls
+              playsInline
+              className={feedStyles.mobileContinuousImage}
+              style={{ width: '100%', display: 'block' }}
+              onLoadedData={() => setLoaded(true)}
+            />
+          </div>
+        ) : (
+          <ShimmerImage
+            src={item.src}
+            alt={title || ''}
+            useDefaultStyles={false}
+            wrapperClassName={wrapperClass}
+            imageClassName={feedStyles.mobileContinuousImage}
+            loadingClassName={feedStyles.mobileContinuousImageWrapLoading}
+            hiddenClassName={feedStyles.mobileContinuousImageHidden}
+            visibleClassName={feedStyles.mobileContinuousImageVisible}
+            shimmerClassName={feedStyles.mobileShimmer}
+            onLoadStateChange={setLoaded}
+            loading={imageLoading}
+            fetchPriority={imagePriority}
+            width={imageWidth}
+            height={imageHeight}
+          />
+        )}
         <div className={metaRowClass}>
           <div className={feedStyles.mobileAuthorAvatar}>
             <img src={avatarUrl} alt="" className={feedStyles.mobileAuthorAvatarImage} />

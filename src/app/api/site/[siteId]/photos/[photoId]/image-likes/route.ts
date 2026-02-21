@@ -43,11 +43,12 @@ const getHandler = async (request: Request, context: GuardContext & { params: Pr
       return Response.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Fetch likes for all images (with first 3 likers for avatar stack)
+    // Fetch likes for all images and videos (with first 3 likers for avatar stack)
     const likeRepo = new ImageLikeRepository();
     const items = [];
+    const totalMedia = photo.imagesWithDimensions.length + (photo.videos?.length ?? 0);
 
-    for (let i = 0; i < photo.imagesWithDimensions.length; i++) {
+    for (let i = 0; i < totalMedia; i++) {
       const result = await likeRepo.getLikesForImage(
         photoId,
         i,
@@ -116,8 +117,9 @@ const postHandler = async (request: Request, context: GuardContext & { params: P
       return Response.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Verify imageIndex is valid
-    if (imageIndex >= photo.imagesWithDimensions.length) {
+    // Verify imageIndex is valid (images + videos)
+    const totalMedia = photo.imagesWithDimensions.length + (photo.videos?.length ?? 0);
+    if (imageIndex >= totalMedia) {
       return Response.json({ error: 'Invalid imageIndex' }, { status: 400 });
     }
 

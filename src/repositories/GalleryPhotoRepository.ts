@@ -10,6 +10,7 @@ export interface GalleryPhoto extends LocalizableDocument {
   createdAt: Timestamp;
   date: Timestamp; // Display date for the photo
   imagesWithDimensions: ImageWithDimension[]; // Images with dimensions
+  videos?: string[]; // Optional video URLs
   anniversaryId?: string; // Optional link to anniversary
   deletedAt: Timestamp | null; // null for active, Timestamp for soft delete
 }
@@ -27,28 +28,32 @@ export class GalleryPhotoRepository {
     createdBy: string;
     date: Date;
     imagesWithDimensions: ImageWithDimension[];
+    videos?: string[];
     description: string;
     anniversaryId?: string;
     locale: string;
   }): Promise<GalleryPhoto> {
     const db = this.getDb();
 
-    // Validate images
-    if (!Array.isArray(data.imagesWithDimensions) || data.imagesWithDimensions.length === 0) {
-      throw new Error('At least one image with dimensions is required');
+    // Validate at least one image or video
+    const hasImages = Array.isArray(data.imagesWithDimensions) && data.imagesWithDimensions.length > 0;
+    const hasVideos = Array.isArray(data.videos) && data.videos.length > 0;
+    if (!hasImages && !hasVideos) {
+      throw new Error('At least one image or video is required');
     }
 
     const now = Timestamp.now();
 
     // Build localized description structure (nested object for add(), not dot notation)
-    const docToSave = {
+    const docToSave: Record<string, any> = {
       siteId: data.siteId,
       createdBy: data.createdBy,
       date: Timestamp.fromDate(data.date),
       createdAt: now,
-      imagesWithDimensions: data.imagesWithDimensions,
+      imagesWithDimensions: data.imagesWithDimensions || [],
       anniversaryId: data.anniversaryId || null,
       deletedAt: null,
+      ...(hasVideos ? { videos: data.videos } : {}),
       locales: {
         [data.locale]: {
           description: data.description,
@@ -131,6 +136,7 @@ export class GalleryPhotoRepository {
     updates: {
       date?: Date;
       imagesWithDimensions?: ImageWithDimension[];
+      videos?: string[];
       description?: string;
       anniversaryId?: string | null;
       locale?: string;
@@ -168,6 +174,7 @@ export class GalleryPhotoRepository {
     // Handle non-localized fields
     if (updates.date) data.date = Timestamp.fromDate(updates.date);
     if (updates.imagesWithDimensions !== undefined) data.imagesWithDimensions = updates.imagesWithDimensions;
+    if (updates.videos !== undefined) data.videos = updates.videos;
     if (updates.anniversaryId !== undefined) data.anniversaryId = updates.anniversaryId;
 
     // Only update non-localized fields if there are any

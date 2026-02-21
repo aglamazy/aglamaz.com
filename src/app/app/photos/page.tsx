@@ -14,6 +14,7 @@ import { useSiteStore } from '@/store/SiteStore';
 import { formatLocalizedDate } from '@/utils/dateFormat';
 import type { ImageLikeMeta } from '@/types/likes';
 import { useAddAction } from '@/hooks/useAddAction';
+import AddFab from '@/components/ui/AddFab';
 import { ApiRoute } from '@/utils/urls';
 
 type ImageSizes = {
@@ -32,6 +33,7 @@ type Occurrence = {
   anniversaryId?: string;
   date: any;
   imagesResized?: ImageSizes[];
+  videos?: string[];
   createdBy?: string;
   description?: string;
 };
@@ -92,9 +94,12 @@ export default function PhotosPage() {
   }, [editTarget, items, canEditOccurrence]);
 
   const offsetRef = useRef(0);
+  const loadingRef = useRef(false);
 
   const loadFeed = useCallback(async (pageNum = 0, limit = ITEMS_PER_PAGE): Promise<boolean> => {
     if (!mountedRef.current) return false;
+    if (loadingRef.current) return false;
+    loadingRef.current = true;
 
     const isInitialLoad = pageNum === 0;
     if (isInitialLoad) {
@@ -130,6 +135,28 @@ export default function PhotosPage() {
 
       setEventNames(prev => ({ ...prev, ...(data.events || {}) }));
 
+      // Fire likes fetch immediately — don't wait for author processing
+      const likesItems = list
+        .filter((occ) => (occ.imagesResized?.length ?? 0) + (occ.videos?.length ?? 0) > 0)
+        .map((occ) => ({
+          id: occ.id,
+          type: occ.type ?? 'occurrence',
+          imageCount: (occ.imagesResized?.length ?? 0) + (occ.videos?.length ?? 0),
+        }));
+      if (likesItems.length > 0) {
+        apiFetch<{ likes: Record<string, ImageLikeMeta[]> }>(ApiRoute.SITE_PICTURES_LIKES, {
+          method: 'POST',
+          body: { items: likesItems },
+        })
+          .then((resp) => {
+            if (!mountedRef.current) return;
+            if (resp.likes) {
+              setLikes((prev) => ({ ...prev, ...resp.likes }));
+            }
+          })
+          .catch((err) => console.error('[photos] batch likes fetch failed', err));
+      }
+
       const rawAuthors = data.authors;
       if (!rawAuthors || typeof rawAuthors !== 'object') {
         throw new Error('[PhotosPage] authors payload missing');
@@ -149,34 +176,13 @@ export default function PhotosPage() {
       if (!mountedRef.current) return true;
       setAuthors(prev => ({ ...prev, ...normalizedAuthors }));
 
-      // Fire-and-forget: batch-fetch likes in a single request, don't block rendering
-      const likesItems = list
-        .filter((occ) => (occ.imagesResized?.length ?? 0) > 0)
-        .map((occ) => ({
-          id: occ.id,
-          type: occ.type ?? 'occurrence',
-          imageCount: occ.imagesResized!.length,
-        }));
-      if (likesItems.length > 0) {
-        apiFetch<{ likes: Record<string, ImageLikeMeta[]> }>(ApiRoute.SITE_PICTURES_LIKES, {
-          method: 'POST',
-          body: { items: likesItems },
-        })
-          .then((resp) => {
-            if (!mountedRef.current) return;
-            if (resp.likes) {
-              setLikes((prev) => ({ ...prev, ...resp.likes }));
-            }
-          })
-          .catch((err) => console.error('[photos] batch likes fetch failed', err));
-      }
-
       return true;
     } catch (e) {
       console.error('[photos] load error', e);
       if (mountedRef.current) setError('load');
       return false;
     } finally {
+      loadingRef.current = false;
       if (mountedRef.current) {
         if (isInitialLoad) {
           setLoading(false);
@@ -188,7 +194,10 @@ export default function PhotosPage() {
   }, [i18n.language]);
 
   // Initial load: in slideshow mode fetch just 1 item to start fast
+  const initialLoadDone = useRef(false);
   useEffect(() => {
+    if (initialLoadDone.current) return;
+    initialLoadDone.current = true;
     if (autoSlideshow) {
       void loadFeed(0, 1).then((ok) => {
         if (ok && mountedRef.current) {
@@ -244,13 +253,13 @@ export default function PhotosPage() {
       const baseLabel = occDescription || eventName;
       const title = [baseLabel, dateText].filter(Boolean).join(' — ');
 
-      eventImages.forEach((image, i) => {
-        const creatorId = occ.createdBy;
-        if (!creatorId) {
-          throw new Error(`[PhotosPage] missing creatorId for ${occ.type || 'item'} ${occ.id}`);
-        }
-        const canEdit = canEditOccurrence(creatorId);
+      const creatorId = occ.createdBy;
+      if (!creatorId) {
+        throw new Error(`[PhotosPage] missing creatorId for ${occ.type || 'item'} ${occ.id}`);
+      }
+      const canEdit = canEditOccurrence(creatorId);
 
+      eventImages.forEach((image, i) => {
         flat.push({
           key: `${occ.id}:${i}`,
           src: image['400x400'] || image.original,
@@ -258,6 +267,19 @@ export default function PhotosPage() {
           title: i === 0 ? title : undefined,
           dir: textDirection,
           meta: { occId: occ.id, annId, idx: i, canEdit, type: occ.type, creatorId, groupTitle: title },
+        });
+      });
+
+      // Add video items
+      const occVideos = occ.videos || [];
+      occVideos.forEach((videoUrl, vi) => {
+        flat.push({
+          key: `${occ.id}:v${vi}`,
+          src: videoUrl,
+          title: eventImages.length === 0 && vi === 0 ? title : undefined,
+          dir: textDirection,
+          mediaType: 'video',
+          meta: { occId: occ.id, annId, idx: eventImages.length + vi, canEdit, type: occ.type, creatorId, groupTitle: title },
         });
       });
     }
@@ -385,6 +407,8 @@ export default function PhotosPage() {
           </div>
         )}
       </div>
+
+      <AddFab onClick={() => router.push('/app/photo/new')} ariaLabel={t('uploadPhoto')} />
 
       {editTarget && currentOccurrence && canEditCurrent && (
         <OccurrenceEditModal

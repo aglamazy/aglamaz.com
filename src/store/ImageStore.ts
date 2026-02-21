@@ -101,6 +101,39 @@ export class ImageStore {
     return this.uploadImage(file, 'anniversaries');
   }
 
+  private static readonly MAX_VIDEO_SIZE = 50 * 1024 * 1024; // 50 MB
+
+  /**
+   * Upload a video file to Firebase Storage (no conversion/resizing)
+   */
+  static async uploadGalleryVideo(file: File): Promise<string> {
+    if (!file.type.startsWith('video/')) {
+      throw new Error('File is not a video');
+    }
+    if (file.size > this.MAX_VIDEO_SIZE) {
+      throw new Error(`Video exceeds 50 MB limit (${(file.size / 1024 / 1024).toFixed(1)} MB)`);
+    }
+
+    initFirebase();
+    await ensureFirebaseSignedIn();
+
+    const currentUser = auth().currentUser;
+    if (!currentUser) {
+      throw new Error('Not signed in to Firebase');
+    }
+
+    const fileName = `${Date.now()}.mp4`;
+    const storage = getStorage();
+    const storageRef = ref(storage, `gallery/${currentUser.uid}/${fileName}`);
+
+    await uploadBytes(storageRef, file, {
+      contentType: 'video/mp4',
+      cacheControl: 'public, max-age=31536000, immutable',
+    });
+
+    return await getDownloadURL(storageRef);
+  }
+
   /**
    * Upload gallery photo (resize to WebP first)
    */

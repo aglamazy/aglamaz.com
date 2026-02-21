@@ -16,6 +16,7 @@ export interface GridItem {
   title?: string;
   meta?: Record<string, unknown>;
   dir?: 'ltr' | 'rtl' | 'auto';
+  mediaType?: 'image' | 'video';
 }
 
 export interface LikeMeta {
@@ -71,6 +72,7 @@ export default function ImageGrid({ items, getMeta, onToggle, onTitleClick, getL
     if (typeof window === 'undefined' || items.length === 0) return;
 
     const newSources = items
+      .filter((item) => item.mediaType !== 'video')
       .map((item) => item.src)
       .filter((src) => src && !prefetchedSrc.current.has(src));
 
@@ -145,17 +147,24 @@ export default function ImageGrid({ items, getMeta, onToggle, onTitleClick, getL
     setSlideshowPlaying(true);
   }, [autoSlideshow, isMobile, items.length]);
 
-  // Slideshow auto-advance timer
+  // Slideshow auto-advance timer (skip video items)
   useEffect(() => {
     if (!slideshowPlaying || !lightboxOpen || items.length <= 1) return;
     const id = setInterval(() => {
       setLightboxIndex((prev) => {
         setSlideshowPrev(prev);
-        return (prev + 1) % items.length;
+        let next = (prev + 1) % items.length;
+        // Skip video items during auto-advance
+        let attempts = 0;
+        while (items[next]?.mediaType === 'video' && attempts < items.length) {
+          next = (next + 1) % items.length;
+          attempts++;
+        }
+        return next;
       });
     }, slideshowSeconds * 1000);
     return () => clearInterval(id);
-  }, [slideshowPlaying, lightboxOpen, items.length, slideshowSeconds]);
+  }, [slideshowPlaying, lightboxOpen, items.length, slideshowSeconds, items]);
 
   // Clear slideshowPrev after crossfade transition
   useEffect(() => {
@@ -164,11 +173,12 @@ export default function ImageGrid({ items, getMeta, onToggle, onTitleClick, getL
     return () => clearTimeout(id);
   }, [slideshowPrev]);
 
-  // Preload upcoming lightbox images during slideshow
+  // Preload upcoming lightbox images during slideshow (skip videos)
   useEffect(() => {
     if (!slideshowPlaying || !lightboxOpen || items.length === 0) return;
     for (let offset = 1; offset <= 2; offset++) {
       const idx = (lightboxIndex + offset) % items.length;
+      if (items[idx].mediaType === 'video') continue;
       const src = items[idx].lightboxSrc || items[idx].src;
       if (src && !prefetchedSrc.current.has(src)) {
         const img = new Image();
@@ -343,12 +353,22 @@ export default function ImageGrid({ items, getMeta, onToggle, onTitleClick, getL
                       )
                     )}
                     <div className={styles.presentationImageWrap}>
-                      <img
-                        src={item.src}
-                        alt=""
-                        className={styles.presentationImg}
-                        onClick={() => { void onToggle(item); }}
-                      />
+                      {item.mediaType === 'video' ? (
+                        <video
+                          src={item.src}
+                          controls
+                          playsInline
+                          className={styles.presentationImg}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      ) : (
+                        <img
+                          src={item.src}
+                          alt=""
+                          className={styles.presentationImg}
+                          onClick={() => { void onToggle(item); }}
+                        />
+                      )}
                       <div
                         className={
                           styles.presentationLikeBadge +
@@ -375,7 +395,11 @@ export default function ImageGrid({ items, getMeta, onToggle, onTitleClick, getL
               onTouchEnd={handleTouchEnd}
               onTouchCancel={handleTouchCancel}
             >
-              <img src={currentItem.src} alt="" className={styles.mobileImage} />
+              {currentItem.mediaType === 'video' ? (
+                <video src={currentItem.src} controls playsInline className={styles.mobileImage} onClick={(e) => e.stopPropagation()} />
+              ) : (
+                <img src={currentItem.src} alt="" className={styles.mobileImage} />
+              )}
               {currentItem.title && (() => {
                 const metaInfo = currentItem.meta as { canEdit?: boolean } | undefined;
                 const clickable = Boolean(onTitleClick && metaInfo?.canEdit);
@@ -436,12 +460,32 @@ export default function ImageGrid({ items, getMeta, onToggle, onTitleClick, getL
           const titleDir = (it as GridItem).dir as ('ltr' | 'rtl' | 'auto') | undefined;
           return (
             <div key={it.key} className={styles.thumbWrap}>
-              <img
-                src={it.src}
-                alt=""
-                className={styles.thumb}
-                onClick={() => { setLightboxIndex(i); setLightboxOpen(true); }}
-              />
+              {it.mediaType === 'video' ? (
+                <div
+                  style={{ position: 'relative', cursor: 'pointer' }}
+                  onClick={() => { setLightboxIndex(i); setLightboxOpen(true); }}
+                >
+                  <video
+                    src={it.src}
+                    muted
+                    preload="metadata"
+                    playsInline
+                    className={styles.thumb}
+                  />
+                  <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+                    <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <span style={{ color: '#fff', fontSize: 24, marginLeft: 3 }}>▶</span>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <img
+                  src={it.src}
+                  alt=""
+                  className={styles.thumb}
+                  onClick={() => { setLightboxIndex(i); setLightboxOpen(true); }}
+                />
+              )}
               {it.title && (
                 clickable ? (
                   <button
@@ -518,13 +562,25 @@ export default function ImageGrid({ items, getMeta, onToggle, onTitleClick, getL
                   </div>
                 )}
                 <div className={styles.crossfadeLayerFront}>
-                  <img
-                    src={lbItem.lightboxSrc || lbItem.src}
-                    alt=""
-                    className={kenBurnsClass}
-                    style={slideshowPlaying ? { animationDuration: `${slideshowSeconds}s` } : undefined}
-                    key={`kb-${lightboxIndex}`}
-                  />
+                  {lbItem.mediaType === 'video' ? (
+                    <video
+                      src={lbItem.src}
+                      controls
+                      autoPlay
+                      playsInline
+                      key={`kb-${lightboxIndex}`}
+                      style={{ maxHeight: '90vh', maxWidth: '90vw' }}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  ) : (
+                    <img
+                      src={lbItem.lightboxSrc || lbItem.src}
+                      alt=""
+                      className={kenBurnsClass}
+                      style={slideshowPlaying ? { animationDuration: `${slideshowSeconds}s` } : undefined}
+                      key={`kb-${lightboxIndex}`}
+                    />
+                  )}
                 </div>
                 {slideshowPlaying && (
                   <div
@@ -534,6 +590,16 @@ export default function ImageGrid({ items, getMeta, onToggle, onTitleClick, getL
                   />
                 )}
               </div>
+            ) : lbItem.mediaType === 'video' ? (
+              <video
+                src={lbItem.src}
+                controls
+                autoPlay
+                playsInline
+                className={styles.lightboxImg}
+                onClick={(e) => e.stopPropagation()}
+                style={{ maxHeight: '90vh', maxWidth: '90vw' }}
+              />
             ) : (
               <img src={lbItem.lightboxSrc || lbItem.src} alt="" className={styles.lightboxImg} onClick={(e) => e.stopPropagation()} />
             )}
