@@ -28,24 +28,26 @@ const getHandler = async (req: Request, context: GuardContext) => {
     const limit = parseInt(url.searchParams.get('limit') || '0', 10) || undefined;
     const offset = parseInt(url.searchParams.get('offset') || '0', 10) || undefined;
 
-    // Fetch both anniversary occurrences and gallery photos with localization and pagination
+    // Fetch both sources — over-fetch from each so we can paginate the merged result
     const occRepo = new AnniversaryOccurrenceRepository();
     const galleryRepo = new GalleryPhotoRepository();
+    const fetchLimit = limit ? (offset ?? 0) + limit : undefined;
     const [occurrences, galleryPhotos] = await Promise.all([
-      occRepo.listBySite(siteId, locale, { limit, offset }),
-      galleryRepo.listBySite(siteId, locale, { limit, offset }),
+      occRepo.listBySite(siteId, locale, { limit: fetchLimit }),
+      galleryRepo.listBySite(siteId, locale, { limit: fetchLimit }),
     ]);
 
     // Add type field to distinguish between them
     const occurrenceItems = occurrences.map((item: any) => ({ ...item, type: 'occurrence' }));
     const galleryItems = galleryPhotos.map((item: any) => ({ ...item, type: 'gallery' }));
 
-    // Merge and sort by date (newest first)
-    const items = [...occurrenceItems, ...galleryItems].sort((a, b) => {
+    // Merge, sort, then apply offset+limit to the combined result
+    const allItems = [...occurrenceItems, ...galleryItems].sort((a, b) => {
       const aDate = a.date?.toDate ? a.date.toDate() : new Date(a.date);
       const bDate = b.date?.toDate ? b.date.toDate() : new Date(b.date);
       return bDate.getTime() - aDate.getTime();
     });
+    const items = allItems.slice(offset ?? 0, limit ? (offset ?? 0) + limit : undefined);
     // Attach minimal event summaries (name) with localization
     const annRepo = new AnniversaryRepository();
     const familyRepo = new FamilyRepository();

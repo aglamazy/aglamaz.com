@@ -8,20 +8,26 @@ import {
 } from './tokens';
 import { refreshStore } from './refresh-store';
 
+/** Default access-token lifetime in minutes. */
+export const ACCESS_TOKEN_MINUTES = 60;
+
+/** Default refresh-token lifetime in days. */
+export const REFRESH_TOKEN_DAYS = 30;
+
 /** Hash a token using SHA-256 hex. */
 export function hashToken(token: string): string {
   return createHash('sha256').update(token).digest('hex');
 }
 
 /** Sign an access token. */
-export function signAccessToken(app: AppClaims, minutes = 5): string {
+export function signAccessToken(app: AppClaims, minutes = ACCESS_TOKEN_MINUTES): string {
   const ttl = minutes * 60;
   const claims = buildAccessClaims(app, ttl);
   return signJwt(claims, { expiresInSec: ttl });
 }
 
 /** Sign and store a refresh token. */
-export function signRefreshToken(app: AppClaims, days = 30): string {
+export function signRefreshToken(app: AppClaims, days = REFRESH_TOKEN_DAYS): string {
   const jti = randomBytes(16).toString('hex');
   const ttl = days * 24 * 60 * 60;
   const claims = buildRefreshClaims(app, days, jti);
