@@ -1,5 +1,5 @@
 import { withMemberGuard } from '@/lib/withMemberGuard';
-import { ImageLikeRepository, ImageLikesResult } from '@/repositories/ImageLikeRepository';
+import { ImageLikeRepository, ImageLikesResult, type MemberCache } from '@/repositories/ImageLikeRepository';
 import { GuardContext } from '@/app/api/types';
 
 export const dynamic = 'force-dynamic';
@@ -39,6 +39,7 @@ const postHandler = async (request: Request, context: GuardContext) => {
 
     const likeRepo = new ImageLikeRepository();
     const likes: Record<string, ImageLikesResult[]> = {};
+    const memberCache: MemberCache = new Map();
 
     await Promise.all(
       requestItems.map(async (item) => {
@@ -47,8 +48,8 @@ const postHandler = async (request: Request, context: GuardContext) => {
           const perImage = await Promise.all(
             Array.from({ length: item.imageCount }, (_, idx) =>
               item.type === 'gallery'
-                ? likeRepo.getLikesForImage(item.id, idx, user.userId, siteId, 3)
-                : likeRepo.getLikesForOccurrenceImage(item.id, idx, user.userId, siteId, 3)
+                ? likeRepo.getLikesForImage(item.id, idx, user.userId, siteId, 3, memberCache)
+                : likeRepo.getLikesForOccurrenceImage(item.id, idx, user.userId, siteId, 3, memberCache)
             )
           );
           likes[item.id] = perImage;

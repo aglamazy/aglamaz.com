@@ -4,7 +4,6 @@ import { AnniversaryRepository } from '@/repositories/AnniversaryRepository';
 import { GalleryPhotoRepository } from '@/repositories/GalleryPhotoRepository';
 import { GuardContext } from '@/app/api/types';
 import { FamilyRepository } from '@/repositories/FamilyRepository';
-import { getResizedImageDownloadUrl } from '@/services/FirebaseStorageService';
 
 export const dynamic = 'force-dynamic';
 
@@ -88,56 +87,7 @@ const getHandler = async (req: Request, context: GuardContext) => {
       }
     }
 
-    // Generate resized image URLs with proper tokens for all images
-    const itemsWithResizedUrls = await Promise.all(
-      items.map(async (item: any) => {
-        if (!item.imagesWithDimensions || !Array.isArray(item.imagesWithDimensions)) {
-          return item;
-        }
-
-        // For each image in imagesWithDimensions array, generate resized versions
-        const resizedImages = await Promise.all(
-          item.imagesWithDimensions.map(async (imageWithDim: any) => {
-            const imageUrl = imageWithDim.url;
-            try {
-              // Generate URLs for all needed sizes
-              const [url400, url800, url1200] = await Promise.all([
-                getResizedImageDownloadUrl(imageUrl, '400x400'),
-                getResizedImageDownloadUrl(imageUrl, '800x800'),
-                getResizedImageDownloadUrl(imageUrl, '1200x1200'),
-              ]);
-
-              return {
-                original: imageUrl,
-                '400x400': url400,
-                '800x800': url800,
-                '1200x1200': url1200,
-                width: imageWithDim.width,
-                height: imageWithDim.height,
-              };
-            } catch (error) {
-              console.error('[pictures] Failed to generate resized URLs:', error);
-              // Fallback to original
-              return {
-                original: imageUrl,
-                '400x400': imageUrl,
-                '800x800': imageUrl,
-                '1200x1200': imageUrl,
-                width: imageWithDim.width,
-                height: imageWithDim.height,
-              };
-            }
-          })
-        );
-
-        return {
-          ...item,
-          imagesResized: resizedImages,
-        };
-      })
-    );
-
-    return Response.json({ items: itemsWithResizedUrls, events, authors });
+    return Response.json({ items, events, authors });
   } catch (error) {
     console.error(error);
     return Response.json({ error: 'Failed to fetch pictures' }, { status: 500 });

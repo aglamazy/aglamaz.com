@@ -23,12 +23,10 @@ import LikersBottomSheet from '@/components/photos/LikersBottomSheet';
 import type { ImageLikeMeta } from '@/types/likes';
 import { useAddAction } from '@/hooks/useAddAction';
 import { ApiRoute } from '@/utils/urls';
+import { getResizedImageUrl, ImageSize } from '@/utils/resizedImageUrl';
 
-type ImageSizes = {
-  original: string;
-  '400x400': string;
-  '800x800': string;
-  '1200x1200': string;
+type ImageWithDimensions = {
+  url: string;
   width: number;
   height: number;
 };
@@ -39,7 +37,7 @@ type Occurrence = {
   eventId?: string; // anniversary id (for occurrences)
   anniversaryId?: string; // anniversary id (for gallery photos)
   date: any;
-  imagesResized?: ImageSizes[]; // Images with multiple sizes and dimensions from API
+  imagesWithDimensions?: ImageWithDimensions[];
   videos?: string[]; // Optional video URLs
   createdBy?: string;
   description?: string;
@@ -228,11 +226,11 @@ export default function PicturesFeedPage() {
 
       // Batch-fetch likes for all items in a single request
       const likesItems = list
-        .filter((occ) => (occ.imagesResized?.length ?? 0) + (occ.videos?.length ?? 0) > 0)
+        .filter((occ) => (occ.imagesWithDimensions?.length ?? 0) + (occ.videos?.length ?? 0) > 0)
         .map((occ) => ({
           id: occ.id,
           type: occ.type ?? 'occurrence',
-          imageCount: (occ.imagesResized?.length ?? 0) + (occ.videos?.length ?? 0),
+          imageCount: (occ.imagesWithDimensions?.length ?? 0) + (occ.videos?.length ?? 0),
         }));
       if (likesItems.length > 0) {
         try {
@@ -329,7 +327,7 @@ export default function PicturesFeedPage() {
     let globalImageIndex = 0;
     for (const occ of items) {
       // Note: "occurrence" is called "event" in the code (anniversary event)
-      const eventImages = occ.imagesResized || [];
+      const eventImages = occ.imagesWithDimensions || [];
       const occDescriptionRaw = typeof occ.description === 'string' ? occ.description : '';
       const occDescription = occDescriptionRaw.trim();
       // Handle both occurrence (eventId) and gallery (anniversaryId)
@@ -348,11 +346,10 @@ export default function PicturesFeedPage() {
       const canEdit = canEditOccurrence(creatorId);
 
       eventImages.forEach((image, i) => {
-        // Extract different sizes for different contexts
-        const src = image.original;
-        const srcMobile = image['800x800'] || src;
-        const srcDesktopGrid = image['400x400'] || src;
-        const srcDesktopLightbox = image['1200x1200'] || src;
+        const src = image.url;
+        const srcMobile = getResizedImageUrl(src, ImageSize.MOBILE_FEED);
+        const srcDesktopGrid = getResizedImageUrl(src, ImageSize.DESKTOP_GRID);
+        const srcDesktopLightbox = getResizedImageUrl(src, ImageSize.DESKTOP_LIGHTBOX);
 
         flat.push({
           src,
@@ -362,7 +359,7 @@ export default function PicturesFeedPage() {
           occId: occ.id,
           annId,
           idx: i,
-          key: `${occ.id}:${i}`,
+          key: `${occ.type}:${occ.id}:${i}`,
           creatorId,
           dir: textDirection,
           canEdit,
@@ -388,7 +385,7 @@ export default function PicturesFeedPage() {
           occId: occ.id,
           annId,
           idx: eventImages.length + vi,
-          key: `${occ.id}:v${vi}`,
+          key: `${occ.type}:${occ.id}:v${vi}`,
           creatorId,
           dir: textDirection,
           canEdit,

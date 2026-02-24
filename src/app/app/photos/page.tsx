@@ -16,12 +16,10 @@ import type { ImageLikeMeta } from '@/types/likes';
 import { useAddAction } from '@/hooks/useAddAction';
 import AddFab from '@/components/ui/AddFab';
 import { ApiRoute } from '@/utils/urls';
+import { getResizedImageUrl, ImageSize } from '@/utils/resizedImageUrl';
 
-type ImageSizes = {
-  original: string;
-  '400x400': string;
-  '800x800': string;
-  '1200x1200': string;
+type ImageWithDimensions = {
+  url: string;
   width: number;
   height: number;
 };
@@ -32,7 +30,7 @@ type Occurrence = {
   eventId?: string;
   anniversaryId?: string;
   date: any;
-  imagesResized?: ImageSizes[];
+  imagesWithDimensions?: ImageWithDimensions[];
   videos?: string[];
   createdBy?: string;
   description?: string;
@@ -137,11 +135,11 @@ export default function PhotosPage() {
 
       // Fire likes fetch immediately — don't wait for author processing
       const likesItems = list
-        .filter((occ) => (occ.imagesResized?.length ?? 0) + (occ.videos?.length ?? 0) > 0)
+        .filter((occ) => (occ.imagesWithDimensions?.length ?? 0) + (occ.videos?.length ?? 0) > 0)
         .map((occ) => ({
           id: occ.id,
           type: occ.type ?? 'occurrence',
-          imageCount: (occ.imagesResized?.length ?? 0) + (occ.videos?.length ?? 0),
+          imageCount: (occ.imagesWithDimensions?.length ?? 0) + (occ.videos?.length ?? 0),
         }));
       if (likesItems.length > 0) {
         apiFetch<{ likes: Record<string, ImageLikeMeta[]> }>(ApiRoute.SITE_PICTURES_LIKES, {
@@ -240,7 +238,7 @@ export default function PhotosPage() {
   const gridItems = useMemo((): GridItem[] => {
     const flat: GridItem[] = [];
     for (const occ of items) {
-      const eventImages = occ.imagesResized || [];
+      const eventImages = occ.imagesWithDimensions || [];
       const occDescriptionRaw = typeof occ.description === 'string' ? occ.description : '';
       const occDescription = occDescriptionRaw.trim();
       const annId = occ.eventId || occ.anniversaryId || '';
@@ -261,9 +259,9 @@ export default function PhotosPage() {
 
       eventImages.forEach((image, i) => {
         flat.push({
-          key: `${occ.id}:${i}`,
-          src: image['400x400'] || image.original,
-          lightboxSrc: image['1200x1200'] || image.original,
+          key: `${occ.type}:${occ.id}:${i}`,
+          src: getResizedImageUrl(image.url, ImageSize.DESKTOP_GRID),
+          lightboxSrc: getResizedImageUrl(image.url, ImageSize.DESKTOP_LIGHTBOX),
           title: i === 0 ? title : undefined,
           dir: textDirection,
           meta: { occId: occ.id, annId, idx: i, canEdit, type: occ.type, creatorId, groupTitle: title },
@@ -274,7 +272,7 @@ export default function PhotosPage() {
       const occVideos = occ.videos || [];
       occVideos.forEach((videoUrl, vi) => {
         flat.push({
-          key: `${occ.id}:v${vi}`,
+          key: `${occ.type}:${occ.id}:v${vi}`,
           src: videoUrl,
           title: eventImages.length === 0 && vi === 0 ? title : undefined,
           dir: textDirection,

@@ -1,7 +1,7 @@
 import { withMemberGuard } from '@/lib/withMemberGuard';
 import { GuardContext } from '@/app/api/types';
 import { AnniversaryOccurrenceRepository } from '@/repositories/AnniversaryOccurrenceRepository';
-import { ImageLikeRepository } from '@/repositories/ImageLikeRepository';
+import { ImageLikeRepository, type MemberCache } from '@/repositories/ImageLikeRepository';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,20 +34,22 @@ const getHandler = async (_request: Request, context: GuardContext & { params: P
     }
     const imagesWithDimensions = occ.imagesWithDimensions || [];
 
-    // Fetch likes for all images (with first 3 likers for avatar stack)
+    // Fetch likes for all images in parallel (with first 3 likers for avatar stack)
     const likeRepo = new ImageLikeRepository();
-    const items = [];
+    const memberCache: MemberCache = new Map();
 
-    for (let i = 0; i < imagesWithDimensions.length; i++) {
-      const result = await likeRepo.getLikesForOccurrenceImage(
-        eventId,
-        i,
-        user.userId,
-        member.siteId,
-        3 // Only fetch first 3 likers for avatar stack
-      );
-      items.push(result);
-    }
+    const items = await Promise.all(
+      imagesWithDimensions.map((_, i) =>
+        likeRepo.getLikesForOccurrenceImage(
+          eventId,
+          i,
+          user.userId,
+          member.siteId,
+          3,
+          memberCache
+        )
+      )
+    );
 
     return Response.json({ items });
   } catch (error) {

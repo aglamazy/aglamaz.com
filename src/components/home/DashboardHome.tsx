@@ -10,6 +10,7 @@ import { useTranslation } from "react-i18next";
 import { apiFetch } from "@/utils/apiFetch";
 import { ApiRoute } from "@/utils/urls";
 import { formatLocalizedDate } from "@/utils/dateFormat";
+import { getResizedImageUrl, ImageSize } from "@/utils/resizedImageUrl";
 
 interface DashboardHomeProps {
   user: any;
@@ -50,9 +51,8 @@ type PhotoThumb = {
 
 type PhotoOccurrence = {
   id: string;
-  imagesResized?: Array<{
-    "400x400": string;
-    original: string;
+  imagesWithDimensions?: Array<{
+    url: string;
     width?: number;
     height?: number;
   }>;
@@ -198,10 +198,10 @@ export default function DashboardHome({
         // Extract thumbnails with dimensions
         const thumbs: PhotoThumb[] = [];
         for (const item of data.items || []) {
-          for (const img of item.imagesResized || []) {
+          for (const img of item.imagesWithDimensions || []) {
             if (thumbs.length >= 6) break;
             thumbs.push({
-              src: img["400x400"] || img.original,
+              src: getResizedImageUrl(img.url, ImageSize.DESKTOP_GRID),
               width: img.width || 400,
               height: img.height || 400,
             });

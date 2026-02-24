@@ -1,6 +1,6 @@
 import { withMemberGuard } from '@/lib/withMemberGuard';
 import { GalleryPhotoRepository } from '@/repositories/GalleryPhotoRepository';
-import { ImageLikeRepository } from '@/repositories/ImageLikeRepository';
+import { ImageLikeRepository, type MemberCache } from '@/repositories/ImageLikeRepository';
 import { GuardContext } from '@/app/api/types';
 
 export const dynamic = 'force-dynamic';
@@ -43,21 +43,23 @@ const getHandler = async (request: Request, context: GuardContext & { params: Pr
       return Response.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Fetch likes for all images and videos (with first 3 likers for avatar stack)
+    // Fetch likes for all images and videos in parallel (with first 3 likers for avatar stack)
     const likeRepo = new ImageLikeRepository();
-    const items = [];
     const totalMedia = photo.imagesWithDimensions.length + (photo.videos?.length ?? 0);
+    const memberCache: MemberCache = new Map();
 
-    for (let i = 0; i < totalMedia; i++) {
-      const result = await likeRepo.getLikesForImage(
-        photoId,
-        i,
-        user.userId,
-        member.siteId,
-        3 // Only fetch first 3 likers for avatar stack
-      );
-      items.push(result);
-    }
+    const items = await Promise.all(
+      Array.from({ length: totalMedia }, (_, i) =>
+        likeRepo.getLikesForImage(
+          photoId,
+          i,
+          user.userId,
+          member.siteId,
+          3,
+          memberCache
+        )
+      )
+    );
 
     return Response.json({ items });
   } catch (error) {
