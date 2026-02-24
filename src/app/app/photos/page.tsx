@@ -16,10 +16,10 @@ import type { ImageLikeMeta } from '@/types/likes';
 import { useAddAction } from '@/hooks/useAddAction';
 import AddFab from '@/components/ui/AddFab';
 import { ApiRoute } from '@/utils/urls';
-import { getResizedImageUrl, ImageSize } from '@/utils/resizedImageUrl';
 
-type ImageWithDimensions = {
-  url: string;
+type ImageSizes = {
+  original: string;
+  [size: string]: string | number | undefined;
   width: number;
   height: number;
 };
@@ -30,7 +30,7 @@ type Occurrence = {
   eventId?: string;
   anniversaryId?: string;
   date: any;
-  imagesWithDimensions?: ImageWithDimensions[];
+  imagesResized?: ImageSizes[];
   videos?: string[];
   createdBy?: string;
   description?: string;
@@ -117,6 +117,7 @@ export default function PhotosPage() {
           locale: i18n.language,
           limit: String(limit),
           offset: String(offsetRef.current),
+          sizes: '400x400,1200x1200',
         },
       });
       if (!mountedRef.current) return false;
@@ -135,11 +136,11 @@ export default function PhotosPage() {
 
       // Fire likes fetch immediately — don't wait for author processing
       const likesItems = list
-        .filter((occ) => (occ.imagesWithDimensions?.length ?? 0) + (occ.videos?.length ?? 0) > 0)
+        .filter((occ) => (occ.imagesResized?.length ?? 0) + (occ.videos?.length ?? 0) > 0)
         .map((occ) => ({
           id: occ.id,
           type: occ.type ?? 'occurrence',
-          imageCount: (occ.imagesWithDimensions?.length ?? 0) + (occ.videos?.length ?? 0),
+          imageCount: (occ.imagesResized?.length ?? 0) + (occ.videos?.length ?? 0),
         }));
       if (likesItems.length > 0) {
         apiFetch<{ likes: Record<string, ImageLikeMeta[]> }>(ApiRoute.SITE_PICTURES_LIKES, {
@@ -238,7 +239,7 @@ export default function PhotosPage() {
   const gridItems = useMemo((): GridItem[] => {
     const flat: GridItem[] = [];
     for (const occ of items) {
-      const eventImages = occ.imagesWithDimensions || [];
+      const eventImages = occ.imagesResized || [];
       const occDescriptionRaw = typeof occ.description === 'string' ? occ.description : '';
       const occDescription = occDescriptionRaw.trim();
       const annId = occ.eventId || occ.anniversaryId || '';
@@ -260,8 +261,8 @@ export default function PhotosPage() {
       eventImages.forEach((image, i) => {
         flat.push({
           key: `${occ.type}:${occ.id}:${i}`,
-          src: getResizedImageUrl(image.url, ImageSize.DESKTOP_GRID),
-          lightboxSrc: getResizedImageUrl(image.url, ImageSize.DESKTOP_LIGHTBOX),
+          src: (image['400x400'] as string) || image.original,
+          lightboxSrc: (image['1200x1200'] as string) || image.original,
           title: i === 0 ? title : undefined,
           dir: textDirection,
           meta: { occId: occ.id, annId, idx: i, canEdit, type: occ.type, creatorId, groupTitle: title },

@@ -4,6 +4,7 @@ import { AnniversaryRepository } from '@/repositories/AnniversaryRepository';
 import { GalleryPhotoRepository } from '@/repositories/GalleryPhotoRepository';
 import { GuardContext } from '@/app/api/types';
 import { FamilyRepository } from '@/repositories/FamilyRepository';
+import { getResizedImageDownloadUrl } from '@/services/FirebaseStorageService';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,6 +27,8 @@ const getHandler = async (req: Request, context: GuardContext) => {
     const locale = url.searchParams.get('locale') || 'he';
     const limit = parseInt(url.searchParams.get('limit') || '0', 10) || undefined;
     const offset = parseInt(url.searchParams.get('offset') || '0', 10) || undefined;
+    const sizesParam = url.searchParams.get('sizes');
+    const sizes = sizesParam ? sizesParam.split(',') : [];
 
     // Fetch both sources — over-fetch from each so we can paginate the merged result
     const occRepo = new AnniversaryOccurrenceRepository();
@@ -87,7 +90,35 @@ const getHandler = async (req: Request, context: GuardContext) => {
       }
     }
 
-    return Response.json({ items, events, authors });
+    // Generate resized image URLs only for requested sizes
+    const responseItems = sizes.length > 0
+      ? await Promise.all(
+          items.map(async (item: any) => {
+            if (!item.imagesWithDimensions || !Array.isArray(item.imagesWithDimensions)) {
+              return item;
+            }
+
+            const resizedImages = await Promise.all(
+              item.imagesWithDimensions.map(async (img: any) => {
+                const entry: Record<string, any> = {
+                  original: img.url,
+                  width: img.width,
+                  height: img.height,
+                };
+                const urls = await Promise.all(
+                  sizes.map((size) => getResizedImageDownloadUrl(img.url, size))
+                );
+                sizes.forEach((size, i) => { entry[size] = urls[i]; });
+                return entry;
+              })
+            );
+
+            return { ...item, imagesResized: resizedImages };
+          })
+        )
+      : items;
+
+    return Response.json({ items: responseItems, events, authors });
   } catch (error) {
     console.error(error);
     return Response.json({ error: 'Failed to fetch pictures' }, { status: 500 });

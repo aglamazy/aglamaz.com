@@ -10,7 +10,6 @@ import { useTranslation } from "react-i18next";
 import { apiFetch } from "@/utils/apiFetch";
 import { ApiRoute } from "@/utils/urls";
 import { formatLocalizedDate } from "@/utils/dateFormat";
-import { getResizedImageUrl, ImageSize } from "@/utils/resizedImageUrl";
 
 interface DashboardHomeProps {
   user: any;
@@ -51,8 +50,9 @@ type PhotoThumb = {
 
 type PhotoOccurrence = {
   id: string;
-  imagesWithDimensions?: Array<{
-    url: string;
+  imagesResized?: Array<{
+    '400x400'?: string;
+    original: string;
     width?: number;
     height?: number;
   }>;
@@ -191,17 +191,17 @@ export default function DashboardHome({
         const data = await apiFetch<{
           items: PhotoOccurrence[];
         }>(ApiRoute.SITE_PICTURES, {
-          queryParams: { limit: "6", locale: i18n.language },
+          queryParams: { limit: "6", locale: i18n.language, sizes: "400x400" },
         });
         if (cancelled) return;
 
         // Extract thumbnails with dimensions
         const thumbs: PhotoThumb[] = [];
         for (const item of data.items || []) {
-          for (const img of item.imagesWithDimensions || []) {
+          for (const img of item.imagesResized || []) {
             if (thumbs.length >= 6) break;
             thumbs.push({
-              src: getResizedImageUrl(img.url, ImageSize.DESKTOP_GRID),
+              src: img['400x400'] || img.original,
               width: img.width || 400,
               height: img.height || 400,
             });
