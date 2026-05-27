@@ -1,8 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
+import { marked } from 'marked';
+import DOMPurify from 'dompurify';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { apiFetch } from '@/utils/apiFetch';
@@ -28,6 +30,36 @@ export default function NewPostPage() {
   const [showSetup, setShowSetup] = useState(false);
   const [requestedMember, setRequestedMember] = useState(false);
   const [error, setError] = useState('');
+  const [mdSource, setMdSource] = useState('');
+  const [importError, setImportError] = useState('');
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const importMarkdown = useCallback((md: string) => {
+    setImportError('');
+    try {
+      const rawHtml = marked.parse(md, { async: false, gfm: true, breaks: false }) as string;
+      const safeHtml = DOMPurify.sanitize(rawHtml);
+
+      // If no title yet, lift the first H1 out of the md as the title.
+      if (!title.trim()) {
+        const h1 = md.match(/^\s*#\s+(.+?)\s*$/m);
+        if (h1?.[1]) setTitle(h1[1].trim());
+      }
+
+      setContent(safeHtml);
+    } catch (err) {
+      console.error('[blog-new] markdown import failed', err);
+      setImportError(
+        t('failedToImportMarkdown', { defaultValue: 'Failed to import markdown' }) as string
+      );
+    }
+  }, [t, title]);
+
+  const handleMdFile = useCallback(async (file: File) => {
+    const text = await file.text();
+    setMdSource(text);
+    importMarkdown(text);
+  }, [importMarkdown]);
 
   useEffect(() => {
     if (!requestedMember && user?.user_id && site?.id) {
@@ -107,6 +139,44 @@ export default function NewPostPage() {
               placeholder={t('title') as string}
               disabled={disableActions}
             />
+            <details className="rounded border border-sage-200 p-3">
+              <summary className="cursor-pointer text-sm text-sage-700">
+                {t('importFromMarkdown', { defaultValue: 'Import from markdown (.md)' }) as string}
+              </summary>
+              <div className="mt-3 space-y-2">
+                <div className="flex items-center gap-2">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".md,.markdown,text/markdown,text/plain"
+                    className="text-sm"
+                    disabled={disableActions}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleMdFile(file);
+                      if (fileInputRef.current) fileInputRef.current.value = '';
+                    }}
+                  />
+                </div>
+                <textarea
+                  value={mdSource}
+                  onChange={(e) => setMdSource(e.target.value)}
+                  className="w-full border p-2 text-sm font-mono min-h-[120px]"
+                  placeholder={t('orPasteMarkdownHere', { defaultValue: 'or paste markdown here…' }) as string}
+                  disabled={disableActions}
+                />
+                <div className="flex items-center gap-3">
+                  <Button
+                    type="button"
+                    onClick={() => importMarkdown(mdSource)}
+                    disabled={disableActions || !mdSource.trim()}
+                  >
+                    {t('importIntoEditor', { defaultValue: 'Import into editor' }) as string}
+                  </Button>
+                  {importError ? <span className="text-red-600 text-sm">{importError}</span> : null}
+                </div>
+              </div>
+            </details>
             <div className={disableActions ? 'pointer-events-none opacity-60' : ''}>
               <EditorRich
                 value={content}
