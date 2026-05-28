@@ -119,6 +119,8 @@ export class BlogRepository {
     }
     const locales = (raw.locales as BlogPostLocales | undefined) || this.legacyLocales(raw);
     const primaryLocale = (raw.primaryLocale || raw.sourceLang || Object.keys(locales)[0] || 'en').toLowerCase();
+    // Back-compat: posts written before contentFormat existed are HTML.
+    const contentFormat: 'md' | 'html' = raw.contentFormat === 'md' ? 'md' : 'html';
     return {
       id: doc.id,
       authorId: raw.authorId,
@@ -127,6 +129,7 @@ export class BlogRepository {
       locales,
       translationMeta: raw.translationMeta,
       isPublic: Boolean(raw.isPublic),
+      contentFormat,
       likeCount: raw.likeCount ?? 0,
       shareCount: raw.shareCount ?? 0,
       deletedAt: raw.deletedAt,
@@ -142,12 +145,14 @@ export class BlogRepository {
     isPublic: boolean;
     localeContent: BlogPostLocaleUpsertPayload;
     translationMeta?: IBlogPost['translationMeta'];
+    contentFormat?: IBlogPost['contentFormat'];
   }): Promise<IBlogPost> {
     const db = this.getDb();
     const ref = db.collection(this.collection).doc();
     const now = Timestamp.now();
     const localeKey = post.primaryLocale.toLowerCase();
     const localeSnapshot = this.makeLocaleSnapshot(localeKey, post.localeContent, now);
+    const contentFormat: IBlogPost['contentFormat'] = post.contentFormat === 'md' ? 'md' : 'html';
     const data: {
       authorId: string;
       siteId: string;
@@ -155,6 +160,7 @@ export class BlogRepository {
       locales: Record<string, BlogPostLocale>;
       translationMeta?: IBlogPost['translationMeta'];
       isPublic: boolean;
+      contentFormat: IBlogPost['contentFormat'];
       likeCount: number;
       shareCount: number;
       deletedAt: Timestamp | null;
@@ -166,6 +172,7 @@ export class BlogRepository {
       primaryLocale: localeKey,
       locales: { [localeKey]: localeSnapshot },
       isPublic: post.isPublic,
+      contentFormat,
       likeCount: 0,
       shareCount: 0,
       deletedAt: null,

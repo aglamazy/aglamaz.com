@@ -23,6 +23,8 @@ export interface BlogPostLocalizedFields {
   locale: string;
   title: string;
   content: string;
+  // Carried through from the parent post so render sites can pick md→html vs raw-html.
+  contentFormat?: BlogPostContentFormat;
   seoTitle?: string;
   seoDescription?: string;
   fallbackChain: string[];
@@ -47,6 +49,8 @@ export interface BlogPostTranslationMeta {
   attempts?: number;
 }
 
+export type BlogPostContentFormat = 'md' | 'html';
+
 export interface IBlogPost {
   id: string;
   authorId: string;
@@ -55,6 +59,10 @@ export interface IBlogPost {
   locales: BlogPostLocales;
   translationMeta?: BlogPostTranslationMeta;
   isPublic: boolean;
+  // Content format applies to ALL locales (per-post, not per-locale). Authoring
+  // happens once in the primary locale; translations preserve the same format.
+  // Missing field = 'html' (back-compat for posts written before this field existed).
+  contentFormat?: BlogPostContentFormat;
   likeCount?: number;
   shareCount?: number;
   deletedAt?: any; // Soft delete timestamp

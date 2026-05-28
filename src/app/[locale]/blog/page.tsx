@@ -21,6 +21,7 @@ import UnderConstruction from '@/components/UnderConstruction';
 import { DEFAULT_LOCALE, SUPPORTED_LOCALES } from '@/i18n';
 import type { Metadata } from 'next';
 import { buildTranslationTriggerPayload, localizeBlogPosts } from '@/utils/blogLocales';
+import BlogPostBody from '@/components/blog/BlogPostBody';
 
 export const dynamic = 'force-dynamic';
 
@@ -168,7 +169,11 @@ export default async function FamilyBlogPage({ params }: FamilyBlogPageProps) {
           </CardHeader>
           <CardContent>
             <div className={`rounded-lg p-3 ${tint}`}>
-              <div className={`text-sm text-gray-700 ${styles.clamp3} ${blogStyles.content}`} dangerouslySetInnerHTML={{ __html: localized.content || '' }} />
+              <BlogPostBody
+                content={localized.content || ''}
+                format={localized.contentFormat}
+                className={`text-sm text-gray-700 ${styles.clamp3} ${blogStyles.content}`}
+              />
             </div>
             <div className="mt-2">
               <a className="text-blue-600 hover:underline text-sm" href={`/${locale}/blog/${handle}`}>

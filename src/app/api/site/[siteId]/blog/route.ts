@@ -160,13 +160,15 @@ const postHandler = async (request: Request, context: GuardContext & { params: P
     const repo = new BlogRepository();
     const user = context.user!;
     const body = await request.json();
-    const { title, content, isPublic, lang } = body;
+    const { title, content, isPublic, lang, contentFormat } = body;
     if (!title || !content) {
       return Response.json({ error: 'Missing fields' }, { status: 400 });
     }
     const accept = request.headers.get('accept-language');
     const headerLang = parseLocaleInput(accept);
     const primaryLocale = (parseLocaleInput(lang) || headerLang || DEFAULT_LANG).toLowerCase();
+    // Default 'html' if client omits the field — keeps the legacy posting flow working unchanged.
+    const normalizedFormat: 'md' | 'html' = contentFormat === 'md' ? 'md' : 'html';
     const post = await repo.create({
       authorId: user.userId,
       siteId: siteId,
@@ -178,6 +180,7 @@ const postHandler = async (request: Request, context: GuardContext & { params: P
         sourceLocale: primaryLocale,
       },
       isPublic: Boolean(isPublic),
+      contentFormat: normalizedFormat,
     });
     const localized = localize(post, primaryLocale);
     return Response.json({ post, localized: localized.localized }, { status: 201 });
@@ -205,12 +208,13 @@ const putHandler = async (request: Request, context: GuardContext & { params: Pr
     const user = context.user!;
     const member = context.member!;
     const body = await request.json();
-    const { id, title, content, isPublic, lang } = body as {
+    const { id, title, content, isPublic, lang, contentFormat } = body as {
       id?: string;
       title?: string;
       content?: string;
       isPublic?: boolean;
       lang?: string;
+      contentFormat?: 'md' | 'html';
     };
     if (!id) {
       return Response.json({ error: 'Missing id' }, { status: 400 });
@@ -232,6 +236,9 @@ const putHandler = async (request: Request, context: GuardContext & { params: Pr
     }
     if (typeof isPublic === 'boolean') {
       updates.isPublic = !!isPublic;
+    }
+    if (contentFormat === 'md' || contentFormat === 'html') {
+      updates.contentFormat = contentFormat;
     }
 
     const targetLocale = parseLocaleInput(lang) || existing.primaryLocale;
