@@ -7,6 +7,16 @@ customer projects (Ilan-Oz, Elron, Cellwise, Einat, …). Cross-customer lib pub
 the **librarian's lane** — it goes through this session, not through Buddy or customer
 sessions (locked 2026-05-31 by Agla).
 
+## `/classify … start` → execute, don't ask for the go (locked 2026-06-24 by Agla)
+
+When Agla runs `/classify … start`, **start executing the session_supervised /
+sub_agent_fanout tasks immediately — do NOT ask for approval to start or to "proceed."**
+The `start` flag IS the go. The only things to surface back are genuine **feature /
+product questions** (the `need_principal` content — what a thing should *do*, a design
+fork I can't reasonably default). Never ask "should I build to this interface?" /
+"want me to start now?" — just build, ship, and report. (`live` only changes that those
+feature questions get answered in-chat instead of stalled to `/triage`.)
+
 ## Versioning: CalVer `YY.M.#`
 
 Libs use CalVer, **never semver**. Format `YY.M.#` — two-digit year, month (no leading
