@@ -47,11 +47,15 @@ const computeInitials = (name?: string, email?: string): string => {
 };
 
 const readBootstrapMemberInfo = (): IMember | null => {
-  if (typeof window === 'undefined') return null; // SSR guard
-  const w = window as any;
-  if (w.__MEMBER__) return w.__MEMBER__ as IMember;
-
-  return null;
+  if (typeof document === 'undefined') return null; // SSR guard
+  // See SiteStore.ts readBootstrapSiteInfo() - read textContent, don't rely on script execution.
+  const el = document.getElementById('__MEMBER__');
+  if (!el?.textContent) return null;
+  try {
+    return JSON.parse(el.textContent) as IMember;
+  } catch {
+    return null;
+  }
 };
 
 export const computeMemberAvatar = (

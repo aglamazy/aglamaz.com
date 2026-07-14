@@ -6,6 +6,7 @@ import { getMemberFromToken, getUserFromToken } from '@/utils/serverAuth';
 import I18nProvider from '@/components/I18nProvider';
 import { resolveLocaleForPrivateRoutes } from '@/utils/resolveLocale';
 import { fetchSiteInfo } from '@/firebase/admin';
+import { stripScriptTags } from '@/utils/jsonld';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -50,23 +51,29 @@ export default async function RootLayout({ children }: AppLayoutProps) {
         <>{children}</>
       ) : (
         <>
-          {/* Inject server-side data for client-side hydration */}
+          {/* Inject server-side data for client-side hydration. Plain JSON, not an assignment
+              statement: this data is read via textContent + JSON.parse (see the store
+              hydrateFromWindow()s), not by relying on the <script> executing - it never does
+              on a client-side (soft) navigation. */}
           <script
             id="__SITE_INFO__"
+            type="application/json"
             dangerouslySetInnerHTML={{
-              __html: `window.__SITE_INFO__=${JSON.stringify(siteInfo ?? null)};`,
+              __html: stripScriptTags(JSON.stringify(siteInfo ?? null)),
             }}
           />
           <script
             id="__USER__"
+            type="application/json"
             dangerouslySetInnerHTML={{
-              __html: `window.__USER__=${JSON.stringify(userData ?? null)};`,
+              __html: stripScriptTags(JSON.stringify(userData ?? null)),
             }}
           />
           <script
             id="__MEMBER__"
+            type="application/json"
             dangerouslySetInnerHTML={{
-              __html: `window.__MEMBER__=${JSON.stringify(member ?? null)};`,
+              __html: stripScriptTags(JSON.stringify(member ?? null)),
             }}
           />
           <I18nProvider initialLocale={baseLocale} resolvedLocale={resolvedLocale}>
