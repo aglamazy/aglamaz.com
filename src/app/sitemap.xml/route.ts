@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { BlogRepository } from '@/repositories/BlogRepository';
+import { BlogRepository, isPublished } from '@/repositories/BlogRepository';
 import { FamilyRepository } from '@/repositories/FamilyRepository';
 import { SUPPORTED_LOCALES } from '@/constants/i18n';
 import { resolveSiteId } from '@/utils/resolveSiteId';
@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
       let lastmod: string | undefined;
       try {
         const posts = await repo.getByAuthor(uid);
-        const pub = posts.filter((p) => (p as any).siteId === siteId && p.isPublic);
+        const pub = posts.filter((p) => (p as any).siteId === siteId && p.isPublic && isPublished(p));
         if (pub.length) {
           const max = pub.reduce((acc, p) => {
             const t = (p.createdAt as any)?.toMillis

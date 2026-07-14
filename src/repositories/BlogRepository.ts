@@ -1,11 +1,17 @@
 import { FieldValue, getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { initAdmin } from '../firebase/admin';
+import crypto from 'crypto';
 import type {
   BlogPostLocale,
   BlogPostLocaleUpsertPayload,
   BlogPostLocales,
   IBlogPost,
 } from '@/entities/BlogPost';
+
+/** Returns true for any post that should appear in public feeds. Missing status is treated as 'published' for back-compat. */
+export function isPublished(post: IBlogPost): boolean {
+  return !post.status || post.status === 'published';
+}
 
 function cloneMeta(meta: BlogPostLocale['title$meta']) {
   if (!meta) return undefined;
@@ -127,6 +133,12 @@ export class BlogRepository {
       locales,
       translationMeta: raw.translationMeta,
       isPublic: Boolean(raw.isPublic),
+      status: raw.status,
+      reviewToken: raw.reviewToken,
+      reviewTokenExpiresAt: raw.reviewTokenExpiresAt,
+      reviewFeedback: raw.reviewFeedback,
+      reviewDecision: raw.reviewDecision,
+      reviewDecidedAt: raw.reviewDecidedAt,
       likeCount: raw.likeCount ?? 0,
       shareCount: raw.shareCount ?? 0,
       deletedAt: raw.deletedAt,
@@ -251,7 +263,7 @@ export class BlogRepository {
       .where('authorId', '==', authorId)
       .orderBy('createdAt', 'desc')
       .get();
-    return snap.docs.map((doc) => this.mapDoc(doc));
+    return snap.docs.map((doc) => this.mapDoc(doc)).filter(isPublished);
   }
 
   async getBySite(siteId: string): Promise<IBlogPost[]> {
@@ -259,7 +271,7 @@ export class BlogRepository {
       .where('siteId', '==', siteId)
       .orderBy('createdAt', 'desc')
       .get();
-    return snap.docs.map((doc) => this.mapDoc(doc));
+    return snap.docs.map((doc) => this.mapDoc(doc)).filter(isPublished);
   }
 
   async getPublicBySite(siteId: string, limit = 20): Promise<IBlogPost[]> {
@@ -269,7 +281,7 @@ export class BlogRepository {
       .orderBy('createdAt', 'desc')
       .limit(limit)
       .get();
-    return snap.docs.map((doc) => this.mapDoc(doc));
+    return snap.docs.map((doc) => this.mapDoc(doc)).filter(isPublished);
   }
 
   async countPublicSince(siteId: string, since: Timestamp): Promise<number> {
@@ -307,6 +319,70 @@ export class BlogRepository {
 
   async incrementLike(id: string): Promise<number> {
     return this.incrementCounter(id, 'likeCount');
+  }
+
+  /** Sets status='in_review', generates a 24h review token, and returns it. */
+  async requestReview(postId: string): Promise<string> {
+    const db = this.getDb();
+    const token = crypto.randomUUID();
+    const now = Timestamp.now();
+    const expiresAt = Timestamp.fromMillis(now.toMillis() + 24 * 60 * 60 * 1000);
+    await db.collection(this.collection).doc(postId).update({
+      status: 'in_review',
+      reviewToken: token,
+      reviewTokenExpiresAt: expiresAt,
+      updatedAt: now,
+    });
+    return token;
+  }
+
+  /** Returns the post for the given review token, or null if missing or expired. */
+  async getByReviewToken(token: string): Promise<IBlogPost | null> {
+    const db = this.getDb();
+    const now = Timestamp.now();
+    const snap = await db
+      .collection(this.collection)
+      .where('reviewToken', '==', token)
+      .where('deletedAt', '==', null)
+      .limit(1)
+      .get();
+    if (snap.empty) return null;
+    const post = this.mapDoc(snap.docs[0]);
+    if (!post.reviewTokenExpiresAt) return null;
+    const expiresMillis = post.reviewTokenExpiresAt.toMillis
+      ? post.reviewTokenExpiresAt.toMillis()
+      : Date.parse(String(post.reviewTokenExpiresAt));
+    if (expiresMillis < now.toMillis()) return null;
+    return post;
+  }
+
+  /**
+   * Records the reviewer's decision:
+   * - 'approved' → sets status='published' (isPublic is NOT touched per spec)
+   * - 'changes_requested' → stores feedback/decision/decidedAt; status stays 'in_review'
+   * Returns the updated post, or null if the token is missing/expired.
+   */
+  async decideReview(
+    token: string,
+    decision: 'approved' | 'changes_requested',
+    feedback?: string,
+  ): Promise<IBlogPost | null> {
+    const post = await this.getByReviewToken(token);
+    if (!post) return null;
+    const db = this.getDb();
+    const now = Timestamp.now();
+    const updates: Record<string, unknown> = {
+      reviewDecision: decision,
+      reviewDecidedAt: now,
+      updatedAt: now,
+    };
+    if (decision === 'approved') {
+      updates.status = 'published';
+    } else {
+      updates.reviewFeedback = feedback ?? '';
+    }
+    await db.collection(this.collection).doc(post.id).update(updates);
+    return this.getById(post.id);
   }
 }
 

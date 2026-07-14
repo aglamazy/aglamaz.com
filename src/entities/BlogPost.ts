@@ -47,6 +47,8 @@ export interface BlogPostTranslationMeta {
   attempts?: number;
 }
 
+export type BlogPostStatus = 'draft' | 'in_review' | 'published';
+
 export interface IBlogPost {
   id: string;
   authorId: string;
@@ -55,6 +57,13 @@ export interface IBlogPost {
   locales: BlogPostLocales;
   translationMeta?: BlogPostTranslationMeta;
   isPublic: boolean;
+  /** Workflow status; absent on legacy posts → treat as 'published' */
+  status?: BlogPostStatus;
+  reviewToken?: string;
+  reviewTokenExpiresAt?: any;
+  reviewFeedback?: string;
+  reviewDecision?: 'approved' | 'changes_requested';
+  reviewDecidedAt?: any;
   likeCount?: number;
   shareCount?: number;
   deletedAt?: any; // Soft delete timestamp
