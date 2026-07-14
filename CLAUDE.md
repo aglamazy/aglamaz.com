@@ -1,3 +1,5 @@
+@~/.claude/ARCHITECTURE.md
+@~/.claude/VERCEL.md
 # Claude Development Guidelines
 
 This document contains important guidelines for Claude Code when working on this project.
