@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint . --max-warnings=0",
     "lint:fix": "eslint . --fix",
-    "test": "tsx tests/auth.test.ts && tsx tests/middleware.test.ts",
+    "test": "tsx tests/auth.test.ts && tsx tests/middleware.test.ts && tsx tests/signupPolicy.test.ts",
     "test:e2e": "tsx tests/e2e.ts",
     "test:playwright": "playwright test",
     "test:playwright:ui": "playwright test --ui",

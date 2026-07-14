@@ -195,8 +195,8 @@ export default function PendingMembersPage() {
                   <div className="flex border-t border-gray-100">
                     <button
                       onClick={() => handleAction(member.id, 'approve')}
-                      disabled={actionLoading === member.id || !isReady(member)}
-                      title={!isReady(member) ? t('awaitingEmailVerification') : undefined}
+                      disabled={actionLoading === member.id}
+                      title={!isReady(member) ? t('approveWithoutVerificationWarning') : undefined}
                       className="flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-medium text-green-700 hover:bg-green-50 transition disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       {actionLoading === member.id ? (

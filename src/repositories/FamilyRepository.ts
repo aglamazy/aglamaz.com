@@ -10,6 +10,7 @@ import {
 } from './MemberRepository';
 import { SiteRepository } from './SiteRepository';
 import type { ISite } from '@/entities/Site';
+import { shouldAutoApprove } from '@/services/SignupPolicyService';
 
 export type InviteStatus = 'pending' | 'used' | 'expired' | 'revoked';
 
@@ -368,7 +369,11 @@ export class FamilyRepository {
       // Hash the key to create a safe document ID
       const crypto = require('crypto');
       const documentId = crypto.createHash('sha256').update(documentKey).digest('hex');
-      
+
+      // Demo sites: skip the email-link + admin-approval steps entirely for a fresh signup.
+      const site = await this.sites.get(requestData.siteId);
+      const autoApprove = requestData.status === 'pending_verification' && shouldAutoApprove(site);
+
       // Use setDoc with merge to ensure idempotency
       const requestRef = db.collection(this.signupRequestsCollection).doc(documentId);
       const payload: Record<string, unknown> = {
@@ -383,9 +388,28 @@ export class FamilyRepository {
         payload.invitedAt = now;
       }
 
+      if (autoApprove) {
+        payload.status = 'approved';
+        payload.email_verified = true;
+        payload.verifiedAt = now;
+        payload.approvedAt = now;
+        payload.approvedBy = 'auto-demo';
+        payload.verificationToken = null;
+        payload.expiresAt = null;
+      }
+
       await requestRef.set(payload, { merge: true });
 
-      if (requestData.source !== 'invite') {
+      if (autoApprove) {
+        await this.members.create({
+          uid: requestData.userId || '',
+          siteId: requestData.siteId,
+          role: 'member',
+          displayName: requestData.firstName || '',
+          firstName: requestData.firstName || '',
+          email: emailKey,
+        } as Partial<IMember>);
+      } else if (requestData.source !== 'invite') {
         await adminNotificationService.notify('pending_member', requestData, siteUrl);
       }
 

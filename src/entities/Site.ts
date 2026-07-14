@@ -32,6 +32,9 @@ export interface ISite {
   createdAt: any;
   updatedAt: any;
 
+  // Demo sites let anyone onboard with zero admin friction (see SignupPolicyService.shouldAutoApprove)
+  isDemo?: boolean;
+
   // Flattened fields from current locale (for convenience)
   name?: string;
   aboutFamily?: string;
