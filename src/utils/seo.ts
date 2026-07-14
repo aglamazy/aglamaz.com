@@ -39,6 +39,31 @@ function pathSuffix(path = ''): string {
 }
 
 /**
+ * Turns arbitrary content (which may contain HTML markup or entities, e.g. a
+ * site's rich-text "about" field) into a clean plain-text meta description.
+ * Strips tags, decodes the handful of common entities, collapses whitespace and
+ * caps the length so it renders well in search results and social cards.
+ */
+const META_DESCRIPTION_MAX = 200;
+export function toPlainDescription(raw?: string): string | undefined {
+  if (!raw) return undefined;
+  const text = raw
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&quot;/gi, '"')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!text) return undefined;
+  return text.length > META_DESCRIPTION_MAX
+    ? `${text.slice(0, META_DESCRIPTION_MAX - 1).trimEnd()}…`
+    : text;
+}
+
+/**
  * Builds canonical + hreflang alternates for a localized path across every
  * supported locale, plus x-default. Returns undefined when no base URL is known.
  */
@@ -80,7 +105,7 @@ export async function buildPageMetadata(input: PageMetaInput): Promise<Metadata>
   const path = input.path ?? '';
   const alternates = buildAlternates(baseUrl, locale, path);
   const canonicalUrl = alternates?.canonical as string | undefined;
-  const description = input.description?.trim() || undefined;
+  const description = toPlainDescription(input.description);
   const ogImage = baseUrl ? `${baseUrl}/og` : undefined;
 
   const meta: Metadata = {

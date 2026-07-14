@@ -22,6 +22,7 @@ import {
   type AuthorInfo,
 } from '@/utils/blogSchema';
 import UnderConstruction from '@/components/UnderConstruction';
+import { notFound } from 'next/navigation';
 import crypto from 'crypto';
 import { DEFAULT_LOCALE, SUPPORTED_LOCALES } from '@/i18n';
 import type { Metadata } from 'next';
@@ -103,13 +104,17 @@ export default async function AuthorBlogPage({ params }: { params: Promise<Autho
   const fam = new FamilyRepository();
 
   if (!id) {
-    return <div>Invalid author handle</div>;
+    // No handle → not a real page; return a proper 404 (avoid a soft-404 that
+    // search engines would otherwise index as thin content).
+    notFound();
   }
 
   const member = await fam.getMemberByHandle(id, siteId);
 
   if (!member) {
-    return <div>Author not found</div>;
+    // Unknown/removed author → respond 404 rather than HTTP 200 with an empty
+    // "Author not found" body, so crawlers drop the URL instead of indexing it.
+    notFound();
   }
 
   const uid = (member as any)?.userId || (member as any)?.uid || '';
