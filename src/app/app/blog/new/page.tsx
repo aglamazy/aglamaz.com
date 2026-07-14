@@ -164,6 +164,7 @@ export default function NewPostPage() {
               className="w-full border p-2"
               placeholder={t('title') as string}
               disabled={disableActions}
+              dir={i18n.dir()}
             />
             <div className="flex items-center gap-4 text-sm">
               <label className="flex items-center gap-1">
@@ -210,9 +211,11 @@ export default function NewPostPage() {
                   className="w-full border p-2 text-sm font-mono min-h-[400px]"
                   placeholder={t('writeMarkdownHere', { defaultValue: 'Write markdown here…' }) as string}
                   disabled={disableActions}
+                  dir={i18n.dir()}
                 />
                 <div
                   className="prose max-w-none border p-3 min-h-[400px] overflow-auto text-sm"
+                  dir={i18n.dir()}
                   dangerouslySetInnerHTML={{ __html: mdPreviewHtml }}
                 />
               </div>

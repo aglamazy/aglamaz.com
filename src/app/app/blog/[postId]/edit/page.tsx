@@ -32,6 +32,7 @@ export default function EditPostPage() {
   const [draftContent, setDraftContent] = useState('');
   const [draftFormat, setDraftFormat] = useState<BlogPostContentFormat>('html');
   const [draftPublic, setDraftPublic] = useState(false);
+  const [draftLocale, setDraftLocale] = useState(DEFAULT_LOCALE);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -54,6 +55,7 @@ export default function EditPostPage() {
         setDraftContent(localizedData.content ?? '');
         setDraftFormat(data.post?.contentFormat ?? 'html');
         setDraftPublic(data.post?.isPublic ?? false);
+        setDraftLocale(localizedData.locale || DEFAULT_LOCALE);
         setError(null);
       } catch (err) {
         console.error('[blog-edit] failed to load post', err);
@@ -74,6 +76,11 @@ export default function EditPostPage() {
       router.replace('/app/blog');
     }
   }, [post, user?.user_id, member?.role, router]);
+
+  // The post's own authored language, not the admin's current UI language -
+  // an admin viewing the site in Hebrew must still be able to edit an
+  // English post without its title/body being forced into RTL layout.
+  const contentDir = draftLocale.toLowerCase().startsWith('he') ? 'rtl' : 'ltr';
 
   const mdPreviewHtml = useMemo(() => {
     if (draftFormat !== 'md') return '';
@@ -155,6 +162,7 @@ export default function EditPostPage() {
             onChange={(event) => setDraftTitle(event.target.value)}
             className="w-full border border-sage-200 rounded-md px-3 py-2"
             placeholder={t('title') as string}
+            dir={contentDir}
           />
           <div className="flex items-center gap-4 text-sm">
             <label className="flex items-center gap-1">
@@ -185,16 +193,18 @@ export default function EditPostPage() {
                 onChange={(e) => setDraftContent(e.target.value)}
                 className="w-full border p-2 text-sm font-mono min-h-[400px]"
                 placeholder={t('writeMarkdownHere', { defaultValue: 'Write markdown here…' }) as string}
+                dir={contentDir}
               />
               <div
                 className="prose max-w-none border p-3 min-h-[400px] overflow-auto text-sm"
+                dir={contentDir}
                 dangerouslySetInnerHTML={{ __html: mdPreviewHtml }}
               />
             </div>
           ) : (
             <EditorRich
               value={draftContent}
-              locale={(i18n.language || 'en').split('-')[0]}
+              locale={draftLocale.split('-')[0]}
               onChange={(html) => setDraftContent(html)}
             />
           )}
