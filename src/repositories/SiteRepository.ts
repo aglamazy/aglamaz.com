@@ -258,6 +258,12 @@ export class SiteRepository {
     };
   }
 
+  /** All site ids in the system - used by cross-site jobs (e.g. the reminders cron) that must not hardcode a single siteId. */
+  async listAllSiteIds(): Promise<string[]> {
+    const snap = await this.getDb().collection('sites').select().get();
+    return snap.docs.map(doc => doc.id);
+  }
+
   async getIdByDomain(domain: string, opts?: GetOptions): Promise<string | null> {
     const fetcher = async () => {
       const snap = await this.domainMappingRef(domain).get();
