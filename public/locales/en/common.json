@@ -428,5 +428,12 @@
   "sharedFolder": "Shared folder",
   "failedToBrowseFolder": "Failed to browse folder",
   "importFailed": "Import failed",
-  "slideshow": "Slideshow"
+  "slideshow": "Slideshow",
+  "notifications": "Notifications",
+  "birthdayReminders": "Birthday reminders",
+  "birthdayRemindersDescription": "Get an email when a family member's birthday is coming up.",
+  "yahrzeitReminders": "Yahrzeit reminders",
+  "yahrzeitRemindersDescription": "Get an email ahead of a family yahrzeit (death anniversary).",
+  "failedToLoadNotificationPreferences": "Failed to load notification preferences",
+  "failedToUpdateNotificationPreferences": "Failed to update notification preferences"
 }

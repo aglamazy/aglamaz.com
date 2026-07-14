@@ -154,6 +154,7 @@ export const apiRoutePaths: Record<ApiRoute, string> = {
   // Profile
   [ApiRoute.SITE_PROFILE]: '/api/site/{siteId}/profile',
   [ApiRoute.SITE_PROFILE_AVATAR]: '/api/site/{siteId}/profile/avatar',
+  [ApiRoute.SITE_NOTIFICATION_PREFERENCES]: '/api/site/{siteId}/notification-preferences',
 
   // Blog
   [ApiRoute.SITE_BLOG]: '/api/site/{siteId}/blog',
