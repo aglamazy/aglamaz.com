@@ -74,6 +74,7 @@
   "noPendingMembers": "אין חברים ממתינים",
   "requested": "התקבל",
   "awaitingEmailVerification": "ממתין לאימות אימייל",
+  "approveOverride": "אשר ללא אימות אימייל (עקיפת מנהל)",
   "pendingApprovalStatus": "ממתין לאישור",
   "verified": "מאומת",
   "anniversaries": "אירועים משפחתיים",

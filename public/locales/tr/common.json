@@ -39,6 +39,7 @@
   "noPendingMembers": "Bekleyen üye yok",
   "requested": "İstek tarihi",
   "awaitingEmailVerification": "E-posta doğrulaması bekleniyor",
+  "approveOverride": "E-posta doğrulaması olmadan onayla (yönetici geçersiz kılma)",
   "pendingApprovalStatus": "Onay Bekliyor",
   "verified": "Doğrulandı",
   "logout": "Çıkış Yap",

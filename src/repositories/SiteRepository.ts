@@ -355,6 +355,7 @@ export class SiteRepository {
       ownerUid: (plain.ownerUid as string) || '',
       createdAt: plain.createdAt,
       updatedAt: plain.updatedAt,
+      isDemo: plain.isDemo === true ? true : undefined,
       locales: (plain.locales as ISite['locales']) || {},
     } as ISite;
   }
