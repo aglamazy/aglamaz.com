@@ -31,6 +31,7 @@ export interface ISite {
   ownerUid: string;
   createdAt: any;
   updatedAt: any;
+  isDemo?: boolean;
 
   // Flattened fields from current locale (for convenience)
   name?: string;

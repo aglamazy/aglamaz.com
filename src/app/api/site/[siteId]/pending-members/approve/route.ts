@@ -20,16 +20,9 @@ const handler = async (request: Request, context: GuardContext & { params: { sit
     if (!signupRequest || signupRequest.siteId !== siteId) {
       return Response.json({ error: 'Signup request not found' }, { status: 404 });
     }
-    if (!signupRequest.userId) {
-      return Response.json(
-        { error: 'Cannot approve: user has not completed email verification (missing userId)' },
-        { status: 400 }
-      );
-    }
-
-    // Create the member object
+    // Create the member object (uid may be empty if user hasn't completed email verification yet)
     const newMember: Partial<IMember> = {
-      uid: signupRequest.userId,
+      uid: signupRequest.userId || '',
       siteId: signupRequest.siteId,
       role: 'member',
       displayName: signupRequest.firstName || '',

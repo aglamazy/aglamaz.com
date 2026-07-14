@@ -356,7 +356,7 @@ export class FamilyRepository {
   }
 
   // Signup Request Management
-  async createSignupRequest(requestData: Omit<SignupRequest, 'id' | 'createdAt' | 'updatedAt'>, siteUrl?: string): Promise<SignupRequest> {
+  async createSignupRequest(requestData: Omit<SignupRequest, 'id' | 'createdAt' | 'updatedAt'>, siteUrl?: string, opts?: { skipNotification?: boolean }): Promise<SignupRequest> {
     try {
       const db = this.getDb();
       const now = Timestamp.now();
@@ -385,7 +385,7 @@ export class FamilyRepository {
 
       await requestRef.set(payload, { merge: true });
 
-      if (requestData.source !== 'invite') {
+      if (requestData.source !== 'invite' && !opts?.skipNotification) {
         await adminNotificationService.notify('pending_member', requestData, siteUrl);
       }
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { FamilyRepository } from '../../../../repositories/FamilyRepository';
 import { GmailService } from '../../../../services/GmailService';
 import { getUrl, AppRoute } from '@/utils/serverUrls';
+import { shouldAutoApprove } from '@/utils/siteUtils';
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,14 +17,25 @@ export async function POST(request: NextRequest) {
     }
 
     const locale = language || 'en';
+    const familyRepository = new FamilyRepository();
+    const origin = new URL(request.url).origin;
 
-    // Create a verification token
+    // Check if this is a demo site — if so, auto-verify and auto-approve with no email step
+    const site = await familyRepository.getSite(siteId);
+    if (shouldAutoApprove(site)) {
+      const signupRequest = await familyRepository.createSignupRequest(
+        { firstName, email, siteId, status: 'pending_verification' },
+        origin,
+        { skipNotification: true }
+      );
+      await familyRepository.processSignupRequest(signupRequest.id, 'system', true);
+      return NextResponse.json({ success: false, autoApproved: true });
+    }
+
+    // Standard flow: create verification token and send email
     const verificationToken = crypto.randomUUID();
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
-    // Store the verification request in Firestore
-    const familyRepository = new FamilyRepository();
-    const origin = new URL(request.url).origin;
     await familyRepository.createSignupRequest({
       firstName,
       email,
@@ -44,15 +56,15 @@ export async function POST(request: NextRequest) {
     try {
       const gmailService = await GmailService.init();
       await gmailService.sendVerificationEmail(email, firstName, verificationUrl, locale);
-      
-      // Update the document to mark email as verified
+
+      // Mark email_verified flag on the signup request doc
       const emailKey = email.toLowerCase().trim();
       const documentKey = `${emailKey}_${siteId}`;
       const crypto = require('crypto');
       const documentId = crypto.createHash('sha256').update(documentKey).digest('hex');
-      
+
       await familyRepository.updateSignupRequestEmailVerified(documentId);
-      
+
     } catch (emailError) {
       console.error('Failed to send email:', emailError);
       return NextResponse.json(
@@ -76,4 +88,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-} 
+}

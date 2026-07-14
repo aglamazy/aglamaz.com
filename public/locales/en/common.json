@@ -75,6 +75,7 @@
   "noPendingMembers": "No pending members",
   "requested": "Requested",
   "awaitingEmailVerification": "Awaiting Email Verification",
+  "approveOverride": "Approve without email verification (admin override)",
   "pendingApprovalStatus": "Pending Approval",
   "verified": "Verified",
   "anniversaries": "Family Dates",
