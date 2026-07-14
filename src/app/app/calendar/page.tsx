@@ -16,7 +16,7 @@ import { getPath } from '@/utils/urls';
 import styles from './page.module.css';
 import AddFab from '@/components/ui/AddFab';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import type { AnniversaryEvent } from '@/entities/Anniversary';
 import { useAddAction } from '@/hooks/useAddAction';
@@ -591,6 +591,14 @@ export default function AnniversariesPage() {
     setSelectedDate(new Date(year, month + 1, 1));
   };
 
+  const handlePrevYear = () => {
+    setSelectedDate(new Date(year - 1, month, 1));
+  };
+
+  const handleNextYear = () => {
+    setSelectedDate(new Date(year + 1, month, 1));
+  };
+
   const handleToday = () => {
     const now = new Date();
     setSelectedDate(new Date(now.getFullYear(), now.getMonth(), 1));
@@ -620,6 +628,13 @@ export default function AnniversariesPage() {
       <h1 className="text-2xl font-bold mb-2 sm:mb-4">{t('familyCalendar')}</h1>
       <div className="mb-3 sm:mb-4 flex items-center justify-center gap-2">
         <Button
+          aria-label={t('calendarPrevYear') as string}
+          onClick={handlePrevYear}
+          className="px-3 py-2 rounded-full"
+        >
+          <ChevronsLeft className={styles.yearNavIcon} size={16} aria-hidden="true" />
+        </Button>
+        <Button
           aria-label={t('calendarPrevMonth') as string}
           onClick={handlePrevMonth}
           className="px-3 py-2 rounded-full"
@@ -641,6 +656,13 @@ export default function AnniversariesPage() {
           className="px-3 py-2 rounded-full"
         >
           <span className={styles.monthNavArrow + ' ' + styles.monthNavNext} aria-hidden="true" />
+        </Button>
+        <Button
+          aria-label={t('calendarNextYear') as string}
+          onClick={handleNextYear}
+          className="px-3 py-2 rounded-full"
+        >
+          <ChevronsRight className={styles.yearNavIcon} size={16} aria-hidden="true" />
         </Button>
         <Button
           aria-label="Today"
