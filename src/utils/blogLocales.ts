@@ -62,11 +62,13 @@ function materializeLocale(
   localeKey: string,
   entry: BlogPostLocale | undefined,
   fallbackChain: string[],
+  contentFormat?: BlogPostLocalizedFields['contentFormat'],
 ): BlogPostLocalizedFields {
   return {
     locale: localeKey,
     title: entry?.title || '',
     content: entry?.content || '',
+    contentFormat,
     seoTitle: entry?.seoTitle,
     seoDescription: entry?.seoDescription,
     fallbackChain,
@@ -98,13 +100,13 @@ export function resolveLocalizedFields(
   for (const candidate of candidateChain) {
     const match = candidate ? findLocaleMatch(locales, candidate) : undefined;
     if (match) {
-      return materializeLocale(match, locales[match], candidateChain);
+      return materializeLocale(match, locales[match], candidateChain, post.contentFormat);
     }
   }
 
   // No locales stored; return empty shell bound to preferred or primary locale
   const fallbackLocale = preferred || primary || DEFAULT_LOCALE;
-  return materializeLocale(fallbackLocale, undefined, candidateChain);
+  return materializeLocale(fallbackLocale, undefined, candidateChain, post.contentFormat);
 }
 
 export function localizeBlogPost(

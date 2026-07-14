@@ -63,7 +63,7 @@ export class AnniversaryRepository {
       base.hebrewKey = formatHebrewKey(eventData.date);
       // Precompute occurrences up to horizon year
       const hebHorizonYear = await this.config.getHorizonYear(eventData.siteId);
-      const startYear = Math.max(new Date().getFullYear(), eventData.date.getFullYear());
+      const startYear = eventData.date.getFullYear();
       const endYear = Math.max(hebHorizonYear, startYear);
       const occurrences: Array<{ year: number; month: number; day: number; date: any }> = [];
       for (let y = startYear; y <= endYear; y++) {
@@ -216,7 +216,7 @@ export class AnniversaryRepository {
         data.hebrewKey = formatHebrewKey(updates.date);
         // Recompute occurrences up to horizon
         const hebHorizonYear = await this.config.getHorizonYear(existing.siteId);
-        const startYear = Math.max(new Date().getFullYear(), updates.date.getFullYear());
+        const startYear = updates.date.getFullYear();
         const endYear = Math.max(hebHorizonYear, startYear);
         const occurrences: Array<{ year: number; month: number; day: number; date: any }> = [];
         for (let y = startYear; y <= endYear; y++) {
@@ -236,7 +236,7 @@ export class AnniversaryRepository {
         data.hebrewKey = formatHebrewKey(d);
         // compute occurrences up to horizon
         const hebHorizonYear = await this.config.getHorizonYear(existing.siteId);
-        const startYear = Math.max(new Date().getFullYear(), d.getFullYear());
+        const startYear = d.getFullYear();
         const endYear = Math.max(hebHorizonYear, startYear);
         const occurrences: Array<{ year: number; month: number; day: number; date: any }> = [];
         for (let y = startYear; y <= endYear; y++) {
@@ -277,7 +277,7 @@ export class AnniversaryRepository {
       const existing: Array<{ year: number; month: number; day: number; date: any }> = Array.isArray(ev.hebrewOccurrences) ? ev.hebrewOccurrences : [];
       const existingYears = new Set(existing.map((o) => o.year));
       const eventYear = ev.date ? (ev.date as Timestamp).toDate().getFullYear() : currentYear;
-      const start = Math.max(currentYear, eventYear);
+      const start = eventYear;
       const additions: Array<{ year: number; month: number; day: number; date: any }> = [];
       for (let y = start; y <= targetYear; y++) {
         if (existingYears.has(y)) continue;

@@ -9,6 +9,7 @@ import { ApiRoute } from '@/entities/Routes';
 import { formatLocalizedDate } from '@/utils/dateFormat';
 import { resolveDateLocale } from '@/utils/timezoneRegion';
 import styles from './PublicPost.module.css';
+import BlogPostBody from './BlogPostBody';
 
 interface Props {
   post: IBlogPost;
@@ -64,7 +65,7 @@ export default function PublicPost({ post, localized }: Props) {
     <article className={`prose max-w-none mx-auto py-8 ${styles.article}`}>
       <h1 className="mb-1">{localized.title}</h1>
       {post.createdAt && <div className="text-sm text-gray-500 mb-4">{formatLocalizedDate(post.createdAt, dateLocale)}</div>}
-      <div dangerouslySetInnerHTML={{ __html: localized.content }} />
+      <BlogPostBody content={localized.content} format={localized.contentFormat} />
       <div className="flex items-center space-x-4 mt-6">
         <Button onClick={handleLike} disabled={liking}>
           {t('like')} ({likes})
