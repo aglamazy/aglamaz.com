@@ -42,10 +42,18 @@ export default function EventFormContent({ editEvent, onSuccess }: EventFormCont
 
   useEffect(() => {
     if (editEvent) {
+      // For a Hebrew event loaded from a month-grid query, month/day/year may
+      // reflect a computed occurrence for whichever month is being browsed, not
+      // the originally-entered date - originalYear/Month/Day (when present) is
+      // the true value and must be what the edit form pre-fills, or saving here
+      // would permanently overwrite the real date with that occurrence's date.
+      const year = (editEvent as any).originalYear ?? editEvent.year;
+      const month = (editEvent as any).originalMonth ?? editEvent.month;
+      const day = (editEvent as any).originalDay ?? editEvent.day;
       setForm({
         name: editEvent.name,
         description: editEvent.description || '',
-        date: `${editEvent.year}-${String(editEvent.month + 1).padStart(2, '0')}-${String(editEvent.day).padStart(2, '0')}`,
+        date: `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
         burialDate: (editEvent as any)?.burialDate ? String((editEvent as any).burialDate) : '',
         type: editEvent.type as AnniversaryType,
         isAnnual: editEvent.isAnnual,

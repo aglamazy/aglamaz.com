@@ -101,6 +101,14 @@ export class AnniversaryRepository {
     const hebEventsForMonth: AnniversaryEvent[] = [];
     for (const ev of hebEventsAll) {
       if (!ev.isAnnual) continue;
+      const original = { originalDate: ev.date, originalMonth: ev.month, originalDay: ev.day, originalYear: ev.year };
+      // The originally-entered date is always known directly and must be visible
+      // regardless of whether the lazy hebrewOccurrences horizon has reached this
+      // year yet - it is occurrence zero, not something "computed on demand".
+      if (ev.month === month && ev.year === year) {
+        hebEventsForMonth.push({ ...ev, ...original } as any);
+        continue;
+      }
       const occ = (ev.hebrewOccurrences || []).find((o) => o.year === year && o.month === month);
       if (!occ) continue;
       hebEventsForMonth.push({
@@ -109,6 +117,7 @@ export class AnniversaryRepository {
         day: occ.day,
         year: occ.year,
         date: occ.date,
+        ...original,
       } as any);
     }
 

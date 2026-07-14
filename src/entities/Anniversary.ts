@@ -14,6 +14,15 @@ export interface AnniversaryEvent extends LocalizableDocument {
   month: number;
   day: number;
   year: number;
+  // Present only on Hebrew events returned by getEventsForMonth for an occurrence
+  // other than their own stored date - month/day/year/date above get overwritten
+  // with the occurrence being displayed for the queried month, so callers that
+  // need the true originally-entered date (e.g. the edit form) must use these
+  // instead of month/day/year/date.
+  originalDate?: any;
+  originalMonth?: number;
+  originalDay?: number;
+  originalYear?: number;
   isAnnual: boolean;
   useHebrew?: boolean;
   deletedAt?: any;
