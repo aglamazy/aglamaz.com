@@ -14,12 +14,19 @@ import { fetchSiteInfo } from '@/firebase/admin';
 import { resolveSiteId } from '@/utils/resolveSiteId';
 import { getServerT } from '@/utils/serverTranslations';
 import { getPlatformName } from '@/utils/platformName';
-import { createProfilePageSchema, createBlogPostListSchema, type AuthorInfo } from '@/utils/blogSchema';
+import {
+  createProfilePageSchema,
+  createBlogPostListSchema,
+  createBlogPostingSchema,
+  createBreadcrumbSchema,
+  type AuthorInfo,
+} from '@/utils/blogSchema';
 import UnderConstruction from '@/components/UnderConstruction';
 import crypto from 'crypto';
 import { DEFAULT_LOCALE, SUPPORTED_LOCALES } from '@/i18n';
 import type { Metadata } from 'next';
 import { buildTranslationTriggerPayload, localizeBlogPosts } from '@/utils/blogLocales';
+import { buildPageMetadata } from '@/utils/seo';
 
 export const dynamic = 'force-dynamic';
 
@@ -53,22 +60,29 @@ interface AuthorPageParams {
 export async function generateMetadata({ params }: { params: Promise<AuthorPageParams> }): Promise<Metadata> {
   const { locale: paramLocale, id } = await params;
   const locale = SUPPORTED_LOCALES.includes(paramLocale) ? paramLocale : DEFAULT_LOCALE;
-  const baseUrl = resolveConfiguredBaseUrl();
-  const canonical = baseUrl ? `${baseUrl}/${locale}/blog/${id}` : undefined;
 
-  return {
-    title: `Family Blog – ${id}`,
-    alternates: baseUrl
-      ? {
-          canonical,
-          languages: {
-            en: `${baseUrl}/en/blog/${id}`,
-            he: `${baseUrl}/he/blog/${id}`,
-            'x-default': `${baseUrl}/en/blog/${id}`,
-          },
-        }
-      : undefined,
-  } satisfies Metadata;
+  let authorName = id;
+  try {
+    const siteId = await resolveSiteId();
+    if (siteId) {
+      const member = await new FamilyRepository().getMemberByHandle(id, siteId);
+      authorName =
+        (member as any)?.displayName ||
+        (member as any)?.firstName ||
+        (member as any)?.email ||
+        id;
+    }
+  } catch {
+    // best-effort; fall back to the handle
+  }
+
+  return buildPageMetadata({
+    locale,
+    path: `blog/${id}`,
+    title: `${authorName} – Family Blog`,
+    description: `Blog posts by ${authorName} — stories and updates shared with the family.`,
+    type: 'profile',
+  });
 }
 
 export default async function AuthorBlogPage({ params }: { params: Promise<AuthorPageParams> }) {
@@ -156,7 +170,21 @@ export default async function AuthorBlogPage({ params }: { params: Promise<Autho
     { baseUrl, siteName, lang: baseLang }
   );
 
-  const structuredData = stripScriptTags(JSON.stringify([profileSchema, postsListSchema].map(cleanJsonLd)));
+  // Top-level BlogPosting (Article) schemas so crawlers detect per-post article
+  // structured data, not only the ItemList wrapper.
+  const articleSchemas = localizedPosts.map(({ post, localized }) =>
+    createBlogPostingSchema(post, localized, author, { baseUrl, siteName, lang: baseLang })
+  );
+
+  const breadcrumbSchema = createBreadcrumbSchema([
+    { name: t('home') as string, url: baseUrl ? `${baseUrl}/${locale}` : undefined },
+    { name: t('familyBlog') as string, url: baseUrl ? `${baseUrl}/${locale}/blog` : undefined },
+    { name: authorName, url: baseUrl ? `${baseUrl}/${locale}/blog/${id}` : undefined },
+  ]);
+
+  const structuredData = stripScriptTags(
+    JSON.stringify([profileSchema, breadcrumbSchema, postsListSchema, ...articleSchemas].map(cleanJsonLd))
+  );
 
   return (
     <div className="space-y-4 p-4">

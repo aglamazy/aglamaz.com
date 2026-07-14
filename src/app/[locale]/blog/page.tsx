@@ -16,11 +16,12 @@ import { resolveDateLocale } from '@/utils/timezoneRegion';
 import { fetchSiteInfo } from '@/firebase/admin';
 import { resolveSiteId } from '@/utils/resolveSiteId';
 import { getServerT } from '@/utils/serverTranslations';
-import { createBlogSchema, createBlogPostingSchema, type AuthorInfo } from '@/utils/blogSchema';
+import { createBlogSchema, createBlogPostingSchema, createBreadcrumbSchema, type AuthorInfo } from '@/utils/blogSchema';
 import UnderConstruction from '@/components/UnderConstruction';
 import { DEFAULT_LOCALE, SUPPORTED_LOCALES } from '@/i18n';
 import type { Metadata } from 'next';
 import { buildTranslationTriggerPayload, localizeBlogPosts } from '@/utils/blogLocales';
+import { buildPageMetadata } from '@/utils/seo';
 
 export const dynamic = 'force-dynamic';
 
@@ -55,22 +56,14 @@ interface FamilyBlogPageProps {
 export async function generateMetadata({ params }: FamilyBlogPageProps): Promise<Metadata> {
   const { locale: paramLocale } = await params;
   const locale = SUPPORTED.includes(paramLocale) ? paramLocale : DEFAULT_LOCALE;
-  const baseUrl = resolveConfiguredBaseUrl();
-  const canonical = baseUrl ? `${baseUrl}/${locale}/blog` : undefined;
 
-  return {
+  return buildPageMetadata({
+    locale,
+    path: 'blog',
     title: 'Family Blog – Recent Posts',
-    alternates: baseUrl
-      ? {
-          canonical,
-          languages: {
-            en: `${baseUrl}/en/blog`,
-            he: `${baseUrl}/he/blog`,
-            'x-default': `${baseUrl}/en/blog`,
-          },
-        }
-      : undefined,
-  } satisfies Metadata;
+    description: 'Recent posts from the family blog — stories, updates and memories shared by the family.',
+    type: 'website',
+  });
 }
 
 export default async function FamilyBlogPage({ params }: FamilyBlogPageProps) {
@@ -142,7 +135,12 @@ export default async function FamilyBlogPage({ params }: FamilyBlogPageProps) {
     return createBlogPostingSchema(post, localized, author, { baseUrl, siteName, lang: baseLang });
   });
 
-  const structuredData = stripScriptTags(JSON.stringify([blogSchema, ...postSchemas].map(cleanJsonLd)));
+  const breadcrumbSchema = createBreadcrumbSchema([
+    { name: t('home') as string, url: baseUrl ? `${baseUrl}/${locale}` : undefined },
+    { name: t('familyBlog') as string, url: baseUrl ? `${baseUrl}/${locale}/blog` : undefined },
+  ]);
+
+  const structuredData = stripScriptTags(JSON.stringify([blogSchema, breadcrumbSchema, ...postSchemas].map(cleanJsonLd)));
 
   return (
     <div className={`space-y-4 p-4 ${styles.blobBg}`}>

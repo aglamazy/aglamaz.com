@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
     const repo = new BlogRepository();
 
     type RouteEntry = { path: string; lastmod?: string };
-    const routes: RouteEntry[] = [{ path: '' }, { path: 'blog' }];
+    const routes: RouteEntry[] = [{ path: '' }, { path: 'blog' }, { path: 'contact' }, { path: 'terms' }];
 
     for (const m of blogAuthors as any[]) {
       const handle = m.blogHandle;

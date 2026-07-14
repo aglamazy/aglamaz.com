@@ -23,6 +23,7 @@
   },
   "dependencies": {
     "@tinymce/tinymce-react": "^6.3.0",
+    "@vercel/analytics": "^2.0.1",
     "blueimp-md5": "^2.19.0",
     "date-fns": "^4.1.0",
     "dompurify": "^3.3.0",

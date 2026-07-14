@@ -42,6 +42,54 @@ function findFirstImage(html: string): string | undefined {
 }
 
 /**
+ * Creates a BreadcrumbList schema from an ordered list of crumbs.
+ */
+export function createBreadcrumbSchema(items: { name: string; url?: string }[]) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: items.map((item, index) => ({
+      '@type': 'ListItem',
+      position: index + 1,
+      name: item.name,
+      item: item.url,
+    })),
+  };
+}
+
+/**
+ * Creates an Organization schema. Its @id is referenced as the publisher by the
+ * blog schemas, so keep the @id stable ("{baseUrl}/#organization").
+ */
+export function createOrganizationSchema(options: { baseUrl?: string; siteName: string; logo?: string }) {
+  const { baseUrl, siteName, logo } = options;
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    '@id': baseUrl ? `${baseUrl}/#organization` : undefined,
+    name: siteName,
+    url: baseUrl,
+    logo: logo || (baseUrl ? `${baseUrl}/og` : undefined),
+  };
+}
+
+/**
+ * Creates a WebSite schema for the site home.
+ */
+export function createWebSiteSchema(options: { baseUrl?: string; siteName: string; lang: string }) {
+  const { baseUrl, siteName, lang } = options;
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    '@id': baseUrl ? `${baseUrl}/#website` : undefined,
+    name: siteName,
+    url: baseUrl,
+    inLanguage: lang,
+    publisher: baseUrl ? { '@id': `${baseUrl}/#organization` } : undefined,
+  };
+}
+
+/**
  * Creates a BlogPosting schema for a single blog post
  */
 export function createBlogPostingSchema(

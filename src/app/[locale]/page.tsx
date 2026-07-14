@@ -5,6 +5,14 @@ import { fetchSiteInfo, fetchPlatformDescription, fetchSiteDescription } from '@
 import { resolveSiteId, resolveSiteIdWithOverride } from '@/utils/resolveSiteId';
 import { headers } from 'next/headers';
 import { DEFAULT_LOCALE, SUPPORTED_LOCALES } from '@/i18n';
+import { buildPageMetadata } from '@/utils/seo';
+import { getServerT } from '@/utils/serverTranslations';
+import { stripScriptTags, cleanJsonLd } from '@/utils/jsonld';
+import {
+  createBreadcrumbSchema,
+  createOrganizationSchema,
+  createWebSiteSchema,
+} from '@/utils/blogSchema';
 
 export const dynamic = 'force-dynamic';
 
@@ -38,21 +46,26 @@ interface HomePageProps {
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
   const { locale: paramLocale } = await params;
   const locale = SUPPORTED_LOCALES.includes(paramLocale) ? paramLocale : DEFAULT_LOCALE;
-  const baseUrl = resolveConfiguredBaseUrl();
-  const canonical = baseUrl ? `${baseUrl}/${locale}` : undefined;
 
-  return {
-    alternates: baseUrl
-      ? {
-          canonical,
-          languages: {
-            en: `${baseUrl}/en`,
-            he: `${baseUrl}/he`,
-            'x-default': `${baseUrl}/en`,
-          },
-        }
-      : undefined,
-  } satisfies Metadata;
+  let siteName: string | undefined;
+  let aboutFamily: string | undefined;
+  try {
+    const siteId = await resolveSiteId();
+    const siteInfo = siteId ? await fetchSiteInfo(siteId, locale) : null;
+    siteName = siteInfo?.name?.trim() || undefined;
+    aboutFamily = siteInfo?.aboutFamily?.trim() || undefined;
+  } catch {
+    // Metadata is best-effort; fall back to generic values below.
+  }
+
+  const title = siteName;
+  const description =
+    aboutFamily ||
+    (siteName
+      ? `${siteName} — a private family circle for shared stories, photos, blog posts and a family calendar.`
+      : undefined);
+
+  return buildPageMetadata({ locale, path: '', title, description, siteName, type: 'website' });
 }
 
 export default async function HomePage({ params, searchParams }: HomePageProps) {
@@ -88,13 +101,31 @@ export default async function HomePage({ params, searchParams }: HomePageProps) 
 
   const baseUrl = await resolveRequestBaseUrl();
 
+  const baseLang = locale.split('-')[0]?.toLowerCase() || locale.toLowerCase();
+  const t = await getServerT(baseLang);
+  const siteName = siteInfo?.name?.trim() || 'FamCircle';
+  const homeUrl = baseUrl ? `${baseUrl}/${locale}` : undefined;
+
+  const jsonLd = stripScriptTags(
+    JSON.stringify(
+      [
+        createOrganizationSchema({ baseUrl: baseUrl ?? undefined, siteName }),
+        createWebSiteSchema({ baseUrl: baseUrl ?? undefined, siteName, lang: baseLang }),
+        createBreadcrumbSchema([{ name: t('home') as string, url: homeUrl }]),
+      ].map(cleanJsonLd)
+    )
+  );
+
   return (
-    <LandingPage
-      siteInfo={siteInfo}
-      siteDescription={siteDescription}
-      platformDescription={platformDescription}
-      lang={locale}
-      baseUrl={baseUrl}
-    />
+    <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd }} />
+      <LandingPage
+        siteInfo={siteInfo}
+        siteDescription={siteDescription}
+        platformDescription={platformDescription}
+        lang={locale}
+        baseUrl={baseUrl}
+      />
+    </>
   );
 }
