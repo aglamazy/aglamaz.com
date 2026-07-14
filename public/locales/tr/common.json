@@ -379,5 +379,12 @@
   "yahrzeitReminders": "Yahrzeit hatırlatmaları",
   "yahrzeitRemindersDescription": "Ailede bir yahrzeit (ölüm yıl dönümü) öncesinde e-posta alın.",
   "failedToLoadNotificationPreferences": "Bildirim tercihleri yüklenemedi",
-  "failedToUpdateNotificationPreferences": "Bildirim tercihleri güncellenemedi"
+  "failedToUpdateNotificationPreferences": "Bildirim tercihleri güncellenemedi",
+  "reviewLinkInvalid": "Bu inceleme bağlantısı geçersiz veya süresi dolmuş.",
+  "requestChanges": "Değişiklik iste",
+  "reviewFeedbackPlaceholder": "Ne değiştirilmeli?",
+  "submit": "Gönder",
+  "reviewApprovedMessage": "Onaylandı — bu gönderi artık yayında.",
+  "reviewChangesRequestedMessage": "Geri bildirim yazara gönderildi.",
+  "reviewDecisionFailed": "Kararınız kaydedilemedi. Lütfen tekrar deneyin."
 }

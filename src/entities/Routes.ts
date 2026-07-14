@@ -121,6 +121,9 @@ export enum ApiRoute {
 
   // Contact
   SITE_CONTACT = 'SITE_CONTACT',
+
+  // Review (token-gated, non-site-scoped - the token itself is the auth)
+  REVIEW_DECISION = 'REVIEW_DECISION',
 }
 
 export interface UrlParams {

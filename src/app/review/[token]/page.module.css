@@ -1,0 +1,11 @@
+.container {
+  max-width: 42rem;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+.invalid {
+  text-align: center;
+  color: #6b7280;
+  padding: 3rem 1rem;
+}
