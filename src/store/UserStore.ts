@@ -5,6 +5,18 @@ import { useSiteStore } from './SiteStore';
 import { apiFetch } from "@/utils/apiFetch";
 import { ApiRoute } from '@/utils/urls';
 
+const readBootstrapUser = (): IUser | null => {
+  if (typeof document === 'undefined') return null; // SSR guard
+  // See SiteStore.ts readBootstrapSiteInfo() - read textContent, don't rely on script execution.
+  const el = document.getElementById('__USER__');
+  if (!el?.textContent) return null;
+  try {
+    return JSON.parse(el.textContent) as IUser;
+  } catch {
+    return null;
+  }
+};
+
 interface UserState {
   user: IUser;
   loading: boolean;
@@ -35,8 +47,7 @@ export const useUserStore = create<UserState>((set, get) => ({
   },
   setLoading: (loading) => set({ loading }),
   hydrateFromWindow: () => {
-    if (typeof window === 'undefined') return;
-    const hydrated = (window as any).__USER__;
+    const hydrated = readBootstrapUser();
     if (hydrated) {
       set({ user: hydrated, loading: false });
     }
@@ -49,9 +60,10 @@ export const useUserStore = create<UserState>((set, get) => ({
       return;
     }
 
-    // Try window hydration if not already loaded
-    if (typeof window !== 'undefined' && (window as any).__USER__) {
-      get().hydrateFromWindow();
+    // Try bootstrap hydration if not already loaded
+    const hydrated = readBootstrapUser();
+    if (hydrated) {
+      set({ user: hydrated, loading: false });
       return;
     }
 

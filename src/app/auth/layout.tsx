@@ -4,6 +4,7 @@ import AuthLayoutShell from '@/components/AuthLayoutShell';
 import { resolveLocaleForPrivateRoutes } from '@/utils/resolveLocale';
 import { fetchSiteInfo } from '@/firebase/admin';
 import { resolveSiteId } from '@/utils/resolveSiteId';
+import { stripScriptTags } from '@/utils/jsonld';
 
 interface AuthLayoutProps {
   children: React.ReactNode;
@@ -24,11 +25,14 @@ export default async function AuthLayout({ children }: AuthLayoutProps) {
 
   return (
     <ErrorBoundary>
-      {/* Inject siteInfo for client-side access */}
+      {/* Inject siteInfo for client-side access. Plain JSON, not an assignment statement:
+          this data is read via textContent + JSON.parse (see SiteStore.ts), not by relying
+          on the <script> executing - it never does on a client-side (soft) navigation. */}
       <script
         id="__SITE_INFO__"
+        type="application/json"
         dangerouslySetInnerHTML={{
-          __html: `window.__SITE_INFO__=${JSON.stringify(siteInfo ?? null)};`,
+          __html: stripScriptTags(JSON.stringify(siteInfo ?? null)),
         }}
       />
       <I18nProvider initialLocale={baseLocale} resolvedLocale={resolvedLocale}>

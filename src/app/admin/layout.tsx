@@ -4,6 +4,7 @@ import { getMemberFromToken } from '@/utils/serverAuth';
 import I18nProvider from '@/components/I18nProvider';
 import { resolveLocaleForPrivateRoutes } from '@/utils/resolveLocale';
 import { fetchSiteInfo } from '@/firebase/admin';
+import { stripScriptTags } from '@/utils/jsonld';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -30,11 +31,14 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
 
   return (
     <>
-      {/* Inject siteInfo for client-side access */}
+      {/* Inject siteInfo for client-side access. Plain JSON, not an assignment statement:
+          this data is read via textContent + JSON.parse (see SiteStore.ts), not by relying
+          on the <script> executing - it never does on a client-side (soft) navigation. */}
       <script
         id="__SITE_INFO__"
+        type="application/json"
         dangerouslySetInnerHTML={{
-          __html: `window.__SITE_INFO__=${JSON.stringify(siteInfo ?? null)};`,
+          __html: stripScriptTags(JSON.stringify(siteInfo ?? null)),
         }}
       />
       <I18nProvider initialLocale={baseLocale} resolvedLocale={resolvedLocale}>
