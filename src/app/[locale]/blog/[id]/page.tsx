@@ -27,6 +27,7 @@ import crypto from 'crypto';
 import { DEFAULT_LOCALE, SUPPORTED_LOCALES } from '@/i18n';
 import type { Metadata } from 'next';
 import { buildTranslationTriggerPayload, localizeBlogPosts } from '@/utils/blogLocales';
+import { isPublished } from '@/repositories/BlogRepository';
 import { buildPageMetadata } from '@/utils/seo';
 
 export const dynamic = 'force-dynamic';
@@ -121,7 +122,7 @@ export default async function AuthorBlogPage({ params }: { params: Promise<Autho
   const repo = new BlogRepository();
   const list = uid ? await repo.getByAuthor(uid) : [];
   const posts: IBlogPost[] = (list || [])
-    .filter((p) => (p as any).siteId === siteId && p.isPublic)
+    .filter((p) => (p as any).siteId === siteId && p.isPublic && isPublished(p))
     .sort((a, b) => {
       const at = (a.createdAt as any)?.toMillis ? (a.createdAt as any).toMillis() : new Date(a.createdAt).getTime();
       const bt = (b.createdAt as any)?.toMillis ? (b.createdAt as any).toMillis() : new Date(b.createdAt).getTime();
