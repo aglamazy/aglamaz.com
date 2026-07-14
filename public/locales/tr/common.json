@@ -84,6 +84,8 @@
   "today": "Bugün",
   "calendarPrevMonth": "Önceki ay",
   "calendarNextMonth": "Sonraki ay",
+  "calendarPrevYear": "Önceki yıl",
+  "calendarNextYear": "Sonraki yıl",
   "anniversaries": "Aile Tarihleri",
   "noEventsThisMonth": "Bu ay etkinlik yok.",
   "name": "İsim",

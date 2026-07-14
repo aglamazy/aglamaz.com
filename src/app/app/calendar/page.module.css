@@ -55,3 +55,11 @@
 :global([dir='rtl']) .monthNavNext {
   transform: rotate(-135deg);
 }
+
+.yearNavIcon {
+  display: inline-block;
+}
+
+:global([dir='rtl']) .yearNavIcon {
+  transform: scaleX(-1);
+}

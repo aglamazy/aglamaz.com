@@ -116,6 +116,8 @@
   "today": "Today",
   "calendarPrevMonth": "Previous month",
   "calendarNextMonth": "Next month",
+  "calendarPrevYear": "Previous year",
+  "calendarNextYear": "Next year",
   "add": "Add",
   "noPostsYet": "No posts yet.",
   "noPostsYetCreateFirst": "No posts yet, let's create the first.",
