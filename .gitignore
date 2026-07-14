@@ -13,3 +13,7 @@ next-env.d.ts
 sitemap.xml
 .firebaserc
 .vercel
+/run.log
+/run.*.log
+/app.log
+/app.*.log
