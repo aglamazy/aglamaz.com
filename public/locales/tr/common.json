@@ -372,5 +372,12 @@
   "sharedFolder": "Paylaşılan klasör",
   "failedToBrowseFolder": "Klasöre göz atılamadı",
   "importFailed": "İçe aktarma başarısız",
-  "slideshow": "Slayt Gösterisi"
+  "slideshow": "Slayt Gösterisi",
+  "notifications": "Bildirimler",
+  "birthdayReminders": "Doğum günü hatırlatmaları",
+  "birthdayRemindersDescription": "Bir aile üyesinin doğum günü yaklaştığında e-posta alın.",
+  "yahrzeitReminders": "Yahrzeit hatırlatmaları",
+  "yahrzeitRemindersDescription": "Ailede bir yahrzeit (ölüm yıl dönümü) öncesinde e-posta alın.",
+  "failedToLoadNotificationPreferences": "Bildirim tercihleri yüklenemedi",
+  "failedToUpdateNotificationPreferences": "Bildirim tercihleri güncellenemedi"
 }

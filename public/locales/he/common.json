@@ -419,5 +419,12 @@
   "sharedFolder": "תיקייה משותפת",
   "failedToBrowseFolder": "עיון בתיקייה נכשל",
   "importFailed": "הייבוא נכשל",
-  "slideshow": "מצגת"
+  "slideshow": "מצגת",
+  "notifications": "התראות",
+  "birthdayReminders": "תזכורות יום הולדת",
+  "birthdayRemindersDescription": "קבלו אימייל כשמתקרב יום ההולדת של בן משפחה.",
+  "yahrzeitReminders": "תזכורות יארצייט",
+  "yahrzeitRemindersDescription": "קבלו אימייל לפני יארצייט (יום פטירה) משפחתי.",
+  "failedToLoadNotificationPreferences": "טעינת העדפות ההתראות נכשלה",
+  "failedToUpdateNotificationPreferences": "עדכון העדפות ההתראות נכשל"
 }

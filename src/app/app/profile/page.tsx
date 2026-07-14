@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, ArrowRight, LogOut } from 'lucide-react';
 import EditUserDetails from '@/components/EditUserDetails';
+import NotificationPreferences from '@/components/NotificationPreferences';
 import styles from './profile.module.css';
 import { useUserStore } from '@/store/UserStore';
 import { useTranslation } from 'react-i18next';
@@ -60,6 +61,7 @@ export default function ProfilePage() {
       </div>
       <div className={styles.content} ref={formRef} tabIndex={-1}>
         <EditUserDetails standalone={true} returnTo={returnTo} />
+        <NotificationPreferences />
         <div className={styles.actions}>
           <button
             type="button"
