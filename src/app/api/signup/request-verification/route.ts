@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     // Store the verification request in Firestore
     const familyRepository = new FamilyRepository();
     const origin = new URL(request.url).origin;
-    await familyRepository.createSignupRequest({
+    const signupRequest = await familyRepository.createSignupRequest({
       firstName,
       email,
       siteId,
@@ -32,6 +32,15 @@ export async function POST(request: NextRequest) {
       expiresAt,
       status: 'pending_verification'
     }, origin);
+
+    // Demo sites auto-verify + auto-approve in createSignupRequest - no email link needed
+    if (signupRequest.status === 'approved') {
+      return NextResponse.json({
+        success: true,
+        message: 'Signup approved automatically',
+        data: { email, autoApproved: true },
+      });
+    }
 
     // Send verification email
     const verificationUrl = await getUrl(
