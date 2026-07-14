@@ -45,7 +45,7 @@ export default function AnniversariesPage() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<AnniversaryEvent | null>(null);
   const [occurrences, setOccurrences] = useState<Array<{ id: string; date: any }>>([]);
-  const [monthOccs, setMonthOccs] = useState<Array<{ id: string; eventId: string; date: any; images?: string[] }>>([]);
+  const [monthOccs, setMonthOccs] = useState<Array<{ id: string; eventId: string; date: any; images?: string[]; eventName?: string }>>([]);
   const [occLoading, setOccLoading] = useState(false);
   const [occError, setOccError] = useState('');
   const [deleting, setDeleting] = useState(false);
@@ -119,7 +119,7 @@ export default function AnniversariesPage() {
     // also fetch month occurrences (events that happened this month)
     (async () => {
       try {
-        const res = await apiFetch<{ items: Array<{ id: string; eventId: string; date: any; images?: string[] }> }>(
+        const res = await apiFetch<{ items: Array<{ id: string; eventId: string; date: any; images?: string[]; eventName?: string }> }>(
           ApiRoute.SITE_CALENDAR_OCCURRENCES,
           { queryParams: { year: String(y), month: String(m) } }
         );
@@ -470,7 +470,7 @@ export default function AnniversariesPage() {
           <div className={`mt-5 flex flex-col gap-1 ${isCurrentMonth ? '' : 'opacity-50'}`}>
             {dayOccs.map((occ) => {
               const ev = events.find((e) => e.id === occ.eventId);
-              const label = ev ? ev.name : 'Event';
+              const label = occ.eventName || ev?.name || 'Event';
               return (
                 <a
                   key={occ.id}
@@ -559,7 +559,7 @@ export default function AnniversariesPage() {
             if (hasUniqueOccurrence) {
               const occ = dayOccs[0];
               const ev = events.find((e) => e.id === occ.eventId);
-              const label = ev ? ev.name : 'Event';
+              const label = occ.eventName || ev?.name || 'Event';
               if (!ev) {
                 return (
                   <a
