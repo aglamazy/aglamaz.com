@@ -1,5 +1,6 @@
 import { BlogRepository } from '@/repositories/BlogRepository';
 import { localizeBlogPost } from '@/utils/blogLocales';
+import { isPublished } from '@/utils/blogStatus';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,7 +19,7 @@ export const GET = async (request: Request, { params }: { params: Promise<{ post
     const { postId } = await params;
     const repo = new BlogRepository();
     const post = await repo.getById(postId);
-    if (!post || !post.isPublic) {
+    if (!post || !post.isPublic || !isPublished(post)) {
       return Response.json({ error: 'Post not found' }, { status: 404 });
     }
     const preferred = parseLocale(request.headers.get('accept-language')) || DEFAULT_LANG;

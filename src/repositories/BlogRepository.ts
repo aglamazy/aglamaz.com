@@ -1,11 +1,16 @@
 import { FieldValue, getFirestore, Timestamp } from 'firebase-admin/firestore';
+import { randomUUID } from 'crypto';
 import { initAdmin } from '../firebase/admin';
 import type {
   BlogPostLocale,
   BlogPostLocaleUpsertPayload,
   BlogPostLocales,
+  BlogPostReviewDecision,
   IBlogPost,
 } from '@/entities/BlogPost';
+import { isPublished } from '@/utils/blogStatus';
+
+const REVIEW_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
 
 function cloneMeta(meta: BlogPostLocale['title$meta']) {
   if (!meta) return undefined;
@@ -130,6 +135,12 @@ export class BlogRepository {
       translationMeta: raw.translationMeta,
       isPublic: Boolean(raw.isPublic),
       contentFormat,
+      status: raw.status,
+      reviewToken: raw.reviewToken,
+      reviewTokenExpiresAt: raw.reviewTokenExpiresAt,
+      reviewFeedback: raw.reviewFeedback,
+      reviewDecision: raw.reviewDecision,
+      reviewDecidedAt: raw.reviewDecidedAt,
       likeCount: raw.likeCount ?? 0,
       shareCount: raw.shareCount ?? 0,
       deletedAt: raw.deletedAt,
@@ -146,6 +157,7 @@ export class BlogRepository {
     localeContent: BlogPostLocaleUpsertPayload;
     translationMeta?: IBlogPost['translationMeta'];
     contentFormat?: IBlogPost['contentFormat'];
+    status?: IBlogPost['status'];
   }): Promise<IBlogPost> {
     const db = this.getDb();
     const ref = db.collection(this.collection).doc();
@@ -153,6 +165,7 @@ export class BlogRepository {
     const localeKey = post.primaryLocale.toLowerCase();
     const localeSnapshot = this.makeLocaleSnapshot(localeKey, post.localeContent, now);
     const contentFormat: IBlogPost['contentFormat'] = post.contentFormat === 'md' ? 'md' : 'html';
+    const status: IBlogPost['status'] = post.status ?? 'published';
     const data: {
       authorId: string;
       siteId: string;
@@ -161,6 +174,7 @@ export class BlogRepository {
       translationMeta?: IBlogPost['translationMeta'];
       isPublic: boolean;
       contentFormat: IBlogPost['contentFormat'];
+      status: IBlogPost['status'];
       likeCount: number;
       shareCount: number;
       deletedAt: Timestamp | null;
@@ -173,6 +187,7 @@ export class BlogRepository {
       locales: { [localeKey]: localeSnapshot },
       isPublic: post.isPublic,
       contentFormat,
+      status,
       likeCount: 0,
       shareCount: 0,
       deletedAt: null,
@@ -248,6 +263,73 @@ export class BlogRepository {
     });
   }
 
+  // Puts the post in front of a reviewer via a short-lived (24h) link. Re-requesting
+  // a review overwrites any prior token and clears a stale decision/feedback so the
+  // reviewer always sees a fresh review cycle.
+  async requestReview(postId: string): Promise<{ token: string; expiresAt: Timestamp }> {
+    const db = this.getDb();
+    const now = Timestamp.now();
+    const token = randomUUID();
+    const expiresAt = Timestamp.fromMillis(now.toMillis() + REVIEW_TOKEN_TTL_MS);
+    await db.collection(this.collection).doc(postId).update({
+      status: 'in_review',
+      reviewToken: token,
+      reviewTokenExpiresAt: expiresAt,
+      reviewFeedback: FieldValue.delete(),
+      reviewDecision: FieldValue.delete(),
+      reviewDecidedAt: FieldValue.delete(),
+      updatedAt: now,
+    });
+    return { token, expiresAt };
+  }
+
+  async getByReviewToken(token: string): Promise<IBlogPost | null> {
+    const db = this.getDb();
+    const snap = await db
+      .collection(this.collection)
+      .where('reviewToken', '==', token)
+      .where('deletedAt', '==', null)
+      .limit(1)
+      .get();
+    if (snap.empty) return null;
+    const post = this.mapDoc(snap.docs[0]);
+    const expiresAt = post.reviewTokenExpiresAt as Timestamp | undefined;
+    if (!expiresAt || expiresAt.toMillis() < Date.now()) {
+      return null;
+    }
+    return post;
+  }
+
+  // Approve flips status -> 'published' ONLY, never isPublic - isPublic stays the
+  // author's own orthogonal audience choice (locked decision, famcircle#15). The
+  // review token is single-use: cleared here so the link can't be replayed.
+  async decideReview(
+    token: string,
+    decision: BlogPostReviewDecision,
+    feedback?: string,
+  ): Promise<IBlogPost | null> {
+    const post = await this.getByReviewToken(token);
+    if (!post) return null;
+    const db = this.getDb();
+    const now = Timestamp.now();
+    const updates: Record<string, unknown> = {
+      reviewDecision: decision,
+      reviewDecidedAt: now,
+      reviewToken: FieldValue.delete(),
+      reviewTokenExpiresAt: FieldValue.delete(),
+      updatedAt: now,
+    };
+    if (decision === 'approved') {
+      updates.status = 'published';
+      updates.reviewFeedback = FieldValue.delete();
+    } else {
+      updates.status = 'draft';
+      updates.reviewFeedback = feedback ?? '';
+    }
+    await db.collection(this.collection).doc(post.id).update(updates);
+    return this.getById(post.id);
+  }
+
   async getAll(): Promise<IBlogPost[]> {
     const snap = await this.getBaseQuery().orderBy('createdAt', 'desc').get();
     return snap.docs.map((doc) => this.mapDoc(doc));
@@ -258,7 +340,7 @@ export class BlogRepository {
       .where('authorId', '==', authorId)
       .orderBy('createdAt', 'desc')
       .get();
-    return snap.docs.map((doc) => this.mapDoc(doc));
+    return snap.docs.map((doc) => this.mapDoc(doc)).filter(isPublished);
   }
 
   async getBySite(siteId: string): Promise<IBlogPost[]> {
@@ -266,7 +348,7 @@ export class BlogRepository {
       .where('siteId', '==', siteId)
       .orderBy('createdAt', 'desc')
       .get();
-    return snap.docs.map((doc) => this.mapDoc(doc));
+    return snap.docs.map((doc) => this.mapDoc(doc)).filter(isPublished);
   }
 
   async getPublicBySite(siteId: string, limit = 20): Promise<IBlogPost[]> {
@@ -276,7 +358,7 @@ export class BlogRepository {
       .orderBy('createdAt', 'desc')
       .limit(limit)
       .get();
-    return snap.docs.map((doc) => this.mapDoc(doc));
+    return snap.docs.map((doc) => this.mapDoc(doc)).filter(isPublished);
   }
 
   async countPublicSince(siteId: string, since: Timestamp): Promise<number> {

@@ -3,13 +3,14 @@ import { notFound } from 'next/navigation';
 import PublicPost from '@/components/blog/PublicPost';
 import { headers } from 'next/headers';
 import { localizeBlogPost } from '@/utils/blogLocales';
+import { isPublished } from '@/utils/blogStatus';
 import { DEFAULT_LOCALE } from '@/i18n';
 
 export default async function PublicBlogPostPage({ params }: { params: Promise<{ postId: string }> }) {
   const { postId } = await params;
   const repo = new BlogRepository();
   const post = await repo.getById(postId);
-  if (!post || !post.isPublic) {
+  if (!post || !post.isPublic || !isPublished(post)) {
     notFound();
   }
   const headerStore = await headers();

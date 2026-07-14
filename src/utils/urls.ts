@@ -182,6 +182,9 @@ export const apiRoutePaths: Record<ApiRoute, string> = {
 
   // Contact
   [ApiRoute.SITE_CONTACT]: '/api/site/{siteId}/contact',
+
+  // Review (token-gated, non-site-scoped)
+  [ApiRoute.REVIEW_DECISION]: '/api/review/{token}',
 };
 
 /**

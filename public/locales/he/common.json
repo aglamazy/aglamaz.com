@@ -426,5 +426,12 @@
   "yahrzeitReminders": "תזכורות יארצייט",
   "yahrzeitRemindersDescription": "קבלו אימייל לפני יארצייט (יום פטירה) משפחתי.",
   "failedToLoadNotificationPreferences": "טעינת העדפות ההתראות נכשלה",
-  "failedToUpdateNotificationPreferences": "עדכון העדפות ההתראות נכשל"
+  "failedToUpdateNotificationPreferences": "עדכון העדפות ההתראות נכשל",
+  "reviewLinkInvalid": "קישור הביקורת אינו תקף או שפג תוקפו.",
+  "requestChanges": "בקש שינויים",
+  "reviewFeedbackPlaceholder": "מה צריך לשנות?",
+  "submit": "שלח",
+  "reviewApprovedMessage": "אושר — הפוסט פורסם כעת.",
+  "reviewChangesRequestedMessage": "המשוב נשלח לכותב/ת.",
+  "reviewDecisionFailed": "רישום ההחלטה נכשל. נסו שוב."
 }
