@@ -141,6 +141,7 @@ export class BlogRepository {
       reviewDecidedAt: raw.reviewDecidedAt,
       likeCount: raw.likeCount ?? 0,
       shareCount: raw.shareCount ?? 0,
+      taggedMemberIds: raw.taggedMemberIds ?? [],
       deletedAt: raw.deletedAt,
       createdAt: raw.createdAt,
       updatedAt: raw.updatedAt,
@@ -154,6 +155,7 @@ export class BlogRepository {
     isPublic: boolean;
     localeContent: BlogPostLocaleUpsertPayload;
     translationMeta?: IBlogPost['translationMeta'];
+    taggedMemberIds?: string[];
   }): Promise<IBlogPost> {
     const db = this.getDb();
     const ref = db.collection(this.collection).doc();
@@ -169,6 +171,7 @@ export class BlogRepository {
       isPublic: boolean;
       likeCount: number;
       shareCount: number;
+      taggedMemberIds: string[];
       deletedAt: Timestamp | null;
       createdAt: Timestamp;
       updatedAt: Timestamp;
@@ -180,6 +183,7 @@ export class BlogRepository {
       isPublic: post.isPublic,
       likeCount: 0,
       shareCount: 0,
+      taggedMemberIds: post.taggedMemberIds || [],
       deletedAt: null,
       createdAt: now,
       updatedAt: now,

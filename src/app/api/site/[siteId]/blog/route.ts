@@ -1,10 +1,12 @@
 import { withMemberGuard } from '@/lib/withMemberGuard';
 import { BlogRepository } from '@/repositories/BlogRepository';
+import { MemberRepository } from '@/repositories/MemberRepository';
 import { GuardContext } from '@/app/api/types';
 import { TranslationService } from '@/services/TranslationService';
 import { normalizeLang } from '@/services/LocalizationService';
 import type { IBlogPost, LocalizedBlogPost } from '@/entities/BlogPost';
 import { localizeBlogPost } from '@/utils/blogLocales';
+import { TagNotificationService } from '@/services/TagNotificationService';
 
 const DEFAULT_LANG = (process.env.NEXT_DEFAULT_LANG || 'en').toLowerCase();
 
@@ -160,13 +162,14 @@ const postHandler = async (request: Request, context: GuardContext & { params: P
     const repo = new BlogRepository();
     const user = context.user!;
     const body = await request.json();
-    const { title, content, isPublic, lang } = body;
+    const { title, content, isPublic, lang, taggedMemberIds } = body;
     if (!title || !content) {
       return Response.json({ error: 'Missing fields' }, { status: 400 });
     }
     const accept = request.headers.get('accept-language');
     const headerLang = parseLocaleInput(accept);
     const primaryLocale = (parseLocaleInput(lang) || headerLang || DEFAULT_LANG).toLowerCase();
+    const validTaggedMemberIds = await TagNotificationService.filterSiteMemberIds(taggedMemberIds, siteId);
     const post = await repo.create({
       authorId: user.userId,
       siteId: siteId,
@@ -178,7 +181,24 @@ const postHandler = async (request: Request, context: GuardContext & { params: P
         sourceLocale: primaryLocale,
       },
       isPublic: Boolean(isPublic),
+      taggedMemberIds: validTaggedMemberIds,
     });
+
+    if (validTaggedMemberIds.length) {
+      const memberRepo = new MemberRepository();
+      const author = await memberRepo.getById(user.userId);
+      const taggedByName = author?.displayName || user.email || 'Someone';
+      const appUrl = (process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/+$/, '');
+      await TagNotificationService.notifyTaggedMembers({
+        siteId,
+        taggedMemberIds: validTaggedMemberIds,
+        taggedByMemberId: user.userId,
+        taggedByName,
+        contentType: 'post',
+        contentLink: `${appUrl}/app/blog`,
+      }).catch((err) => console.error('[blog] tag notification failed:', err));
+    }
+
     const localized = localize(post, primaryLocale);
     return Response.json({ post, localized: localized.localized }, { status: 201 });
   } catch (error) {
@@ -205,12 +225,13 @@ const putHandler = async (request: Request, context: GuardContext & { params: Pr
     const user = context.user!;
     const member = context.member!;
     const body = await request.json();
-    const { id, title, content, isPublic, lang } = body as {
+    const { id, title, content, isPublic, lang, taggedMemberIds } = body as {
       id?: string;
       title?: string;
       content?: string;
       isPublic?: boolean;
       lang?: string;
+      taggedMemberIds?: string[];
     };
     if (!id) {
       return Response.json({ error: 'Missing id' }, { status: 400 });
@@ -234,6 +255,14 @@ const putHandler = async (request: Request, context: GuardContext & { params: Pr
       updates.isPublic = !!isPublic;
     }
 
+    let newlyTaggedMemberIds: string[] = [];
+    if (Array.isArray(taggedMemberIds)) {
+      const validTaggedMemberIds = await TagNotificationService.filterSiteMemberIds(taggedMemberIds, siteId);
+      updates.taggedMemberIds = validTaggedMemberIds;
+      const previouslyTagged = new Set(existing.taggedMemberIds || []);
+      newlyTaggedMemberIds = validTaggedMemberIds.filter((mid) => !previouslyTagged.has(mid));
+    }
+
     const targetLocale = parseLocaleInput(lang) || existing.primaryLocale;
     const normalizedLocale = targetLocale.toLowerCase();
     const localePayload: Record<string, unknown> = {};
@@ -254,6 +283,21 @@ const putHandler = async (request: Request, context: GuardContext & { params: Pr
 
     if (Object.keys(updates).length) {
       await repo.update(id, updates);
+    }
+
+    if (newlyTaggedMemberIds.length) {
+      const memberRepo = new MemberRepository();
+      const editor = await memberRepo.getById(user.userId);
+      const taggedByName = editor?.displayName || user.email || 'Someone';
+      const appUrl = (process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/+$/, '');
+      await TagNotificationService.notifyTaggedMembers({
+        siteId,
+        taggedMemberIds: newlyTaggedMemberIds,
+        taggedByMemberId: user.userId,
+        taggedByName,
+        contentType: 'post',
+        contentLink: `${appUrl}/app/blog`,
+      }).catch((err) => console.error('[blog] tag notification failed:', err));
     }
 
     const updated = await repo.getById(id);

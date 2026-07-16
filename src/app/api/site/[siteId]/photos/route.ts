@@ -1,7 +1,9 @@
 import { withMemberGuard } from '@/lib/withMemberGuard';
 import { GalleryPhotoRepository } from '@/repositories/GalleryPhotoRepository';
+import { MemberRepository } from '@/repositories/MemberRepository';
 import { GuardContext } from '@/app/api/types';
 import { extractImageDimensions } from '@/utils/imageDimensions';
+import { TagNotificationService } from '@/services/TagNotificationService';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,7 +27,7 @@ const postHandler = async (request: Request, context: GuardContext) => {
 
     const user = context.user!;
     const body = await request.json();
-    const { date, images, videos, description, anniversaryId, locale } = body;
+    const { date, images, videos, description, anniversaryId, taggedMemberIds, locale } = body;
 
     // Validation
     if (!date) {
@@ -80,6 +82,8 @@ const postHandler = async (request: Request, context: GuardContext) => {
       });
     }
 
+    const validTaggedMemberIds = await TagNotificationService.filterSiteMemberIds(taggedMemberIds, siteId);
+
     const repo = new GalleryPhotoRepository();
     const photo = await repo.create({
       siteId,
@@ -89,8 +93,24 @@ const postHandler = async (request: Request, context: GuardContext) => {
       videos: hasVideos ? videos : undefined,
       description: description?.trim() || '',
       anniversaryId: anniversaryId || undefined,
+      taggedMemberIds: validTaggedMemberIds,
       locale,
     });
+
+    if (validTaggedMemberIds.length) {
+      const memberRepo = new MemberRepository();
+      const author = await memberRepo.getById(user.userId);
+      const taggedByName = author?.displayName || user.email || 'Someone';
+      const appUrl = (process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/+$/, '');
+      await TagNotificationService.notifyTaggedMembers({
+        siteId,
+        taggedMemberIds: validTaggedMemberIds,
+        taggedByMemberId: user.userId,
+        taggedByName,
+        contentType: 'photo',
+        contentLink: `${appUrl}/app/photos`,
+      }).catch((err) => console.error('[photos] tag notification failed:', err));
+    }
 
     return Response.json({ photo }, { status: 201 });
   } catch (error) {
