@@ -1,6 +1,8 @@
 import { withMemberGuard } from '@/lib/withMemberGuard';
 import { GalleryPhotoRepository } from '@/repositories/GalleryPhotoRepository';
+import { MemberRepository } from '@/repositories/MemberRepository';
 import { GuardContext } from '@/app/api/types';
+import { TagNotificationService } from '@/services/TagNotificationService';
 
 export const dynamic = 'force-dynamic';
 
@@ -75,7 +77,7 @@ const putHandler = async (request: Request, context: GuardContext & { params: Pr
     const member = context.member!;
     const user = context.user!;
     const body = await request.json();
-    const { date, description, locale } = body;
+    const { date, description, taggedMemberIds, locale } = body;
 
     if (!locale || typeof locale !== 'string') {
       return Response.json({ error: 'locale is required' }, { status: 400 });
@@ -106,12 +108,37 @@ const putHandler = async (request: Request, context: GuardContext & { params: Pr
       }
     }
 
+    const hasTaggedMemberIds = Array.isArray(taggedMemberIds);
+    const validTaggedMemberIds = hasTaggedMemberIds
+      ? await TagNotificationService.filterSiteMemberIds(taggedMemberIds, siteId)
+      : undefined;
+
     // Update photo using repository (handles localization)
     await repo.update(photoId, {
       date: date !== undefined ? new Date(date) : undefined,
       description: description !== undefined ? description?.trim() || '' : undefined,
+      taggedMemberIds: validTaggedMemberIds,
       locale,
     });
+
+    if (validTaggedMemberIds) {
+      const previouslyTagged = new Set(photo.taggedMemberIds || []);
+      const newlyTagged = validTaggedMemberIds.filter((id) => !previouslyTagged.has(id));
+      if (newlyTagged.length) {
+        const memberRepo = new MemberRepository();
+        const editor = await memberRepo.getById(user.userId);
+        const taggedByName = editor?.displayName || user.email || 'Someone';
+        const appUrl = (process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/+$/, '');
+        await TagNotificationService.notifyTaggedMembers({
+          siteId,
+          taggedMemberIds: newlyTagged,
+          taggedByMemberId: user.userId,
+          taggedByName,
+          contentType: 'photo',
+          contentLink: `${appUrl}/app/photos`,
+        }).catch((err) => console.error('[photos] tag notification failed:', err));
+      }
+    }
 
     return Response.json({ success: true });
   } catch (error) {

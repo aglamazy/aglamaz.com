@@ -11,4 +11,5 @@ export interface Blessing extends LocalizableDocument {
   updatedAt: any;          // Firestore Timestamp
   deleted: boolean;        // Soft delete
   deletedAt?: any;         // Firestore Timestamp
+  taggedMemberIds?: string[]; // Member IDs tagged in this blessing
 }

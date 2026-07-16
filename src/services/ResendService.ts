@@ -3,7 +3,21 @@
 
 import { renderEmailHtml } from './emailTemplates';
 
-export type ReminderTopic = 'birthday' | 'yahrzeit';
+export type ReminderTopic = 'birthday' | 'yahrzeit' | 'tag';
+
+export type TaggedContentType = 'blessing' | 'photo' | 'post';
+
+export interface TagNotificationEmailParams {
+  firstName: string;
+  /** Name of the member who tagged the recipient */
+  taggedByName: string;
+  contentType: TaggedContentType;
+  /** Direct link to the tagged content */
+  contentLink: string;
+  lang?: string;
+  dir?: 'ltr' | 'rtl';
+  siteName?: string;
+}
 
 export interface ReminderEmailParams {
   topic: ReminderTopic;
@@ -98,6 +112,53 @@ function getLocalizedStrings(
       };
 }
 
+interface TagLocalizedStrings {
+  subject: string;
+  greeting: string;
+  body: string;
+  buttonLabel: string;
+}
+
+const CONTENT_TYPE_LABEL: Record<TaggedContentType, Record<string, string>> = {
+  blessing: { en: 'a blessing', he: 'ברכה', tr: 'bir tebrik' },
+  photo: { en: 'a photo', he: 'תמונה', tr: 'bir fotoğraf' },
+  post: { en: 'a post', he: 'פוסט', tr: 'bir gönderi' },
+};
+
+function getTagLocalizedStrings(
+  contentType: TaggedContentType,
+  firstName: string,
+  taggedByName: string,
+  lang: string,
+): TagLocalizedStrings {
+  const label = CONTENT_TYPE_LABEL[contentType][lang] ?? CONTENT_TYPE_LABEL[contentType].en;
+
+  if (lang === 'he') {
+    return {
+      subject: `📌 ${taggedByName} תייג/ה אותך`,
+      greeting: `שלום ${firstName},`,
+      body: `${taggedByName} תייג/ה אותך ב${label}.`,
+      buttonLabel: 'צפייה',
+    };
+  }
+
+  if (lang === 'tr') {
+    return {
+      subject: `📌 ${taggedByName} sizi etiketledi`,
+      greeting: `Merhaba ${firstName},`,
+      body: `${taggedByName} sizi ${label} içinde etiketledi.`,
+      buttonLabel: 'Görüntüle',
+    };
+  }
+
+  return {
+    subject: `📌 ${taggedByName} tagged you`,
+    greeting: `Hi ${firstName},`,
+    body: `${taggedByName} tagged you in ${label}.`,
+    buttonLabel: 'View',
+  };
+}
+
 export class ResendService {
   static isEnabled(): boolean {
     return !!process.env.RESEND_API_KEY;
@@ -132,6 +193,30 @@ export class ResendService {
         ? { label: strings.calendarButtonLabel, url: params.calendarUrl }
         : undefined,
       footerLines: [strings.manageFooter],
+    });
+
+    return { subject: strings.subject, html };
+  }
+
+  /**
+   * Build the subject + rich HTML for a "you were tagged" notification email.
+   * Event-triggered (not date-computed) — mirrors buildReminderEmailHtml's shape/wrapper reuse.
+   */
+  static buildTagNotificationEmailHtml(params: TagNotificationEmailParams): { subject: string; html: string } {
+    const lang = params.lang ?? 'en';
+    const dir = params.dir ?? (lang === 'he' ? 'rtl' : 'ltr');
+    const heading = params.siteName ? `🌳 ${params.siteName}` : undefined;
+
+    const strings = getTagLocalizedStrings(params.contentType, params.firstName, params.taggedByName, lang);
+
+    const html = renderEmailHtml({
+      subject: strings.subject,
+      lang,
+      dir,
+      heading,
+      greeting: strings.greeting,
+      paragraphs: [strings.body],
+      button: { label: strings.buttonLabel, url: params.contentLink },
     });
 
     return { subject: strings.subject, html };

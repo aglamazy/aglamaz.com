@@ -66,6 +66,7 @@ export interface IBlogPost {
   reviewDecidedAt?: any;
   likeCount?: number;
   shareCount?: number;
+  taggedMemberIds?: string[]; // Member IDs tagged in this post
   deletedAt?: any; // Soft delete timestamp
   createdAt: any;
   updatedAt: any;
