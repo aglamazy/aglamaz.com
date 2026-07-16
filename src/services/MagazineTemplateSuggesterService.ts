@@ -32,6 +32,7 @@ export class MagazineTemplateSuggesterService {
 The template will later be edited by hand, so favor a clean, simple structure over cleverness.
 Use inline CSS only (no <style> blocks, no external assets) since this renders in email clients.
 Use {{placeholders}} (e.g. {{siteName}}, {{month}}, {{photosSection}}, {{anniversariesSection}}, {{blogSection}}) for dynamic content sections instead of inventing fake data.
+End the email with a small, muted footer paragraph containing the literal merge tag {{ UnsubscribeURL }} as an unsubscribe link (e.g. <a href="{{ UnsubscribeURL }}">Unsubscribe</a>) — this is populated by the mailing-list provider at send time, do not invent a different unsubscribe URL.
 Output ONLY the raw HTML document, no markdown code fences, no commentary.`;
 
     const userPrompt = [

@@ -576,6 +576,15 @@ export class FamilyRepository {
     }
   }
 
+  async setMemberMagazineOptOut(userId: string, siteId: string, optOut: boolean): Promise<void> {
+    try {
+      await this.members.setMagazineOptOut(userId, siteId, optOut);
+    } catch (error) {
+      console.error('Error updating member magazineOptOut:', error);
+      throw new Error('Failed to update member');
+    }
+  }
+
   async getMembersWithBlog(siteId: string): Promise<FamilyMember[]> {
     try {
       return await this.members.listMembersWithBlog(siteId);

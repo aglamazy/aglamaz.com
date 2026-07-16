@@ -21,6 +21,7 @@ export interface MemberRecord extends Omit<IMember, 'role'> {
   userId?: string | null;
   blogHandle?: string | null;
   blogEnabled?: boolean;
+  magazineOptOut?: boolean;
   avatarUrl?: string | null;
   avatarStoragePath?: string | null;
   translations?: Record<string, MemberLocaleProfile> | null;
@@ -292,6 +293,14 @@ export class MemberRepository {
     }
 
     await this.update(member.id, updates);
+  }
+
+  async setMagazineOptOut(uid: string, siteId: string, optOut: boolean): Promise<void> {
+    const member = await this.getByUid(siteId, uid);
+    if (!member) {
+      throw new Error('Member not found');
+    }
+    await this.update(member.id, { magazineOptOut: !!optOut });
   }
 
   async registerBlog(

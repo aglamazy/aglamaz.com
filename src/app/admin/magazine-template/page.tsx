@@ -109,6 +109,10 @@ export default function MagazineTemplateEditor() {
             {t('magazineTemplateDescription') ||
               'This HTML template controls how the monthly family magazine digest looks. Use the AI suggester for a starting draft, then edit as needed.'}
           </p>
+          <p className="text-sm text-sage-600">
+            {t('magazineTemplateUnsubscribeHint') ||
+              'Keep an unsubscribe link in the footer using the UnsubscribeURL merge tag — the mailing-list provider fills in the real link at send time.'}
+          </p>
 
           <div>
             <label htmlFor="magazine-html" className="block text-sm font-medium text-sage-700 mb-2">

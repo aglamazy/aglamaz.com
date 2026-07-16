@@ -117,6 +117,7 @@ export const apiRoutePaths: Record<ApiRoute, string> = {
   [ApiRoute.ADMIN_CONTACT_MESSAGES]: '/api/admin/contact',
   [ApiRoute.USER_BLOG_ENABLE]: '/api/user/{userId}/blog/enable',
   [ApiRoute.USER_BLOG_REGISTER]: '/api/user/{userId}/blog/register',
+  [ApiRoute.USER_MAGAZINE_OPT_OUT]: '/api/user/{userId}/magazine/opt-out',
 
   // Site info
   [ApiRoute.SITE_INFO]: '/api/site/{siteId}',
