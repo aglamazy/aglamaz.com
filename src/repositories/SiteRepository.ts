@@ -399,6 +399,12 @@ export class SiteRepository {
     return snap.docs.map(doc => this.deserializeSite(doc.id, doc.data() || {}));
   }
 
+  async listAllSiteIds(): Promise<string[]> {
+    const db = this.getDb();
+    const snap = await db.collection('sites').get();
+    return snap.docs.map(doc => doc.id);
+  }
+
   private async translateMissingLocales(params: {
     siteId: string;
     localeTargets: string[];
