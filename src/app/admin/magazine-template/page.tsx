@@ -110,6 +110,11 @@ export default function MagazineTemplateEditor() {
               'This HTML template controls how the monthly family magazine digest looks. Use the AI suggester for a starting draft, then edit as needed.'}
           </p>
 
+          <p className="text-xs text-sage-500 bg-sage-50 border border-sage-200 rounded px-3 py-2">
+            {t('magazineUnsubscribeHint') ||
+              'Include an unsubscribe link using the Listmonk placeholder: {{ UnsubscribeURL }} — e.g. <a href="{{ UnsubscribeURL }}">Unsubscribe</a>'}
+          </p>
+
           <div>
             <label htmlFor="magazine-html" className="block text-sm font-medium text-sage-700 mb-2">
               {t('magazineTemplateHtml') || 'Template HTML'}
