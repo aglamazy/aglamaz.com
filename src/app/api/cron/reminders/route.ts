@@ -7,6 +7,7 @@ import { AnniversaryRepository } from '@/repositories/AnniversaryRepository';
 import { MemberRepository } from '@/repositories/MemberRepository';
 import { SiteRepository } from '@/repositories/SiteRepository';
 import { ReminderSendsRepository } from '@/repositories/ReminderSendsRepository';
+import { notificationPreferencesRepository } from '@/repositories/NotificationPreferencesRepository';
 import { ResendService } from '@/services/ResendService';
 import type { ISite } from '@/entities/Site';
 
@@ -156,17 +157,12 @@ export async function GET(request: NextRequest) {
       for (const member of members) {
         if (!member.email) continue;
 
-        // TODO (famcircle#11): load notification preferences for this member.
-        // When the notificationPreferences collection lands, check per-member opt-out:
-        // const prefs = await notificationPrefsRepo.getByMember(member.id, siteId);
-        // No prefs doc = subscribed to both (documented default).
-        // Expected shape: { birthOptOut: boolean; deathOptOut: boolean }
+        const prefs = await notificationPreferencesRepository.get(member.id, siteId);
 
         for (const reminder of dueReminders) {
           try {
-            // TODO (famcircle#11): apply opt-out before sending.
-            // if (reminder.topic === 'birthday' && prefs?.birthOptOut) continue;
-            // if (reminder.topic === 'yahrzeit' && prefs?.deathOptOut) continue;
+            if (reminder.topic === 'birthday' && prefs.birthOptOut) { totalSkipped++; continue; }
+            if (reminder.topic === 'yahrzeit' && prefs.deathOptOut) { totalSkipped++; continue; }
 
             const alreadySent = await sendsRepo.hasSent(
               member.id,
