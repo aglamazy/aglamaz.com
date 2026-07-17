@@ -5,6 +5,8 @@
   "contactUs": "Bize Ulaşın",
   "adminDashboard": "Yönetici Paneli",
   "adminDashboardSubtitle": "Site ayarlarınızı ve üyeleri yönetin",
+  "clearCache": "Önbelleği Temizle",
+  "cacheCleared": "Önbellek Temizlendi!",
   "manage": "Yönet",
   "manageSiteDescription": "Site açıklamasını ve karşılama mesajını düzenleyin",
   "managePendingMembers": "Bekleyen üye isteklerini inceleyin ve onaylayın",
