@@ -1,5 +1,4 @@
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import type { IBlogPost } from '@/entities/BlogPost';
 import { BlogRepository } from '@/repositories/BlogRepository';
 import { FamilyRepository } from '@/repositories/FamilyRepository';
 import { cookies, headers } from 'next/headers';
@@ -26,7 +25,7 @@ import { notFound } from 'next/navigation';
 import crypto from 'crypto';
 import { DEFAULT_LOCALE, SUPPORTED_LOCALES } from '@/i18n';
 import type { Metadata } from 'next';
-import { buildTranslationTriggerPayload, localizeBlogPosts } from '@/utils/blogLocales';
+import { buildTranslationTriggerPayload } from '@/utils/blogLocales';
 import { isPublished } from '@/repositories/BlogRepository';
 import { buildPageMetadata } from '@/utils/seo';
 
@@ -120,12 +119,12 @@ export default async function AuthorBlogPage({ params }: { params: Promise<Autho
 
   const uid = (member as any)?.userId || (member as any)?.uid || '';
   const repo = new BlogRepository();
-  const list = uid ? await repo.getByAuthor(uid) : [];
-  const posts: IBlogPost[] = (list || [])
-    .filter((p) => (p as any).siteId === siteId && p.isPublic && isPublished(p))
+  const list = uid ? await repo.getLocalizedByAuthor(uid, locale) : [];
+  const posts = (list || [])
+    .filter((entry) => entry.post.siteId === siteId && entry.post.isPublic && isPublished(entry.post))
     .sort((a, b) => {
-      const at = (a.createdAt as any)?.toMillis ? (a.createdAt as any).toMillis() : new Date(a.createdAt).getTime();
-      const bt = (b.createdAt as any)?.toMillis ? (b.createdAt as any).toMillis() : new Date(b.createdAt).getTime();
+      const at = (a.post.createdAt as any)?.toMillis ? (a.post.createdAt as any).toMillis() : new Date(a.post.createdAt).getTime();
+      const bt = (b.post.createdAt as any)?.toMillis ? (b.post.createdAt as any).toMillis() : new Date(b.post.createdAt).getTime();
       return bt - at;
     });
 
@@ -139,9 +138,7 @@ export default async function AuthorBlogPage({ params }: { params: Promise<Autho
     console.error('[blog/author] failed to fetch site info', error);
   }
 
-  const localizedPosts = localizeBlogPosts(posts, { preferredLocale: locale, fallbackLocales: [DEFAULT_LOCALE] });
-
-  const clientPosts = posts.map(buildTranslationTriggerPayload);
+  const clientPosts = posts.map(({ post }) => buildTranslationTriggerPayload(post));
 
   const baseUrl = await resolveRequestBaseUrl() || undefined;
   const siteName = siteInfo?.name?.trim();
@@ -170,15 +167,15 @@ export default async function AuthorBlogPage({ params }: { params: Promise<Autho
   });
 
   const postsListSchema = createBlogPostListSchema(
-    localizedPosts.map(({ post }) => post),
-    localizedPosts.map(({ localized }) => localized),
-    localizedPosts.map(() => author),
+    posts.map(({ post }) => post),
+    posts.map(({ localized }) => localized),
+    posts.map(() => author),
     { baseUrl, siteName, lang: baseLang }
   );
 
   // Top-level BlogPosting (Article) schemas so crawlers detect per-post article
   // structured data, not only the ItemList wrapper.
-  const articleSchemas = localizedPosts.map(({ post, localized }) =>
+  const articleSchemas = posts.map(({ post, localized }) =>
     createBlogPostingSchema(post, localized, author, { baseUrl, siteName, lang: baseLang })
   );
 
@@ -196,7 +193,7 @@ export default async function AuthorBlogPage({ params }: { params: Promise<Autho
     <div className="space-y-4 p-4">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: structuredData }} />
       <TranslationTrigger posts={clientPosts} lang={locale} />
-      {localizedPosts.map(({ post, localized }) => (
+      {posts.map(({ post, localized }) => (
         <Card key={post.id}>
           <CardHeader>
             <div className="flex items-start justify-between gap-3">

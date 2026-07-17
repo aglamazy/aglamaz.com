@@ -6,7 +6,11 @@ import type {
   BlogPostLocaleUpsertPayload,
   BlogPostLocales,
   IBlogPost,
+  LocalizedBlogPost,
 } from '@/entities/BlogPost';
+import { DEFAULT_LOCALE } from '@/i18n';
+import { hasLocale } from '@/services/LocalizationService';
+import { localizeBlogPost } from '@/utils/blogLocales';
 
 /** Returns true for any post that should appear in public feeds. Missing status is treated as 'published' for back-compat. */
 export function isPublished(post: IBlogPost): boolean {
@@ -148,6 +152,35 @@ export class BlogRepository {
     };
   }
 
+  private async localizePost(post: IBlogPost, locale?: string): Promise<LocalizedBlogPost> {
+    const fallbackLocales = [post.primaryLocale, DEFAULT_LOCALE];
+    const preferredLocale = locale || post.primaryLocale || DEFAULT_LOCALE;
+
+    if (!locale || hasLocale(post, locale)) {
+      return localizeBlogPost(post, {
+        preferredLocale,
+        fallbackLocales,
+      });
+    }
+
+    try {
+      const db = this.getDb();
+      const docRef = db.collection(this.collection).doc(post.id);
+      const { ensureLocale } = await import('@/services/LocalizationService');
+      const ensured = await ensureLocale(post, docRef, locale, ['title', 'content', 'seoTitle', 'seoDescription']);
+      return localizeBlogPost(ensured, {
+        preferredLocale,
+        fallbackLocales,
+      });
+    } catch (error) {
+      console.error(`[BlogRepository] Failed to localize post ${post.id} for ${locale}:`, error);
+      return localizeBlogPost(post, {
+        preferredLocale,
+        fallbackLocales,
+      });
+    }
+  }
+
   async create(post: {
     authorId: string;
     siteId: string;
@@ -200,6 +233,12 @@ export class BlogRepository {
     const doc = await db.collection(this.collection).doc(id).get();
     if (!doc.exists) return null;
     return this.mapDoc(doc);
+  }
+
+  async getLocalizedById(id: string, locale?: string): Promise<LocalizedBlogPost | null> {
+    const post = await this.getById(id);
+    if (!post) return null;
+    return this.localizePost(post, locale);
   }
 
   async update(
@@ -270,12 +309,22 @@ export class BlogRepository {
     return snap.docs.map((doc) => this.mapDoc(doc)).filter(isPublished);
   }
 
+  async getLocalizedByAuthor(authorId: string, locale?: string): Promise<LocalizedBlogPost[]> {
+    const posts = await this.getByAuthor(authorId);
+    return Promise.all(posts.map((post) => this.localizePost(post, locale)));
+  }
+
   async getBySite(siteId: string): Promise<IBlogPost[]> {
     const snap = await this.getBaseQuery()
       .where('siteId', '==', siteId)
       .orderBy('createdAt', 'desc')
       .get();
     return snap.docs.map((doc) => this.mapDoc(doc)).filter(isPublished);
+  }
+
+  async getLocalizedBySite(siteId: string, locale?: string): Promise<LocalizedBlogPost[]> {
+    const posts = await this.getBySite(siteId);
+    return Promise.all(posts.map((post) => this.localizePost(post, locale)));
   }
 
   async getPublicBySite(siteId: string, limit = 20): Promise<IBlogPost[]> {
@@ -286,6 +335,11 @@ export class BlogRepository {
       .limit(limit)
       .get();
     return snap.docs.map((doc) => this.mapDoc(doc)).filter(isPublished);
+  }
+
+  async getLocalizedPublicBySite(siteId: string, locale?: string, limit = 20): Promise<LocalizedBlogPost[]> {
+    const posts = await this.getPublicBySite(siteId, limit);
+    return Promise.all(posts.map((post) => this.localizePost(post, locale)));
   }
 
   async countPublicSince(siteId: string, since: Timestamp): Promise<number> {

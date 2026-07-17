@@ -1,5 +1,4 @@
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import type { IBlogPost } from '@/entities/BlogPost';
 import { BlogRepository } from '@/repositories/BlogRepository';
 import { FamilyRepository } from '@/repositories/FamilyRepository';
 import crypto from 'crypto';
@@ -20,7 +19,7 @@ import { createBlogSchema, createBlogPostingSchema, createBreadcrumbSchema, type
 import UnderConstruction from '@/components/UnderConstruction';
 import { DEFAULT_LOCALE, SUPPORTED_LOCALES } from '@/i18n';
 import type { Metadata } from 'next';
-import { buildTranslationTriggerPayload, localizeBlogPosts } from '@/utils/blogLocales';
+import { buildTranslationTriggerPayload } from '@/utils/blogLocales';
 import { buildPageMetadata } from '@/utils/seo';
 
 export const dynamic = 'force-dynamic';
@@ -81,13 +80,12 @@ export default async function FamilyBlogPage({ params }: FamilyBlogPageProps) {
 
   const repo = new BlogRepository();
   const fam = new FamilyRepository();
-  const posts: IBlogPost[] = await repo.getPublicBySite(siteId, 30);
+  const localizedPosts = await repo.getLocalizedPublicBySite(siteId, locale, 30);
 
   const cookieStore = await cookies();
   const tz = cookieStore.get('tz')?.value;
   const dateLocale = resolveDateLocale(locale, tz);
 
-  const h = await headers();
   const lang = locale;
   const baseLang = lang.split('-')[0]?.toLowerCase() || lang.toLowerCase();
   const t = await getServerT(baseLang);
@@ -99,8 +97,6 @@ export default async function FamilyBlogPage({ params }: FamilyBlogPageProps) {
     console.error('[blog/family] failed to fetch site info', error);
     // Continue with null siteInfo
   }
-
-  const localizedPosts = localizeBlogPosts(posts, { preferredLocale: locale, fallbackLocales: [DEFAULT_LOCALE] });
 
   const enriched = await Promise.all(localizedPosts.map(async ({ post, localized }) => {
     const m = await fam.getMemberByUserId(post.authorId, siteId);
@@ -116,7 +112,7 @@ export default async function FamilyBlogPage({ params }: FamilyBlogPageProps) {
   }));
 
   // Minimal, plain-JSON payload for client TranslationTrigger
-  const clientPosts = posts.map(buildTranslationTriggerPayload);
+  const clientPosts = localizedPosts.map(({ post }) => buildTranslationTriggerPayload(post));
 
   const baseUrl = await resolveRequestBaseUrl() || undefined;
   const siteName = siteInfo?.name?.trim();
@@ -176,7 +172,7 @@ export default async function FamilyBlogPage({ params }: FamilyBlogPageProps) {
           </CardContent>
         </Card>
       ))}
-      {posts.length === 0 && <div><I18nText k="noPublicPostsYet" /></div>}
+      {localizedPosts.length === 0 && <div><I18nText k="noPublicPostsYet" /></div>}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: structuredData }} />
     </div>
   );
