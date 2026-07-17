@@ -41,6 +41,8 @@
   "getStarted": "התחל",
   "adminDashboard": "לוח בקרה למנהל",
   "adminDashboardSubtitle": "ניהול הגדרות האתר והחברים",
+  "clearCache": "ניקוי מטמון",
+  "cacheCleared": "המטמון נוקה!",
   "manage": "ניהול",
   "manageSiteDescription": "עריכת תיאור האתר והודעת הברכה",
   "managePendingMembers": "סקירה ואישור בקשות חברים ממתינים",
