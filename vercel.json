@@ -3,6 +3,14 @@
     {
       "path": "/api/cron/reminders",
       "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/yahrzeit-whatsapp",
+      "schedule": "5 6 * * *"
+    },
+    {
+      "path": "/api/cron/digest",
+      "schedule": "0 6 1 * *"
     }
   ]
 }

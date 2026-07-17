@@ -1,109 +1,96 @@
+import { NextRequest } from 'next/server';
 import { blogRepository } from '@/repositories/BlogRepository';
 import { FamilyRepository } from '@/repositories/FamilyRepository';
-import { localizeBlogPost } from '@/utils/blogLocales';
-import { sendTransactionalEmail } from '@/services/ResendService';
-import type { BlogPostReviewDecision, IBlogPost } from '@/entities/BlogPost';
+import { ResendService } from '@/services/ResendService';
+import { renderEmailHtml } from '@/services/emailTemplates';
 
-// Public, token-gated review route - deliberately NOT wrapped in withMemberGuard.
-// The reviewToken itself is the auth: anyone with the (short-lived) link can view
-// and decide, matching the "hand a reviewer a link" use case in famcircle#15.
 export const dynamic = 'force-dynamic';
 
-function parseLocale(value?: string | null): string | undefined {
-  if (!value) return undefined;
-  const raw = value.split(',')[0]?.trim();
-  if (!raw) return undefined;
-  const code = raw.split(';')[0]?.trim();
-  return code ? code.toLowerCase() : undefined;
+export async function GET(
+  _req: NextRequest,
+  context: { params: Promise<{ token: string }> },
+) {
+  const { token } = await context.params;
+  const post = await blogRepository.getByReviewToken(token);
+  if (!post) {
+    return Response.json({ error: 'Review link not found or expired' }, { status: 404 });
+  }
+  return Response.json({ post });
 }
 
-function escapeHtml(value: string): string {
-  return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
+export async function POST(
+  req: NextRequest,
+  context: { params: Promise<{ token: string }> },
+) {
+  const { token } = await context.params;
 
-function resolveBaseUrl(): string {
-  return (process.env.NEXT_PUBLIC_APP_URL || process.env.SITE_URL || '').replace(/\/+$/, '');
-}
+  let body: { decision?: string; feedback?: string };
+  try {
+    body = await req.json();
+  } catch {
+    return Response.json({ error: 'Invalid JSON body' }, { status: 400 });
+  }
 
-async function notifyAuthor(post: IBlogPost, decision: BlogPostReviewDecision, feedback?: string) {
+  const { decision, feedback } = body;
+  if (decision !== 'approved' && decision !== 'changes_requested') {
+    return Response.json({ error: 'decision must be "approved" or "changes_requested"' }, { status: 400 });
+  }
+  if (decision === 'changes_requested' && !feedback?.trim()) {
+    return Response.json({ error: 'feedback is required when requesting changes' }, { status: 400 });
+  }
+
+  // Read post before deciding so we have siteId / authorId for the notification email
+  const prePost = await blogRepository.getByReviewToken(token);
+  if (!prePost) {
+    return Response.json({ error: 'Review link not found or expired' }, { status: 404 });
+  }
+
+  const updated = await blogRepository.decideReview(token, decision, feedback);
+  if (!updated) {
+    return Response.json({ error: 'Review link not found or expired' }, { status: 404 });
+  }
+
+  // Send decision notification to the post's author
   try {
     const fam = new FamilyRepository();
-    const author = await fam.getMemberByUserId(post.authorId, post.siteId);
-    if (!author?.email) return;
+    const author = await fam.getMemberByUserId(prePost.authorId, prePost.siteId);
+    const authorEmail = (author as any)?.email as string | undefined;
+    if (authorEmail) {
+      const appUrl = (process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/+$/, '');
+      const editLink = `${appUrl}/app/blog/${prePost.id}/edit`;
+      const authorName =
+        (author as any)?.firstName || (author as any)?.displayName || 'Author';
 
-    const localized = localizeBlogPost(post, {
-      preferredLocale: post.primaryLocale,
-      fallbackLocales: [post.primaryLocale],
-    }).localized;
-    const title = localized.title || post.id;
+      const subject =
+        decision === 'approved'
+          ? 'Your blog post has been published!'
+          : 'Review feedback on your blog post';
 
-    if (decision === 'approved') {
-      await sendTransactionalEmail({
-        to: author.email,
-        subject: 'Your post was published',
-        html: `<p>Your post "${escapeHtml(title)}" was approved and is now published.</p>`,
+      const paragraphs =
+        decision === 'approved'
+          ? ['Your blog post has been reviewed and approved — it is now published.']
+          : [
+              `Your reviewer has requested some changes:`,
+              `<em>${feedback}</em>`,
+              `<a href="${editLink}">Click here to edit your post</a>`,
+            ];
+
+      const html = renderEmailHtml({
+        subject,
+        greeting: `Hi ${authorName},`,
+        paragraphs,
+        footerLines: ['FamCircle'],
       });
-    } else {
-      const editUrl = `${resolveBaseUrl()}/app/blog/${post.id}/edit`;
-      await sendTransactionalEmail({
-        to: author.email,
-        subject: 'Changes requested on your post',
-        html: [
-          `<p>A reviewer requested changes on "${escapeHtml(title)}":</p>`,
-          `<blockquote>${escapeHtml(feedback || '')}</blockquote>`,
-          `<p><a href="${escapeHtml(editUrl)}">Edit your post</a></p>`,
-        ].join(''),
-      });
+
+      await ResendService.sendTransactionalEmail({ to: authorEmail, subject, html });
     }
-  } catch (error) {
-    console.error('[review] failed to notify author', error);
+  } catch (err) {
+    console.error('[review/decide] author notification email failed', err);
+    // Don't fail the request — the decision was already committed
   }
+
+  // TODO: Notify Shofar of review decision once their webhook route is live.
+  // Intended payload: { decision, post_id: prePost.id, feedback }
+
+  return Response.json({ success: true, post: updated });
 }
-
-export const GET = async (request: Request, { params }: { params: Promise<{ token: string }> }) => {
-  try {
-    const { token } = await params;
-    const post = await blogRepository.getByReviewToken(token);
-    if (!post) {
-      return Response.json({ error: 'Review link not found or expired' }, { status: 404 });
-    }
-    const preferred = parseLocale(request.headers.get('accept-language')) || post.primaryLocale;
-    const localized = localizeBlogPost(post, {
-      preferredLocale: preferred,
-      fallbackLocales: [post.primaryLocale],
-    });
-    return Response.json({ post, localized: localized.localized });
-  } catch (error) {
-    console.error('[review] failed to fetch post by token', error);
-    return Response.json({ error: 'Failed to fetch post' }, { status: 500 });
-  }
-};
-
-export const POST = async (request: Request, { params }: { params: Promise<{ token: string }> }) => {
-  try {
-    const { token } = await params;
-    const body = await request.json().catch(() => ({}));
-    const decision = body?.decision as BlogPostReviewDecision | undefined;
-    const feedback = typeof body?.feedback === 'string' ? body.feedback : undefined;
-    if (decision !== 'approved' && decision !== 'changes_requested') {
-      return Response.json({ error: 'Invalid decision' }, { status: 400 });
-    }
-
-    const updated = await blogRepository.decideReview(token, decision, feedback);
-    if (!updated) {
-      return Response.json({ error: 'Review link not found or expired' }, { status: 404 });
-    }
-
-    await notifyAuthor(updated, decision, feedback);
-
-    // TODO(famcircle#15 follow-up): once Shofar's review-decision webhook route is
-    // live, POST this decision to it so their authoring pipeline can react. Intended
-    // payload: { decision, post_id: updated.id, feedback }. Blocked on Shofar
-    // publishing that endpoint (tracked in Shofar's own project, not this one).
-
-    return Response.json({ success: true, post: updated });
-  } catch (error) {
-    console.error('[review] failed to decide review', error);
-    return Response.json({ error: 'Failed to record decision' }, { status: 500 });
-  }
-};

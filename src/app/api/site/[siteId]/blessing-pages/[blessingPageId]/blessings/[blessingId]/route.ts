@@ -1,6 +1,9 @@
 import { withMemberGuard } from '@/lib/withMemberGuard';
+import { BlessingPageRepository } from '@/repositories/BlessingPageRepository';
 import { BlessingRepository } from '@/repositories/BlessingRepository';
+import { MemberRepository } from '@/repositories/MemberRepository';
 import { GuardContext } from '@/app/api/types';
+import { TagNotificationService } from '@/services/TagNotificationService';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,7 +26,7 @@ const putHandler = async (request: Request, context: GuardContext & { params: Pr
     const user = context.user!;
     const member = context.member!;
     const body = await request.json();
-    const { content } = body;
+    const { content, taggedMemberIds } = body;
 
     if (!content || !content.trim()) {
       return Response.json({ error: 'Content is required' }, { status: 400 });
@@ -44,8 +47,34 @@ const putHandler = async (request: Request, context: GuardContext & { params: Pr
     // Get locale from header
     const locale = request.headers.get('x-locale') || 'he';
 
+    const hasTaggedMemberIds = Array.isArray(taggedMemberIds);
+    const validTaggedMemberIds = hasTaggedMemberIds
+      ? await TagNotificationService.filterSiteMemberIds(taggedMemberIds, siteId)
+      : undefined;
+
     // Update blessing
-    await blessingRepo.update(blessingId, { content, locale });
+    await blessingRepo.update(blessingId, { content, locale, taggedMemberIds: validTaggedMemberIds });
+
+    if (validTaggedMemberIds) {
+      const previouslyTagged = new Set(existing.taggedMemberIds || []);
+      const newlyTagged = validTaggedMemberIds.filter((id) => !previouslyTagged.has(id));
+      if (newlyTagged.length) {
+        const bpRepo = new BlessingPageRepository();
+        const blessingPage = await bpRepo.getById(blessingPageId);
+        const memberRepo = new MemberRepository();
+        const editor = await memberRepo.getById(user.userId);
+        const taggedByName = editor?.displayName || user.email || 'Someone';
+        const appUrl = (process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/+$/, '');
+        await TagNotificationService.notifyTaggedMembers({
+          siteId,
+          taggedMemberIds: newlyTagged,
+          taggedByMemberId: user.userId,
+          taggedByName,
+          contentType: 'blessing',
+          contentLink: `${appUrl}/app/blessing/${blessingPage?.slug ?? ''}`,
+        }).catch((err) => console.error('[blessings] tag notification failed:', err));
+      }
+    }
 
     return Response.json({ success: true });
   } catch (error) {

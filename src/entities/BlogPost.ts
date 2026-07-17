@@ -53,7 +53,7 @@ export type BlogPostContentFormat = 'md' | 'html';
 
 // Draft-review workflow status. Missing status = 'published' (back-compat for
 // posts written before this field existed) - always gate through isPublished()
-// from utils/blogStatus rather than comparing status inline.
+// exported from BlogRepository rather than comparing status inline.
 export type BlogPostStatus = 'draft' | 'in_review' | 'published';
 
 export type BlogPostReviewDecision = 'approved' | 'changes_requested';
@@ -72,6 +72,7 @@ export interface IBlogPost {
   contentFormat?: BlogPostContentFormat;
   // Draft-review workflow. isPublic is an orthogonal audience choice the author
   // sets independently - approving a review flips status only, never isPublic.
+  // Absent on legacy posts → treat as 'published'.
   status?: BlogPostStatus;
   reviewToken?: string;
   reviewTokenExpiresAt?: any;
@@ -80,6 +81,7 @@ export interface IBlogPost {
   reviewDecidedAt?: any;
   likeCount?: number;
   shareCount?: number;
+  taggedMemberIds?: string[]; // Member IDs tagged in this post
   deletedAt?: any; // Soft delete timestamp
   createdAt: any;
   updatedAt: any;

@@ -206,8 +206,12 @@ export default function PendingMembersPage() {
                     <button
                       onClick={() => handleAction(member.id, 'approve')}
                       disabled={actionLoading === member.id}
-                      title={!isReady(member) ? t('approveWithoutVerificationWarning') : undefined}
-                      className="flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-medium text-green-700 hover:bg-green-50 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                      title={!isReady(member) ? t('approveOverride') : undefined}
+                      className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-medium transition disabled:opacity-40 disabled:cursor-not-allowed ${
+                        isReady(member)
+                          ? 'text-green-700 hover:bg-green-50'
+                          : 'text-amber-700 hover:bg-amber-50'
+                      }`}
                     >
                       {actionLoading === member.id ? (
                         <Loader2 className="w-4 h-4 animate-spin" />

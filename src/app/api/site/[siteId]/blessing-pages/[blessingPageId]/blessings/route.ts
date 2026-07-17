@@ -3,6 +3,7 @@ import { BlessingPageRepository } from '@/repositories/BlessingPageRepository';
 import { BlessingRepository } from '@/repositories/BlessingRepository';
 import { MemberRepository } from '@/repositories/MemberRepository';
 import { GuardContext } from '@/app/api/types';
+import { TagNotificationService } from '@/services/TagNotificationService';
 
 export const dynamic = 'force-dynamic';
 
@@ -68,7 +69,7 @@ const postHandler = async (request: Request, context: GuardContext & { params: P
     const user = context.user!;
     const member = context.member!;
     const body = await request.json();
-    const { content } = body;
+    const { content, taggedMemberIds } = body;
 
     if (!content || !content.trim()) {
       return Response.json({ error: 'Content is required' }, { status: 400 });
@@ -89,6 +90,8 @@ const postHandler = async (request: Request, context: GuardContext & { params: P
     // Get locale from header
     const locale = request.headers.get('x-locale') || 'he';
 
+    const validTaggedMemberIds = await TagNotificationService.filterSiteMemberIds(taggedMemberIds, siteId);
+
     // Create blessing
     const blessingRepo = new BlessingRepository();
     const blessing = await blessingRepo.create({
@@ -98,7 +101,20 @@ const postHandler = async (request: Request, context: GuardContext & { params: P
       authorName,
       content,
       locale,
+      taggedMemberIds: validTaggedMemberIds,
     });
+
+    if (validTaggedMemberIds.length) {
+      const appUrl = (process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/+$/, '');
+      await TagNotificationService.notifyTaggedMembers({
+        siteId,
+        taggedMemberIds: validTaggedMemberIds,
+        taggedByMemberId: user.userId,
+        taggedByName: authorName,
+        contentType: 'blessing',
+        contentLink: `${appUrl}/app/blessing/${blessingPage.slug}`,
+      }).catch((err) => console.error('[blessings] tag notification failed:', err));
+    }
 
     return Response.json({ blessing }, { status: 201 });
   } catch (error) {

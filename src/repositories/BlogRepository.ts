@@ -1,5 +1,5 @@
 import { FieldValue, getFirestore, Timestamp } from 'firebase-admin/firestore';
-import { randomUUID } from 'crypto';
+import crypto from 'crypto';
 import { initAdmin } from '../firebase/admin';
 import type {
   BlogPostLocale,
@@ -8,9 +8,13 @@ import type {
   BlogPostReviewDecision,
   IBlogPost,
 } from '@/entities/BlogPost';
-import { isPublished } from '@/utils/blogStatus';
 
 const REVIEW_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
+
+/** Returns true for any post that should appear in public feeds. Missing status is treated as 'published' for back-compat. */
+export function isPublished(post: IBlogPost): boolean {
+  return !post.status || post.status === 'published';
+}
 
 function cloneMeta(meta: BlogPostLocale['title$meta']) {
   if (!meta) return undefined;
@@ -143,6 +147,7 @@ export class BlogRepository {
       reviewDecidedAt: raw.reviewDecidedAt,
       likeCount: raw.likeCount ?? 0,
       shareCount: raw.shareCount ?? 0,
+      taggedMemberIds: raw.taggedMemberIds ?? [],
       deletedAt: raw.deletedAt,
       createdAt: raw.createdAt,
       updatedAt: raw.updatedAt,
@@ -158,6 +163,7 @@ export class BlogRepository {
     translationMeta?: IBlogPost['translationMeta'];
     contentFormat?: IBlogPost['contentFormat'];
     status?: IBlogPost['status'];
+    taggedMemberIds?: string[];
   }): Promise<IBlogPost> {
     const db = this.getDb();
     const ref = db.collection(this.collection).doc();
@@ -177,6 +183,7 @@ export class BlogRepository {
       status: IBlogPost['status'];
       likeCount: number;
       shareCount: number;
+      taggedMemberIds: string[];
       deletedAt: Timestamp | null;
       createdAt: Timestamp;
       updatedAt: Timestamp;
@@ -190,6 +197,7 @@ export class BlogRepository {
       status,
       likeCount: 0,
       shareCount: 0,
+      taggedMemberIds: post.taggedMemberIds || [],
       deletedAt: null,
       createdAt: now,
       updatedAt: now,
@@ -263,73 +271,6 @@ export class BlogRepository {
     });
   }
 
-  // Puts the post in front of a reviewer via a short-lived (24h) link. Re-requesting
-  // a review overwrites any prior token and clears a stale decision/feedback so the
-  // reviewer always sees a fresh review cycle.
-  async requestReview(postId: string): Promise<{ token: string; expiresAt: Timestamp }> {
-    const db = this.getDb();
-    const now = Timestamp.now();
-    const token = randomUUID();
-    const expiresAt = Timestamp.fromMillis(now.toMillis() + REVIEW_TOKEN_TTL_MS);
-    await db.collection(this.collection).doc(postId).update({
-      status: 'in_review',
-      reviewToken: token,
-      reviewTokenExpiresAt: expiresAt,
-      reviewFeedback: FieldValue.delete(),
-      reviewDecision: FieldValue.delete(),
-      reviewDecidedAt: FieldValue.delete(),
-      updatedAt: now,
-    });
-    return { token, expiresAt };
-  }
-
-  async getByReviewToken(token: string): Promise<IBlogPost | null> {
-    const db = this.getDb();
-    const snap = await db
-      .collection(this.collection)
-      .where('reviewToken', '==', token)
-      .where('deletedAt', '==', null)
-      .limit(1)
-      .get();
-    if (snap.empty) return null;
-    const post = this.mapDoc(snap.docs[0]);
-    const expiresAt = post.reviewTokenExpiresAt as Timestamp | undefined;
-    if (!expiresAt || expiresAt.toMillis() < Date.now()) {
-      return null;
-    }
-    return post;
-  }
-
-  // Approve flips status -> 'published' ONLY, never isPublic - isPublic stays the
-  // author's own orthogonal audience choice (locked decision, famcircle#15). The
-  // review token is single-use: cleared here so the link can't be replayed.
-  async decideReview(
-    token: string,
-    decision: BlogPostReviewDecision,
-    feedback?: string,
-  ): Promise<IBlogPost | null> {
-    const post = await this.getByReviewToken(token);
-    if (!post) return null;
-    const db = this.getDb();
-    const now = Timestamp.now();
-    const updates: Record<string, unknown> = {
-      reviewDecision: decision,
-      reviewDecidedAt: now,
-      reviewToken: FieldValue.delete(),
-      reviewTokenExpiresAt: FieldValue.delete(),
-      updatedAt: now,
-    };
-    if (decision === 'approved') {
-      updates.status = 'published';
-      updates.reviewFeedback = FieldValue.delete();
-    } else {
-      updates.status = 'draft';
-      updates.reviewFeedback = feedback ?? '';
-    }
-    await db.collection(this.collection).doc(post.id).update(updates);
-    return this.getById(post.id);
-  }
-
   async getAll(): Promise<IBlogPost[]> {
     const snap = await this.getBaseQuery().orderBy('createdAt', 'desc').get();
     return snap.docs.map((doc) => this.mapDoc(doc));
@@ -396,6 +337,83 @@ export class BlogRepository {
 
   async incrementLike(id: string): Promise<number> {
     return this.incrementCounter(id, 'likeCount');
+  }
+
+  /**
+   * Sets status='in_review', generates a 24h review token, and returns it.
+   * Re-requesting overwrites any prior token and clears a stale decision/feedback
+   * so the reviewer always sees a fresh review cycle.
+   */
+  async requestReview(postId: string): Promise<string> {
+    const db = this.getDb();
+    const token = crypto.randomUUID();
+    const now = Timestamp.now();
+    const expiresAt = Timestamp.fromMillis(now.toMillis() + REVIEW_TOKEN_TTL_MS);
+    await db.collection(this.collection).doc(postId).update({
+      status: 'in_review',
+      reviewToken: token,
+      reviewTokenExpiresAt: expiresAt,
+      reviewFeedback: FieldValue.delete(),
+      reviewDecision: FieldValue.delete(),
+      reviewDecidedAt: FieldValue.delete(),
+      updatedAt: now,
+    });
+    return token;
+  }
+
+  /** Returns the post for the given review token, or null if missing or expired. */
+  async getByReviewToken(token: string): Promise<IBlogPost | null> {
+    const db = this.getDb();
+    const now = Timestamp.now();
+    const snap = await db
+      .collection(this.collection)
+      .where('reviewToken', '==', token)
+      .where('deletedAt', '==', null)
+      .limit(1)
+      .get();
+    if (snap.empty) return null;
+    const post = this.mapDoc(snap.docs[0]);
+    if (!post.reviewTokenExpiresAt) return null;
+    const expiresMillis = post.reviewTokenExpiresAt.toMillis
+      ? post.reviewTokenExpiresAt.toMillis()
+      : Date.parse(String(post.reviewTokenExpiresAt));
+    if (expiresMillis < now.toMillis()) return null;
+    return post;
+  }
+
+  /**
+   * Records the reviewer's decision:
+   * - 'approved' → sets status='published' (isPublic is NOT touched — isPublic stays
+   *   the author's own orthogonal audience choice, locked decision famcircle#15)
+   * - 'changes_requested' → stores feedback/decision/decidedAt; status flips to 'draft'
+   * The review token is single-use: cleared here so the link can't be replayed.
+   * Returns the updated post, or null if the token is missing/expired.
+   */
+  async decideReview(
+    token: string,
+    decision: BlogPostReviewDecision,
+    feedback?: string,
+  ): Promise<IBlogPost | null> {
+    const post = await this.getByReviewToken(token);
+    if (!post) return null;
+    const db = this.getDb();
+    const now = Timestamp.now();
+    const updates: Record<string, unknown> = {
+      reviewDecision: decision,
+      reviewDecidedAt: now,
+      reviewToken: FieldValue.delete(),
+      reviewTokenExpiresAt: FieldValue.delete(),
+      updatedAt: now,
+    };
+    if (decision === 'approved') {
+      updates.status = 'published';
+      updates.reviewFeedback = FieldValue.delete();
+    } else {
+      updates.status = 'draft';
+      updates.reviewFeedback = feedback ?? '';
+    }
+    await db.collection(this.collection).doc(post.id).update(updates);
+    return this.getById(post.id);
   }
 }
 

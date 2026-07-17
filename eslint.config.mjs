@@ -21,6 +21,7 @@ export default [
       "src/app/settings.*",
       "src/app/robots.txt/**",
       "src/app/sitemap.xml/**",
+      "src/app/og/**",
       "src/app/public/**",
       "src/app/review/**"
     ],

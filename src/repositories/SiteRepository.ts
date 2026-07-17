@@ -258,12 +258,6 @@ export class SiteRepository {
     };
   }
 
-  /** All site ids in the system - used by cross-site jobs (e.g. the reminders cron) that must not hardcode a single siteId. */
-  async listAllSiteIds(): Promise<string[]> {
-    const snap = await this.getDb().collection('sites').select().get();
-    return snap.docs.map(doc => doc.id);
-  }
-
   async getIdByDomain(domain: string, opts?: GetOptions): Promise<string | null> {
     const fetcher = async () => {
       const snap = await this.domainMappingRef(domain).get();
@@ -361,7 +355,7 @@ export class SiteRepository {
       ownerUid: (plain.ownerUid as string) || '',
       createdAt: plain.createdAt,
       updatedAt: plain.updatedAt,
-      isDemo: plain.isDemo as boolean | undefined,
+      isDemo: plain.isDemo === true ? true : undefined,
       locales: (plain.locales as ISite['locales']) || {},
     } as ISite;
   }
@@ -397,6 +391,18 @@ export class SiteRepository {
       // On error, return original site
       return site;
     }
+  }
+
+  async listAll(): Promise<ISite[]> {
+    const db = this.getDb();
+    const snap = await db.collection('sites').get();
+    return snap.docs.map(doc => this.deserializeSite(doc.id, doc.data() || {}));
+  }
+
+  async listAllSiteIds(): Promise<string[]> {
+    const db = this.getDb();
+    const snap = await db.collection('sites').get();
+    return snap.docs.map(doc => doc.id);
   }
 
   private async translateMissingLocales(params: {

@@ -1,42 +1,50 @@
-import { BlogRepository } from '@/repositories/BlogRepository';
-import { localizeBlogPost } from '@/utils/blogLocales';
-import { DEFAULT_LOCALE } from '@/i18n';
+import { notFound } from 'next/navigation';
 import { headers } from 'next/headers';
-import ReviewPostView from '@/components/blog/ReviewPostView';
-import { getServerT } from '@/utils/serverTranslations';
-import styles from './page.module.css';
+import { blogRepository } from '@/repositories/BlogRepository';
+import { resolveLocalizedFields } from '@/utils/blogLocales';
+import { DEFAULT_LOCALE } from '@/i18n';
+import ReviewDecisionForm from './ReviewDecisionForm';
+import blogStyles from '@/components/blog/PublicPost.module.css';
 
 export const dynamic = 'force-dynamic';
 
-export default async function ReviewPostPage({ params }: { params: Promise<{ token: string }> }) {
+export default async function ReviewPage({
+  params,
+}: {
+  params: Promise<{ token: string }>;
+}) {
   const { token } = await params;
-  const repo = new BlogRepository();
-  const post = await repo.getByReviewToken(token);
-
-  const headerStore = await headers();
-  const preferred = headerStore.get('accept-language')?.split(',')[0]?.split(';')[0]?.toLowerCase()
-    || post?.primaryLocale
-    || DEFAULT_LOCALE;
-
+  const post = await blogRepository.getByReviewToken(token);
   if (!post) {
-    const t = await getServerT(preferred);
-    return (
-      <div className={styles.container}>
-        <div className={styles.invalid} data-testid="review-invalid">
-          {t('reviewLinkInvalid') as string}
-        </div>
-      </div>
-    );
+    notFound();
   }
 
-  const localized = localizeBlogPost(post, {
+  const headerStore = await headers();
+  const preferred =
+    headerStore
+      .get('accept-language')
+      ?.split(',')[0]
+      ?.split(';')[0]
+      ?.toLowerCase() ||
+    post.primaryLocale ||
+    DEFAULT_LOCALE;
+
+  const localized = resolveLocalizedFields(post, {
     preferredLocale: preferred,
-    fallbackLocales: [post.primaryLocale],
-  }).localized;
+    fallbackLocales: [DEFAULT_LOCALE],
+  });
 
   return (
-    <div className={styles.container}>
-      <ReviewPostView token={token} post={post} localized={localized} />
+    <div className="mx-auto max-w-3xl px-4 py-8">
+      <div className="mb-2 text-xs font-medium uppercase tracking-wide text-amber-600">
+        Draft — review requested
+      </div>
+      <article className={`prose max-w-none ${blogStyles.content}`}>
+        <h1 className="mb-4 text-2xl font-semibold">{localized.title}</h1>
+        <div dangerouslySetInnerHTML={{ __html: localized.content }} />
+      </article>
+      <hr className="my-8 border-gray-200" />
+      <ReviewDecisionForm token={token} />
     </div>
   );
 }

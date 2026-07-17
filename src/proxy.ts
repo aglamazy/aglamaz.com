@@ -41,6 +41,7 @@ const PUBLIC_PATHS = [
   '/sitemap.xml',
   '/robots.txt',
   '/terms',
+  '/og',
 ];
 
 const PUBLIC_REDIRECT_PATHS = ['/auth/login'];

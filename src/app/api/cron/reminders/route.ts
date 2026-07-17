@@ -1,138 +1,240 @@
+// Daily cron: compute due birthday/yahrzeit reminders across all sites, dedupe, send.
+// Schedule: 0 6 * * * (06:00 UTC) — configured in vercel.json.
+// Auth: Vercel Cron sends Authorization: Bearer {CRON_SECRET}; same secret used for manual curl tests.
+
 import { NextRequest, NextResponse } from 'next/server';
-import { SiteRepository } from '@/repositories/SiteRepository';
-import { MemberRepository } from '@/repositories/MemberRepository';
 import { AnniversaryRepository } from '@/repositories/AnniversaryRepository';
-import { ReminderRepository, reminderSendId, ReminderTopic } from '@/repositories/ReminderRepository';
-import { sendTransactionalEmail } from '@/services/ResendService';
-import { isOptedOut } from '@/services/NotificationPreferencesService';
-import { isEventDue, monthYearPairsInWindow, startOfDay, YAHRZEIT_LOOKAHEAD_DAYS } from '@/services/ReminderComputationService';
-import type { AnniversaryEvent } from '@/entities/Anniversary';
+import { MemberRepository } from '@/repositories/MemberRepository';
+import { SiteRepository } from '@/repositories/SiteRepository';
+import { ReminderSendsRepository } from '@/repositories/ReminderSendsRepository';
+import { ResendService } from '@/services/ResendService';
+import type { ISite } from '@/entities/Site';
 
 export const dynamic = 'force-dynamic';
 
-function verifyCronSecret(request: NextRequest): boolean {
-  const expected = process.env.CRON_SECRET;
-  if (!expected) {
-    return false;
-  }
-  const authHeader = request.headers.get('authorization');
-  if (authHeader === `Bearer ${expected}`) {
-    return true;
-  }
-  const querySecret = request.nextUrl.searchParams.get('secret');
-  return querySecret === expected;
+const BIRTHDAY_LOOKAHEAD_DAYS = 7;
+const YAHRZEIT_LOOKAHEAD_DAYS = 30;
+
+function addDays(d: Date, n: number): Date {
+  const r = new Date(d);
+  r.setDate(r.getDate() + n);
+  return r;
 }
 
-interface DueReminder {
-  event: AnniversaryEvent;
-  topic: ReminderTopic;
-  occurrenceYear: number;
+function getMonthsInRange(start: Date, end: Date): Array<{ month: number; year: number }> {
+  const months: Array<{ month: number; year: number }> = [];
+  const cur = new Date(start.getFullYear(), start.getMonth(), 1);
+  const last = new Date(end.getFullYear(), end.getMonth(), 1);
+  while (cur <= last) {
+    months.push({ month: cur.getMonth(), year: cur.getFullYear() });
+    cur.setMonth(cur.getMonth() + 1);
+  }
+  return months;
 }
 
-async function computeDueReminders(siteId: string, today: Date): Promise<DueReminder[]> {
-  const anniversaryRepo = new AnniversaryRepository();
-  const pairs = monthYearPairsInWindow(today, YAHRZEIT_LOOKAHEAD_DAYS);
-
-  const years = Array.from(new Set(pairs.map(p => p.year)));
-  for (const year of years) {
-    await anniversaryRepo.ensureHebrewHorizonForYear(siteId, year);
+function formatOccurrenceDate(month: number, day: number, year: number, lang: string): string {
+  const d = new Date(year, month, day);
+  try {
+    const loc = lang === 'he' ? 'he-IL' : lang === 'tr' ? 'tr-TR' : 'en-US';
+    return d.toLocaleDateString(loc, { month: 'long', day: 'numeric', year: 'numeric' });
+  } catch {
+    return d.toDateString();
   }
-
-  const due: DueReminder[] = [];
-  const seenKeys = new Set<string>();
-
-  for (const { month, year } of pairs) {
-    const events = await anniversaryRepo.getEventsForMonth(siteId, month, year);
-    for (const event of events) {
-      const evaluation = isEventDue(event, year, today);
-      if (!evaluation) continue;
-
-      const key = `${event.id}_${evaluation.occurrenceYear}_${evaluation.topic}`;
-      if (seenKeys.has(key)) continue;
-      seenKeys.add(key);
-
-      due.push({ event, topic: evaluation.topic, occurrenceYear: evaluation.occurrenceYear });
-    }
-  }
-
-  return due;
 }
 
-async function processSite(siteId: string, today: Date, reminderRepo: ReminderRepository) {
-  const memberRepo = new MemberRepository();
-  const dueReminders = await computeDueReminders(siteId, today);
-
-  const result = { siteId, due: dueReminders.length, sent: 0, skippedOptOut: 0, skippedAlreadySent: 0, skippedNoEmail: 0 };
-  if (dueReminders.length === 0) {
-    return result;
+function getSiteName(site: ISite): string {
+  if (site.name) return site.name;
+  for (const locale of ['he', 'en', 'tr']) {
+    const n = site.locales?.[locale]?.name;
+    if (n) return n;
   }
-
-  const members = (await memberRepo.listActiveMembers(siteId)).filter(m => !!m.email);
-
-  for (const reminder of dueReminders) {
-    const { event, topic, occurrenceYear } = reminder;
-    for (const member of members) {
-      if (await isOptedOut(member.id, siteId, topic)) {
-        result.skippedOptOut++;
-        continue;
-      }
-
-      const dedupId = reminderSendId(member.id, event.id, occurrenceYear, topic);
-      if (await reminderRepo.hasSent(dedupId)) {
-        result.skippedAlreadySent++;
-        continue;
-      }
-
-      console.log('[cron/reminders] would send', {
-        siteId,
-        member: { id: member.id, email: member.email },
-        topic,
-        event: { id: event.id, name: event.name, type: event.type },
-        occurrenceYear,
-      });
-
-      await sendTransactionalEmail({
-        to: member.email,
-        subject: topic === 'birth' ? `Upcoming birthday: ${event.name}` : `Yahrzeit reminder: ${event.name}`,
-        html: `<p>${event.name}</p>`,
-        lang: member.defaultLocale,
-      });
-
-      await reminderRepo.recordSent({
-        id: dedupId,
-        memberId: member.id,
-        siteId,
-        anniversaryEventId: event.id,
-        topic,
-        occurrenceYear,
-      });
-
-      result.sent++;
-    }
-  }
-
-  return result;
+  return '';
 }
 
 export async function GET(request: NextRequest) {
-  if (!verifyCronSecret(request)) {
+  if (!process.env.CRON_SECRET) {
+    console.error('[cron/reminders] CRON_SECRET environment variable is not set');
+    return NextResponse.json({ error: 'Server misconfiguration: CRON_SECRET not set' }, { status: 500 });
+  }
+
+  const authHeader = request.headers.get('authorization');
+  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  const annivRepo = new AnniversaryRepository();
+  const memberRepo = new MemberRepository();
+  const siteRepo = new SiteRepository();
+  const sendsRepo = new ReminderSendsRepository();
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const birthdayWindowEnd = addDays(today, BIRTHDAY_LOOKAHEAD_DAYS - 1);
+  const yahrzeitWindowEnd = addDays(today, YAHRZEIT_LOOKAHEAD_DAYS - 1);
+
+  const birthdayMonths = getMonthsInRange(today, birthdayWindowEnd);
+  const yahrzeitMonths = getMonthsInRange(today, yahrzeitWindowEnd);
+
+  let totalSent = 0;
+  let totalSkipped = 0;
+  let sites: ISite[] = [];
+
   try {
-    const siteRepo = new SiteRepository();
-    const reminderRepo = new ReminderRepository();
-    const siteIds = await siteRepo.listAllSiteIds();
-    const today = startOfDay(new Date());
-
-    const results = [];
-    for (const siteId of siteIds) {
-      results.push(await processSite(siteId, today, reminderRepo));
-    }
-
-    return NextResponse.json({ ranAt: today.toISOString(), sites: results });
-  } catch (error) {
-    console.error('[cron/reminders] failed', error);
-    return NextResponse.json({ error: 'Failed to compute reminders' }, { status: 500 });
+    sites = await siteRepo.listAll();
+  } catch (err) {
+    console.error('[cron/reminders] failed to list sites:', err);
+    return NextResponse.json({ error: 'Failed to list sites' }, { status: 500 });
   }
+
+  for (const site of sites) {
+    const siteId = site.id;
+    const siteName = getSiteName(site);
+
+    try {
+      // Extend Hebrew occurrence horizon to cover all lookahead years before querying
+      const uniqueYears = new Set([
+        ...birthdayMonths.map(m => m.year),
+        ...yahrzeitMonths.map(m => m.year),
+      ]);
+      for (const year of uniqueYears) {
+        await annivRepo.ensureHebrewHorizonForYear(siteId, year);
+      }
+
+      // Collect due reminders: { eventId, eventName, eventMonth, eventDay, occurrenceYear, topic }
+      type DueReminder = {
+        eventId: string;
+        eventName: string;
+        eventMonth: number;
+        eventDay: number;
+        occurrenceYear: number;
+        topic: 'birthday' | 'yahrzeit';
+      };
+      const dueReminders: DueReminder[] = [];
+
+      for (const { month, year } of birthdayMonths) {
+        const events = await annivRepo.getEventsForMonth(siteId, month, year);
+        for (const ev of events) {
+          if (ev.type !== 'birthday') continue;
+          // ev.month/ev.day are the occurrence month/day (Gregorian, possibly mapped from Hebrew)
+          const evDate = new Date(year, ev.month, ev.day);
+          if (evDate >= today && evDate <= birthdayWindowEnd) {
+            dueReminders.push({
+              eventId: ev.id,
+              eventName: ev.name,
+              eventMonth: ev.month,
+              eventDay: ev.day,
+              occurrenceYear: year,
+              topic: 'birthday',
+            });
+          }
+        }
+      }
+
+      for (const { month, year } of yahrzeitMonths) {
+        const events = await annivRepo.getEventsForMonth(siteId, month, year);
+        for (const ev of events) {
+          if (ev.type !== 'death') continue;
+          const evDate = new Date(year, ev.month, ev.day);
+          if (evDate >= today && evDate <= yahrzeitWindowEnd) {
+            dueReminders.push({
+              eventId: ev.id,
+              eventName: ev.name,
+              eventMonth: ev.month,
+              eventDay: ev.day,
+              occurrenceYear: year,
+              topic: 'yahrzeit',
+            });
+          }
+        }
+      }
+
+      if (dueReminders.length === 0) continue;
+
+      const members = await memberRepo.listActiveMembers(siteId);
+
+      for (const member of members) {
+        if (!member.email) continue;
+
+        // TODO (famcircle#11): load notification preferences for this member.
+        // When the notificationPreferences collection lands, check per-member opt-out:
+        // const prefs = await notificationPrefsRepo.getByMember(member.id, siteId);
+        // No prefs doc = subscribed to both (documented default).
+        // Expected shape: { birthOptOut: boolean; deathOptOut: boolean }
+
+        for (const reminder of dueReminders) {
+          try {
+            // TODO (famcircle#11): apply opt-out before sending.
+            // if (reminder.topic === 'birthday' && prefs?.birthOptOut) continue;
+            // if (reminder.topic === 'yahrzeit' && prefs?.deathOptOut) continue;
+
+            const alreadySent = await sendsRepo.hasSent(
+              member.id,
+              reminder.eventId,
+              reminder.occurrenceYear,
+              reminder.topic,
+            );
+            if (alreadySent) {
+              totalSkipped++;
+              console.log(
+                `[cron/reminders] dedup skip: member=${member.id} event=${reminder.eventId} year=${reminder.occurrenceYear} topic=${reminder.topic}`,
+              );
+              continue;
+            }
+
+            const lang = member.defaultLocale ?? 'he';
+            const dir = lang === 'he' ? 'rtl' : 'ltr';
+            const occurrenceDate = formatOccurrenceDate(
+              reminder.eventMonth,
+              reminder.eventDay,
+              reminder.occurrenceYear,
+              lang,
+            );
+
+            // TODO (famcircle#11): replace placeholder with the real notification-preferences management URL
+            const manageLink = '#manage-reminders';
+
+            const { subject, html } = ResendService.buildReminderEmailHtml({
+              topic: reminder.topic,
+              firstName: member.firstName || member.displayName || member.email,
+              eventName: reminder.eventName,
+              occurrenceDate,
+              manageLink,
+              lang,
+              dir,
+              siteName,
+            });
+
+            console.log(
+              `[cron/reminders] sending: site=${siteId} member=${member.email} topic=${reminder.topic} event="${reminder.eventName}" date=${occurrenceDate}`,
+            );
+
+            await ResendService.sendTransactionalEmail({ to: member.email, subject, html, lang });
+
+            await sendsRepo.markSent({
+              memberId: member.id,
+              eventId: reminder.eventId,
+              siteId,
+              year: reminder.occurrenceYear,
+              topic: reminder.topic,
+            });
+
+            totalSent++;
+          } catch (memberErr) {
+            console.error(
+              `[cron/reminders] error sending to member=${member.id} topic=${reminder.topic} event=${reminder.eventId}:`,
+              memberErr,
+            );
+          }
+        }
+      }
+    } catch (err) {
+      console.error(`[cron/reminders] error processing site ${siteId}:`, err);
+    }
+  }
+
+  console.log(
+    `[cron/reminders] complete: sites=${sites.length} sent=${totalSent} skipped=${totalSkipped}`,
+  );
+  return NextResponse.json({ ok: true, sites: sites.length, sent: totalSent, skipped: totalSkipped });
 }

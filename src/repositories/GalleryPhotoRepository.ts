@@ -12,6 +12,7 @@ export interface GalleryPhoto extends LocalizableDocument {
   imagesWithDimensions: ImageWithDimension[]; // Images with dimensions
   videos?: string[]; // Optional video URLs
   anniversaryId?: string; // Optional link to anniversary
+  taggedMemberIds?: string[]; // Member IDs tagged in this photo
   deletedAt: Timestamp | null; // null for active, Timestamp for soft delete
 }
 
@@ -31,6 +32,7 @@ export class GalleryPhotoRepository {
     videos?: string[];
     description: string;
     anniversaryId?: string;
+    taggedMemberIds?: string[];
     locale: string;
   }): Promise<GalleryPhoto> {
     const db = this.getDb();
@@ -52,6 +54,7 @@ export class GalleryPhotoRepository {
       createdAt: now,
       imagesWithDimensions: data.imagesWithDimensions || [],
       anniversaryId: data.anniversaryId || null,
+      taggedMemberIds: data.taggedMemberIds || [],
       deletedAt: null,
       ...(hasVideos ? { videos: data.videos } : {}),
       locales: {
@@ -139,6 +142,7 @@ export class GalleryPhotoRepository {
       videos?: string[];
       description?: string;
       anniversaryId?: string | null;
+      taggedMemberIds?: string[];
       locale?: string;
     }
   ): Promise<void> {
@@ -176,6 +180,7 @@ export class GalleryPhotoRepository {
     if (updates.imagesWithDimensions !== undefined) data.imagesWithDimensions = updates.imagesWithDimensions;
     if (updates.videos !== undefined) data.videos = updates.videos;
     if (updates.anniversaryId !== undefined) data.anniversaryId = updates.anniversaryId;
+    if (updates.taggedMemberIds !== undefined) data.taggedMemberIds = updates.taggedMemberIds;
 
     // Only update non-localized fields if there are any
     if (Object.keys(data).length > 0) {

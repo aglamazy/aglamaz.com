@@ -10,7 +10,6 @@ import {
 } from './MemberRepository';
 import { SiteRepository } from './SiteRepository';
 import type { ISite } from '@/entities/Site';
-import { shouldAutoApprove } from '@/services/SignupPolicyService';
 
 export type InviteStatus = 'pending' | 'used' | 'expired' | 'revoked';
 
@@ -357,22 +356,18 @@ export class FamilyRepository {
   }
 
   // Signup Request Management
-  async createSignupRequest(requestData: Omit<SignupRequest, 'id' | 'createdAt' | 'updatedAt'>, siteUrl?: string): Promise<SignupRequest> {
+  async createSignupRequest(requestData: Omit<SignupRequest, 'id' | 'createdAt' | 'updatedAt'>, siteUrl?: string, opts?: { skipNotification?: boolean }): Promise<SignupRequest> {
     try {
       const db = this.getDb();
       const now = Timestamp.now();
-      
+
       // Create deterministic document ID based on email + siteId
       const emailKey = requestData.email.toLowerCase().trim();
       const documentKey = `${emailKey}_${requestData.siteId}`;
-      
+
       // Hash the key to create a safe document ID
       const crypto = require('crypto');
       const documentId = crypto.createHash('sha256').update(documentKey).digest('hex');
-
-      // Demo sites: skip the email-link + admin-approval steps entirely for a fresh signup.
-      const site = await this.sites.get(requestData.siteId);
-      const autoApprove = requestData.status === 'pending_verification' && shouldAutoApprove(site);
 
       // Use setDoc with merge to ensure idempotency
       const requestRef = db.collection(this.signupRequestsCollection).doc(documentId);
@@ -388,28 +383,9 @@ export class FamilyRepository {
         payload.invitedAt = now;
       }
 
-      if (autoApprove) {
-        payload.status = 'approved';
-        payload.email_verified = true;
-        payload.verifiedAt = now;
-        payload.approvedAt = now;
-        payload.approvedBy = 'auto-demo';
-        payload.verificationToken = null;
-        payload.expiresAt = null;
-      }
-
       await requestRef.set(payload, { merge: true });
 
-      if (autoApprove) {
-        await this.members.create({
-          uid: requestData.userId || '',
-          siteId: requestData.siteId,
-          role: 'member',
-          displayName: requestData.firstName || '',
-          firstName: requestData.firstName || '',
-          email: emailKey,
-        } as Partial<IMember>);
-      } else if (requestData.source !== 'invite') {
+      if (requestData.source !== 'invite' && !opts?.skipNotification) {
         await adminNotificationService.notify('pending_member', requestData, siteUrl);
       }
 
@@ -431,7 +407,7 @@ export class FamilyRepository {
         .where('status', 'in', ['pending', 'pending_verification'])
         .orderBy('createdAt', 'asc')
         .get();
-      
+
       return querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
@@ -449,7 +425,7 @@ export class FamilyRepository {
         .where('verificationToken', '==', verificationToken)
         .where('status', '==', 'pending_verification')
         .get();
-      
+
       if (querySnapshot.empty) {
         throw new Error('Invalid or expired verification token');
       }
@@ -652,15 +628,15 @@ export class FamilyRepository {
   async getSignupRequestByEmail(email: string, siteId: string): Promise<SignupRequest | null> {
     try {
       const db = this.getDb();
-      
+
       // Create the same deterministic document ID
       const emailKey = email.toLowerCase().trim();
       const documentKey = `${emailKey}_${siteId}`;
       const crypto = require('crypto');
       const documentId = crypto.createHash('sha256').update(documentKey).digest('hex');
-      
+
       const requestDoc = await db.collection(this.signupRequestsCollection).doc(documentId).get();
-      
+
       if (!requestDoc.exists) {
         return null;
       }
@@ -690,4 +666,4 @@ export class FamilyRepository {
 }
 
 // Export singleton instance
-export const familyRepository = new FamilyRepository(); 
+export const familyRepository = new FamilyRepository();

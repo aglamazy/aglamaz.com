@@ -1,8 +1,8 @@
 import { NextRequest } from 'next/server';
-import { BlogRepository } from '@/repositories/BlogRepository';
+import { BlogRepository, isPublished } from '@/repositories/BlogRepository';
 import { FamilyRepository } from '@/repositories/FamilyRepository';
 import { SUPPORTED_LOCALES } from '@/constants/i18n';
-import { isPublished } from '@/utils/blogStatus';
+import { resolveSiteId } from '@/utils/resolveSiteId';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,7 +21,12 @@ function generateAlternateLinks(base: string, path: string) {
 
 export async function GET(req: NextRequest) {
   try {
-    const siteId = process.env.NEXT_SITE_ID || '';
+    // Resolve the tenant from the request host (domain_mappings), consistent with
+    // how every page resolves its site. Using NEXT_SITE_ID here would list the
+    // baked default site's URLs/authors on every domain — so a per-tenant host
+    // (e.g. famcircle.org mapped to a specific site) would advertise blog authors
+    // that its own pages 404, producing soft-404s in the sitemap.
+    const siteId = (await resolveSiteId()) || '';
     const url = new URL(req.url);
     const base = (process.env.NEXT_PUBLIC_APP_URL || `${url.origin}`)?.replace(/\/+$/, '');
 
@@ -31,7 +36,7 @@ export async function GET(req: NextRequest) {
     const repo = new BlogRepository();
 
     type RouteEntry = { path: string; lastmod?: string };
-    const routes: RouteEntry[] = [{ path: '' }, { path: 'blog' }];
+    const routes: RouteEntry[] = [{ path: '' }, { path: 'blog' }, { path: 'contact' }, { path: 'terms' }];
 
     for (const m of blogAuthors as any[]) {
       const handle = m.blogHandle;

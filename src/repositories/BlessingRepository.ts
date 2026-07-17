@@ -17,6 +17,7 @@ export class BlessingRepository {
     authorName: string;
     content: string;
     locale: string;
+    taggedMemberIds?: string[];
   }): Promise<Blessing> {
     const db = this.getDb();
     const now = Timestamp.now();
@@ -39,6 +40,7 @@ export class BlessingRepository {
       locales: {
         [data.locale]: localeData
       },
+      taggedMemberIds: data.taggedMemberIds || [],
       createdAt: now,
       updatedAt: now,
       deleted: false,
@@ -108,6 +110,7 @@ export class BlessingRepository {
   async update(id: string, updates: {
     content?: string;
     locale?: string;
+    taggedMemberIds?: string[];
   }): Promise<void> {
     const db = this.getDb();
     const existing = await this.getById(id);
@@ -122,6 +125,10 @@ export class BlessingRepository {
     const data: any = {
       updatedAt: Timestamp.now(),
     };
+
+    if (updates.taggedMemberIds !== undefined) {
+      data.taggedMemberIds = updates.taggedMemberIds;
+    }
 
     // Handle localized content field
     if (updates.content !== undefined) {

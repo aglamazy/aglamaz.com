@@ -14,13 +14,22 @@ import { fetchSiteInfo } from '@/firebase/admin';
 import { resolveSiteId } from '@/utils/resolveSiteId';
 import { getServerT } from '@/utils/serverTranslations';
 import { getPlatformName } from '@/utils/platformName';
-import { createProfilePageSchema, createBlogPostListSchema, type AuthorInfo } from '@/utils/blogSchema';
+import {
+  createProfilePageSchema,
+  createBlogPostListSchema,
+  createBlogPostingSchema,
+  createBreadcrumbSchema,
+  type AuthorInfo,
+} from '@/utils/blogSchema';
 import UnderConstruction from '@/components/UnderConstruction';
+import { notFound } from 'next/navigation';
 import crypto from 'crypto';
 import { DEFAULT_LOCALE, SUPPORTED_LOCALES } from '@/i18n';
 import type { Metadata } from 'next';
 import { buildTranslationTriggerPayload, localizeBlogPosts } from '@/utils/blogLocales';
 import BlogPostBody from '@/components/blog/BlogPostBody';
+import { isPublished } from '@/repositories/BlogRepository';
+import { buildPageMetadata } from '@/utils/seo';
 
 export const dynamic = 'force-dynamic';
 
@@ -54,22 +63,29 @@ interface AuthorPageParams {
 export async function generateMetadata({ params }: { params: Promise<AuthorPageParams> }): Promise<Metadata> {
   const { locale: paramLocale, id } = await params;
   const locale = SUPPORTED_LOCALES.includes(paramLocale) ? paramLocale : DEFAULT_LOCALE;
-  const baseUrl = resolveConfiguredBaseUrl();
-  const canonical = baseUrl ? `${baseUrl}/${locale}/blog/${id}` : undefined;
 
-  return {
-    title: `Family Blog – ${id}`,
-    alternates: baseUrl
-      ? {
-          canonical,
-          languages: {
-            en: `${baseUrl}/en/blog/${id}`,
-            he: `${baseUrl}/he/blog/${id}`,
-            'x-default': `${baseUrl}/en/blog/${id}`,
-          },
-        }
-      : undefined,
-  } satisfies Metadata;
+  let authorName = id;
+  try {
+    const siteId = await resolveSiteId();
+    if (siteId) {
+      const member = await new FamilyRepository().getMemberByHandle(id, siteId);
+      authorName =
+        (member as any)?.displayName ||
+        (member as any)?.firstName ||
+        (member as any)?.email ||
+        id;
+    }
+  } catch {
+    // best-effort; fall back to the handle
+  }
+
+  return buildPageMetadata({
+    locale,
+    path: `blog/${id}`,
+    title: `${authorName} – Family Blog`,
+    description: `Blog posts by ${authorName} — stories and updates shared with the family.`,
+    type: 'profile',
+  });
 }
 
 export default async function AuthorBlogPage({ params }: { params: Promise<AuthorPageParams> }) {
@@ -90,20 +106,24 @@ export default async function AuthorBlogPage({ params }: { params: Promise<Autho
   const fam = new FamilyRepository();
 
   if (!id) {
-    return <div>Invalid author handle</div>;
+    // No handle → not a real page; return a proper 404 (avoid a soft-404 that
+    // search engines would otherwise index as thin content).
+    notFound();
   }
 
   const member = await fam.getMemberByHandle(id, siteId);
 
   if (!member) {
-    return <div>Author not found</div>;
+    // Unknown/removed author → respond 404 rather than HTTP 200 with an empty
+    // "Author not found" body, so crawlers drop the URL instead of indexing it.
+    notFound();
   }
 
   const uid = (member as any)?.userId || (member as any)?.uid || '';
   const repo = new BlogRepository();
   const list = uid ? await repo.getByAuthor(uid) : [];
   const posts: IBlogPost[] = (list || [])
-    .filter((p) => (p as any).siteId === siteId && p.isPublic)
+    .filter((p) => (p as any).siteId === siteId && p.isPublic && isPublished(p))
     .sort((a, b) => {
       const at = (a.createdAt as any)?.toMillis ? (a.createdAt as any).toMillis() : new Date(a.createdAt).getTime();
       const bt = (b.createdAt as any)?.toMillis ? (b.createdAt as any).toMillis() : new Date(b.createdAt).getTime();
@@ -157,7 +177,21 @@ export default async function AuthorBlogPage({ params }: { params: Promise<Autho
     { baseUrl, siteName, lang: baseLang }
   );
 
-  const structuredData = stripScriptTags(JSON.stringify([profileSchema, postsListSchema].map(cleanJsonLd)));
+  // Top-level BlogPosting (Article) schemas so crawlers detect per-post article
+  // structured data, not only the ItemList wrapper.
+  const articleSchemas = localizedPosts.map(({ post, localized }) =>
+    createBlogPostingSchema(post, localized, author, { baseUrl, siteName, lang: baseLang })
+  );
+
+  const breadcrumbSchema = createBreadcrumbSchema([
+    { name: t('home') as string, url: baseUrl ? `${baseUrl}/${locale}` : undefined },
+    { name: t('familyBlog') as string, url: baseUrl ? `${baseUrl}/${locale}/blog` : undefined },
+    { name: authorName, url: baseUrl ? `${baseUrl}/${locale}/blog/${id}` : undefined },
+  ]);
+
+  const structuredData = stripScriptTags(
+    JSON.stringify([profileSchema, breadcrumbSchema, postsListSchema, ...articleSchemas].map(cleanJsonLd))
+  );
 
   return (
     <div className="space-y-4 p-4">
