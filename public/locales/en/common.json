@@ -422,5 +422,10 @@
   "sharedFolder": "Shared folder",
   "failedToBrowseFolder": "Failed to browse folder",
   "importFailed": "Import failed",
-  "slideshow": "Slideshow"
+  "slideshow": "Slideshow",
+  "authorBlogTitle": "{{name}} – Family Blog",
+  "authorBlogDescription": "Blog posts by {{name}} — stories and updates shared with the family.",
+  "blogPageDescription": "Recent posts from the family blog — stories, updates and memories shared by the family.",
+  "termsPageDescription": "Terms and conditions for using this family website.",
+  "contactPageDescription": "Get in touch with the family — send us a message."
 }

@@ -366,5 +366,10 @@
   "sharedFolder": "Paylaşılan klasör",
   "failedToBrowseFolder": "Klasöre göz atılamadı",
   "importFailed": "İçe aktarma başarısız",
-  "slideshow": "Slayt Gösterisi"
+  "slideshow": "Slayt Gösterisi",
+  "authorBlogTitle": "{{name}} – Aile Blogu",
+  "authorBlogDescription": "{{name}} tarafından yazılan blog gönderileri — ailenizle paylaşılan hikayeler ve güncellemeler.",
+  "blogPageDescription": "Aile blogundan son gönderiler — ailenin paylaştığı hikayeler, güncellemeler ve anılar.",
+  "termsPageDescription": "Bu aile web sitesini kullanmak için şartlar ve koşullar.",
+  "contactPageDescription": "Aileyle iletişime geçin — bize bir mesaj gönderin."
 }

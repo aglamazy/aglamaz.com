@@ -3,15 +3,34 @@ import { fetchSiteInfo } from '../firebase/admin';
 import { resolveSiteId } from '../utils/resolveSiteId';
 import { getPlatformName } from '../utils/platformName';
 import type { Metadata } from 'next';
+import { headers } from 'next/headers';
 import { getMemberFromToken } from '@/utils/serverAuth';
-import { DEFAULT_LOCALE } from '../i18n';
+import { DEFAULT_LOCALE, SUPPORTED_LOCALES } from '../i18n';
 
 const GOOGLE_VERIFICATION = process.env.GOOGLE_SITE_VERIFICATION || '';
 
+/**
+ * Resolves the locale for the <title> template's site-name suffix. The root
+ * layout has no `params.locale` of its own (it wraps both the /<locale>/...
+ * public routes and locale-agnostic sections like /app, /admin), so it reads
+ * the locale path segment forwarded by proxy.ts as `x-page-locale`. Routes
+ * outside /<locale>/... don't set that header and fall back to DEFAULT_LOCALE.
+ */
+async function resolveTitleLocale(): Promise<string> {
+  try {
+    const headerStore = await headers();
+    const pageLocale = headerStore.get('x-page-locale');
+    return pageLocale && SUPPORTED_LOCALES.includes(pageLocale) ? pageLocale : DEFAULT_LOCALE;
+  } catch {
+    return DEFAULT_LOCALE;
+  }
+}
+
 export async function generateMetadata(): Promise<Metadata> {
   try {
+    const locale = await resolveTitleLocale();
     const siteId = await resolveSiteId();
-    const siteInfo = siteId ? await fetchSiteInfo(siteId, DEFAULT_LOCALE) : null;
+    const siteInfo = siteId ? await fetchSiteInfo(siteId, locale) : null;
     const siteName = siteInfo?.name?.trim();
 
     return {
