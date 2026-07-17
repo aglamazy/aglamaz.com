@@ -2,10 +2,6 @@ import { withMemberGuard } from '@/lib/withMemberGuard';
 import { BlogRepository } from '@/repositories/BlogRepository';
 import { MemberRepository } from '@/repositories/MemberRepository';
 import { GuardContext } from '@/app/api/types';
-import { TranslationService } from '@/services/TranslationService';
-import { normalizeLang } from '@/services/LocalizationService';
-import type { IBlogPost, LocalizedBlogPost } from '@/entities/BlogPost';
-import { localizeBlogPost } from '@/utils/blogLocales';
 import { TagNotificationService } from '@/services/TagNotificationService';
 
 const DEFAULT_LANG = (process.env.NEXT_DEFAULT_LANG || 'en').toLowerCase();
@@ -18,84 +14,6 @@ function parseLocaleInput(value?: string | null): string | undefined {
   if (!raw) return undefined;
   const withoutWeight = raw.split(';')[0]?.trim();
   return withoutWeight ? withoutWeight.toLowerCase() : undefined;
-}
-
-function hasLocaleContent(post: IBlogPost, locale: string): boolean {
-  const locales = post.locales || {};
-  const normalized = locale.toLowerCase();
-  const base = normalizeLang(normalized);
-  const direct = locales[normalized];
-  if (direct?.title && direct?.content) {
-    return true;
-  }
-  if (!base) return false;
-  return Object.entries(locales).some(([key, value]) => {
-    if (!value?.title || !value?.content) return false;
-    return normalizeLang(key) === base;
-  });
-}
-
-function shouldRequestBlogTranslation(post: IBlogPost, lang: string | undefined): boolean {
-  if (!lang) return false;
-  const normalized = lang.toLowerCase();
-  if (!normalized) return false;
-  const base = normalizeLang(normalized);
-  const primaryBase = normalizeLang(post.primaryLocale);
-  if (!base || base === primaryBase) {
-    return false;
-  }
-  return !hasLocaleContent(post, normalized);
-}
-
-async function maybeEnqueueTranslation(post: IBlogPost, lang: string | undefined, repo: BlogRepository) {
-  if (!lang) return;
-  const normalized = lang.toLowerCase();
-  if (!shouldRequestBlogTranslation(post, normalized)) return;
-
-  const locales = post.locales || {};
-  const fallbackKey = Object.keys(locales)[0];
-  const primary = post.primaryLocale || fallbackKey || DEFAULT_LANG;
-  const sourceEntry = locales[primary] ?? (fallbackKey ? locales[fallbackKey] : undefined);
-  if (!sourceEntry?.title || !sourceEntry?.content) {
-    return;
-  }
-
-  const base = normalizeLang(normalized) || normalized;
-
-  try {
-    await repo.markTranslationRequested(post.id, normalized);
-  } catch (error) {
-    console.error('Failed to mark translation requested', error);
-  }
-
-  if (!TranslationService.isEnabled()) return;
-
-  (async () => {
-    try {
-      console.log('[translate] start', { postId: post.id, to: normalized });
-      const res = await TranslationService.translateHtml({
-        title: sourceEntry.title || '',
-        content: sourceEntry.content || '',
-        from: normalizeLang(primary) || primary,
-        to: base,
-      });
-      await repo.addTranslation(post.id, normalized, {
-        title: res.title,
-        content: res.content,
-        engine: 'gpt',
-        sourceLocale: primary,
-      });
-    } catch (error) {
-      console.error(`Background translation failed for post ${post.id} to ${normalized}:`, error);
-    }
-  })();
-}
-
-function localize(post: IBlogPost, locale: string | undefined): LocalizedBlogPost {
-  return localizeBlogPost(post, {
-    preferredLocale: locale,
-    fallbackLocales: [DEFAULT_LANG],
-  });
 }
 
 const getHandler = async (request: Request, context: GuardContext & { params: Promise<{ siteId: string }> }) => {
@@ -119,26 +37,21 @@ const getHandler = async (request: Request, context: GuardContext & { params: Pr
     const headerLang = parseLocaleInput(request.headers.get('accept-language'));
     const lang = qLang || headerLang || DEFAULT_LANG;
     if (id) {
-      const post = await repo.getById(id);
-      if (!post) {
+      const localizedPost = await repo.getLocalizedById(id, lang);
+      if (!localizedPost) {
         return Response.json({ error: 'Post not found' }, { status: 404 });
       }
       // Verify post belongs to this site
-      if (post.siteId !== siteId) {
+      if (localizedPost.post.siteId !== siteId) {
         return Response.json({ error: 'Forbidden' }, { status: 403 });
       }
-      await maybeEnqueueTranslation(post, lang, repo);
-      const localized = localize(post, lang);
-      return Response.json({ post, localized: localized.localized, lang });
+      return Response.json({ post: localizedPost.post, localized: localizedPost.localized, lang });
     }
     const authorId = url.searchParams.get('authorId');
-    const posts = authorId ? await repo.getByAuthor(authorId) : await repo.getBySite(siteId);
-    const localizedPosts: LocalizedBlogPost[] = [];
-    for (const post of posts) {
-      await maybeEnqueueTranslation(post, lang, repo);
-      localizedPosts.push(localize(post, lang));
-    }
-    return Response.json({ posts: localizedPosts, lang });
+    const posts = authorId
+      ? await repo.getLocalizedByAuthor(authorId, lang)
+      : await repo.getLocalizedBySite(siteId, lang);
+    return Response.json({ posts, lang });
   } catch (error) {
     console.error(error);
     return Response.json({ error: 'Failed to fetch posts' }, { status: 500 });
@@ -199,8 +112,8 @@ const postHandler = async (request: Request, context: GuardContext & { params: P
       }).catch((err) => console.error('[blog] tag notification failed:', err));
     }
 
-    const localized = localize(post, primaryLocale);
-    return Response.json({ post, localized: localized.localized }, { status: 201 });
+    const localized = await repo.getLocalizedById(post.id, primaryLocale);
+    return Response.json({ post: localized?.post ?? post, localized: localized?.localized }, { status: 201 });
   } catch (error) {
     console.error(error);
     return Response.json({ error: 'Failed to create post' }, { status: 500 });
@@ -300,9 +213,8 @@ const putHandler = async (request: Request, context: GuardContext & { params: Pr
       }).catch((err) => console.error('[blog] tag notification failed:', err));
     }
 
-    const updated = await repo.getById(id);
-    const localized = updated ? localize(updated, normalizedLocale) : null;
-    return Response.json({ post: updated, localized: localized?.localized });
+    const localized = await repo.getLocalizedById(id, normalizedLocale);
+    return Response.json({ post: localized?.post, localized: localized?.localized });
   } catch (error) {
     console.error(error);
     return Response.json({ error: 'Failed to update post' }, { status: 500 });
