@@ -415,5 +415,10 @@
   "sharedFolder": "תיקייה משותפת",
   "failedToBrowseFolder": "עיון בתיקייה נכשל",
   "importFailed": "הייבוא נכשל",
-  "slideshow": "מצגת"
+  "slideshow": "מצגת",
+  "authorBlogTitle": "הבלוג המשפחתי של {{name}}",
+  "authorBlogDescription": "פוסטים בבלוג של {{name}} — סיפורים ועדכונים שמשותפים עם המשפחה.",
+  "blogPageDescription": "פוסטים אחרונים מבלוג המשפחה — סיפורים, עדכונים וזכרונות משותפים של המשפחה.",
+  "termsPageDescription": "תנאים והגבלות לשימוש באתר המשפחתי הזה.",
+  "contactPageDescription": "צרו קשר עם המשפחה — שלחו לנו הודעה."
 }

@@ -77,11 +77,13 @@ export async function generateMetadata({ params }: { params: Promise<AuthorPageP
     // best-effort; fall back to the handle
   }
 
+  const t = await getServerT(locale);
+
   return buildPageMetadata({
     locale,
     path: `blog/${id}`,
-    title: `${authorName} – Family Blog`,
-    description: `Blog posts by ${authorName} — stories and updates shared with the family.`,
+    title: t('authorBlogTitle', { name: authorName }) as string,
+    description: t('authorBlogDescription', { name: authorName }) as string,
     type: 'profile',
   });
 }

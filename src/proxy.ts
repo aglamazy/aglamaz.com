@@ -8,11 +8,17 @@ import { AppRoute, getPath } from '@/utils/urls';
 const SUPPORTED_LOCALES = CONFIG_LOCALES.map((locale) => locale as string);
 const FALLBACK_LOCALE = SUPPORTED_LOCALES[0] || 'en';
 
-// Helper to add locale header to response
-function addLocaleHeader(response: NextResponse, request: NextRequest): NextResponse {
+// Helper to add locale header(s) to response.
+// x-locale: explicit ?locale= override, consumed by private/API route locale resolution.
+// x-page-locale: the locale path segment for a public /<locale>/... route, consumed by
+// the root layout to build a locale-correct <title> template suffix (see famcircle#40).
+function addLocaleHeader(response: NextResponse, request: NextRequest, pathLocale?: string | null): NextResponse {
   const locale = request.nextUrl.searchParams.get('locale');
   if (locale) {
     response.headers.set('x-locale', locale);
+  }
+  if (pathLocale) {
+    response.headers.set('x-page-locale', pathLocale);
   }
   return response;
 }
@@ -99,7 +105,7 @@ export async function proxy(request: NextRequest) {
 
   // Allow public paths regardless of auth status
   if (isPublic) {
-    return addLocaleHeader(NextResponse.next(), request);
+    return addLocaleHeader(NextResponse.next(), request, localeFromPath);
   }
 
   const isApi = pathname.startsWith('/api');
@@ -125,7 +131,7 @@ export async function proxy(request: NextRequest) {
     if (needsCredentialSetup) {
       if (isApi) {
         if (isCredentialApi || isLogoutApi) {
-          return addLocaleHeader(NextResponse.next(), request);
+          return addLocaleHeader(NextResponse.next(), request, localeFromPath);
         }
         return NextResponse.json({ error: 'Credentials setup required' }, { status: 403 });
       }
@@ -157,7 +163,7 @@ export async function proxy(request: NextRequest) {
       }
 
       if (!res.ok) {
-        return addLocaleHeader(NextResponse.next(), request);
+        return addLocaleHeader(NextResponse.next(), request, localeFromPath);
       }
 
       const memberRes = await res.json();
@@ -166,11 +172,11 @@ export async function proxy(request: NextRequest) {
         memberRes?.member &&
         ['member', 'admin'].includes(memberRes.member.role);
       if (!ok) {
-        return addLocaleHeader(NextResponse.next(), request);
+        return addLocaleHeader(NextResponse.next(), request, localeFromPath);
       }
     }
 
-    return addLocaleHeader(NextResponse.next(), request);
+    return addLocaleHeader(NextResponse.next(), request, localeFromPath);
   } catch {
     if (isApi) {
       return NextResponse.json({ error: 'Unauthorized (api)' }, { status: 401 });
