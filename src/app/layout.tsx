@@ -7,7 +7,7 @@ import { headers } from 'next/headers';
 import { getMemberFromToken } from '@/utils/serverAuth';
 import { DEFAULT_LOCALE, SUPPORTED_LOCALES } from '../i18n';
 
-const GOOGLE_VERIFICATION = process.env.GOOGLE_SITE_VERIFICATION || '';
+const GOOGLE_VERIFICATION = process.env.GOOGLE_SITE_VERIFICATION?.trim();
 
 /**
  * Resolves the locale for the <title> template's site-name suffix. The root
@@ -41,9 +41,13 @@ export async function generateMetadata(): Promise<Metadata> {
       icons: {
         icon: '/favicon.svg',
       },
-      verification: {
-        google: GOOGLE_VERIFICATION,
-      },
+      ...(GOOGLE_VERIFICATION
+        ? {
+            verification: {
+              google: GOOGLE_VERIFICATION,
+            },
+          }
+        : {}),
     };
   } catch (error) {
     console.error('Failed to generate metadata:', error);
