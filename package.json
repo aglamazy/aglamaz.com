@@ -1,6 +1,6 @@
 {
   "name": "aglamaz-app",
-  "version": "0.5.14",
+  "version": "26.7.14",
   "private": true,
   "scripts": {
     "dev": "next dev",
