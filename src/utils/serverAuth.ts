@@ -4,6 +4,7 @@ import { ACCESS_TOKEN } from '@/auth/cookies';
 import { MemberRepository } from '@/repositories/MemberRepository';
 import type { LocalizedMemberRecord } from '@/repositories/MemberRepository';
 import type { TokenClaims } from '@/auth/tokens';
+import { verifyReadToken } from '@/auth/readToken';
 
 let getCookies = cookies;
 let memberRepository: MemberRepository | null = null;
@@ -59,6 +60,29 @@ export async function getMemberFromToken(siteId: string): Promise<LocalizedMembe
     return member;
   } catch (error) {
     console.error('[getMemberFromToken] failed', error);
+    return null;
+  }
+}
+
+/**
+ * Get a member document from Firestore by verifying a read-only token.
+ * The token must be scoped to the same siteId as the request.
+ * Server-side only.
+ */
+export async function getMemberFromReadToken(token: string, siteId: string): Promise<LocalizedMemberRecord | null> {
+  try {
+    const payload = verifyReadToken(token);
+    if (!payload) return null;
+    // Reject tokens issued for a different site — prevents cross-site token reuse
+    if (payload.siteId !== siteId) return null;
+
+    if (!memberRepository) {
+      memberRepository = new MemberRepository();
+    }
+
+    return memberRepository.getByUid(siteId, payload.memberId);
+  } catch (error) {
+    console.error('[getMemberFromReadToken] failed', error);
     return null;
   }
 }

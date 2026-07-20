@@ -36,9 +36,9 @@ export function signRefreshToken(app: AppClaims, days = REFRESH_TOKEN_DAYS): str
   return token;
 }
 
-/** Verify an access token. */
+/** Verify an access token. Rejects read-tokens (aud: 'read-token') and other non-session JWTs. */
 export function verifyAccessToken(token: string): TokenClaims | null {
-  return verifyJwt(token);
+  return verifyJwt(token, { checkAud: 'FamilyNet' });
 }
 
 /** Verify a refresh token and detect reuse. */
