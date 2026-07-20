@@ -1,4 +1,5 @@
 import { withMemberGuard } from '@/lib/withMemberGuard';
+import { withReadableGuard } from '@/lib/withReadableGuard';
 import { AnniversaryRepository } from '@/repositories/AnniversaryRepository';
 import { AnniversaryOccurrenceRepository } from '@/repositories/AnniversaryOccurrenceRepository';
 import { GuardContext } from '@/app/api/types';
@@ -89,5 +90,5 @@ const postHandler = async (request: Request, context: GuardContext) => {
   }
 };
 
-export const GET = withMemberGuard(getHandler);
+export const GET = withReadableGuard(getHandler);
 export const POST = withMemberGuard(postHandler);

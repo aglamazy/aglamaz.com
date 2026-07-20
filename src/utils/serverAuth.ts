@@ -4,6 +4,7 @@ import { ACCESS_TOKEN } from '@/auth/cookies';
 import { MemberRepository } from '@/repositories/MemberRepository';
 import type { LocalizedMemberRecord } from '@/repositories/MemberRepository';
 import type { TokenClaims } from '@/auth/tokens';
+import { verifyReadToken } from '@/services/ReadTokenService';
 
 let getCookies = cookies;
 let memberRepository: MemberRepository | null = null;
@@ -59,6 +60,38 @@ export async function getMemberFromToken(siteId: string): Promise<LocalizedMembe
     return member;
   } catch (error) {
     console.error('[getMemberFromToken] failed', error);
+    return null;
+  }
+}
+
+/**
+ * Get a read-only member document from a signed read-token (docs/family-digest-formats-spec.md
+ * §7), without a Firebase Auth session. Returns null if the token is missing, invalid, expired,
+ * or scoped to a different site. Server-side only.
+ *
+ * This is the read-only counterpart to getMemberFromToken above — it must never be used to
+ * satisfy a write-capable route's auth check.
+ *
+ * @param siteId - The site ID the caller is requesting access to
+ * @param rawToken - The raw `rt` token from the request, or null if absent
+ */
+export async function getMemberFromReadToken(
+  siteId: string,
+  rawToken: string | null,
+): Promise<LocalizedMemberRecord | null> {
+  try {
+    if (!rawToken) return null;
+    const claims = verifyReadToken(rawToken);
+    if (!claims || claims.siteId !== siteId) return null;
+
+    if (!memberRepository) {
+      memberRepository = new MemberRepository();
+    }
+
+    const member = await memberRepository.getByUid(siteId, claims.memberId);
+    return member;
+  } catch (error) {
+    console.error('[getMemberFromReadToken] failed', error);
     return null;
   }
 }
