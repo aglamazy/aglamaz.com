@@ -1,13 +1,13 @@
 import { notificationPreferencesRepository } from '@/repositories/NotificationPreferencesRepository';
 import type { ReminderTopic } from '@/repositories/ReminderRepository';
 
+// The new preference model (docs/family-digest-formats-spec.md §4) has a single unified
+// inDayRemindersEnabled toggle — no per-topic opt-out — so every ReminderTopic maps to it.
 export async function isOptedOut(
   memberId: string,
   siteId: string,
-  topic: ReminderTopic
+  _topic: ReminderTopic
 ): Promise<boolean> {
   const prefs = await notificationPreferencesRepository.get(memberId, siteId);
-  if (topic === 'birth') return prefs.birthOptOut;
-  if (topic === 'death') return prefs.deathOptOut;
-  return false;
+  return !prefs.inDayRemindersEnabled;
 }

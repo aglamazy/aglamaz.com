@@ -28,10 +28,6 @@ function renderHtml(title: string, message: string): string {
 </html>`;
 }
 
-function topicLabel(topic: 'birthday' | 'yahrzeit'): string {
-  return topic === 'birthday' ? 'birthday reminders' : 'yahrzeit reminders';
-}
-
 export async function GET(request: NextRequest) {
   const token = request.nextUrl.searchParams.get('token');
   if (!token) {
@@ -49,10 +45,10 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const updates =
-    payload.topic === 'birthday'
-      ? { birthOptOut: true }
-      : { deathOptOut: true };
+  // The new preference model (docs/family-digest-formats-spec.md §4) has a single unified
+  // inDayRemindersEnabled toggle — no per-topic granularity — so both link topics (birthday,
+  // yahrzeit) flip the same field. See famcircle#50 PR notes.
+  const updates = { inDayRemindersEnabled: false };
 
   try {
     await notificationPreferencesRepository.update(payload.userId, payload.siteId, updates);
@@ -78,7 +74,7 @@ export async function GET(request: NextRequest) {
   return new Response(
     renderHtml(
       'Preferences updated',
-      `You've been unsubscribed from ${topicLabel(payload.topic)}.`,
+      `You've been unsubscribed from same-day reminders.`,
     ),
     { status: 200, headers: HTML_HEADERS },
   );
