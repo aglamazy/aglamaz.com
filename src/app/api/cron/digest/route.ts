@@ -10,6 +10,7 @@ import { DigestTemplateService, resolveDigestSiteName } from '@/services/DigestT
 import { ListmonkService } from '@/services/ListmonkService';
 import { TranslationService } from '@/services/TranslationService';
 import { getMostRecentFieldVersion, normalizeLang } from '@/services/LocalizationService';
+import { AppRoute, getPath } from '@/utils/urls';
 import type { ISite } from '@/entities/Site';
 
 export const dynamic = 'force-dynamic';
@@ -115,6 +116,8 @@ export async function GET(request: NextRequest) {
 
   const now = new Date();
   const { month, year } = getPreviousMonth(now);
+  const calendarUrl = new URL(getPath(AppRoute.APP_CALENDAR), request.nextUrl.origin).toString();
+  const galleryUrl = new URL(getPath(AppRoute.APP_PHOTOS), request.nextUrl.origin).toString();
 
   let created = 0;
   let failed = 0;
@@ -136,6 +139,8 @@ export async function GET(request: NextRequest) {
       const template = DigestTemplateService.buildMonthlyDigestEmail(compiled, {
         locale: SOURCE_LOCALE,
         siteName,
+        calendarUrl,
+        galleryUrl,
       });
       const localized = await maybeTranslateDigest({
         subject: template.subject,
