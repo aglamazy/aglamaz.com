@@ -2,8 +2,9 @@ export interface BlessingPage {
   id: string;
   eventId: string;      // Reference to anniversary event
   siteId: string;       // Site it belongs to
-  year: number;         // Which year's occurrence (e.g., 2025)
-  slug: string;         // URL slug (e.g., "abc123-2025")
+  year?: number;        // Annual pages only: which year's occurrence. Absent for standing (death) pages.
+  slug: string;         // URL slug: "{eventId}-{year}" for annual, "{eventId}" for standing
+  pageType?: 'annual' | 'standing'; // 'standing' = one durable memorial page per death event
   createdBy: string;    // User ID who created it
   createdAt: any;       // Firestore Timestamp
 }

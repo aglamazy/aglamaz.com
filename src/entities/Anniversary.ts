@@ -37,7 +37,8 @@ export interface AnniversaryEvent extends LocalizableDocument {
   imageUrl?: string;
   createdAt: any;
   blessingPages?: Array<{
-    year: number;
+    year?: number;        // Absent for standing (death) pages
     slug: string;
+    pageType?: 'annual' | 'standing';
   }>;
 }

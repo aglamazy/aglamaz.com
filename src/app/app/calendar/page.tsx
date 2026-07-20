@@ -757,8 +757,10 @@ export default function AnniversariesPage() {
               </button>
               {(() => {
                 const currentYear = new Date().getFullYear();
-                // Check if blessing page exists for current year
-                const blessingPage = (selectedEvent as any).blessingPages?.find((bp: any) => bp.year === currentYear);
+                // Death events have one standing memorial page (no year); other types use per-year pages
+                const blessingPage = selectedEvent.type === 'death'
+                  ? (selectedEvent as any).blessingPages?.find((bp: any) => bp.pageType === 'standing' || !bp.year)
+                  : (selectedEvent as any).blessingPages?.find((bp: any) => bp.year === currentYear);
 
                 if (blessingPage) {
                   return (

@@ -62,7 +62,6 @@ const postHandler = async (request: Request, context: GuardContext & { params: P
     }
 
     const user = context.user!;
-    const member = context.member!;
 
     // Verify the event exists and belongs to the site
     const anniversaryRepo = new AnniversaryRepository();
@@ -71,21 +70,31 @@ const postHandler = async (request: Request, context: GuardContext & { params: P
       return Response.json({ error: 'Event not found' }, { status: 404 });
     }
 
-    const body = await request.json();
-    const { year } = body;
-
-    if (!year || typeof year !== 'number') {
-      return Response.json({ error: 'Year is required' }, { status: 400 });
-    }
-
-    // Create or get existing blessing page
     const repo = new BlessingPageRepository();
-    const blessingPage = await repo.create({
-      eventId: anniversaryId,
-      siteId: siteId,
-      year,
-      createdBy: user.userId,
-    });
+    let blessingPage;
+
+    if (event.type === 'death') {
+      // Death events get a single standing memorial page — reused every year, no year parameter needed
+      blessingPage = await repo.createStanding({
+        eventId: anniversaryId,
+        siteId: siteId,
+        createdBy: user.userId,
+      });
+    } else {
+      const body = await request.json();
+      const { year } = body;
+
+      if (!year || typeof year !== 'number') {
+        return Response.json({ error: 'Year is required' }, { status: 400 });
+      }
+
+      blessingPage = await repo.create({
+        eventId: anniversaryId,
+        siteId: siteId,
+        year,
+        createdBy: user.userId,
+      });
+    }
 
     return Response.json({ blessingPage }, { status: 201 });
   } catch (error) {

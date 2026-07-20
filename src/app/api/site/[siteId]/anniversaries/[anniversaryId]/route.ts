@@ -44,7 +44,7 @@ const getHandler = async (_request: Request, context: GuardContext & { params: P
       event: {
         ...existing,
         originalOccurrenceId: originalOccurrence.id,
-        blessingPages: blessingPages.map(bp => ({ year: bp.year, slug: bp.slug }))
+        blessingPages: blessingPages.map(bp => ({ year: bp.year, slug: bp.slug, pageType: bp.pageType }))
       }
     });
   } catch (error) {

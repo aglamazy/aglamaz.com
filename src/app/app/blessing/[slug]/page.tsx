@@ -114,7 +114,7 @@ export default function BlessingPage() {
         <div className="bg-white dark:bg-gray-800 p-8">
           <h1 className="text-3xl font-bold mb-4 text-gray-900 dark:text-gray-100">{event.name}</h1>
           <p className="text-lg text-gray-600 dark:text-gray-400 mb-2">
-            {t('blessingPageTitle')} - {blessingPage.year}
+            {t('blessingPageTitle')}{blessingPage.year ? ` - ${blessingPage.year}` : ''}
           </p>
           {event.description && (
             <p className="text-gray-700 dark:text-gray-300 mb-4">{event.description}</p>
