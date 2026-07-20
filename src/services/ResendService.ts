@@ -1,11 +1,32 @@
 // Uses plain fetch — no Resend SDK dependency needed.
 // Sending is gated on RESEND_API_KEY; missing key → log + no-op, never throws.
 
-import { renderEmailHtml } from './emailTemplates';
+import { renderEmailHtml, escapeHtml } from './emailTemplates';
+import type { AnniversaryType } from '@/entities/Anniversary';
 
 export type ReminderTopic = 'birthday' | 'yahrzeit' | 'tag';
 
 export type TaggedContentType = 'blessing' | 'photo' | 'post';
+
+export interface InDayEventItem {
+  eventId: string;
+  type: AnniversaryType;
+  eventName: string;
+  imageUrl?: string;
+}
+
+export interface InDayReminderEmailParams {
+  firstName: string;
+  /** Today's occurrences for this member's family calendar - at least one. */
+  events: InDayEventItem[];
+  /** Link into the app calendar - used for the row links and the CTA button. */
+  calendarUrl: string;
+  /** Signed link for reminder preference management. */
+  manageLink: string;
+  lang?: string;
+  dir?: 'ltr' | 'rtl';
+  siteName?: string;
+}
 
 export interface TagNotificationEmailParams {
   firstName: string;
@@ -159,6 +180,92 @@ function getTagLocalizedStrings(
   };
 }
 
+interface InDayLocalizedStrings {
+  subjectSingle: (eventName: string) => string;
+  subjectMultiple: (count: number) => string;
+  greeting: string;
+  intro: string;
+  calendarButtonLabel: string;
+  manageFooter: string;
+}
+
+type InDayEventLineFn = (name: string) => string;
+
+const IN_DAY_EVENT_VERB: Record<AnniversaryType, Record<string, InDayEventLineFn>> = {
+  birthday: {
+    en: (name) => `🎂 Today is ${name}'s birthday`,
+    he: (name) => `🎂 היום יום ההולדת של ${name}`,
+    tr: (name) => `🎂 Bugün ${name}'in doğum günü`,
+  },
+  death: {
+    en: (name) => `🕯️ Today marks the yahrzeit of ${name}`,
+    he: (name) => `🕯️ היום יארצייט של ${name}`,
+    tr: (name) => `🕯️ Bugün ${name}'in yahrzeiti`,
+  },
+  wedding: {
+    en: (name) => `💍 Today is ${name}'s wedding anniversary`,
+    he: (name) => `💍 היום יום נישואים של ${name}`,
+    tr: (name) => `💍 Bugün ${name}'in evlilik yıldönümü`,
+  },
+  other: {
+    en: (name) => `📌 Today: ${name}`,
+    he: (name) => `📌 היום: ${name}`,
+    tr: (name) => `📌 Bugün: ${name}`,
+  },
+};
+
+function getInDayEventLine(type: AnniversaryType, eventName: string, lang: string): string {
+  const byLang = IN_DAY_EVENT_VERB[type] ?? IN_DAY_EVENT_VERB.other;
+  const fn = byLang[lang] ?? byLang.en;
+  return fn(eventName);
+}
+
+function getInDayLocalizedStrings(lang: string, manageLink: string): InDayLocalizedStrings {
+  if (lang === 'he') {
+    return {
+      subjectSingle: (eventName: string) => `היום: ${eventName}`,
+      subjectMultiple: (count: number) => `היום: ${count} אירועים`,
+      greeting: 'שלום',
+      intro: 'משהו קורה היום בלוח השנה המשפחתי שלך:',
+      calendarButtonLabel: 'פתח/י את לוח השנה',
+      manageFooter: `<a href="${manageLink}">נהל/י העדפות תזכורות</a>`,
+    };
+  }
+
+  if (lang === 'tr') {
+    return {
+      subjectSingle: (eventName: string) => `Bugün: ${eventName}`,
+      subjectMultiple: (count: number) => `Bugün: ${count} etkinlik`,
+      greeting: 'Merhaba',
+      intro: 'Aile takviminde bugün bir şeyler oluyor:',
+      calendarButtonLabel: 'Takvimi Aç',
+      manageFooter: `<a href="${manageLink}">Hatırlatıcı tercihlerini yönet</a>`,
+    };
+  }
+
+  return {
+    subjectSingle: (eventName: string) => `Today: ${eventName}`,
+    subjectMultiple: (count: number) => `Today: ${count} events`,
+    greeting: 'Hi',
+    intro: "Something's happening today on your family calendar:",
+    calendarButtonLabel: 'Open Calendar',
+    manageFooter: `<a href="${manageLink}">Manage reminder preferences</a>`,
+  };
+}
+
+/**
+ * One clickable event row - photo (when present) + name, both linking into the calendar.
+ * Per docs/family-digest-formats-spec.md §6: every row shows a photo, everything is clickable,
+ * no distinct "warning" styling for memorials (same weight as any other event).
+ */
+function renderInDayEventRow(event: InDayEventItem, lang: string, calendarUrl: string): string {
+  const label = getInDayEventLine(event.type, escapeHtml(event.eventName), lang);
+  const photo = event.imageUrl
+    ? `<img src="${escapeHtml(event.imageUrl)}" alt="${escapeHtml(event.eventName)}" width="48" height="48" style="width:48px;height:48px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-inline-end:12px;" />`
+    : '';
+  return `<a href="${escapeHtml(calendarUrl)}" style="display:flex;align-items:center;text-decoration:none;color:inherit;">${photo}<span>${label}</span></a>`;
+}
+
 export class ResendService {
   static isEnabled(): boolean {
     return !!process.env.RESEND_API_KEY;
@@ -196,6 +303,41 @@ export class ResendService {
     });
 
     return { subject: strings.subject, html };
+  }
+
+  /**
+   * Build the subject + rich HTML for the in-day reminder nudge (docs/family-digest-formats-spec.md
+   * §2/§6) - one short email covering ALL of today's occurrences for the member's family
+   * calendar (never one email per occurrence). Every event row shows a photo (when available)
+   * and is clickable, no per-topic visual distinction.
+   */
+  static buildInDayReminderEmailHtml(params: InDayReminderEmailParams): { subject: string; html: string } {
+    const lang = params.lang ?? 'en';
+    const dir = params.dir ?? (lang === 'he' ? 'rtl' : 'ltr');
+    const heading = params.siteName ? `🌳 ${params.siteName}` : undefined;
+
+    const strings = getInDayLocalizedStrings(lang, params.manageLink);
+    const subject =
+      params.events.length === 1
+        ? strings.subjectSingle(params.events[0].eventName)
+        : strings.subjectMultiple(params.events.length);
+
+    const rows = params.events
+      .map((event) => renderInDayEventRow(event, lang, params.calendarUrl))
+      .join('');
+
+    const html = renderEmailHtml({
+      subject,
+      lang,
+      dir,
+      heading,
+      greeting: `${strings.greeting} ${params.firstName},`,
+      paragraphs: [strings.intro, rows],
+      button: { label: strings.calendarButtonLabel, url: params.calendarUrl },
+      footerLines: [strings.manageFooter],
+    });
+
+    return { subject, html };
   }
 
   /**
