@@ -22,6 +22,18 @@ export function filterTodaysOccurrences(events: AnniversaryEvent[], today: Date)
   });
 }
 
+/**
+ * Years since the wedding, for "N years of marriage" in-day copy. Must use originalYear over
+ * year - for Hebrew-tracked events, getEventsForMonth overwrites year to the display occurrence
+ * being shown, not the year the couple actually married (see AnniversaryEvent's doc comment).
+ */
+function computeYearsMarried(event: AnniversaryEvent, today: Date): number | undefined {
+  const marriageYear = event.originalYear ?? event.year;
+  if (typeof marriageYear !== 'number') return undefined;
+  const years = today.getFullYear() - marriageYear;
+  return years > 0 ? years : undefined;
+}
+
 export interface InDayCandidateMember {
   memberId: string;
   email?: string | null;
@@ -65,6 +77,7 @@ export function planInDaySends(params: {
         type: ev.type,
         eventName: ev.name,
         imageUrl: ev.imageUrl,
+        yearsMarried: ev.type === 'wedding' ? computeYearsMarried(ev, today) : undefined,
       })),
       calendarUrl,
       manageLink: manageLinkFor(member.memberId),

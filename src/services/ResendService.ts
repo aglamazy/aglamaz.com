@@ -13,6 +13,8 @@ export interface InDayEventItem {
   type: AnniversaryType;
   eventName: string;
   imageUrl?: string;
+  /** Wedding events only - years since the marriage, for "N years of marriage" copy. */
+  yearsMarried?: number;
 }
 
 export interface InDayReminderEmailParams {
@@ -191,7 +193,7 @@ interface InDayLocalizedStrings {
 
 type InDayEventLineFn = (name: string) => string;
 
-const IN_DAY_EVENT_VERB: Record<AnniversaryType, Record<string, InDayEventLineFn>> = {
+const IN_DAY_EVENT_VERB: Record<Exclude<AnniversaryType, 'wedding'>, Record<string, InDayEventLineFn>> = {
   birthday: {
     en: (name) => `🎂 Today is ${name}'s birthday`,
     he: (name) => `🎂 היום יום ההולדת של ${name}`,
@@ -202,11 +204,6 @@ const IN_DAY_EVENT_VERB: Record<AnniversaryType, Record<string, InDayEventLineFn
     he: (name) => `🕯️ היום יום פטירה של ${name}`,
     tr: (name) => `🕯️ Bugün ${name}'in yahrzeiti`,
   },
-  wedding: {
-    en: (name) => `💍 Today is ${name}'s wedding anniversary`,
-    he: (name) => `💍 היום יום נישואים של ${name}`,
-    tr: (name) => `💍 Bugün ${name}'in evlilik yıldönümü`,
-  },
   other: {
     en: (name) => `📌 Today: ${name}`,
     he: (name) => `📌 היום: ${name}`,
@@ -214,7 +211,39 @@ const IN_DAY_EVENT_VERB: Record<AnniversaryType, Record<string, InDayEventLineFn
   },
 };
 
-function getInDayEventLine(type: AnniversaryType, eventName: string, lang: string): string {
+/** Hebrew has irregular year-count nouns (1 = "שנה אחת", 2 = "שנתיים", 3+ = "N שנים"). */
+function hebrewYearsPhrase(years: number): string {
+  if (years === 1) return 'שנה אחת';
+  if (years === 2) return 'שנתיים';
+  return `${years} שנים`;
+}
+
+/**
+ * Wedding events are a COUPLE's occasion - `name` already holds both partners (e.g.
+ * "Dan & Mira", the only field the data model has - see AnniversaryEvent.name). Deliberately
+ * does not reuse the individual-possessive "Today is X's ..." pattern the birthday/death
+ * branches use above; per family-digest-formats-spec.md's open question on wedding tone.
+ */
+const WEDDING_EVENT_LINE: Record<string, (name: string, years?: number) => string> = {
+  en: (name, years) =>
+    years && years > 0
+      ? `💍 ${name} are celebrating ${years} year${years === 1 ? '' : 's'} of marriage today`
+      : `💍 ${name} are celebrating their wedding anniversary today`,
+  he: (name, years) =>
+    years && years > 0
+      ? `💍 ${name} חוגגים היום ${hebrewYearsPhrase(years)} לנישואיהם`
+      : `💍 ${name} חוגגים היום את יום נישואיהם`,
+  tr: (name, years) =>
+    years && years > 0
+      ? `💍 ${name} bugün ${years}. evlilik yıldönümlerini kutluyor`
+      : `💍 ${name} bugün evlilik yıldönümlerini kutluyor`,
+};
+
+function getInDayEventLine(type: AnniversaryType, eventName: string, lang: string, yearsMarried?: number): string {
+  if (type === 'wedding') {
+    const fn = WEDDING_EVENT_LINE[lang] ?? WEDDING_EVENT_LINE.en;
+    return fn(eventName, yearsMarried);
+  }
   const byLang = IN_DAY_EVENT_VERB[type] ?? IN_DAY_EVENT_VERB.other;
   const fn = byLang[lang] ?? byLang.en;
   return fn(eventName);
@@ -259,7 +288,7 @@ function getInDayLocalizedStrings(lang: string, manageLink: string): InDayLocali
  * no distinct "warning" styling for memorials (same weight as any other event).
  */
 function renderInDayEventRow(event: InDayEventItem, lang: string, calendarUrl: string): string {
-  const label = getInDayEventLine(event.type, escapeHtml(event.eventName), lang);
+  const label = getInDayEventLine(event.type, escapeHtml(event.eventName), lang, event.yearsMarried);
   const photo = event.imageUrl
     ? `<img src="${escapeHtml(event.imageUrl)}" alt="${escapeHtml(event.eventName)}" width="48" height="48" style="width:48px;height:48px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-inline-end:12px;" />`
     : '';
