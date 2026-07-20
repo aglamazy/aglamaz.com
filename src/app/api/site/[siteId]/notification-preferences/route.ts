@@ -29,13 +29,22 @@ const putHandler = async (request: Request, context: GuardContext) => {
     }
 
     const body = await request.json();
-    const updates: Partial<{ birthOptOut: boolean; deathOptOut: boolean }> = {};
+    const updates: Partial<{
+      magazineEnabled: boolean;
+      magazineCadence: 'weekly' | 'monthly';
+      inDayRemindersEnabled: boolean;
+    }> = {};
 
-    if (typeof body.birthOptOut === 'boolean') {
-      updates.birthOptOut = body.birthOptOut;
+    if (typeof body.magazineEnabled === 'boolean') {
+      updates.magazineEnabled = body.magazineEnabled;
     }
-    if (typeof body.deathOptOut === 'boolean') {
-      updates.deathOptOut = body.deathOptOut;
+    if (body.magazineCadence === 'weekly' || body.magazineCadence === 'monthly') {
+      updates.magazineCadence = body.magazineCadence;
+    } else if (body.magazineCadence !== undefined) {
+      return Response.json({ error: 'Invalid magazineCadence' }, { status: 400 });
+    }
+    if (typeof body.inDayRemindersEnabled === 'boolean') {
+      updates.inDayRemindersEnabled = body.inDayRemindersEnabled;
     }
 
     if (Object.keys(updates).length === 0) {

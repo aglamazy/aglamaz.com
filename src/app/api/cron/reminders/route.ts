@@ -165,8 +165,10 @@ export async function GET(request: NextRequest) {
 
         for (const reminder of dueReminders) {
           try {
-            if (reminder.topic === 'birthday' && prefs.birthOptOut) { totalSkipped++; continue; }
-            if (reminder.topic === 'yahrzeit' && prefs.deathOptOut) { totalSkipped++; continue; }
+            // This lead-time cron is superseded by the magazine/in-day model
+            // (docs/family-digest-formats-spec.md §5) and not being extended further; the closest
+            // equivalent opt-out in the new model is the unified inDayRemindersEnabled toggle.
+            if (!prefs.inDayRemindersEnabled) { totalSkipped++; continue; }
 
             const alreadySent = await sendsRepo.hasSent(
               member.id,
