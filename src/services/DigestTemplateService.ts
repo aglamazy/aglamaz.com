@@ -1,5 +1,5 @@
 import type { ISite } from '@/entities/Site';
-import type { DigestPayload } from './DigestCompilerService';
+import type { DigestPayload, DigestRangePayload } from './DigestCompilerService';
 import { getLocalizedFields } from './LocalizationService.client';
 import { renderEmailHtml, escapeHtml } from './emailTemplates';
 
@@ -28,6 +28,18 @@ function formatMonthLabel(month: number, year: number, locale: string): string {
     month: 'long',
     year: 'numeric',
   }).format(date);
+}
+
+function formatRangeLabel(startDate: Date, endDate: Date, locale: string): string {
+  const formatterLocale = locale === 'he' ? 'he-IL' : locale === 'tr' ? 'tr-TR' : 'en-US';
+  const formatter = new Intl.DateTimeFormat(formatterLocale, { month: 'long', day: 'numeric', year: 'numeric' });
+  const formatterWithRange = formatter as Intl.DateTimeFormat & {
+    formatRange?: (start: Date, end: Date) => string;
+  };
+  if (typeof formatterWithRange.formatRange === 'function') {
+    return formatterWithRange.formatRange(startDate, endDate);
+  }
+  return `${formatter.format(startDate)} – ${formatter.format(endDate)}`;
 }
 
 function formatEventDate(event: DigestPayload['events'][number], locale: string): string {
@@ -140,6 +152,65 @@ export class DigestTemplateService {
       digest.photos.length
         ? ['תמונות אחרונות:', ...photoLines.map((line) => `• ${line}`)].join('\n')
         : 'תמונות אחרונות: אין החודש.',
+      'תקציר זה נוצר באופן אוטומטי.',
+    ];
+    const text = textSections.join('\n\n');
+
+    return { subject, html, text };
+  }
+
+  /**
+   * Rolling-window variant for weekly-cadence subscribers (family-digest-formats-spec.md
+   * §1) - same row rendering (renderEventRow/renderPhotoGrid) as the monthly digest, just
+   * labeled by date range instead of a calendar month.
+   */
+  static buildWeeklyDigestEmail(
+    digest: DigestRangePayload,
+    options: BuildDigestEmailOptions,
+  ): DigestEmailContent {
+    const periodLabel = formatRangeLabel(digest.startDate, digest.endDate, options.locale);
+    const eventLines = digest.events.map((event) => formatEventLine(event, options.locale));
+    const photoLines = digest.photos.map((photo) => formatPhotoLine(photo, options.locale));
+    const eventRows = digest.events
+      .map((event) => renderEventRow(event, options.locale, options.calendarUrl))
+      .join('');
+    const photoGrid = renderPhotoGrid(digest.photos, options.galleryUrl);
+
+    const summaryLine = `${digest.events.length} אירועים ו-${digest.photos.length} תמונות אחרונות`;
+    const subject = `תקציר שבועי - ${options.siteName} - ${periodLabel}`;
+
+    const paragraphs = [
+      `הנה התקציר השבועי עבור ${options.siteName} לתקופה ${periodLabel}.`,
+      `סיכום: ${summaryLine}.`,
+      digest.events.length
+        ? `אירועים קרובים:<br />${eventRows}`
+        : 'אירועים קרובים: אין בתקופה הקרובה.',
+      digest.photos.length
+        ? `תמונות אחרונות:<br />${photoGrid}`
+        : 'תמונות אחרונות: אין תמונות חדשות.',
+    ];
+
+    const html = renderEmailHtml({
+      subject,
+      lang: options.locale,
+      dir: options.locale === 'he' ? 'rtl' : 'ltr',
+      heading: `🌳 ${options.siteName}`,
+      preheader: subject,
+      greeting: `שלום ${options.siteName},`,
+      paragraphs,
+      footerLines: ['תקציר זה נוצר באופן אוטומטי.'],
+    });
+
+    const textSections = [
+      `שלום ${options.siteName},`,
+      `הנה התקציר השבועי עבור ${options.siteName} לתקופה ${periodLabel}.`,
+      `סיכום: ${summaryLine}.`,
+      digest.events.length
+        ? ['אירועים קרובים:', ...eventLines.map((line) => `• ${line}`)].join('\n')
+        : 'אירועים קרובים: אין בתקופה הקרובה.',
+      digest.photos.length
+        ? ['תמונות אחרונות:', ...photoLines.map((line) => `• ${line}`)].join('\n')
+        : 'תמונות אחרונות: אין תמונות חדשות.',
       'תקציר זה נוצר באופן אוטומטי.',
     ];
     const text = textSections.join('\n\n');
