@@ -1,6 +1,7 @@
 import type { Timestamp } from 'firebase-admin/firestore';
 
 export type MagazineCadence = 'weekly' | 'monthly';
+export type UnifiedMagazineCadence = MagazineCadence | 'none';
 
 /**
  * NotificationPreferences (see docs/family-digest-formats-spec.md §4).
@@ -12,20 +13,42 @@ export type MagazineCadence = 'weekly' | 'monthly';
 export interface NotificationPreferences {
   memberId: string;
   siteId: string;
-  magazineEnabled: boolean;
-  magazineCadence: MagazineCadence;
+  magazineCadence: UnifiedMagazineCadence;
   inDayRemindersEnabled: boolean;
   updatedAt?: Timestamp;
 }
 
 export const DEFAULT_PREFERENCES = {
-  magazineEnabled: true,
   magazineCadence: 'monthly' as MagazineCadence,
   inDayRemindersEnabled: true,
 } as const;
 
-export function normalizeCadence(value: unknown): MagazineCadence {
-  return value === 'weekly' || value === 'monthly' ? value : DEFAULT_PREFERENCES.magazineCadence;
+const LEGACY_MAGAZINE_ENABLED_FIELD = ['magazine', 'Enabled'].join('');
+
+export function normalizeCadence(value: unknown): UnifiedMagazineCadence {
+  if (value === 'weekly' || value === 'monthly' || value === 'none') {
+    return value;
+  }
+  return DEFAULT_PREFERENCES.magazineCadence;
+}
+
+function normalizeLegacyMagazineCadence(data: Record<string, unknown> | undefined): UnifiedMagazineCadence {
+  const legacyEnabled = data?.[LEGACY_MAGAZINE_ENABLED_FIELD];
+  if (typeof legacyEnabled === 'boolean' && !legacyEnabled) {
+    return 'none';
+  }
+
+  const cadence = normalizeCadence(data?.magazineCadence);
+  if (data?.magazineCadence === 'none') {
+    return cadence;
+  }
+  if (cadence !== DEFAULT_PREFERENCES.magazineCadence) {
+    return cadence;
+  }
+  if (typeof legacyEnabled === 'boolean' && legacyEnabled) {
+    return cadence;
+  }
+  return DEFAULT_PREFERENCES.magazineCadence;
 }
 
 /** Maps a raw Firestore doc (old or new shape, or partially-populated) onto the current shape. */
@@ -37,8 +60,7 @@ export function normalizePreferences(
   return {
     memberId,
     siteId,
-    magazineEnabled: typeof data?.magazineEnabled === 'boolean' ? data.magazineEnabled : DEFAULT_PREFERENCES.magazineEnabled,
-    magazineCadence: normalizeCadence(data?.magazineCadence),
+    magazineCadence: normalizeLegacyMagazineCadence(data),
     inDayRemindersEnabled:
       typeof data?.inDayRemindersEnabled === 'boolean'
         ? data.inDayRemindersEnabled
