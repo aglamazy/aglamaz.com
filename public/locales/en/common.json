@@ -404,6 +404,8 @@
   "blessingsCount": "Blessings ({{count}})",
   "noBlessingsYet": "No blessings yet. Be the first to bless!",
   "editBlessing": "Edit Blessing",
+  "blessingVisibleToPublic": "Visible to non-members",
+  "blessingVisibleToPublicHint": "If checked, this memory can be seen on the public memorial page, even by visitors without a family account.",
   "tapToSelectPhotos": "Tap to select photos",
   "tapToSelectPhoto": "Tap to select photo",
   "addDescription": "Add a description...",

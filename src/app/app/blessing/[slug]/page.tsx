@@ -17,6 +17,7 @@ interface Blessing {
   authorName: string;
   content: string;
   createdAt: any;
+  visibleToPublic?: boolean;
 }
 
 export default function BlessingPage() {
@@ -34,6 +35,7 @@ export default function BlessingPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingBlessing, setEditingBlessing] = useState<Blessing | null>(null);
   const [blessingContent, setBlessingContent] = useState('');
+  const [blessingVisibleToPublic, setBlessingVisibleToPublic] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [togglingPublic, setTogglingPublic] = useState(false);
@@ -195,6 +197,7 @@ export default function BlessingPage() {
                             onClick={() => {
                               setEditingBlessing(blessing);
                               setBlessingContent(blessing.content);
+                              setBlessingVisibleToPublic(blessing.visibleToPublic === true);
                               setModalOpen(true);
                             }}
                             className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
@@ -222,6 +225,7 @@ export default function BlessingPage() {
         onClick={() => {
           setEditingBlessing(null);
           setBlessingContent('');
+          setBlessingVisibleToPublic(false);
           setModalOpen(true);
         }}
         ariaLabel={t('addYourBlessing')}
@@ -233,6 +237,7 @@ export default function BlessingPage() {
           setModalOpen(false);
           setEditingBlessing(null);
           setBlessingContent('');
+          setBlessingVisibleToPublic(false);
         }}>
           <div
             className="relative bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg max-w-3xl w-full mx-4 max-h-[90vh] overflow-y-auto"
@@ -243,6 +248,7 @@ export default function BlessingPage() {
                 setModalOpen(false);
                 setEditingBlessing(null);
                 setBlessingContent('');
+                setBlessingVisibleToPublic(false);
               }}
               className="absolute top-3 right-3 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 text-2xl"
             >
@@ -271,12 +277,26 @@ export default function BlessingPage() {
                 deleteConfirmMessage={t('confirmDeleteBlessing')}
               />
             </div>
+            <label className="flex items-start gap-2 mb-4 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={blessingVisibleToPublic}
+                onChange={(e) => setBlessingVisibleToPublic(e.target.checked)}
+                className="mt-0.5"
+              />
+              <span>
+                <span className="font-medium">{t('blessingVisibleToPublic')}</span>
+                <br />
+                <span className="text-gray-500 dark:text-gray-400">{t('blessingVisibleToPublicHint')}</span>
+              </span>
+            </label>
             <div className="flex gap-2 justify-end mt-2">
               <button
                 onClick={() => {
                   setModalOpen(false);
                   setEditingBlessing(null);
                   setBlessingContent('');
+                  setBlessingVisibleToPublic(false);
                 }}
                 className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700"
               >
@@ -292,17 +312,18 @@ export default function BlessingPage() {
                       await apiFetch(ApiRoute.SITE_BLESSING_BY_ID, {
                         method: 'PUT',
                         pathParams: { pageId: blessingPage.id, blessingId: editingBlessing.id },
-                        body: { content: blessingContent },
+                        body: { content: blessingContent, visibleToPublic: blessingVisibleToPublic },
                       });
                     } else {
                       // Create new blessing
                       await apiFetch(ApiRoute.SITE_BLESSING_PAGE_BLESSINGS, {
                         method: 'POST',
                         pathParams: { pageId: blessingPage.id },
-                        body: { content: blessingContent },
+                        body: { content: blessingContent, visibleToPublic: blessingVisibleToPublic },
                       });
                     }
                     setBlessingContent('');
+                    setBlessingVisibleToPublic(false);
                     setEditingBlessing(null);
                     setModalOpen(false);
                     // Refresh blessings
