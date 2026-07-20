@@ -17,6 +17,8 @@ export const routePaths: Record<AppRoute, string> = {
   // Public pages
   [AppRoute.HOME]: '/{locale}',
   [AppRoute.CONTACT]: '/{locale}/contact',
+  [AppRoute.TERMS]: '/{locale}/terms',
+  [AppRoute.PRIVACY]: '/{locale}/privacy',
   [AppRoute.BLOG]: '/{locale}/blog',
   [AppRoute.BLOG_POST]: '/{locale}/blog/{id}',
 
