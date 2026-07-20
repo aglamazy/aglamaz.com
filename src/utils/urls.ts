@@ -38,6 +38,7 @@ export const routePaths: Record<AppRoute, string> = {
   [AppRoute.APP_ANNIVERSARY_EVENT]: '/app/anniversaries/{id}/events/{eventId}',
   [AppRoute.APP_ANNIVERSARY_EVENT_NEW]: '/app/anniversaries/{id}/events/new',
   [AppRoute.APP_SLIDESHOW]: '/app/slideshow',
+  [AppRoute.APP_PHOTOS]: '/app/photos',
 
   // Admin pages
   [AppRoute.ADMIN_DASHBOARD]: '/admin/dashboard',
