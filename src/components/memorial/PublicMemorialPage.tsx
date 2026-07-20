@@ -1,12 +1,13 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useTranslation } from 'react-i18next';
 import type { BlessingPage } from '@/entities/BlessingPage';
 import type { AnniversaryEvent } from '@/entities/Anniversary';
 import type { Blessing } from '@/entities/Blessing';
-import { ApiRoute } from '@/entities/Routes';
-import { getApiPath } from '@/utils/urls';
+import { AppRoute, ApiRoute } from '@/entities/Routes';
+import { getApiPath, getPath } from '@/utils/urls';
 
 interface Props {
   blessingPage: BlessingPage;
@@ -24,6 +25,7 @@ export default function PublicMemorialPage({ blessingPage, event, blessings: ini
   const [honeyputValue, setHoneyputValue] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
+  const [justSubmitted, setJustSubmitted] = useState(false);
   const formOpenedAt = useRef<number | null>(null);
 
   useEffect(() => {
@@ -67,7 +69,7 @@ export default function PublicMemorialPage({ blessingPage, event, blessings: ini
       setGuestContent('');
       setHoneyputValue('');
       formOpenedAt.current = null;
-      setFormOpen(false);
+      setJustSubmitted(true);
     } catch (err) {
       console.error('Failed to submit public blessing:', err);
       setSubmitError(t('errorOccurred'));
@@ -149,77 +151,110 @@ export default function PublicMemorialPage({ blessingPage, event, blessings: ini
       {formOpen && (
         <div
           className="fixed inset-0 flex items-center justify-center bg-black/40 z-50"
-          onClick={() => setFormOpen(false)}
+          onClick={() => {
+            setFormOpen(false);
+            setJustSubmitted(false);
+          }}
         >
           <div
             className="relative bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <button
-              onClick={() => setFormOpen(false)}
+              onClick={() => {
+                setFormOpen(false);
+                setJustSubmitted(false);
+              }}
               className="absolute top-3 right-3 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 text-2xl"
             >
               &times;
             </button>
-            <h2 className="text-2xl font-bold mb-4">{t('addYourBlessing')}</h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">{t('nonMemberContributionHint')}</p>
 
-            <div className="mb-3">
-              <input
-                type="text"
-                value={guestName}
-                onChange={(e) => setGuestName(e.target.value)}
-                placeholder={t('guestNamePlaceholder')}
-                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700"
-                maxLength={100}
-              />
-            </div>
-            <div className="mb-3">
-              <input
-                type="email"
-                value={guestEmail}
-                onChange={(e) => setGuestEmail(e.target.value)}
-                placeholder={t('guestEmailPlaceholder')}
-                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700"
-                maxLength={200}
-              />
-            </div>
-            {/* Honeypot — hidden from real visitors via CSS, left blank by them; a filled value is a strong bot signal. */}
-            <input
-              type="text"
-              value={honeyputValue}
-              onChange={(e) => setHoneyputValue(e.target.value)}
-              tabIndex={-1}
-              autoComplete="off"
-              className="absolute -left-[9999px] w-px h-px opacity-0"
-              aria-hidden="true"
-            />
-            <div className="mb-4">
-              <textarea
-                value={guestContent}
-                onChange={(e) => setGuestContent(e.target.value)}
-                placeholder={t('writeBlessingPlaceholder')}
-                rows={5}
-                maxLength={5000}
-                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700"
-              />
-            </div>
-            {submitError && <p className="text-red-600 text-sm mb-3">{submitError}</p>}
-            <div className="flex gap-2 justify-end">
-              <button
-                onClick={() => setFormOpen(false)}
-                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700"
-              >
-                {t('cancel')}
-              </button>
-              <button
-                onClick={handleSubmit}
-                disabled={submitting || !guestName.trim() || !guestContent.trim()}
-                className="px-4 py-2 bg-primary text-white rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {submitting ? t('submitting') : t('postBlessing')}
-              </button>
-            </div>
+            {justSubmitted ? (
+              <div className="text-center py-4">
+                <h2 className="text-2xl font-bold mb-2">{t('blessingPostedThankYou')}</h2>
+                <p className="text-gray-600 dark:text-gray-400 mb-6">{t('growthCtaMessage')}</p>
+                <Link
+                  href={getPath(AppRoute.AUTH_SIGNUP)}
+                  className="inline-block px-5 py-2.5 bg-primary text-white rounded-lg hover:opacity-90"
+                >
+                  {t('growthCtaButton')}
+                </Link>
+                <div className="mt-3">
+                  <button
+                    onClick={() => {
+                      setFormOpen(false);
+                      setJustSubmitted(false);
+                    }}
+                    className="text-sm text-gray-500 dark:text-gray-400 hover:underline"
+                  >
+                    {t('close')}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <h2 className="text-2xl font-bold mb-4">{t('addYourBlessing')}</h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">{t('nonMemberContributionHint')}</p>
+
+                <div className="mb-3">
+                  <input
+                    type="text"
+                    value={guestName}
+                    onChange={(e) => setGuestName(e.target.value)}
+                    placeholder={t('guestNamePlaceholder')}
+                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700"
+                    maxLength={100}
+                  />
+                </div>
+                <div className="mb-3">
+                  <input
+                    type="email"
+                    value={guestEmail}
+                    onChange={(e) => setGuestEmail(e.target.value)}
+                    placeholder={t('guestEmailPlaceholder')}
+                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700"
+                    maxLength={200}
+                  />
+                </div>
+                {/* Honeypot — hidden from real visitors via CSS, left blank by them; a filled value is a strong bot signal. */}
+                <input
+                  type="text"
+                  value={honeyputValue}
+                  onChange={(e) => setHoneyputValue(e.target.value)}
+                  tabIndex={-1}
+                  autoComplete="off"
+                  className="absolute -left-[9999px] w-px h-px opacity-0"
+                  aria-hidden="true"
+                />
+                <div className="mb-4">
+                  <textarea
+                    value={guestContent}
+                    onChange={(e) => setGuestContent(e.target.value)}
+                    placeholder={t('writeBlessingPlaceholder')}
+                    rows={5}
+                    maxLength={5000}
+                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700"
+                  />
+                </div>
+                {submitError && <p className="text-red-600 text-sm mb-3">{submitError}</p>}
+                <div className="flex gap-2 justify-end">
+                  <button
+                    onClick={() => setFormOpen(false)}
+                    className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700"
+                  >
+                    {t('cancel')}
+                  </button>
+                  <button
+                    onClick={handleSubmit}
+                    disabled={submitting || !guestName.trim() || !guestContent.trim()}
+                    className="px-4 py-2 bg-primary text-white rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {submitting ? t('submitting') : t('postBlessing')}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
