@@ -172,6 +172,7 @@ export const apiRoutePaths: Record<ApiRoute, string> = {
   [ApiRoute.SITE_BLESSING_PAGES_BY_SLUG]: '/api/site/{siteId}/blessing-pages/by-slug/{slug}',
   [ApiRoute.SITE_BLESSING_PAGE_BLESSINGS]: '/api/site/{siteId}/blessing-pages/{pageId}/blessings',
   [ApiRoute.SITE_BLESSING_BY_ID]: '/api/site/{siteId}/blessing-pages/{pageId}/blessings/{blessingId}',
+  [ApiRoute.SITE_BLESSING_PAGE_PUBLIC_BLESSINGS]: '/api/site/{siteId}/blessing-pages/{pageId}/blessings/public',
 
   // Admin
   [ApiRoute.SITE_ADMIN_CONTACT]: '/api/site/{siteId}/admin/contact',

@@ -7,4 +7,7 @@ export interface BlessingPage {
   pageType?: 'annual' | 'standing'; // 'standing' = one durable memorial page per death event
   createdBy: string;    // User ID who created it
   createdAt: any;       // Firestore Timestamp
+  // Reachable outside the family circle at /public/memorial/{slug} when true.
+  // Missing field = false (back-compat for pages written before this field existed).
+  isPublic?: boolean;
 }

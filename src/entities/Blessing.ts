@@ -12,4 +12,7 @@ export interface Blessing extends LocalizableDocument {
   deleted: boolean;        // Soft delete
   deletedAt?: any;         // Firestore Timestamp
   taggedMemberIds?: string[]; // Member IDs tagged in this blessing
+  visibleToPublic: boolean; // Whether this specific memory may show on the public (non-member) memorial page. Default false.
+  isNonMemberContribution: boolean; // True when authored by an anonymous visitor via the public memorial page, not a signed-in member. Default false.
+  guestEmail?: string; // Optional contact email for a non-member contributor (moderation/follow-up only; never rendered to other visitors).
 }
