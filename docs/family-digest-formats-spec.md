@@ -68,8 +68,8 @@ interface NotificationPreferences {
 
 **Revised 2026-07-20** (corrects famcircle#50's already-shipped shape): magazine is ONE field,
 not an enable-boolean plus a separate cadence — `'none'` IS the off state. Do not carry a
-`magazineEnabled` boolean alongside `magazineCadence`; that's redundant and was the mistake in
-the first implementation. Profile UI is a single 3-way control (weekly/monthly/none), not a
+separate enabled flag alongside `magazineCadence`; that's redundant and was the mistake in the
+first implementation. Profile UI is a single 3-way control (weekly/monthly/none), not a
 toggle-plus-conditional-dropdown.
 
 This is a breaking shape change from the current `birthOptOut`/`deathOptOut` fields. Existing

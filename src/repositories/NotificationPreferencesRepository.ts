@@ -7,7 +7,11 @@ import {
   type NotificationPreferences,
 } from '@/repositories/NotificationPreferencesRepository.utils';
 
-export type { MagazineCadence, NotificationPreferences } from '@/repositories/NotificationPreferencesRepository.utils';
+export type {
+  MagazineCadence,
+  NotificationPreferences,
+  UnifiedMagazineCadence,
+} from '@/repositories/NotificationPreferencesRepository.utils';
 
 export class NotificationPreferencesRepository {
   private readonly collection = 'notificationPreferences';
@@ -32,20 +36,18 @@ export class NotificationPreferencesRepository {
   async update(
     memberId: string,
     siteId: string,
-    updates: Partial<
-      Pick<NotificationPreferences, 'magazineEnabled' | 'magazineCadence' | 'inDayRemindersEnabled'>
-    >,
+    updates: Partial<Pick<NotificationPreferences, 'magazineCadence' | 'inDayRemindersEnabled'>>,
   ): Promise<NotificationPreferences> {
     const current = await this.get(memberId, siteId);
     const next = {
       memberId,
       siteId,
-      magazineEnabled: updates.magazineEnabled ?? current.magazineEnabled,
-      magazineCadence: updates.magazineCadence ? normalizeCadence(updates.magazineCadence) : current.magazineCadence,
+      magazineCadence:
+        updates.magazineCadence !== undefined ? normalizeCadence(updates.magazineCadence) : current.magazineCadence,
       inDayRemindersEnabled: updates.inDayRemindersEnabled ?? current.inDayRemindersEnabled,
       updatedAt: Timestamp.now(),
     };
-    await this.docRef(memberId).set(next, { merge: true });
+    await this.docRef(memberId).set(next);
     return next;
   }
 }
