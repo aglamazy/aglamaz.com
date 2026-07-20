@@ -36,6 +36,8 @@ export default function BlessingPage() {
   const [blessingContent, setBlessingContent] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [togglingPublic, setTogglingPublic] = useState(false);
+  const isAdmin = member && member.role === 'admin';
 
   const fetchBlessings = async (blessingPageId: string) => {
     if (!siteId) return;
@@ -78,6 +80,24 @@ export default function BlessingPage() {
     }
   }, [siteId, slug]);
 
+  const handleTogglePublic = async () => {
+    if (!siteId || !blessingPage?.id) return;
+    const nextIsPublic = !blessingPage.isPublic;
+    setTogglingPublic(true);
+    try {
+      const data = await apiFetch<{ blessingPage: any }>(
+        ApiRoute.SITE_BLESSING_PAGE_BY_ID,
+        { method: 'PATCH', pathParams: { pageId: blessingPage.id }, body: { isPublic: nextIsPublic } }
+      );
+      setBlessingPage(data.blessingPage);
+    } catch (err) {
+      console.error('Failed to update blessing page visibility:', err);
+      alert(t('errorOccurred'));
+    } finally {
+      setTogglingPublic(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -116,6 +136,20 @@ export default function BlessingPage() {
           <p className="text-lg text-gray-600 dark:text-gray-400 mb-2">
             {t('blessingPageTitle')} - {blessingPage.year}
           </p>
+          {isAdmin && (
+            <div className="flex items-center gap-2 mb-4">
+              <span className="text-sm text-gray-600 dark:text-gray-400">
+                {blessingPage.isPublic ? t('blessingPagePublic') : t('blessingPagePrivate')}
+              </span>
+              <button
+                onClick={handleTogglePublic}
+                disabled={togglingPublic}
+                className="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
+              >
+                {blessingPage.isPublic ? t('makePrivate') : t('makePublic')}
+              </button>
+            </div>
+          )}
           {event.description && (
             <p className="text-gray-700 dark:text-gray-300 mb-4">{event.description}</p>
           )}

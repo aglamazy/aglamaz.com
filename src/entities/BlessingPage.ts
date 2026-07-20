@@ -6,4 +6,7 @@ export interface BlessingPage {
   slug: string;         // URL slug (e.g., "abc123-2025")
   createdBy: string;    // User ID who created it
   createdAt: any;       // Firestore Timestamp
+  // Reachable outside the family circle at /public/memorial/{slug} when true.
+  // Missing field = false (back-compat for pages written before this field existed).
+  isPublic?: boolean;
 }
