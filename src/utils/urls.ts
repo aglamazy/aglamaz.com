@@ -186,6 +186,9 @@ export const apiRoutePaths: Record<ApiRoute, string> = {
   // Contact
   [ApiRoute.SITE_CONTACT]: '/api/site/{siteId}/contact',
 
+  // Token-gated reminder preferences
+  [ApiRoute.REMINDER_PREFERENCES]: '/api/notifications/preferences',
+
   // Review (token-gated, non-site-scoped)
   [ApiRoute.REVIEW_DECISION]: '/api/review/{token}',
 };
