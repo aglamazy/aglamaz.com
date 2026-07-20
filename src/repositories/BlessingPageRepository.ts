@@ -1,6 +1,8 @@
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { initAdmin } from '@/firebase/admin';
+import type { AnniversaryType } from '@/entities/Anniversary';
 import type { BlessingPage } from '@/entities/BlessingPage';
+import { buildBlessingPageSlug, resolveCanonicalBlessingPage, sortBlessingPages } from '@/repositories/BlessingPageRepository.utils';
 
 export class BlessingPageRepository {
   private readonly collection = 'blessingPages';
@@ -13,28 +15,35 @@ export class BlessingPageRepository {
   async create(data: {
     eventId: string;
     siteId: string;
-    year: number;
+    year?: number;
     createdBy: string;
+    eventType: AnniversaryType;
   }): Promise<BlessingPage> {
     const db = this.getDb();
+    const existing = await this.getByEvent(data.eventId, data.eventType, data.year);
 
-    // Generate slug: eventId-year
-    const slug = `${data.eventId}-${data.year}`;
-
-    // Check if blessing page already exists for this event and year
-    const existing = await this.getByEventAndYear(data.eventId, data.year);
     if (existing) {
       return existing;
     }
 
-    const ref = await db.collection(this.collection).add({
+    const slug = buildBlessingPageSlug(data.eventId, data.eventType, data.year);
+
+    const pageData: Record<string, unknown> = {
       eventId: data.eventId,
       siteId: data.siteId,
-      year: data.year,
       slug,
       createdBy: data.createdBy,
       createdAt: Timestamp.now(),
-    });
+    };
+
+    if (data.eventType !== 'death') {
+      if (typeof data.year !== 'number') {
+        throw new Error('Year is required for non-death blessing pages');
+      }
+      pageData.year = data.year;
+    }
+
+    const ref = await db.collection(this.collection).add(pageData);
 
     const doc = await ref.get();
     return { id: doc.id, ...doc.data() } as BlessingPage;
@@ -55,6 +64,12 @@ export class BlessingPageRepository {
     return { id: doc.id, ...doc.data() } as BlessingPage;
   }
 
+  async getByEvent(eventId: string, eventType: AnniversaryType, year?: number): Promise<BlessingPage | null> {
+    const db = this.getDb();
+    const pages = await this.listRawByEvent(eventId, db);
+    return resolveCanonicalBlessingPage(pages, eventType, year);
+  }
+
   async getByEventAndYear(eventId: string, year: number): Promise<BlessingPage | null> {
     const db = this.getDb();
     const qs = await db
@@ -68,14 +83,20 @@ export class BlessingPageRepository {
     return { id: doc.id, ...doc.data() } as BlessingPage;
   }
 
-  async listByEvent(eventId: string): Promise<BlessingPage[]> {
-    const db = this.getDb();
+  private async listRawByEvent(eventId: string, db = this.getDb()): Promise<BlessingPage[]> {
     const qs = await db
       .collection(this.collection)
       .where('eventId', '==', eventId)
-      .orderBy('year', 'desc')
       .get();
-    return qs.docs.map((d) => ({ id: d.id, ...d.data() } as BlessingPage));
+    return sortBlessingPages(qs.docs.map((d) => ({ id: d.id, ...d.data() } as BlessingPage)));
+  }
+
+  async listByEvent(eventId: string, _eventType?: AnniversaryType): Promise<BlessingPage[]> {
+    const db = this.getDb();
+    const pages = await this.listRawByEvent(eventId, db);
+    // Death pages are standing memorial pages: keep every legacy document around,
+    // but sort newest-first so callers reuse the canonical page.
+    return pages;
   }
 
   async listBySite(siteId: string): Promise<BlessingPage[]> {
@@ -83,9 +104,8 @@ export class BlessingPageRepository {
     const qs = await db
       .collection(this.collection)
       .where('siteId', '==', siteId)
-      .orderBy('year', 'desc')
       .get();
-    return qs.docs.map((d) => ({ id: d.id, ...d.data() } as BlessingPage));
+    return sortBlessingPages(qs.docs.map((d) => ({ id: d.id, ...d.data() } as BlessingPage)));
   }
 
   async setPublic(id: string, isPublic: boolean): Promise<BlessingPage> {

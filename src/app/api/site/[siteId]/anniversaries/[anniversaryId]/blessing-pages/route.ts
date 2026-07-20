@@ -33,7 +33,7 @@ const getHandler = async (_request: Request, context: GuardContext & { params: P
 
     // Get all blessing pages for this event
     const repo = new BlessingPageRepository();
-    const blessingPages = await repo.listByEvent(anniversaryId);
+    const blessingPages = await repo.listByEvent(anniversaryId, event.type);
 
     return Response.json({ blessingPages });
   } catch (error) {
@@ -74,7 +74,7 @@ const postHandler = async (request: Request, context: GuardContext & { params: P
     const body = await request.json();
     const { year } = body;
 
-    if (!year || typeof year !== 'number') {
+    if (event.type !== 'death' && (!year || typeof year !== 'number')) {
       return Response.json({ error: 'Year is required' }, { status: 400 });
     }
 
@@ -85,6 +85,7 @@ const postHandler = async (request: Request, context: GuardContext & { params: P
       siteId: siteId,
       year,
       createdBy: user.userId,
+      eventType: event.type,
     });
 
     return Response.json({ blessingPage }, { status: 201 });
