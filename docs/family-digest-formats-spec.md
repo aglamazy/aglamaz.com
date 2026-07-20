@@ -16,8 +16,8 @@ wedding**.
 
 ## 1. Magazine — cadence becomes a member preference, not a fixed schedule
 
-- Member-facing toggle (profile / NotificationPreferences): **on/off** + **cadence: `weekly` |
-  `monthly`**.
+- Member-facing control (profile / NotificationPreferences): a single 3-way selector —
+  **cadence: `weekly` | `monthly` | `none`** (`none` = off; not a separate enable toggle).
 - Content: unchanged — the existing `DigestCompilerService` (queries `AnniversaryRepository` +
   `GalleryPhotoRepository`) already pulls all anniversary types for a period, not just
   birthday/death, so no compiler change is needed for the wedding-type gap here.
@@ -60,12 +60,17 @@ the current `{ birthOptOut, deathOptOut }` shape with:
 interface NotificationPreferences {
   memberId: string;
   siteId: string;
-  magazineEnabled: boolean;      // default true
-  magazineCadence: 'weekly' | 'monthly'; // default 'monthly' (matches what's already built)
+  magazineCadence: 'weekly' | 'monthly' | 'none'; // default 'monthly'; 'none' = off
   inDayRemindersEnabled: boolean; // default true
   updatedAt: Timestamp;
 }
 ```
+
+**Revised 2026-07-20** (corrects famcircle#50's already-shipped shape): magazine is ONE field,
+not an enable-boolean plus a separate cadence — `'none'` IS the off state. Do not carry a
+`magazineEnabled` boolean alongside `magazineCadence`; that's redundant and was the mistake in
+the first implementation. Profile UI is a single 3-way control (weekly/monthly/none), not a
+toggle-plus-conditional-dropdown.
 
 This is a breaking shape change from the current `birthOptOut`/`deathOptOut` fields. Existing
 preference docs (if any exist in Firestore already) need a migration or a back-compat read path
