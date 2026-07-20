@@ -2,7 +2,7 @@ import ClientLayoutShell from '../../components/ClientLayoutShell';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 import { headers } from 'next/headers';
 import { resolveSiteId } from '@/utils/resolveSiteId';
-import { getMemberFromToken, getUserFromToken } from '@/utils/serverAuth';
+import { getMemberAuthContext, getUserFromToken } from '@/utils/serverAuth';
 import I18nProvider from '@/components/I18nProvider';
 import { resolveLocaleForPrivateRoutes } from '@/utils/resolveLocale';
 import { fetchSiteInfo } from '@/firebase/admin';
@@ -29,7 +29,8 @@ export default async function RootLayout({ children }: AppLayoutProps) {
 
   // Get member and site info for SSR
   const siteId = await resolveSiteId();
-  const member = siteId ? await getMemberFromToken(siteId) : null;
+  const authContext = siteId ? await getMemberAuthContext(siteId, { allowReadOnly: true }) : null;
+  const member = authContext?.member ?? null;
 
   // Resolve locale with priority: query param > member preference > Accept-Language
   const { baseLocale, resolvedLocale } = await resolveLocaleForPrivateRoutes(

@@ -20,6 +20,7 @@ export interface GuardContext {
   params?: Promise<RouteParams> | RouteParams;
   user?: TokenClaims;
   member?: MemberDoc;
+  readOnly?: boolean;
 }
 
 export type RouteHandler = (request: Request, context: GuardContext) => Response | Promise<Response>;

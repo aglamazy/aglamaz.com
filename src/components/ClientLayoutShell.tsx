@@ -44,12 +44,15 @@ export default function ClientLayoutShell({ children }: ClientLayoutShellProps) 
   // Hydrate user from window on mount (before checkAuth)
   useEffect(() => {
     hydrateUser();
-  }, [hydrateUser]);
+    hydrateMemberInfo();
+  }, [hydrateUser, hydrateMemberInfo]);
 
   useEffect(() => {
     checkAuth()
       .then(() => {
-        if (!useUserStore.getState().user) openLogin();
+        const currentUser = useUserStore.getState().user;
+        const currentMember = useMemberStore.getState().member;
+        if (!currentUser && !currentMember) openLogin();
       })
       .catch((err) => {
         openLogin();

@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { SUPPORTED_LOCALES as CONFIG_LOCALES } from '@/constants/i18n';
 import { findBestSupportedLocale, parseAcceptLanguage } from '@/utils/locale';
 import { AppRoute, getPath } from '@/utils/urls';
+import { READ_ONLY_ACCESS_TOKEN, READ_ONLY_TOKEN_TTL_SECONDS, isReadOnlyAccessTokenClaims } from '@/auth/readOnlyShared';
 
 const SUPPORTED_LOCALES = CONFIG_LOCALES.map((locale) => locale as string);
 const FALLBACK_LOCALE = SUPPORTED_LOCALES[0] || 'en';
@@ -88,6 +89,7 @@ const MOBILE_UA_RE = /Android|iPhone|iPad|iPod|webOS|BlackBerry|Opera Mini|IEMob
 export async function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
   const { locale: localeFromPath, path: normalizedPath } = stripLocale(pathname);
+  const readOnlyToken = request.nextUrl.searchParams.get('rt');
 
   // Device-sensitive redirect: /app/slideshow → mobile /app, desktop /app/photos?slideshow=1
   if (normalizedPath === getPath(AppRoute.APP_SLIDESHOW)) {
@@ -110,6 +112,29 @@ export async function proxy(request: NextRequest) {
   }
 
   const token = request.cookies.get(ACCESS_TOKEN)?.value;
+  const isApi = pathname.startsWith('/api');
+
+  if (readOnlyToken && !isApi) {
+    try {
+      const payload = await verifyAccessToken(readOnlyToken);
+      if (isReadOnlyAccessTokenClaims(payload as any)) {
+        const redirectUrl = request.nextUrl.clone();
+        redirectUrl.searchParams.delete('rt');
+        const response = NextResponse.redirect(redirectUrl);
+        response.cookies.set(READ_ONLY_ACCESS_TOKEN, readOnlyToken, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          path: '/',
+          sameSite: 'lax',
+          maxAge: READ_ONLY_TOKEN_TTL_SECONDS,
+        });
+        return response;
+      }
+    } catch (error) {
+      console.error('[proxy] invalid read-only token', error);
+    }
+  }
+
   const isPublic = PUBLIC_PATHS.some((p) => normalizedPath === p || normalizedPath.startsWith(p + '/'))
     || isPublicApiPath(normalizedPath);
 
@@ -117,8 +142,6 @@ export async function proxy(request: NextRequest) {
   if (isPublic) {
     return addLocaleHeader(NextResponse.next(), request);
   }
-
-  const isApi = pathname.startsWith('/api');
 
   if (!token) {
     if (isApi) {
