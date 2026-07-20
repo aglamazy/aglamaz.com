@@ -26,7 +26,7 @@ export interface ReminderEmailParams {
   eventName: string;
   /** Human-readable date string, e.g. "July 15" or "ט״ו תמוז" */
   occurrenceDate: string;
-  /** Placeholder link for reminder preference management (route wired by famcircle#11) */
+  /** Signed link for reminder preference management */
   manageLink: string;
   /** Optional direct link to the app calendar */
   calendarUrl?: string;

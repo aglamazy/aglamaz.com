@@ -9,6 +9,10 @@ import { SiteRepository } from '@/repositories/SiteRepository';
 import { ReminderSendsRepository } from '@/repositories/ReminderSendsRepository';
 import { notificationPreferencesRepository } from '@/repositories/NotificationPreferencesRepository';
 import { ResendService } from '@/services/ResendService';
+import {
+  buildReminderPreferenceLink,
+  signReminderPreferenceToken,
+} from '@/services/ReminderPreferenceLinkService';
 import type { ISite } from '@/entities/Site';
 
 export const dynamic = 'force-dynamic';
@@ -187,8 +191,12 @@ export async function GET(request: NextRequest) {
               lang,
             );
 
-            // TODO (famcircle#11): replace placeholder with the real notification-preferences management URL
-            const manageLink = '#manage-reminders';
+            const manageToken = signReminderPreferenceToken({
+              memberId: member.id,
+              siteId,
+              topic: reminder.topic,
+            });
+            const manageLink = buildReminderPreferenceLink(request.nextUrl.origin, manageToken);
 
             const { subject, html } = ResendService.buildReminderEmailHtml({
               topic: reminder.topic,

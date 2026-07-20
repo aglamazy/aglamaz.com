@@ -125,6 +125,9 @@ export enum ApiRoute {
   // Contact
   SITE_CONTACT = 'SITE_CONTACT',
 
+  // Token-gated reminder preferences link
+  REMINDER_PREFERENCES = 'REMINDER_PREFERENCES',
+
   // Review (token-gated, non-site-scoped - the token itself is the auth)
   REVIEW_DECISION = 'REVIEW_DECISION',
 }
