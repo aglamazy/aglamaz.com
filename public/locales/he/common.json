@@ -391,6 +391,8 @@
   "blessingsCount": "ברכות ({{count}})",
   "noBlessingsYet": "עדיין אין ברכות. היה הראשון לברך!",
   "editBlessing": "ערוך ברכה",
+  "blessingVisibleToPublic": "גלוי גם למי שאינו בן משפחה",
+  "blessingVisibleToPublicHint": "אם מסומן, ניתן יהיה לראות את הזיכרון הזה בעמוד ההנצחה הציבורי, גם על ידי מבקרים ללא חשבון משפחה.",
   "tapToSelectPhotos": "הקש כדי לבחור תמונות",
   "tapToSelectPhoto": "הקש כדי לבחור תמונה",
   "addDescription": "הוסף תיאור...",

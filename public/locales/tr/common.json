@@ -357,6 +357,8 @@
   "blessingsCount": "Dilekçeler ({{count}})",
   "noBlessingsYet": "Henüz dilekçe yok. İlk dilekçeyi gönderen siz olun!",
   "editBlessing": "Dilekçeyi Düzenle",
+  "blessingVisibleToPublic": "Üye olmayanlara görünür",
+  "blessingVisibleToPublicHint": "İşaretlenirse, bu anı, aile hesabı olmayan ziyaretçiler de dahil olmak üzere herkese açık anma sayfasında görülebilir.",
   "upcomingEvents": "Yaklaşan Etkinlikler",
   "recentPosts": "Son Yazılar",
   "photoHighlights": "Fotoğraf Seçkileri",
