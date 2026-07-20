@@ -1,0 +1,156 @@
+import assert from 'node:assert/strict';
+import { Timestamp } from 'firebase-admin/firestore';
+import { filterTodaysOccurrences, planInDaySends } from '../src/services/InDayReminderService';
+import type { AnniversaryEvent } from '../src/entities/Anniversary';
+
+function today(): Date {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function eventOn(overrides: Partial<AnniversaryEvent> & { day: number; month: number }): AnniversaryEvent {
+  return {
+    id: 'evt1',
+    siteId: 'site1',
+    ownerId: 'owner1',
+    name: 'Test Event',
+    type: 'birthday',
+    date: Timestamp.fromDate(new Date(1990, overrides.month, overrides.day)),
+    year: 1990,
+    isAnnual: true,
+    createdAt: Timestamp.now(),
+    ...overrides,
+  } as AnniversaryEvent;
+}
+
+function testFilterTodaysOccurrencesMatchesByDay() {
+  const t = today();
+  const onDay = eventOn({ day: t.getDate(), month: t.getMonth(), type: 'birthday' });
+  const otherDay = eventOn({ id: 'evt2', day: t.getDate() === 1 ? 2 : 1, month: t.getMonth(), type: 'birthday' });
+
+  const result = filterTodaysOccurrences([onDay, otherDay], t);
+  assert.equal(result.length, 1);
+  assert.equal(result[0].id, 'evt1');
+  console.log('filterTodaysOccurrences matches only today passed');
+}
+
+function testFilterTodaysOccurrencesCoversAllThreeTypes() {
+  const t = today();
+  for (const type of ['birthday', 'death', 'wedding'] as const) {
+    const ev = eventOn({ day: t.getDate(), month: t.getMonth(), type });
+    assert.equal(filterTodaysOccurrences([ev], t).length, 1, `${type} should count as an in-day occurrence`);
+  }
+  console.log('filterTodaysOccurrences covers birthday/death/wedding passed');
+}
+
+function testFilterTodaysOccurrencesIgnoresOtherType() {
+  const t = today();
+  const ev = eventOn({ day: t.getDate(), month: t.getMonth(), type: 'other' });
+  assert.equal(filterTodaysOccurrences([ev], t).length, 0);
+  console.log('filterTodaysOccurrences ignores type=other passed');
+}
+
+function testFilterTodaysOccurrencesRespectsNonAnnualYear() {
+  const t = today();
+  const wrongYear = eventOn({ day: t.getDate(), month: t.getMonth(), isAnnual: false, year: t.getFullYear() - 1 });
+  const rightYear = eventOn({ id: 'evt2', day: t.getDate(), month: t.getMonth(), isAnnual: false, year: t.getFullYear() });
+  assert.equal(filterTodaysOccurrences([wrongYear], t).length, 0);
+  assert.equal(filterTodaysOccurrences([rightYear], t).length, 1);
+  console.log('filterTodaysOccurrences respects non-annual stored year passed');
+}
+
+const baseParams = (events: AnniversaryEvent[]) => ({
+  events,
+  today: today(),
+  siteName: 'Test Family',
+  calendarUrl: 'https://example.com/app/calendar',
+  manageLinkFor: (memberId: string) => `https://example.com/manage?m=${memberId}`,
+});
+
+function testMemberWithOccurrenceGetsExactlyOneEmail() {
+  const t = today();
+  const ev = eventOn({ day: t.getDate(), month: t.getMonth(), type: 'birthday' });
+
+  const plans = planInDaySends({
+    ...baseParams([ev]),
+    members: [
+      { memberId: 'm1', email: 'm1@example.com', inDayRemindersEnabled: true, defaultLocale: 'en' },
+    ],
+  });
+
+  assert.equal(plans.length, 1, 'member with an occurrence today should get exactly one email');
+  assert.equal(plans[0].memberId, 'm1');
+  assert.equal(plans[0].to, 'm1@example.com');
+  console.log('member with occurrence gets exactly one email passed');
+}
+
+function testMemberWithNoOccurrenceGetsZeroEmails() {
+  const t = today();
+  const otherDay = eventOn({ day: t.getDate() === 1 ? 2 : 1, month: t.getMonth(), type: 'birthday' });
+
+  const plans = planInDaySends({
+    ...baseParams([otherDay]),
+    members: [
+      { memberId: 'm1', email: 'm1@example.com', inDayRemindersEnabled: true, defaultLocale: 'en' },
+    ],
+  });
+
+  assert.equal(plans.length, 0, 'member with no occurrence today should get zero emails');
+  console.log('member with no occurrence gets zero emails passed');
+}
+
+function testMemberWithTogglOffGetsZeroEmailsRegardless() {
+  const t = today();
+  const ev = eventOn({ day: t.getDate(), month: t.getMonth(), type: 'birthday' });
+
+  const plans = planInDaySends({
+    ...baseParams([ev]),
+    members: [
+      { memberId: 'm1', email: 'm1@example.com', inDayRemindersEnabled: false, defaultLocale: 'en' },
+    ],
+  });
+
+  assert.equal(plans.length, 0, 'inDayRemindersEnabled=false should get zero emails regardless of occurrences');
+  console.log('inDayRemindersEnabled=false gets zero emails passed');
+}
+
+function testMultipleOccurrencesSameDayStillOneEmail() {
+  const t = today();
+  const ev1 = eventOn({ id: 'evt1', day: t.getDate(), month: t.getMonth(), type: 'birthday', name: 'Alice' });
+  const ev2 = eventOn({ id: 'evt2', day: t.getDate(), month: t.getMonth(), type: 'death', name: 'Bob' });
+
+  const plans = planInDaySends({
+    ...baseParams([ev1, ev2]),
+    members: [
+      { memberId: 'm1', email: 'm1@example.com', inDayRemindersEnabled: true, defaultLocale: 'en' },
+    ],
+  });
+
+  assert.equal(plans.length, 1, 'two occurrences for the same member/day should still be a single email');
+  assert.ok(plans[0].html.includes('Alice') && plans[0].html.includes('Bob'), 'the single email should mention both occurrences');
+  console.log('multiple occurrences same day still one email passed');
+}
+
+function testMemberWithoutEmailIsSkipped() {
+  const t = today();
+  const ev = eventOn({ day: t.getDate(), month: t.getMonth(), type: 'birthday' });
+
+  const plans = planInDaySends({
+    ...baseParams([ev]),
+    members: [{ memberId: 'm1', email: null, inDayRemindersEnabled: true, defaultLocale: 'en' }],
+  });
+
+  assert.equal(plans.length, 0, 'member without an email address should be skipped');
+  console.log('member without email is skipped passed');
+}
+
+testFilterTodaysOccurrencesMatchesByDay();
+testFilterTodaysOccurrencesCoversAllThreeTypes();
+testFilterTodaysOccurrencesIgnoresOtherType();
+testFilterTodaysOccurrencesRespectsNonAnnualYear();
+testMemberWithOccurrenceGetsExactlyOneEmail();
+testMemberWithNoOccurrenceGetsZeroEmails();
+testMemberWithTogglOffGetsZeroEmailsRegardless();
+testMultipleOccurrencesSameDayStillOneEmail();
+testMemberWithoutEmailIsSkipped();

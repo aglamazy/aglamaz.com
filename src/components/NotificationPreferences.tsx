@@ -5,10 +5,19 @@ import { useTranslation } from 'react-i18next';
 import { apiFetch } from '@/utils/apiFetch';
 import { ApiRoute } from '@/entities/Routes';
 
+type MagazineCadence = 'weekly' | 'monthly';
+
 interface PreferencesPayload {
-  birthOptOut: boolean;
-  deathOptOut: boolean;
+  magazineEnabled: boolean;
+  magazineCadence: MagazineCadence;
+  inDayRemindersEnabled: boolean;
 }
+
+const DEFAULT_PREFERENCES: PreferencesPayload = {
+  magazineEnabled: true,
+  magazineCadence: 'monthly',
+  inDayRemindersEnabled: true,
+};
 
 interface ToggleRowProps {
   id: string;
@@ -51,7 +60,7 @@ function ToggleRow({ id, label, description, checked, disabled, onChange }: Togg
 
 export default function NotificationPreferences() {
   const { t, i18n } = useTranslation();
-  const [preferences, setPreferences] = useState<PreferencesPayload>({ birthOptOut: false, deathOptOut: false });
+  const [preferences, setPreferences] = useState<PreferencesPayload>(DEFAULT_PREFERENCES);
   const [loading, setLoading] = useState(true);
   const [pendingField, setPendingField] = useState<keyof PreferencesPayload | null>(null);
   const [error, setError] = useState('');
@@ -63,7 +72,11 @@ export default function NotificationPreferences() {
     void apiFetch<{ preferences: PreferencesPayload }>(ApiRoute.SITE_NOTIFICATION_PREFERENCES)
       .then(({ preferences: payload }) => {
         if (cancelled) return;
-        setPreferences({ birthOptOut: !!payload.birthOptOut, deathOptOut: !!payload.deathOptOut });
+        setPreferences({
+          magazineEnabled: !!payload.magazineEnabled,
+          magazineCadence: payload.magazineCadence === 'weekly' ? 'weekly' : 'monthly',
+          inDayRemindersEnabled: !!payload.inDayRemindersEnabled,
+        });
       })
       .catch((err) => {
         console.error('[notification-preferences] failed to load preferences', err);
@@ -79,10 +92,12 @@ export default function NotificationPreferences() {
     };
   }, []);
 
-  const handleToggle = async (field: keyof PreferencesPayload, subscribed: boolean) => {
-    const optOut = !subscribed;
+  const applyUpdate = async (
+    field: keyof PreferencesPayload,
+    value: PreferencesPayload[typeof field],
+  ) => {
     const previous = preferences;
-    setPreferences({ ...preferences, [field]: optOut });
+    setPreferences({ ...preferences, [field]: value });
     setPendingField(field);
     setError('');
     try {
@@ -90,10 +105,14 @@ export default function NotificationPreferences() {
         ApiRoute.SITE_NOTIFICATION_PREFERENCES,
         {
           method: 'PUT',
-          body: { [field]: optOut },
+          body: { [field]: value },
         },
       );
-      setPreferences({ birthOptOut: !!updated.birthOptOut, deathOptOut: !!updated.deathOptOut });
+      setPreferences({
+        magazineEnabled: !!updated.magazineEnabled,
+        magazineCadence: updated.magazineCadence === 'weekly' ? 'weekly' : 'monthly',
+        inDayRemindersEnabled: !!updated.inDayRemindersEnabled,
+      });
     } catch (err) {
       console.error('[notification-preferences] failed to update preferences', err);
       setPreferences(previous);
@@ -110,21 +129,41 @@ export default function NotificationPreferences() {
         <div className="mb-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">{error}</div>
       )}
       <div className="divide-y divide-gray-200 dark:divide-gray-700">
+        <div className="py-3">
+          <ToggleRow
+            id="magazineEnabled"
+            label={t('notificationsMagazineLabel')}
+            description={t('notificationsMagazineDescription')}
+            checked={preferences.magazineEnabled}
+            disabled={loading || pendingField === 'magazineEnabled'}
+            onChange={(checked) => void applyUpdate('magazineEnabled', checked)}
+          />
+          <div className="flex items-center gap-3 pl-1 pb-2">
+            <label
+              htmlFor="magazineCadence"
+              className={`text-xs ${preferences.magazineEnabled ? 'text-gray-600 dark:text-gray-400' : 'text-gray-400 dark:text-gray-600'}`}
+            >
+              {t('notificationsMagazineCadenceLabel')}
+            </label>
+            <select
+              id="magazineCadence"
+              value={preferences.magazineCadence}
+              disabled={loading || !preferences.magazineEnabled || pendingField === 'magazineCadence'}
+              onChange={(e) => void applyUpdate('magazineCadence', e.target.value as MagazineCadence)}
+              className="text-xs rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-2 py-1 disabled:opacity-50"
+            >
+              <option value="weekly">{t('notificationsMagazineCadenceWeekly')}</option>
+              <option value="monthly">{t('notificationsMagazineCadenceMonthly')}</option>
+            </select>
+          </div>
+        </div>
         <ToggleRow
-          id="birthdayReminders"
-          label={t('birthdayReminders')}
-          description={t('birthdayRemindersDescription')}
-          checked={!preferences.birthOptOut}
-          disabled={loading || pendingField === 'birthOptOut'}
-          onChange={(subscribed) => void handleToggle('birthOptOut', subscribed)}
-        />
-        <ToggleRow
-          id="yahrzeitReminders"
-          label={t('yahrzeitReminders')}
-          description={t('yahrzeitRemindersDescription')}
-          checked={!preferences.deathOptOut}
-          disabled={loading || pendingField === 'deathOptOut'}
-          onChange={(subscribed) => void handleToggle('deathOptOut', subscribed)}
+          id="inDayRemindersEnabled"
+          label={t('notificationsInDayRemindersLabel')}
+          description={t('notificationsInDayRemindersDescription')}
+          checked={preferences.inDayRemindersEnabled}
+          disabled={loading || pendingField === 'inDayRemindersEnabled'}
+          onChange={(checked) => void applyUpdate('inDayRemindersEnabled', checked)}
         />
       </div>
     </div>

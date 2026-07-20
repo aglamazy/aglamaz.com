@@ -1,18 +1,13 @@
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { initAdmin } from '@/firebase/admin';
+import {
+  DEFAULT_PREFERENCES,
+  normalizeCadence,
+  normalizePreferences,
+  type NotificationPreferences,
+} from '@/repositories/NotificationPreferencesRepository.utils';
 
-export interface NotificationPreferences {
-  memberId: string;
-  siteId: string;
-  birthOptOut: boolean;
-  deathOptOut: boolean;
-  updatedAt?: Timestamp;
-}
-
-const DEFAULT_PREFERENCES = {
-  birthOptOut: false,
-  deathOptOut: false,
-} as const;
+export type { MagazineCadence, NotificationPreferences } from '@/repositories/NotificationPreferencesRepository.utils';
 
 export class NotificationPreferencesRepository {
   private readonly collection = 'notificationPreferences';
@@ -31,27 +26,23 @@ export class NotificationPreferencesRepository {
     if (!snap.exists) {
       return { memberId, siteId, ...DEFAULT_PREFERENCES };
     }
-    const data = snap.data() as Partial<NotificationPreferences>;
-    return {
-      memberId,
-      siteId,
-      birthOptOut: data.birthOptOut ?? DEFAULT_PREFERENCES.birthOptOut,
-      deathOptOut: data.deathOptOut ?? DEFAULT_PREFERENCES.deathOptOut,
-      updatedAt: data.updatedAt,
-    };
+    return normalizePreferences(memberId, siteId, snap.data());
   }
 
   async update(
     memberId: string,
     siteId: string,
-    updates: Partial<Pick<NotificationPreferences, 'birthOptOut' | 'deathOptOut'>>,
+    updates: Partial<
+      Pick<NotificationPreferences, 'magazineEnabled' | 'magazineCadence' | 'inDayRemindersEnabled'>
+    >,
   ): Promise<NotificationPreferences> {
     const current = await this.get(memberId, siteId);
     const next = {
       memberId,
       siteId,
-      birthOptOut: updates.birthOptOut ?? current.birthOptOut,
-      deathOptOut: updates.deathOptOut ?? current.deathOptOut,
+      magazineEnabled: updates.magazineEnabled ?? current.magazineEnabled,
+      magazineCadence: updates.magazineCadence ? normalizeCadence(updates.magazineCadence) : current.magazineCadence,
+      inDayRemindersEnabled: updates.inDayRemindersEnabled ?? current.inDayRemindersEnabled,
       updatedAt: Timestamp.now(),
     };
     await this.docRef(memberId).set(next, { merge: true });
