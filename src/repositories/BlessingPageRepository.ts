@@ -88,6 +88,13 @@ export class BlessingPageRepository {
     return qs.docs.map((d) => ({ id: d.id, ...d.data() } as BlessingPage));
   }
 
+  async setPublic(id: string, isPublic: boolean): Promise<BlessingPage> {
+    const db = this.getDb();
+    await db.collection(this.collection).doc(id).update({ isPublic });
+    const doc = await db.collection(this.collection).doc(id).get();
+    return { id: doc.id, ...doc.data() } as BlessingPage;
+  }
+
   async delete(id: string): Promise<void> {
     const db = this.getDb();
     await db.collection(this.collection).doc(id).delete();
