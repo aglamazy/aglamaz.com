@@ -441,5 +441,13 @@
   "submit": "שלח",
   "reviewApprovedMessage": "אושר — הפוסט פורסם כעת.",
   "reviewChangesRequestedMessage": "המשוב נשלח לכותב/ת.",
-  "reviewDecisionFailed": "רישום ההחלטה נכשל. נסו שוב."
+  "reviewDecisionFailed": "רישום ההחלטה נכשל. נסו שוב.",
+  "nonMemberContributionBadge": "אורח/ת",
+  "nonMemberContributionHint": "אתם מפרסמים כאורחים ללא חשבון משפחה. הזיכרון שלכם יוצג לכל מי שצופה בעמוד הציבורי הזה.",
+  "guestNamePlaceholder": "השם שלך",
+  "guestEmailPlaceholder": "האימייל שלך (אופציונלי)",
+  "growthLoopCtaTitle": "הזיכרון שלך שותף",
+  "growthLoopCtaBody": "צרו את ה-FamCircle שלכם למשפחה — מרחב פרטי לשמירת סיפורים, תמונות ואבני דרך יחד.",
+  "growthLoopCtaButton": "צרו את ה-FamCircle שלכם",
+  "growthLoopCtaDismiss": "אולי מאוחר יותר"
 }

@@ -107,6 +107,43 @@ export class BlessingRepository {
     return blessings;
   }
 
+  /**
+   * Public-facing variant — only returns blessings explicitly marked visibleToPublic.
+   * Always use this on unauthenticated routes (public memorial page);
+   * never `listByBlessingPage` (which is member-facing and returns everything).
+   */
+  async listPublicByBlessingPage(blessingPageId: string, locale?: string): Promise<Blessing[]> {
+    const db = this.getDb();
+    const qs = await db
+      .collection(this.collection)
+      .where('blessingPageId', '==', blessingPageId)
+      .where('deleted', '==', false)
+      .where('visibleToPublic', '==', true)
+      .orderBy('createdAt', 'desc')
+      .get();
+
+    const blessings = qs.docs.map((d) => ({ id: d.id, ...d.data() } as Blessing));
+
+    if (locale) {
+      const { ensureLocale, getLocalizedFields } = await import('@/services/LocalizationService');
+      const localizedBlessings: Blessing[] = [];
+      for (const blessing of blessings) {
+        try {
+          const docRef = db.collection(this.collection).doc(blessing.id);
+          const ensured = await ensureLocale(blessing, docRef, locale, ['content']);
+          const localized = getLocalizedFields(ensured, locale, ['content']);
+          localizedBlessings.push({ ...ensured, content: localized.content });
+        } catch (error) {
+          console.error(`[BlessingRepository] Failed to localize ${blessing.id}:`, error);
+          localizedBlessings.push(blessing);
+        }
+      }
+      return localizedBlessings;
+    }
+
+    return blessings;
+  }
+
   async update(id: string, updates: {
     content?: string;
     locale?: string;

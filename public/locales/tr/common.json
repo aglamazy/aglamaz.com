@@ -394,5 +394,13 @@
   "submit": "Gönder",
   "reviewApprovedMessage": "Onaylandı — bu gönderi artık yayında.",
   "reviewChangesRequestedMessage": "Geri bildirim yazara gönderildi.",
-  "reviewDecisionFailed": "Kararınız kaydedilemedi. Lütfen tekrar deneyin."
+  "reviewDecisionFailed": "Kararınız kaydedilemedi. Lütfen tekrar deneyin.",
+  "nonMemberContributionBadge": "Ziyaretçi",
+  "nonMemberContributionHint": "Aile hesabı olmayan bir ziyaretçi olarak paylaşıyorsunuz. Anınız bu genel sayfayı görüntüleyen herkese görünür olacaktır.",
+  "guestNamePlaceholder": "Adınız",
+  "guestEmailPlaceholder": "E-postanız (isteğe bağlı)",
+  "growthLoopCtaTitle": "Anınız paylaşıldı",
+  "growthLoopCtaBody": "Aileniz için kendi FamCircle'ınızı oluşturun — hikayelerinizi, fotoğraflarınızı ve önemli anlarınızı bir arada tutmak için özel bir alan.",
+  "growthLoopCtaButton": "Kendi FamCircle'ınızı Oluşturun",
+  "growthLoopCtaDismiss": "Belki daha sonra"
 }
