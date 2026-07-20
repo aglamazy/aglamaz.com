@@ -60,8 +60,8 @@ function buildYahrzeitMessage(params: {
 
   if (locale === 'he') {
     return [
-      `${params.siteName} - הודעת יארצייט`,
-      `היום מציינים את היארצייט של ${params.eventName} (${params.occurrenceDate}).`,
+      `${params.siteName} - הודעת יום פטירה`,
+      `היום מציינים את יום הפטירה של ${params.eventName} (${params.occurrenceDate}).`,
       'יהי זכרם ברוך.',
       `עוד באתר: ${params.siteUrl}`,
     ].join('\n');
