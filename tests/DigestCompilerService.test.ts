@@ -76,10 +76,54 @@ async function testPassesLocaleAndCustomLimit() {
   console.log('locale and custom limit test passed');
 }
 
+async function testRangeSpansRollingWindowNotFixedMonth() {
+  // Weekly-cadence window: "today" (2026-07-20) through ~1 month out (2026-08-20) -
+  // deliberately crosses a calendar-month boundary, per family-digest-formats-spec.md §1.
+  const startDate = new Date(2026, 6, 20); // July 20, 2026
+  const endDate = new Date(2026, 7, 20); // August 20, 2026
+
+  const eventsByMonth: Record<string, any[]> = {
+    '6-2026': [
+      { id: 'before-range', siteId: 'site1', type: 'birthday', name: 'Too Early', month: 6, day: 10, year: 1990, isAnnual: true },
+      { id: 'in-range-july', siteId: 'site1', type: 'birthday', name: 'Late July', month: 6, day: 25, year: 1990, isAnnual: true },
+    ],
+    '7-2026': [
+      { id: 'in-range-august', siteId: 'site1', type: 'death', name: 'Early August', month: 7, day: 5, year: 1990, isAnnual: true },
+      { id: 'after-range', siteId: 'site1', type: 'wedding', name: 'Too Late', month: 7, day: 25, year: 2015, isAnnual: true },
+    ],
+  };
+
+  const capturedMonthYearCalls: Array<{ month: number; year: number }> = [];
+  const anniversaryRepository: any = {
+    getEventsForMonth: async (siteId: string, month: number, year: number) => {
+      capturedMonthYearCalls.push({ month, year });
+      return eventsByMonth[`${month}-${year}`] ?? [];
+    },
+  };
+  const galleryPhotoRepository: any = { listBySite: async () => [] };
+
+  const service = new DigestCompilerService(anniversaryRepository, galleryPhotoRepository);
+  const digest = await service.compileDigestForRange('site1', startDate, endDate);
+
+  // Proves the window queried more than one calendar month - not a fixed month-in-review.
+  assert.deepEqual(
+    capturedMonthYearCalls.sort((a, b) => a.year - b.year || a.month - b.month),
+    [{ month: 6, year: 2026 }, { month: 7, year: 2026 }],
+  );
+
+  const ids = digest.events.map((e: any) => e.id);
+  assert.deepEqual(ids, ['in-range-july', 'in-range-august'], 'only events inside [startDate, endDate] must be included, in date order');
+  assert.equal(digest.startDate.getTime(), startDate.getTime());
+  assert.equal(digest.endDate.getTime(), endDate.getTime());
+
+  console.log('rolling window spans ~1 week to ~1 month forward (crosses month boundary): PASSED');
+}
+
 async function run() {
   await testCompilesEventsAndPhotos();
   await testEmptyWhenNothingInRange();
   await testPassesLocaleAndCustomLimit();
+  await testRangeSpansRollingWindowNotFixedMonth();
 }
 
 run();

@@ -13,9 +13,53 @@ export interface DigestPayload {
   photos: GalleryPhoto[];
 }
 
+/**
+ * Rolling-window variant of DigestPayload for weekly-cadence subscribers
+ * (docs/family-digest-formats-spec.md §1) - a date range instead of a fixed
+ * calendar month.
+ */
+export interface DigestRangePayload {
+  siteId: string;
+  startDate: Date;
+  endDate: Date;
+  events: AnniversaryEvent[];
+  photos: GalleryPhoto[];
+}
+
 export interface CompileDigestOptions {
   locale?: string;
   recentPhotosLimit?: number;
+}
+
+function enumerateMonthYearPairs(startDate: Date, endDate: Date): Array<{ month: number; year: number }> {
+  const pairs: Array<{ month: number; year: number }> = [];
+  let month = startDate.getMonth();
+  let year = startDate.getFullYear();
+  const endMonth = endDate.getMonth();
+  const endYear = endDate.getFullYear();
+
+  while (year < endYear || (year === endYear && month <= endMonth)) {
+    pairs.push({ month, year });
+    month += 1;
+    if (month > 11) {
+      month = 0;
+      year += 1;
+    }
+  }
+
+  return pairs;
+}
+
+function startOfDay(date: Date): Date {
+  const result = new Date(date);
+  result.setHours(0, 0, 0, 0);
+  return result;
+}
+
+function endOfDay(date: Date): Date {
+  const result = new Date(date);
+  result.setHours(23, 59, 59, 999);
+  return result;
 }
 
 /**
@@ -39,5 +83,48 @@ export class DigestCompilerService {
     ]);
 
     return { siteId, month, year, events, photos };
+  }
+
+  /**
+   * Rolling-window compile for weekly-cadence subscribers: covers [startDate, endDate]
+   * which may span more than one calendar month, by querying getEventsForMonth for
+   * every month the range touches (same query the monthly path uses) and filtering
+   * down to events whose actual occurrence date falls inside the window. The queried
+   * year - not the event doc's own (possibly stale, original-entry) year field - is
+   * used to build each occurrence date, since getEventsForMonth already resolves
+   * annual/Hebrew recurrences against that year.
+   */
+  async compileDigestForRange(
+    siteId: string,
+    startDate: Date,
+    endDate: Date,
+    options?: CompileDigestOptions,
+  ): Promise<DigestRangePayload> {
+    const recentPhotosLimit = options?.recentPhotosLimit ?? DEFAULT_RECENT_PHOTOS_LIMIT;
+    const monthYearPairs = enumerateMonthYearPairs(startDate, endDate);
+
+    const [eventsByMonth, photos] = await Promise.all([
+      Promise.all(
+        monthYearPairs.map(({ month, year }) =>
+          this.anniversaryRepository
+            .getEventsForMonth(siteId, month, year, options?.locale)
+            .then((events) => events.map((event) => ({ ...event, month, year }))),
+        ),
+      ),
+      this.galleryPhotoRepository.listBySite(siteId, options?.locale, { limit: recentPhotosLimit }),
+    ]);
+
+    const rangeStart = startOfDay(startDate);
+    const rangeEnd = endOfDay(endDate);
+
+    const events = eventsByMonth
+      .flat()
+      .filter((event) => {
+        const occurrenceDate = new Date(event.year, event.month, event.day);
+        return occurrenceDate >= rangeStart && occurrenceDate <= rangeEnd;
+      })
+      .sort((a, b) => new Date(a.year, a.month, a.day).getTime() - new Date(b.year, b.month, b.day).getTime());
+
+    return { siteId, startDate, endDate, events, photos };
   }
 }
