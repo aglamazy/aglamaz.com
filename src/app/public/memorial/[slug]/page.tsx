@@ -30,7 +30,10 @@ export default async function PublicMemorialPageRoute({ params }: { params: Prom
   const preferred = headerStore.get('accept-language')?.split(',')[0]?.split(';')[0]?.toLowerCase() || DEFAULT_LOCALE;
 
   const blessingRepo = new BlessingRepository();
-  const blessings = await blessingRepo.listByBlessingPage(blessingPage.id, preferred);
+  // Public route: must only ever surface blessings marked visibleToPublic —
+  // listByBlessingPage is member-facing and returns everything, which would
+  // leak private member memories onto this unauthenticated page.
+  const blessings = await blessingRepo.listPublicByBlessingPage(blessingPage.id, preferred);
 
   return <PublicMemorialPage blessingPage={blessingPage} event={event} blessings={blessings} />;
 }

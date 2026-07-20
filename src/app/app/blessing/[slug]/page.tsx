@@ -18,6 +18,7 @@ interface Blessing {
   content: string;
   createdAt: any;
   visibleToPublic?: boolean;
+  isNonMemberContribution?: boolean;
 }
 
 export default function BlessingPage() {
@@ -193,6 +194,11 @@ export default function BlessingPage() {
                           <span className="font-semibold text-gray-900 dark:text-gray-100">
                             {blessing.authorName}
                           </span>
+                          {blessing.isNonMemberContribution && (
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300">
+                              {t('nonMemberContributionBadge')}
+                            </span>
+                          )}
                         </div>
                         {canEdit && (
                           <button
