@@ -1,17 +1,21 @@
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { initAdmin } from '@/firebase/admin';
 
+export type MagazineCadence = 'weekly' | 'monthly' | 'none';
+
 export interface NotificationPreferences {
   memberId: string;
   siteId: string;
   birthOptOut: boolean;
   deathOptOut: boolean;
+  magazineCadence: MagazineCadence;
   updatedAt?: Timestamp;
 }
 
 const DEFAULT_PREFERENCES = {
   birthOptOut: false,
   deathOptOut: false,
+  magazineCadence: 'monthly' as MagazineCadence,
 } as const;
 
 export class NotificationPreferencesRepository {
@@ -37,6 +41,7 @@ export class NotificationPreferencesRepository {
       siteId,
       birthOptOut: data.birthOptOut ?? DEFAULT_PREFERENCES.birthOptOut,
       deathOptOut: data.deathOptOut ?? DEFAULT_PREFERENCES.deathOptOut,
+      magazineCadence: data.magazineCadence ?? DEFAULT_PREFERENCES.magazineCadence,
       updatedAt: data.updatedAt,
     };
   }
@@ -44,7 +49,7 @@ export class NotificationPreferencesRepository {
   async update(
     memberId: string,
     siteId: string,
-    updates: Partial<Pick<NotificationPreferences, 'birthOptOut' | 'deathOptOut'>>,
+    updates: Partial<Pick<NotificationPreferences, 'birthOptOut' | 'deathOptOut' | 'magazineCadence'>>,
   ): Promise<NotificationPreferences> {
     const current = await this.get(memberId, siteId);
     const next = {
@@ -52,6 +57,7 @@ export class NotificationPreferencesRepository {
       siteId,
       birthOptOut: updates.birthOptOut ?? current.birthOptOut,
       deathOptOut: updates.deathOptOut ?? current.deathOptOut,
+      magazineCadence: updates.magazineCadence ?? current.magazineCadence,
       updatedAt: Timestamp.now(),
     };
     await this.docRef(memberId).set(next, { merge: true });
