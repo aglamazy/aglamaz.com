@@ -1,5 +1,5 @@
 import type { ISite } from '@/entities/Site';
-import type { DigestPayload } from './DigestCompilerService';
+import type { DigestPayload, DigestWindowPayload } from './DigestCompilerService';
 import { getLocalizedFields } from './LocalizationService.client';
 import { renderEmailHtml } from './emailTemplates';
 
@@ -157,6 +157,75 @@ export class DigestTemplateService {
       digest.photos.length
         ? ['תמונות אחרונות:', ...photoLines.map((line) => `• ${line}`)].join('\n')
         : 'תמונות אחרונות: אין החודש.',
+      'תקציר זה נוצר באופן אוטומטי.',
+    ];
+    const text = textSections.join('\n\n');
+
+    return { subject, html, text };
+  }
+
+  static buildWeeklyDigestEmail(
+    digest: DigestWindowPayload,
+    options: BuildDigestEmailOptions,
+  ): DigestEmailContent {
+    const windowLabel =
+      `${formatDate(digest.from, options.locale)} – ${formatDate(digest.to, options.locale)}`;
+    const calendarUrl = options.siteUrl ? `${options.siteUrl}/app/calendar` : undefined;
+    const photosUrl = options.siteUrl ? `${options.siteUrl}/app/photos` : undefined;
+
+    const summaryLine = `${digest.events.length} אירועים ו-${digest.photos.length} תמונות אחרונות`;
+    const subject = `תקציר שבועי - ${options.siteName} - ${windowLabel}`;
+
+    const paragraphs = [
+      `הנה התקציר השבועי עבור ${options.siteName} לתאריכים ${windowLabel}.`,
+      `סיכום: ${summaryLine}.`,
+    ];
+
+    const contentBlocks: string[] = [];
+
+    if (digest.events.length) {
+      const rows = digest.events
+        .map((event) => buildEventRow(event, options.locale, calendarUrl))
+        .join('\n');
+      contentBlocks.push(`<p>אירועים קרובים:</p>\n${rows}`);
+    } else {
+      paragraphs.push('אירועים קרובים: אין בתקופה זו.');
+    }
+
+    if (digest.photos.length) {
+      const rows = digest.photos
+        .map((photo) => buildPhotoRow(photo, options.locale, photosUrl))
+        .join('\n');
+      contentBlocks.push(`<p>תמונות אחרונות:</p>\n${rows}`);
+    } else {
+      paragraphs.push('תמונות אחרונות: אין.');
+    }
+
+    const html = renderEmailHtml({
+      subject,
+      lang: options.locale,
+      dir: options.locale === 'he' ? 'rtl' : 'ltr',
+      heading: `🌳 ${options.siteName}`,
+      preheader: subject,
+      greeting: `שלום ${options.siteName},`,
+      paragraphs,
+      contentBlocks,
+      footerLines: ['תקציר זה נוצר באופן אוטומטי.'],
+    });
+
+    const eventLines = digest.events.map((event) => formatEventLine(event, options.locale));
+    const photoLines = digest.photos.map((photo) => formatPhotoLine(photo, options.locale));
+
+    const textSections = [
+      `שלום ${options.siteName},`,
+      `הנה התקציר השבועי עבור ${options.siteName} לתאריכים ${windowLabel}.`,
+      `סיכום: ${summaryLine}.`,
+      digest.events.length
+        ? ['אירועים קרובים:', ...eventLines.map((line) => `• ${line}`)].join('\n')
+        : 'אירועים קרובים: אין בתקופה זו.',
+      digest.photos.length
+        ? ['תמונות אחרונות:', ...photoLines.map((line) => `• ${line}`)].join('\n')
+        : 'תמונות אחרונות: אין.',
       'תקציר זה נוצר באופן אוטומטי.',
     ];
     const text = textSections.join('\n\n');

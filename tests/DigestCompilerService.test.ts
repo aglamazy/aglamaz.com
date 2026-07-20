@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { DigestCompilerService } from '../src/services/DigestCompilerService';
+import type { DigestWindowPayload } from '../src/services/DigestCompilerService';
 
 async function testCompilesEventsAndPhotos() {
   const mockEvents = [
@@ -76,10 +77,71 @@ async function testPassesLocaleAndCustomLimit() {
   console.log('locale and custom limit test passed');
 }
 
+async function testRollingWindowSpanIsNotFixedMonth() {
+  // from = July 20, 2026; to = August 17, 2026 (28 days forward)
+  const from = new Date(Date.UTC(2026, 6, 20));  // July 20
+  const to   = new Date(Date.UTC(2026, 7, 17));  // Aug  17
+
+  const eventsJuly: any[] = [
+    // in range: July 25
+    { id: 'e-in',  siteId: 's1', month: 6, day: 25, year: 2020, isAnnual: true },
+    // out of range: July 10 (before window start)
+    { id: 'e-pre', siteId: 's1', month: 6, day: 10, year: 2020, isAnnual: true },
+  ];
+  const eventsAug: any[] = [
+    // in range: Aug 5
+    { id: 'e-aug-in',  siteId: 's1', month: 7, day: 5,  year: 2020, isAnnual: true },
+    // out of range: Aug 20 (after window end)
+    { id: 'e-aug-out', siteId: 's1', month: 7, day: 20, year: 2020, isAnnual: true },
+    // non-annual event whose own year doesn't match queriedYear — still filtered by date
+    { id: 'e-non-ann', siteId: 's1', month: 7, day: 10, year: 2026, isAnnual: false },
+  ];
+
+  const calls: Array<{ month: number; year: number }> = [];
+  const anniversaryRepository: any = {
+    getEventsForMonth: async (siteId: string, month: number, year: number) => {
+      calls.push({ month, year });
+      if (month === 6) return eventsJuly;
+      if (month === 7) return eventsAug;
+      return [];
+    },
+  };
+  const galleryPhotoRepository: any = { listBySite: async () => [] };
+
+  const service = new DigestCompilerService(anniversaryRepository, galleryPhotoRepository);
+  const digest: DigestWindowPayload = await service.compileRollingWindowDigest('s1', from, to);
+
+  // Should have queried both months covering the window
+  assert.equal(calls.length, 2);
+  assert.ok(calls.some(c => c.month === 6 && c.year === 2026), 'should query July 2026');
+  assert.ok(calls.some(c => c.month === 7 && c.year === 2026), 'should query August 2026');
+
+  // Window is 28 days, not a fixed calendar month
+  const windowDays = (digest.to.getTime() - digest.from.getTime()) / (1000 * 60 * 60 * 24);
+  assert.ok(windowDays >= 7 && windowDays <= 31, `window should be 7–31 days, got ${windowDays}`);
+
+  // July 25 is in range
+  assert.ok(digest.events.some(e => e.id === 'e-in'), 'July 25 should be included');
+  // July 10 is before window start
+  assert.ok(!digest.events.some(e => e.id === 'e-pre'), 'July 10 should be excluded (before window)');
+  // Aug 5 is in range
+  assert.ok(digest.events.some(e => e.id === 'e-aug-in'), 'Aug 5 should be included');
+  // Aug 20 is after window end
+  assert.ok(!digest.events.some(e => e.id === 'e-aug-out'), 'Aug 20 should be excluded (after window)');
+  // Aug 10 non-annual, in range
+  assert.ok(digest.events.some(e => e.id === 'e-non-ann'), 'Aug 10 non-annual should be included');
+
+  // Deduplication: calling with overlapping months must not produce duplicates
+  assert.equal(new Set(digest.events.map(e => e.id)).size, digest.events.length, 'no duplicate events');
+
+  console.log('rolling window span is not fixed month test passed');
+}
+
 async function run() {
   await testCompilesEventsAndPhotos();
   await testEmptyWhenNothingInRange();
   await testPassesLocaleAndCustomLimit();
+  await testRollingWindowSpanIsNotFixedMonth();
 }
 
 run();

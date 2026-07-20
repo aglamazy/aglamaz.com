@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint . --max-warnings=0",
     "lint:fix": "eslint . --fix",
-    "test": "tsx tests/auth.test.ts && tsx tests/middleware.test.ts && tsx tests/signupPolicy.test.ts && tsx tests/reminderComputation.test.ts && tsx tests/readToken.test.ts",
+    "test": "tsx tests/auth.test.ts && tsx tests/middleware.test.ts && tsx tests/signupPolicy.test.ts && tsx tests/reminderComputation.test.ts && tsx tests/readToken.test.ts && tsx tests/DigestCompilerService.test.ts",
     "test:digest": "tsx tests/digestTranslation.test.ts",
     "test:e2e": "tsx tests/e2e.ts",
     "test:playwright": "playwright test",

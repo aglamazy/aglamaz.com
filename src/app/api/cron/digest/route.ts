@@ -1,10 +1,14 @@
-// Monthly cron: compile a digest for each site and push it to Listmonk.
-// Schedule: 0 6 1 * * (06:00 UTC on the first day of the month) — configured in vercel.json.
-// Auth: Vercel Cron sends Authorization: Bearer {CRON_SECRET}; same secret used for manual curl tests.
+// Digest cron: compile and push to Listmonk for each site.
+// Schedule (vercel.json):
+//   Monthly: 0 6 1 * *   → /api/cron/digest              (month-in-review, previous month)
+//   Weekly:  0 6 * * 1   → /api/cron/digest?cadence=weekly (rolling 28-day forward window)
+// Auth: Vercel Cron sends Authorization: Bearer {CRON_SECRET}; same secret for manual curl tests.
 
 import { NextRequest, NextResponse } from 'next/server';
 import { ConfigRepository } from '@/repositories/ConfigRepository';
 import { SiteRepository } from '@/repositories/SiteRepository';
+import { MemberRepository } from '@/repositories/MemberRepository';
+import { NotificationPreferencesRepository } from '@/repositories/NotificationPreferencesRepository';
 import { DigestCompilerService } from '@/services/DigestCompilerService';
 import { DigestTemplateService, resolveDigestSiteName } from '@/services/DigestTemplateService';
 import { ListmonkService } from '@/services/ListmonkService';
@@ -89,6 +93,10 @@ async function maybeTranslateDigest(params: {
   };
 }
 
+function formatListmonkLocale(locale: string): string {
+  return locale === 'he' ? 'he-IL' : locale === 'tr' ? 'tr-TR' : 'en-US';
+}
+
 export async function GET(request: NextRequest) {
   if (!process.env.CRON_SECRET) {
     console.error('[cron/digest] CRON_SECRET environment variable is not set');
@@ -100,8 +108,17 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  const { searchParams } = new URL(request.url);
+  const cadence = searchParams.get('cadence') ?? 'monthly';
+
+  if (cadence !== 'weekly' && cadence !== 'monthly') {
+    return NextResponse.json({ error: `Invalid cadence: ${cadence}` }, { status: 400 });
+  }
+
   const siteRepo = new SiteRepository();
   const configRepo = new ConfigRepository();
+  const memberRepo = new MemberRepository();
+  const notifPrefsRepo = new NotificationPreferencesRepository();
   const digestCompiler = new DigestCompilerService();
   const listmonk = new ListmonkService();
 
@@ -114,7 +131,11 @@ export async function GET(request: NextRequest) {
   }
 
   const now = new Date();
+
+  // Monthly: previous calendar month; weekly: today through 28 days forward
   const { month, year } = getPreviousMonth(now);
+  const weeklyFrom = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const weeklyTo = new Date(weeklyFrom.getTime() + 28 * 24 * 60 * 60 * 1000);
 
   let created = 0;
   let failed = 0;
@@ -126,20 +147,63 @@ export async function GET(request: NextRequest) {
         throw new Error(`Site ${siteId} not found`);
       }
 
+      // Check whether this site has any members subscribed to the requested cadence.
+      const members = await memberRepo.listActiveMembers(siteId);
+      if (!members.length) continue;
+
+      const memberPrefs = await Promise.all(members.map(m => notifPrefsRepo.get(m.id, siteId)));
+
+      if (cadence === 'weekly') {
+        const hasWeeklyMembers = memberPrefs.some(p => p.magazineCadence === 'weekly');
+        if (!hasWeeklyMembers) continue;
+      } else {
+        // monthly: include members whose cadence is 'monthly' (explicit or default) — skip 'weekly' and 'none'
+        const hasMonthlyMembers = memberPrefs.some(p => p.magazineCadence === 'monthly');
+        if (!hasMonthlyMembers) continue;
+      }
+
       const targetLocale = resolveTargetLocale(site);
       if (!targetLocale) {
         throw new Error(`Unable to resolve digest locale for site ${siteId}`);
       }
 
-      const compiled = await digestCompiler.compileDigest(siteId, month, year, { locale: SOURCE_LOCALE });
       const siteName = resolveDigestSiteName(site, targetLocale, siteId);
       const rawAppUrl = process.env.NEXT_PUBLIC_APP_URL;
       const siteUrl = rawAppUrl ? rawAppUrl.replace(/\/+$/, '') : undefined;
-      const template = DigestTemplateService.buildMonthlyDigestEmail(compiled, {
-        locale: SOURCE_LOCALE,
-        siteName,
-        siteUrl,
-      });
+      const intlLocale = formatListmonkLocale(targetLocale);
+
+      let campaignName: string;
+      let template: { subject: string; html: string; text: string };
+      let campaignTags: string[];
+
+      if (cadence === 'weekly') {
+        const compiled = await digestCompiler.compileRollingWindowDigest(siteId, weeklyFrom, weeklyTo, { locale: SOURCE_LOCALE });
+        template = DigestTemplateService.buildWeeklyDigestEmail(compiled, {
+          locale: SOURCE_LOCALE,
+          siteName,
+          siteUrl,
+        });
+        const weekLabel =
+          new Intl.DateTimeFormat(intlLocale, { month: 'short', day: 'numeric' }).format(weeklyFrom) +
+          ' – ' +
+          new Intl.DateTimeFormat(intlLocale, { month: 'short', day: 'numeric', year: 'numeric' }).format(weeklyTo);
+        campaignName = `${siteName} weekly digest ${weekLabel}`;
+        campaignTags = ['weekly-digest'];
+      } else {
+        const compiled = await digestCompiler.compileDigest(siteId, month, year, { locale: SOURCE_LOCALE });
+        template = DigestTemplateService.buildMonthlyDigestEmail(compiled, {
+          locale: SOURCE_LOCALE,
+          siteName,
+          siteUrl,
+        });
+        const monthLabel = new Intl.DateTimeFormat(intlLocale, {
+          month: 'long',
+          year: 'numeric',
+        }).format(new Date(year, month, 1));
+        campaignName = `${siteName} digest ${monthLabel}`;
+        campaignTags = ['monthly-digest'];
+      }
+
       const localized = await maybeTranslateDigest({
         subject: template.subject,
         html: template.html,
@@ -147,32 +211,28 @@ export async function GET(request: NextRequest) {
         from: SOURCE_LOCALE,
         to: targetLocale,
       });
-      const listId = await configRepo.getListmonkListId(siteId);
-      const monthLabel = new Intl.DateTimeFormat(targetLocale === 'he' ? 'he-IL' : targetLocale === 'tr' ? 'tr-TR' : 'en-US', {
-        month: 'long',
-        year: 'numeric',
-      }).format(new Date(year, month, 1));
 
+      const listId = await configRepo.getListmonkListId(siteId);
       const campaign = await listmonk.createCampaign({
         listId,
-        name: `${siteName} digest ${monthLabel}`,
+        name: campaignName,
         subject: localized.subject,
         body: localized.html,
         altBody: localized.text,
-        tags: ['monthly-digest'],
+        tags: campaignTags,
       });
       await listmonk.setCampaignStatus(campaign.id, 'running');
 
       created++;
       console.log(
-        `[cron/digest] campaign running: site=${siteId} campaign=${campaign.id} list=${listId} locale=${targetLocale}`,
+        `[cron/digest] campaign running: cadence=${cadence} site=${siteId} campaign=${campaign.id} list=${listId} locale=${targetLocale}`,
       );
     } catch (err) {
       failed++;
-      console.error(`[cron/digest] error processing site ${siteId}:`, err);
+      console.error(`[cron/digest] error processing site ${siteId} (cadence=${cadence}):`, err);
     }
   }
 
-  console.log(`[cron/digest] complete: sites=${siteIds.length} created=${created} failed=${failed}`);
-  return NextResponse.json({ ok: true, sites: siteIds.length, created, failed });
+  console.log(`[cron/digest] complete: cadence=${cadence} sites=${siteIds.length} created=${created} failed=${failed}`);
+  return NextResponse.json({ ok: true, cadence, sites: siteIds.length, created, failed });
 }
