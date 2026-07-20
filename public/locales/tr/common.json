@@ -424,6 +424,7 @@
   "notificationsMagazineCadenceLabel": "Sıklık",
   "notificationsMagazineCadenceWeekly": "Haftalık",
   "notificationsMagazineCadenceMonthly": "Aylık",
+  "notificationsMagazineCadenceNone": "Kapalı",
   "notificationsInDayRemindersLabel": "Aynı gün hatırlatmaları",
   "notificationsInDayRemindersDescription": "Doğum günü, yahrzeit veya yıl dönümü olan günlerde e-posta alın.",
   "failedToLoadNotificationPreferences": "Bildirim tercihleri yüklenemedi",

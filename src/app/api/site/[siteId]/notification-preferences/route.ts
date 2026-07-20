@@ -30,15 +30,11 @@ const putHandler = async (request: Request, context: GuardContext) => {
 
     const body = await request.json();
     const updates: Partial<{
-      magazineEnabled: boolean;
-      magazineCadence: 'weekly' | 'monthly';
+      magazineCadence: 'weekly' | 'monthly' | 'none';
       inDayRemindersEnabled: boolean;
     }> = {};
 
-    if (typeof body.magazineEnabled === 'boolean') {
-      updates.magazineEnabled = body.magazineEnabled;
-    }
-    if (body.magazineCadence === 'weekly' || body.magazineCadence === 'monthly') {
+    if (body.magazineCadence === 'weekly' || body.magazineCadence === 'monthly' || body.magazineCadence === 'none') {
       updates.magazineCadence = body.magazineCadence;
     } else if (body.magazineCadence !== undefined) {
       return Response.json({ error: 'Invalid magazineCadence' }, { status: 400 });

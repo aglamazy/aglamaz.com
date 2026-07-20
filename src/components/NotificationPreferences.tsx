@@ -5,19 +5,21 @@ import { useTranslation } from 'react-i18next';
 import { apiFetch } from '@/utils/apiFetch';
 import { ApiRoute } from '@/entities/Routes';
 
-type MagazineCadence = 'weekly' | 'monthly';
+type MagazineCadence = 'weekly' | 'monthly' | 'none';
 
 interface PreferencesPayload {
-  magazineEnabled: boolean;
   magazineCadence: MagazineCadence;
   inDayRemindersEnabled: boolean;
 }
 
 const DEFAULT_PREFERENCES: PreferencesPayload = {
-  magazineEnabled: true,
   magazineCadence: 'monthly',
   inDayRemindersEnabled: true,
 };
+
+function normalizeCadence(value: unknown): MagazineCadence {
+  return value === 'weekly' || value === 'none' ? value : 'monthly';
+}
 
 interface ToggleRowProps {
   id: string;
@@ -73,8 +75,7 @@ export default function NotificationPreferences() {
       .then(({ preferences: payload }) => {
         if (cancelled) return;
         setPreferences({
-          magazineEnabled: !!payload.magazineEnabled,
-          magazineCadence: payload.magazineCadence === 'weekly' ? 'weekly' : 'monthly',
+          magazineCadence: normalizeCadence(payload.magazineCadence),
           inDayRemindersEnabled: !!payload.inDayRemindersEnabled,
         });
       })
@@ -109,8 +110,7 @@ export default function NotificationPreferences() {
         },
       );
       setPreferences({
-        magazineEnabled: !!updated.magazineEnabled,
-        magazineCadence: updated.magazineCadence === 'weekly' ? 'weekly' : 'monthly',
+        magazineCadence: normalizeCadence(updated.magazineCadence),
         inDayRemindersEnabled: !!updated.inDayRemindersEnabled,
       });
     } catch (err) {
@@ -130,32 +130,21 @@ export default function NotificationPreferences() {
       )}
       <div className="divide-y divide-gray-200 dark:divide-gray-700">
         <div className="py-3">
-          <ToggleRow
-            id="magazineEnabled"
-            label={t('notificationsMagazineLabel')}
-            description={t('notificationsMagazineDescription')}
-            checked={preferences.magazineEnabled}
-            disabled={loading || pendingField === 'magazineEnabled'}
-            onChange={(checked) => void applyUpdate('magazineEnabled', checked)}
-          />
-          <div className="flex items-center gap-3 pl-1 pb-2">
-            <label
-              htmlFor="magazineCadence"
-              className={`text-xs ${preferences.magazineEnabled ? 'text-gray-600 dark:text-gray-400' : 'text-gray-400 dark:text-gray-600'}`}
-            >
-              {t('notificationsMagazineCadenceLabel')}
-            </label>
-            <select
-              id="magazineCadence"
-              value={preferences.magazineCadence}
-              disabled={loading || !preferences.magazineEnabled || pendingField === 'magazineCadence'}
-              onChange={(e) => void applyUpdate('magazineCadence', e.target.value as MagazineCadence)}
-              className="text-xs rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-2 py-1 disabled:opacity-50"
-            >
-              <option value="weekly">{t('notificationsMagazineCadenceWeekly')}</option>
-              <option value="monthly">{t('notificationsMagazineCadenceMonthly')}</option>
-            </select>
-          </div>
+          <label htmlFor="magazineCadence" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+            {t('notificationsMagazineLabel')}
+          </label>
+          <span className="block text-xs text-gray-500 mb-2">{t('notificationsMagazineDescription')}</span>
+          <select
+            id="magazineCadence"
+            value={preferences.magazineCadence}
+            disabled={loading || pendingField === 'magazineCadence'}
+            onChange={(e) => void applyUpdate('magazineCadence', normalizeCadence(e.target.value))}
+            className="text-sm rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-2 py-1 disabled:opacity-50"
+          >
+            <option value="weekly">{t('notificationsMagazineCadenceWeekly')}</option>
+            <option value="monthly">{t('notificationsMagazineCadenceMonthly')}</option>
+            <option value="none">{t('notificationsMagazineCadenceNone')}</option>
+          </select>
         </div>
         <ToggleRow
           id="inDayRemindersEnabled"

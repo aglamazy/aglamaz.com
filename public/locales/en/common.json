@@ -480,6 +480,7 @@
   "notificationsMagazineCadenceLabel": "How often",
   "notificationsMagazineCadenceWeekly": "Weekly",
   "notificationsMagazineCadenceMonthly": "Monthly",
+  "notificationsMagazineCadenceNone": "Off",
   "notificationsInDayRemindersLabel": "Same-day reminders",
   "notificationsInDayRemindersDescription": "Get an email on days when there's a birthday, yahrzeit, or anniversary.",
   "failedToLoadNotificationPreferences": "Failed to load notification preferences",

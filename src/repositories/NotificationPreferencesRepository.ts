@@ -1,4 +1,4 @@
-import { getFirestore, Timestamp } from 'firebase-admin/firestore';
+import { getFirestore, Timestamp, FieldValue } from 'firebase-admin/firestore';
 import { initAdmin } from '@/firebase/admin';
 import {
   DEFAULT_PREFERENCES,
@@ -32,20 +32,19 @@ export class NotificationPreferencesRepository {
   async update(
     memberId: string,
     siteId: string,
-    updates: Partial<
-      Pick<NotificationPreferences, 'magazineEnabled' | 'magazineCadence' | 'inDayRemindersEnabled'>
-    >,
+    updates: Partial<Pick<NotificationPreferences, 'magazineCadence' | 'inDayRemindersEnabled'>>,
   ): Promise<NotificationPreferences> {
     const current = await this.get(memberId, siteId);
     const next = {
       memberId,
       siteId,
-      magazineEnabled: updates.magazineEnabled ?? current.magazineEnabled,
       magazineCadence: updates.magazineCadence ? normalizeCadence(updates.magazineCadence) : current.magazineCadence,
       inDayRemindersEnabled: updates.inDayRemindersEnabled ?? current.inDayRemindersEnabled,
       updatedAt: Timestamp.now(),
     };
-    await this.docRef(memberId).set(next, { merge: true });
+    // magazineEnabled is retired (spec §4 revision) - explicitly clear it so a stale `false`
+    // left over from the old shape can never again override magazineCadence on read.
+    await this.docRef(memberId).set({ ...next, magazineEnabled: FieldValue.delete() }, { merge: true });
     return next;
   }
 }

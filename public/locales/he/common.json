@@ -471,6 +471,7 @@
   "notificationsMagazineCadenceLabel": "באיזו תדירות",
   "notificationsMagazineCadenceWeekly": "שבועי",
   "notificationsMagazineCadenceMonthly": "חודשי",
+  "notificationsMagazineCadenceNone": "כבוי",
   "notificationsInDayRemindersLabel": "תזכורות ביום האירוע",
   "notificationsInDayRemindersDescription": "קבלו אימייל בימים שיש בהם יום הולדת, יארצייט או יום נישואין.",
   "failedToLoadNotificationPreferences": "טעינת העדפות ההתראות נכשלה",

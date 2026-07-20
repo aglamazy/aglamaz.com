@@ -13,6 +13,10 @@
       "schedule": "0 6 1 * *"
     },
     {
+      "path": "/api/cron/digest-weekly",
+      "schedule": "0 6 * * 1"
+    },
+    {
       "path": "/api/cron/in-day-reminders",
       "schedule": "10 6 * * *"
     }
