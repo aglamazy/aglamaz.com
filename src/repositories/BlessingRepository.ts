@@ -23,6 +23,8 @@ export class BlessingRepository {
     locale: string;
     taggedMemberIds?: string[];
     visibleToPublic?: boolean;
+    isNonMemberContribution?: boolean;
+    guestEmail?: string;
   }): Promise<Blessing> {
     const db = this.getDb();
     const now = Timestamp.now();
@@ -36,7 +38,7 @@ export class BlessingRepository {
       }
     };
 
-    const blessing = {
+    const blessing: Record<string, unknown> = {
       blessingPageId: data.blessingPageId,
       siteId: data.siteId,
       authorId: data.authorId,
@@ -50,7 +52,13 @@ export class BlessingRepository {
       updatedAt: now,
       deleted: false,
       visibleToPublic: data.visibleToPublic === true,
+      isNonMemberContribution: data.isNonMemberContribution === true,
     };
+
+    // Firestore rejects `undefined` field values, so only set guestEmail when provided.
+    if (data.guestEmail) {
+      blessing.guestEmail = data.guestEmail;
+    }
 
     const ref = await db.collection(this.collection).add(blessing);
     const doc = await ref.get();

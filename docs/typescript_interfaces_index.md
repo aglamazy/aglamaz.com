@@ -64,7 +64,7 @@
 ### Blessing
 **File:** `/src/entities/Blessing.ts`
 **Description:** A blessing message written on a blessing page for an anniversary
-**Key Properties:** id, blessingPageId, siteId, authorId, authorName, content, createdAt, updatedAt, deleted, deletedAt, locales, visibleToPublic (per-memory visibility on the public memorial page, default false)
+**Key Properties:** id, blessingPageId, siteId, authorId, authorName, content, createdAt, updatedAt, deleted, deletedAt, locales, visibleToPublic (per-memory visibility on the public memorial page, default false), isNonMemberContribution (true for anonymous public-page submissions, default false), guestEmail (optional, non-member contributor's contact email — moderation only, never rendered)
 
 ### BlessingPage
 **File:** `/src/entities/BlessingPage.ts`
