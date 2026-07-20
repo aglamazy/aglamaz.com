@@ -38,7 +38,7 @@ const getHandler = async (_request: Request, context: GuardContext & { params: P
 
     // Fetch blessing pages for this event
     const blessingPageRepo = new BlessingPageRepository();
-    const blessingPages = await blessingPageRepo.listByEvent(anniversaryId);
+    const blessingPages = await blessingPageRepo.listByEvent(anniversaryId, existing.type);
 
     return Response.json({
       event: {

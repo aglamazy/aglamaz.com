@@ -37,7 +37,7 @@ export interface AnniversaryEvent extends LocalizableDocument {
   imageUrl?: string;
   createdAt: any;
   blessingPages?: Array<{
-    year: number;
+    year?: number;
     slug: string;
   }>;
 }

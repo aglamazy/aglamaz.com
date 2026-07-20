@@ -328,25 +328,28 @@ export default function AnniversariesPage() {
     setCreatingBlessingPage(true);
     setBlessingPageError('');
     try {
-      const currentYear = new Date().getFullYear();
-
       // Call API to create blessing page
-      const { blessingPage } = await apiFetch<{ blessingPage: { year: number; slug: string } }>(
+      const { blessingPage } = await apiFetch<{ blessingPage: { year?: number; slug: string } }>(
         ApiRoute.SITE_ANNIVERSARY_BLESSING_PAGES,
         {
           pathParams: { anniversaryId: selectedEvent.id },
           method: 'POST',
-          body: { year: currentYear },
+          body: selectedEvent.type === 'death' ? {} : { year: new Date().getFullYear() },
         }
       );
 
       // Update selected event to include the new blessing page
       setSelectedEvent({
         ...selectedEvent,
-        blessingPages: [
-          ...(selectedEvent.blessingPages || []),
-          { year: blessingPage.year, slug: blessingPage.slug }
-        ]
+        blessingPages: selectedEvent.type === 'death'
+          ? [
+              { year: blessingPage.year, slug: blessingPage.slug },
+              ...((selectedEvent.blessingPages || []).filter((bp: any) => bp.slug !== blessingPage.slug))
+            ]
+          : [
+              ...(selectedEvent.blessingPages || []),
+              { year: blessingPage.year, slug: blessingPage.slug }
+            ]
       } as any);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to create blessing page';
@@ -757,8 +760,11 @@ export default function AnniversariesPage() {
               </button>
               {(() => {
                 const currentYear = new Date().getFullYear();
-                // Check if blessing page exists for current year
-                const blessingPage = (selectedEvent as any).blessingPages?.find((bp: any) => bp.year === currentYear);
+                const blessingPages = (selectedEvent as any).blessingPages || [];
+                // Death events use one standing page; other events stay pinned to the selected year.
+                const blessingPage = selectedEvent.type === 'death'
+                  ? blessingPages[0]
+                  : blessingPages.find((bp: any) => bp.year === currentYear);
 
                 if (blessingPage) {
                   return (
