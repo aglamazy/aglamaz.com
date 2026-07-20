@@ -6,6 +6,8 @@ export enum AppRoute {
   // Public pages
   HOME = 'HOME',
   CONTACT = 'CONTACT',
+  TERMS = 'TERMS',
+  PRIVACY = 'PRIVACY',
   BLOG = 'BLOG',
   BLOG_POST = 'BLOG_POST',
 

@@ -24,6 +24,7 @@ const LOCALIZED_PUBLIC_PATHS = [
   '/contact',
   '/blog',
   '/terms',
+  '/privacy',
 ];
 
 // All public paths (accessible without auth)
@@ -41,6 +42,7 @@ const PUBLIC_PATHS = [
   '/sitemap.xml',
   '/robots.txt',
   '/terms',
+  '/privacy',
   '/og',
 ];
 
