@@ -89,9 +89,9 @@ function getLocalizedStrings(
           manageFooter: `<a href="${manageLink}">נהל/י העדפות תזכורות</a>`,
         }
       : {
-          subject: `🕯️ תזכורת יארצייט — ${eventName}`,
+          subject: `🕯️ תזכורת יום פטירה — ${eventName}`,
           greeting: `שלום ${firstName},`,
-          body: `היום הוא יארצייט של ${eventName} (${occurrenceDate}). יהי זכרם ברוך.`,
+          body: `היום הוא יום הפטירה של ${eventName} (${occurrenceDate}). יהי זכרם ברוך.`,
           calendarButtonLabel: 'פתח/י את לוח השנה',
           manageFooter: `<a href="${manageLink}">נהל/י העדפות תזכורות</a>`,
         };
@@ -199,7 +199,7 @@ const IN_DAY_EVENT_VERB: Record<AnniversaryType, Record<string, InDayEventLineFn
   },
   death: {
     en: (name) => `🕯️ Today marks the yahrzeit of ${name}`,
-    he: (name) => `🕯️ היום יארצייט של ${name}`,
+    he: (name) => `🕯️ היום יום פטירה של ${name}`,
     tr: (name) => `🕯️ Bugün ${name}'in yahrzeiti`,
   },
   wedding: {
