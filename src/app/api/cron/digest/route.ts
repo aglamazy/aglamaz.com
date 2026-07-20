@@ -133,9 +133,12 @@ export async function GET(request: NextRequest) {
 
       const compiled = await digestCompiler.compileDigest(siteId, month, year, { locale: SOURCE_LOCALE });
       const siteName = resolveDigestSiteName(site, targetLocale, siteId);
+      const rawAppUrl = process.env.NEXT_PUBLIC_APP_URL;
+      const siteUrl = rawAppUrl ? rawAppUrl.replace(/\/+$/, '') : undefined;
       const template = DigestTemplateService.buildMonthlyDigestEmail(compiled, {
         locale: SOURCE_LOCALE,
         siteName,
+        siteUrl,
       });
       const localized = await maybeTranslateDigest({
         subject: template.subject,

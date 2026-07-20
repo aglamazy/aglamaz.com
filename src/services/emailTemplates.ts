@@ -18,6 +18,7 @@ export interface EmailTemplateOptions {
   preheader?: string;
   greeting?: string;
   paragraphs?: string[];
+  contentBlocks?: string[]; // Raw HTML blocks (no <p> wrapping) inserted after paragraphs
   button?: EmailButton;
   note?: EmailNote;
   secondary?: string[];
@@ -49,6 +50,7 @@ export function renderEmailHtml(options: EmailTemplateOptions): string {
     preheader,
     greeting,
     paragraphs = [],
+    contentBlocks = [],
     button,
     note,
     secondary = [],
@@ -57,6 +59,7 @@ export function renderEmailHtml(options: EmailTemplateOptions): string {
   } = options;
 
   const paragraphsHtml = paragraphs.map((paragraph) => `<p>${paragraph}</p>`).join('\n');
+  const contentBlocksHtml = contentBlocks.join('\n');
   const secondaryHtml = secondary.map((paragraph) => `<p>${paragraph}</p>`).join('\n');
   const linkHtml = linkList
     .map((link) => `<p class="inline-link">${escapeHtml(link)}</p>`)
@@ -114,6 +117,7 @@ export function renderEmailHtml(options: EmailTemplateOptions): string {
         <div class="content" style="${contentStyle}">
           ${greeting ? `<p>${greeting}</p>` : ''}
           ${paragraphsHtml}
+          ${contentBlocksHtml}
           ${buttonHtml}
           ${noteHtml}
           ${secondaryHtml}
