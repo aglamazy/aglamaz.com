@@ -39,32 +39,26 @@ interface ToggleRowProps {
   onChange: (checked: boolean) => void;
 }
 
-function ToggleRow({ id, label, description, checked, disabled, onChange }: ToggleRowProps) {
+// A native checkbox at the leading edge of the row - relies on normal document
+// flow (not a manual translate-x) so it lands on the correct side under both
+// dir="ltr" and dir="rtl" without special-casing. The prior custom toggle
+// switch hardcoded its knob's translate-x direction, which looked broken
+// under Hebrew's RTL layout.
+function CheckboxRow({ id, label, description, checked, disabled, onChange }: ToggleRowProps) {
   return (
-    <div className="flex items-center justify-between gap-4 py-3">
-      <div className="flex-1">
-        <label htmlFor={id} className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-          {label}
-        </label>
-        <span className="block text-xs text-gray-500">{description}</span>
-      </div>
-      <button
+    <div className="flex items-start gap-3 py-3">
+      <input
         id={id}
-        type="button"
-        role="switch"
-        aria-checked={checked}
+        type="checkbox"
+        checked={checked}
         disabled={disabled}
-        onClick={() => onChange(!checked)}
-        className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors disabled:opacity-50 ${
-          checked ? 'bg-sage-600' : 'bg-gray-300 dark:bg-gray-600'
-        }`}
-      >
-        <span
-          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-            checked ? 'translate-x-6' : 'translate-x-1'
-          }`}
-        />
-      </button>
+        onChange={(e) => onChange(e.target.checked)}
+        className="mt-1 h-4 w-4 flex-shrink-0 rounded border-gray-300 dark:border-gray-600 text-sage-600 focus:ring-sage-600 disabled:opacity-50"
+      />
+      <label htmlFor={id} className="flex-1 cursor-pointer">
+        <span className="block text-sm font-medium text-gray-700 dark:text-gray-300">{label}</span>
+        <span className="block text-xs text-gray-500">{description}</span>
+      </label>
     </div>
   );
 }
@@ -153,7 +147,7 @@ export default function NotificationPreferences() {
             </select>
           </div>
         </div>
-        <ToggleRow
+        <CheckboxRow
           id="inDayRemindersEnabled"
           label={t('notificationsInDayRemindersLabel')}
           description={t('notificationsInDayRemindersDescription')}

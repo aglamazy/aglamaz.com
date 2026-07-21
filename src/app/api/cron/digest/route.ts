@@ -45,6 +45,11 @@ function resolveCadence(request: NextRequest): SendableCadence {
   return request.nextUrl.searchParams.get('cadence') === 'weekly' ? 'weekly' : 'monthly';
 }
 
+/** Optional single-recipient scope for manual real-path verification (avoids emailing the whole site). */
+function resolveMemberIdFilter(request: NextRequest): string | null {
+  return request.nextUrl.searchParams.get('memberId');
+}
+
 function resolveTargetLocale(site: ISite): string | null {
   const candidates = [
     getMostRecentFieldVersion(site, 'name')?.locale,
@@ -124,6 +129,7 @@ export async function GET(request: NextRequest) {
   const memberRepo = new MemberRepository();
   const digestCompiler = new DigestCompilerService();
   const cadence = resolveCadence(request);
+  const memberIdFilter = resolveMemberIdFilter(request);
 
   let siteIds: string[] = [];
   try {
@@ -150,7 +156,10 @@ export async function GET(request: NextRequest) {
 
       const members = await memberRepo.listActiveMembers(siteId);
       const prefs = await Promise.all(members.map((m) => notificationPreferencesRepository.get(m.id, siteId)));
-      const recipients = members.filter((member, i) => prefs[i].magazineCadence === cadence && !!member.email);
+      let recipients = members.filter((member, i) => prefs[i].magazineCadence === cadence && !!member.email);
+      if (memberIdFilter) {
+        recipients = recipients.filter((member) => member.id === memberIdFilter);
+      }
 
       if (recipients.length === 0) {
         // Nobody on this site wants this cadence's send this run - skip compiling entirely.

@@ -49,6 +49,8 @@ export async function GET(request: NextRequest) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const calendarUrl = new URL(getPath(AppRoute.APP_CALENDAR), request.nextUrl.origin).toString();
+  // Optional single-recipient scope for manual real-path verification (avoids emailing the whole site).
+  const memberIdFilter = request.nextUrl.searchParams.get('memberId');
 
   let totalSent = 0;
   let sites: ISite[] = [];
@@ -72,7 +74,10 @@ export async function GET(request: NextRequest) {
       }
 
       const siteName = getSiteName(site);
-      const members = await memberRepo.listActiveMembers(siteId);
+      let members = await memberRepo.listActiveMembers(siteId);
+      if (memberIdFilter) {
+        members = members.filter((m) => m.id === memberIdFilter);
+      }
       const prefs = await Promise.all(members.map((m) => notificationPreferencesRepository.get(m.id, siteId)));
 
       const plans = planInDaySends({
