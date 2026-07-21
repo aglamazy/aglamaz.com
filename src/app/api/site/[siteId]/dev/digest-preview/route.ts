@@ -34,21 +34,16 @@ const getHandler = async (request: Request, context: GuardContext) => {
   const calendarUrl = new URL(getPath(AppRoute.APP_CALENDAR), url.origin).toString();
   const galleryUrl = new URL(getPath(AppRoute.APP_PHOTOS), url.origin).toString();
 
+  const now = new Date();
+  const digest =
+    cadence === 'weekly'
+      ? await compiler.compileWeeklyDigest(siteId, now, { locale: LOCALE })
+      : await compiler.compileMonthlyDigest(siteId, now, { locale: LOCALE });
+  const options = { locale: LOCALE, siteName, recipientName, calendarUrl, galleryUrl };
   const html =
     cadence === 'weekly'
-      ? DigestTemplateService.buildWeeklyDigestEmail(
-          await compiler.compileDigestForRange(
-            siteId,
-            new Date(),
-            new Date(new Date().setDate(new Date().getDate() + 7)),
-            { locale: LOCALE },
-          ),
-          { locale: LOCALE, siteName, recipientName, calendarUrl, galleryUrl },
-        ).html
-      : DigestTemplateService.buildMonthlyDigestEmail(
-          await compiler.compileMonthlyDigest(siteId, new Date(), { locale: LOCALE }),
-          { locale: LOCALE, siteName, recipientName, calendarUrl, galleryUrl },
-        ).html;
+      ? DigestTemplateService.buildWeeklyDigestEmail(digest, options).html
+      : DigestTemplateService.buildMonthlyDigestEmail(digest, options).html;
 
   return new Response(html, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
 };

@@ -14,19 +14,6 @@ export interface DigestPayload {
   photos: GalleryPhoto[];
 }
 
-/**
- * Rolling-window variant of DigestPayload for weekly-cadence subscribers
- * (docs/family-digest-formats-spec.md §1) - a date range instead of a fixed
- * calendar month.
- */
-export interface DigestRangePayload {
-  siteId: string;
-  startDate: Date;
-  endDate: Date;
-  events: AnniversaryEvent[];
-  photos: GalleryPhoto[];
-}
-
 export interface CompileDigestOptions {
   locale?: string;
   recentPhotosLimit?: number;
@@ -45,20 +32,24 @@ export interface DigestEventWithPhotos {
   photoUrls: string[];
 }
 
+export interface DateRange {
+  startDate: Date;
+  endDate: Date;
+}
+
 /**
- * Full calendar months (not a rolling window) for the monthly-cadence digest: everything
- * that happened in the month just finished, and everything coming up over the current +
- * next calendar month (two months, so there's always a real forward-looking window even
- * sent on the last day of a month - a single "current month" window would show almost
- * nothing then). Every event - past or coming - carries its own description/photos for
- * an article-style render. Per Agla's live-testing corrections 2026-07-21 - a rolling
- * "now to now+1 month" window produced random-looking period boundaries; recipients
- * expect real calendar-month boundaries and the same rich treatment for every event.
+ * Shared shape for every cadence's digest - a "what happened" range and a "what's
+ * coming" range, each with article-style entries (own description/photos). The two
+ * cadences (monthly, weekly) differ ONLY in how pastRange/comingRange get computed
+ * (DigestCompilerService.compileMonthlyDigest vs compileWeeklyDigest) - everything else
+ * (querying, photo-merging, template rendering) is one shared path, per Agla's
+ * 2026-07-21 DRY correction. Monthly: real calendar-month boundaries. Weekly: rolling
+ * 1-week-back / 1-month-forward window, not calendar-aligned.
  */
-export interface MonthlyDigestPayload {
+export interface CadenceDigestPayload {
   siteId: string;
-  pastMonth: { month: number; year: number };
-  comingRange: { startMonth: number; startYear: number; endMonth: number; endYear: number };
+  pastRange: DateRange;
+  comingRange: DateRange;
   pastEvents: DigestEventWithPhotos[];
   comingEvents: DigestEventWithPhotos[];
   photos: GalleryPhoto[];
@@ -120,134 +111,126 @@ export class DigestCompilerService {
   }
 
   /**
-   * Monthly-cadence compile: the full calendar month before `referenceDate` (what
-   * happened - as article-style entries with their own photos) plus the current +
-   * next full calendar month (what's coming) - see MonthlyDigestPayload doc comment.
+   * Monthly-cadence: the full calendar month before `referenceDate` (past) + the
+   * current and next full calendar months (coming) - see CadenceDigestPayload doc
+   * comment. Only the range computation is cadence-specific; compileCadenceDigest does
+   * everything else.
    */
-  async compileMonthlyDigest(
-    siteId: string,
-    referenceDate: Date,
-    options?: CompileDigestOptions,
-  ): Promise<MonthlyDigestPayload> {
-    const recentPhotosLimit = options?.recentPhotosLimit ?? DEFAULT_RECENT_PHOTOS_LIMIT;
+  async compileMonthlyDigest(siteId: string, referenceDate: Date, options?: CompileDigestOptions): Promise<CadenceDigestPayload> {
     const startMonth = referenceDate.getMonth();
     const startYear = referenceDate.getFullYear();
-    const nextRef = new Date(startYear, startMonth + 1, 1);
-    const endMonth = nextRef.getMonth();
-    const endYear = nextRef.getFullYear();
-    const pastRef = new Date(startYear, startMonth - 1, 1);
-    const pastMonth = pastRef.getMonth();
-    const pastYear = pastRef.getFullYear();
-
-    const [comingEventsThisMonth, comingEventsNextMonth, pastEventsRaw, photos] = await Promise.all([
-      this.anniversaryRepository.getEventsForMonth(siteId, startMonth, startYear, options?.locale),
-      this.anniversaryRepository.getEventsForMonth(siteId, endMonth, endYear, options?.locale),
-      this.anniversaryRepository.getEventsForMonth(siteId, pastMonth, pastYear, options?.locale),
-      this.galleryPhotoRepository.listBySite(siteId, options?.locale, { limit: recentPhotosLimit }),
-    ]);
-
-    // getEventsForMonth returns each annual event with its ORIGINAL stored year
-    // (e.g. a birth year) for non-Hebrew events - remap to the month actually being
-    // displayed, or a birthday digest row shows "1993" instead of the real target
-    // year (Agla, 2026-07-21 live-testing correction).
-    const comingEventsRemapped = [
-      ...comingEventsThisMonth.map((e) => ({ ...e, month: startMonth, year: startYear })),
-      ...comingEventsNextMonth.map((e) => ({ ...e, month: endMonth, year: endYear })),
-    ].sort((a, b) => new Date(a.year, a.month, a.day).getTime() - new Date(b.year, b.month, b.day).getTime());
-    const pastEventsRemapped = pastEventsRaw.map((e) => ({ ...e, month: pastMonth, year: pastYear }));
-
-    const toDate = (value: any): Date | null => {
-      if (!value) return null;
-      if (typeof value.toDate === 'function') return value.toDate();
-      const sec = value._seconds ?? value.seconds;
-      if (typeof sec === 'number') return new Date(sec * 1000);
-      const parsed = new Date(value);
-      return isNaN(parsed.getTime()) ? null : parsed;
+    const pastRange: DateRange = {
+      startDate: new Date(startYear, startMonth - 1, 1),
+      endDate: new Date(startYear, startMonth, 0), // last day of previous month
     };
-
-    const withPhotos = (events: AnniversaryEvent[]): Promise<DigestEventWithPhotos[]> =>
-      Promise.all(
-        events.map(async (event) => {
-          const [linkedPhotos, occurrences] = await Promise.all([
-            this.galleryPhotoRepository.listByAnniversary(event.id),
-            this.occurrenceRepository.listByEvent(event.id),
-          ]);
-          // Only photos from THIS occurrence's target year - an upcoming event with no
-          // photos yet (it hasn't happened this year) must not show a collage built from
-          // an unrelated past year's party; that reads as "this is what's coming" when
-          // it's actually old (Agla, 2026-07-21). Falls back to just the main picture.
-          const sameYear = (d: Date | null) => d !== null && d.getFullYear() === event.year;
-          const linkedUrls = linkedPhotos
-            .filter((p) => sameYear(toDate(p.date)))
-            .map((p) => p.imagesWithDimensions?.[0]?.url)
-            .filter((u): u is string => !!u);
-          const occurrenceUrls = occurrences
-            .filter((occ) => sameYear(toDate(occ.date)))
-            .flatMap((occ) => occ.imagesWithDimensions?.map((img) => img.url).filter((u): u is string => !!u) ?? []);
-          // The event's own chosen cover picture (event.imageUrl) leads the collage when
-          // there IS real matching-year content - it's the one the family deliberately
-          // picked. With no matching-year photos at all, it's the only thing shown.
-          const allUrls = event.imageUrl ? [event.imageUrl, ...occurrenceUrls, ...linkedUrls] : [...occurrenceUrls, ...linkedUrls];
-          const photoUrls = Array.from(new Set(allUrls));
-          return { event, photoUrls };
-        }),
-      );
-
-    const [comingEvents, pastEvents] = await Promise.all([
-      withPhotos(comingEventsRemapped),
-      withPhotos(pastEventsRemapped),
-    ]);
-
-    return {
-      siteId,
-      pastMonth: { month: pastMonth, year: pastYear },
-      comingRange: { startMonth, startYear, endMonth, endYear },
-      pastEvents,
-      comingEvents,
-      photos,
+    const comingRange: DateRange = {
+      startDate: new Date(startYear, startMonth, 1),
+      endDate: new Date(startYear, startMonth + 2, 0), // last day of next month
     };
+    return this.compileCadenceDigest(siteId, pastRange, comingRange, options);
   }
 
   /**
-   * Rolling-window compile for weekly-cadence subscribers: covers [startDate, endDate]
-   * which may span more than one calendar month, by querying getEventsForMonth for
-   * every month the range touches (same query the monthly path uses) and filtering
-   * down to events whose actual occurrence date falls inside the window. The queried
-   * year - not the event doc's own (possibly stale, original-entry) year field - is
-   * used to build each occurrence date, since getEventsForMonth already resolves
-   * annual/Hebrew recurrences against that year.
+   * Weekly-cadence: 1 week back (past) + 1 month forward (coming), rolling from
+   * `referenceDate` - not calendar-aligned, since "weekly" implies a shorter, more
+   * frequent look-back than monthly's full previous month (Agla, 2026-07-21: "maybe
+   * just 1w back, and 1m forward, not exact month boundary").
    */
-  async compileDigestForRange(
-    siteId: string,
-    startDate: Date,
-    endDate: Date,
-    options?: CompileDigestOptions,
-  ): Promise<DigestRangePayload> {
-    const recentPhotosLimit = options?.recentPhotosLimit ?? DEFAULT_RECENT_PHOTOS_LIMIT;
-    const monthYearPairs = enumerateMonthYearPairs(startDate, endDate);
+  async compileWeeklyDigest(siteId: string, referenceDate: Date, options?: CompileDigestOptions): Promise<CadenceDigestPayload> {
+    const pastStart = new Date(referenceDate);
+    pastStart.setDate(pastStart.getDate() - 7);
+    const comingEnd = new Date(referenceDate);
+    comingEnd.setMonth(comingEnd.getMonth() + 1);
+    const pastRange: DateRange = { startDate: pastStart, endDate: referenceDate };
+    const comingRange: DateRange = { startDate: referenceDate, endDate: comingEnd };
+    return this.compileCadenceDigest(siteId, pastRange, comingRange, options);
+  }
 
-    const [eventsByMonth, photos] = await Promise.all([
-      Promise.all(
-        monthYearPairs.map(({ month, year }) =>
-          this.anniversaryRepository
-            .getEventsForMonth(siteId, month, year, options?.locale)
-            .then((events) => events.map((event) => ({ ...event, month, year }))),
-        ),
-      ),
+  /** The one real compile path every cadence shares - see CadenceDigestPayload doc comment. */
+  private async compileCadenceDigest(
+    siteId: string,
+    pastRange: DateRange,
+    comingRange: DateRange,
+    options?: CompileDigestOptions,
+  ): Promise<CadenceDigestPayload> {
+    const recentPhotosLimit = options?.recentPhotosLimit ?? DEFAULT_RECENT_PHOTOS_LIMIT;
+
+    const [pastEventsRaw, comingEventsRaw, photos] = await Promise.all([
+      this.eventsInRange(siteId, pastRange.startDate, pastRange.endDate, options?.locale),
+      this.eventsInRange(siteId, comingRange.startDate, comingRange.endDate, options?.locale),
       this.galleryPhotoRepository.listBySite(siteId, options?.locale, { limit: recentPhotosLimit }),
     ]);
+
+    const [pastEvents, comingEvents] = await Promise.all([
+      this.withPhotos(pastEventsRaw),
+      this.withPhotos(comingEventsRaw),
+    ]);
+
+    return { siteId, pastRange, comingRange, pastEvents, comingEvents, photos };
+  }
+
+  private toDate(value: any): Date | null {
+    if (!value) return null;
+    if (typeof value.toDate === 'function') return value.toDate();
+    const sec = value._seconds ?? value.seconds;
+    if (typeof sec === 'number') return new Date(sec * 1000);
+    const parsed = new Date(value);
+    return isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  /**
+   * Merges each event's photos from GalleryPhoto (anniversaryId-linked) and
+   * AnniversaryOccurrence (embedded) stores, year-filtered against the event's own
+   * target display year, main picture leading - see DigestEventWithPhotos doc comment
+   * and the 2026-07-21 corrections (an upcoming event with no photos yet must not show
+   * a stale collage from an unrelated past year; the family's deliberately-chosen cover
+   * picture must never be silently dropped).
+   */
+  private withPhotos(events: AnniversaryEvent[]): Promise<DigestEventWithPhotos[]> {
+    return Promise.all(
+      events.map(async (event) => {
+        const [linkedPhotos, occurrences] = await Promise.all([
+          this.galleryPhotoRepository.listByAnniversary(event.id),
+          this.occurrenceRepository.listByEvent(event.id),
+        ]);
+        const sameYear = (d: Date | null) => d !== null && d.getFullYear() === event.year;
+        const linkedUrls = linkedPhotos
+          .filter((p) => sameYear(this.toDate(p.date)))
+          .map((p) => p.imagesWithDimensions?.[0]?.url)
+          .filter((u): u is string => !!u);
+        const occurrenceUrls = occurrences
+          .filter((occ) => sameYear(this.toDate(occ.date)))
+          .flatMap((occ) => occ.imagesWithDimensions?.map((img) => img.url).filter((u): u is string => !!u) ?? []);
+        const allUrls = event.imageUrl ? [event.imageUrl, ...occurrenceUrls, ...linkedUrls] : [...occurrenceUrls, ...linkedUrls];
+        const photoUrls = Array.from(new Set(allUrls));
+        return { event, photoUrls };
+      }),
+    );
+  }
+
+  /**
+   * Events whose actual occurrence date falls inside [startDate, endDate], spanning
+   * however many calendar months the range touches.
+   */
+  private async eventsInRange(siteId: string, startDate: Date, endDate: Date, locale?: string): Promise<AnniversaryEvent[]> {
+    const monthYearPairs = enumerateMonthYearPairs(startDate, endDate);
+    const eventsByMonth = await Promise.all(
+      monthYearPairs.map(({ month, year }) =>
+        this.anniversaryRepository
+          .getEventsForMonth(siteId, month, year, locale)
+          .then((events) => events.map((event) => ({ ...event, month, year }))),
+      ),
+    );
 
     const rangeStart = startOfDay(startDate);
     const rangeEnd = endOfDay(endDate);
 
-    const events = eventsByMonth
+    return eventsByMonth
       .flat()
       .filter((event) => {
         const occurrenceDate = new Date(event.year, event.month, event.day);
         return occurrenceDate >= rangeStart && occurrenceDate <= rangeEnd;
       })
       .sort((a, b) => new Date(a.year, a.month, a.day).getTime() - new Date(b.year, b.month, b.day).getTime());
-
-    return { siteId, startDate, endDate, events, photos };
   }
 }

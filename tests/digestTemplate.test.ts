@@ -18,15 +18,15 @@
 
 import assert from 'node:assert/strict';
 import { DigestTemplateService } from '../src/services/DigestTemplateService';
-import type { MonthlyDigestPayload } from '../src/services/DigestCompilerService';
+import type { CadenceDigestPayload } from '../src/services/DigestCompilerService';
 
 const CALENDAR_URL = 'https://example.com/app/calendar';
 const GALLERY_URL = 'https://example.com/app/photos';
 
-const FIXTURE: MonthlyDigestPayload = {
+const FIXTURE: CadenceDigestPayload = {
   siteId: 'site1',
-  pastMonth: { month: 5, year: 2026 },
-  comingRange: { startMonth: 6, startYear: 2026, endMonth: 7, endYear: 2026 },
+  pastRange: { startDate: new Date(2026, 5, 1), endDate: new Date(2026, 5, 30) },
+  comingRange: { startDate: new Date(2026, 6, 1), endDate: new Date(2026, 7, 31) },
   comingEvents: [
     {
       event: {
@@ -184,7 +184,7 @@ function testGreetingUsesRecipientNameNotSiteName() {
 }
 
 function testEmptySectionsAreOmitted() {
-  const EMPTY_FIXTURE: MonthlyDigestPayload = { ...FIXTURE, comingEvents: [], pastEvents: [], photos: [] };
+  const EMPTY_FIXTURE: CadenceDigestPayload = { ...FIXTURE, comingEvents: [], pastEvents: [], photos: [] };
   const result = DigestTemplateService.buildMonthlyDigestEmail(EMPTY_FIXTURE, {
     locale: 'en',
     siteName: 'The Aglamaz Family',
@@ -204,9 +204,12 @@ function testCoversPastMonthAndTwoComingMonths() {
   console.log('digest covers the past month plus a two-month coming window: PASSED');
 }
 
-function testComingSectionSplitsIntoTwoSubHeadings() {
-  // Fixture: comingRange is July (this month, has Grandpa Moshe) -> August (next
-  // month, has Dan & Mira) - regression guard for the two-h2 split (Agla, 2026-07-21).
+function testComingSectionSplitsByMonth() {
+  // Fixture: comingRange is July (has Grandpa Moshe) -> August (has Dan & Mira) -
+  // regression guard for the per-month h2 split, generalized off CadenceDigestPayload's
+  // DateRange so both cadences share one implementation (Agla, 2026-07-21 DRY correction
+  // - monthly's old "this month/next month" tense-specific copy was replaced with one
+  // neutral "אירועים ב{month}" heading per month touched, valid for any window length).
   // Recipient name deliberately distinct from any event name, or the greeting's
   // occurrence of "Grandpa Moshe" would shift the ordering assertion below.
   const { html } = DigestTemplateService.buildMonthlyDigestEmail(FIXTURE, {
@@ -217,17 +220,17 @@ function testComingSectionSplitsIntoTwoSubHeadings() {
     galleryUrl: GALLERY_URL,
   });
   assert.ok(html.includes('<h2'), 'coming section must use real h2 sub-headings');
-  assert.ok(html.includes('אז מה היה לנו בחודש July'), 'this-month sub-heading missing or wrong copy');
-  assert.ok(html.includes('מה צפוי בחודש August'), 'next-month sub-heading missing or wrong copy');
-  const thisMonthIdx = html.indexOf('אז מה היה לנו בחודש July');
-  const nextMonthIdx = html.indexOf('מה צפוי בחודש August');
+  assert.ok(html.includes('אירועים בJuly'), 'July sub-heading missing or wrong copy');
+  assert.ok(html.includes('אירועים בAugust'), 'August sub-heading missing or wrong copy');
+  const julyIdx = html.indexOf('אירועים בJuly');
+  const augustIdx = html.indexOf('אירועים בAugust');
   const moshIdx = html.indexOf('Grandpa Moshe');
   const danIdx = html.indexOf('Dan &amp; Mira') !== -1 ? html.indexOf('Dan &amp; Mira') : html.indexOf('Dan & Mira');
   assert.ok(
-    thisMonthIdx < moshIdx && moshIdx < nextMonthIdx && nextMonthIdx < danIdx,
-    'this-month heading must precede this-month events, next-month heading must sit between the two groups',
+    julyIdx < moshIdx && moshIdx < augustIdx && augustIdx < danIdx,
+    'July heading must precede July events, August heading must sit between the two groups',
   );
-  console.log('coming section splits into this-month/next-month sub-headings: PASSED');
+  console.log('coming section splits into per-month sub-headings: PASSED');
 }
 
 function testDeathEventShowsHebrewDate() {
@@ -307,7 +310,7 @@ function run() {
   testGreetingBidiIsolatesLatinNameAndTextStaysClean();
   testEmptySectionsAreOmitted();
   testCoversPastMonthAndTwoComingMonths();
-  testComingSectionSplitsIntoTwoSubHeadings();
+  testComingSectionSplitsByMonth();
   testDeathEventShowsHebrewDate();
   testHeadingHierarchy();
   testNoRedundantIntroLine();

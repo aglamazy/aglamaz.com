@@ -76,47 +76,48 @@ async function testPassesLocaleAndCustomLimit() {
   console.log('locale and custom limit test passed');
 }
 
-async function testRangeSpansRollingWindowNotFixedMonth() {
-  // Weekly-cadence window: "today" (2026-07-20) through ~1 month out (2026-08-20) -
-  // deliberately crosses a calendar-month boundary, per family-digest-formats-spec.md §1.
-  const startDate = new Date(2026, 6, 20); // July 20, 2026
-  const endDate = new Date(2026, 7, 20); // August 20, 2026
+async function testWeeklyDigestUsesRollingWindowNotCalendarMonth() {
+  // Weekly cadence: 1 week back (past) + 1 month forward (coming) from "today"
+  // (2026-07-21), NOT calendar-month-aligned - per Agla's 2026-07-21 request ("maybe
+  // just 1w back, and 1m forward, not exact month boundary"). Deliberately crosses a
+  // calendar-month boundary in the coming range to prove it's rolling, not fixed-month.
+  const referenceDate = new Date(2026, 6, 21); // July 21, 2026
 
   const eventsByMonth: Record<string, any[]> = {
     '6-2026': [
-      { id: 'before-range', siteId: 'site1', type: 'birthday', name: 'Too Early', month: 6, day: 10, year: 1990, isAnnual: true },
-      { id: 'in-range-july', siteId: 'site1', type: 'birthday', name: 'Late July', month: 6, day: 25, year: 1990, isAnnual: true },
+      { id: 'before-past-window', siteId: 'site1', type: 'birthday', name: 'Too Early', month: 6, day: 10, year: 1990, isAnnual: true },
+      { id: 'in-past-window', siteId: 'site1', type: 'birthday', name: 'Late July', month: 6, day: 16, year: 1990, isAnnual: true },
     ],
     '7-2026': [
-      { id: 'in-range-august', siteId: 'site1', type: 'death', name: 'Early August', month: 7, day: 5, year: 1990, isAnnual: true },
-      { id: 'after-range', siteId: 'site1', type: 'wedding', name: 'Too Late', month: 7, day: 25, year: 2015, isAnnual: true },
+      { id: 'in-coming-window-august', siteId: 'site1', type: 'death', name: 'Early August', month: 7, day: 5, year: 1990, isAnnual: true },
+      { id: 'after-coming-window', siteId: 'site1', type: 'wedding', name: 'Too Late', month: 7, day: 25, year: 2015, isAnnual: true },
     ],
   };
 
-  const capturedMonthYearCalls: Array<{ month: number; year: number }> = [];
   const anniversaryRepository: any = {
-    getEventsForMonth: async (siteId: string, month: number, year: number) => {
-      capturedMonthYearCalls.push({ month, year });
-      return eventsByMonth[`${month}-${year}`] ?? [];
-    },
+    getEventsForMonth: async (siteId: string, month: number, year: number) => eventsByMonth[`${month}-${year}`] ?? [],
   };
-  const galleryPhotoRepository: any = { listBySite: async () => [] };
+  const galleryPhotoRepository: any = { listBySite: async () => [], listByAnniversary: async () => [] };
+  const occurrenceRepository: any = { listByEvent: async () => [] };
 
-  const service = new DigestCompilerService(anniversaryRepository, galleryPhotoRepository);
-  const digest = await service.compileDigestForRange('site1', startDate, endDate);
+  const service = new DigestCompilerService(anniversaryRepository, galleryPhotoRepository, occurrenceRepository);
+  const digest = await service.compileWeeklyDigest('site1', referenceDate);
 
-  // Proves the window queried more than one calendar month - not a fixed month-in-review.
-  assert.deepEqual(
-    capturedMonthYearCalls.sort((a, b) => a.year - b.year || a.month - b.month),
-    [{ month: 6, year: 2026 }, { month: 7, year: 2026 }],
-  );
+  const pastIds = digest.pastEvents.map((e: any) => e.event.id);
+  const comingIds = digest.comingEvents.map((e: any) => e.event.id);
+  assert.deepEqual(pastIds, ['in-past-window'], 'past range must be exactly 7 days back, not a full calendar month');
+  assert.deepEqual(comingIds, ['in-coming-window-august'], 'coming range must reach 1 month forward, crossing the month boundary');
 
-  const ids = digest.events.map((e: any) => e.id);
-  assert.deepEqual(ids, ['in-range-july', 'in-range-august'], 'only events inside [startDate, endDate] must be included, in date order');
-  assert.equal(digest.startDate.getTime(), startDate.getTime());
-  assert.equal(digest.endDate.getTime(), endDate.getTime());
+  const expectedPastStart = new Date(referenceDate);
+  expectedPastStart.setDate(expectedPastStart.getDate() - 7);
+  const expectedComingEnd = new Date(referenceDate);
+  expectedComingEnd.setMonth(expectedComingEnd.getMonth() + 1);
+  assert.equal(digest.pastRange.startDate.getTime(), expectedPastStart.getTime());
+  assert.equal(digest.pastRange.endDate.getTime(), referenceDate.getTime());
+  assert.equal(digest.comingRange.startDate.getTime(), referenceDate.getTime());
+  assert.equal(digest.comingRange.endDate.getTime(), expectedComingEnd.getTime());
 
-  console.log('rolling window spans ~1 week to ~1 month forward (crosses month boundary): PASSED');
+  console.log('weekly digest uses a rolling 1-week-back/1-month-forward window, not a calendar month: PASSED');
 }
 
 async function testCollagePhotosAreYearFilteredWithMainImageFallback() {
@@ -213,7 +214,7 @@ async function run() {
   await testCompilesEventsAndPhotos();
   await testEmptyWhenNothingInRange();
   await testPassesLocaleAndCustomLimit();
-  await testRangeSpansRollingWindowNotFixedMonth();
+  await testWeeklyDigestUsesRollingWindowNotCalendarMonth();
   await testCollagePhotosAreYearFilteredWithMainImageFallback();
   await testCollageIncludesMatchingYearOccurrencePhotos();
 }

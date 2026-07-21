@@ -26,12 +26,6 @@ const SOURCE_LOCALE = 'he';
 
 type SendableCadence = Exclude<UnifiedMagazineCadence, 'none'>;
 
-function addDays(date: Date, days: number): Date {
-  const result = new Date(date);
-  result.setDate(result.getDate() + days);
-  return result;
-}
-
 function resolveCadence(request: NextRequest): SendableCadence {
   return request.nextUrl.searchParams.get('cadence') === 'weekly' ? 'weekly' : 'monthly';
 }
@@ -162,15 +156,12 @@ export async function GET(request: NextRequest) {
       }
 
       const siteName = resolveDigestSiteName(site, siteDefaultLocale, siteId);
-      // Monthly = two full calendar months (what happened + what's coming); weekly = a
-      // real rolling week. See MonthlyDigestPayload's doc comment for why monthly moved
-      // off a rolling window (Agla, 2026-07-21, live-testing correction).
-      const monthlyDigest =
-        cadence === 'monthly' ? await digestCompiler.compileMonthlyDigest(siteId, now, { locale: SOURCE_LOCALE }) : null;
-      const weeklyDigest =
-        cadence === 'weekly'
-          ? await digestCompiler.compileDigestForRange(siteId, now, addDays(now, 7), { locale: SOURCE_LOCALE })
-          : null;
+      // Only the range computation differs between cadences - see CadenceDigestPayload's
+      // doc comment (Agla, 2026-07-21 DRY correction).
+      const digest =
+        cadence === 'monthly'
+          ? await digestCompiler.compileMonthlyDigest(siteId, now, { locale: SOURCE_LOCALE })
+          : await digestCompiler.compileWeeklyDigest(siteId, now, { locale: SOURCE_LOCALE });
 
       // Built per-member (not once per site): the greeting names the actual recipient,
       // and each member may read in a different locale (mirrors InDayReminderService's
@@ -180,15 +171,15 @@ export async function GET(request: NextRequest) {
           const recipientLocale = normalizeLang(member.defaultLocale) ?? siteDefaultLocale;
           const recipientName = member.firstName || member.displayName || member.email;
           const template =
-            weeklyDigest !== null
-              ? DigestTemplateService.buildWeeklyDigestEmail(weeklyDigest, {
+            cadence === 'weekly'
+              ? DigestTemplateService.buildWeeklyDigestEmail(digest, {
                   locale: SOURCE_LOCALE,
                   siteName,
                   recipientName,
                   calendarUrl,
                   galleryUrl,
                 })
-              : DigestTemplateService.buildMonthlyDigestEmail(monthlyDigest!, {
+              : DigestTemplateService.buildMonthlyDigestEmail(digest, {
                   locale: SOURCE_LOCALE,
                   siteName,
                   recipientName,
