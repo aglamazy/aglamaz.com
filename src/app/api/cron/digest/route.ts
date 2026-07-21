@@ -26,18 +26,15 @@ const SOURCE_LOCALE = 'he';
 
 type SendableCadence = Exclude<UnifiedMagazineCadence, 'none'>;
 
-function getPreviousMonth(reference: Date): { month: number; year: number } {
-  const startOfMonthUtc = new Date(Date.UTC(reference.getUTCFullYear(), reference.getUTCMonth(), 1));
-  startOfMonthUtc.setUTCMonth(startOfMonthUtc.getUTCMonth() - 1);
-  return {
-    month: startOfMonthUtc.getUTCMonth(),
-    year: startOfMonthUtc.getUTCFullYear(),
-  };
-}
-
 function addMonths(date: Date, months: number): Date {
   const result = new Date(date);
   result.setMonth(result.getMonth() + months);
+  return result;
+}
+
+function addDays(date: Date, days: number): Date {
+  const result = new Date(date);
+  result.setDate(result.getDate() + days);
   return result;
 }
 
@@ -140,7 +137,12 @@ export async function GET(request: NextRequest) {
   }
 
   const now = new Date();
-  const { month, year } = getPreviousMonth(now);
+  // Both cadences are forward-looking (coming birthdays/יום פטירה/anniversaries), not a
+  // recap of what already happened - a genuinely empty "last month" digest isn't useful
+  // content (Agla, 2026-07-21, live-testing correction). Weekly gets a ~week window,
+  // monthly a ~month window - previously both cadences shared the same 1-month window,
+  // which made them send near-identical content.
+  const windowEnd = (cadence: SendableCadence) => (cadence === 'weekly' ? addDays(now, 7) : addMonths(now, 1));
   const calendarUrl = new URL(getPath(AppRoute.APP_CALENDAR), request.nextUrl.origin).toString();
   const galleryUrl = new URL(getPath(AppRoute.APP_PHOTOS), request.nextUrl.origin).toString();
 
@@ -166,39 +168,53 @@ export async function GET(request: NextRequest) {
         continue;
       }
 
-      const targetLocale = resolveTargetLocale(site);
-      if (!targetLocale) {
+      const siteDefaultLocale = resolveTargetLocale(site);
+      if (!siteDefaultLocale) {
         throw new Error(`Unable to resolve digest locale for site ${siteId}`);
       }
 
-      const siteName = resolveDigestSiteName(site, targetLocale, siteId);
-
-      const template =
-        cadence === 'weekly'
-          ? DigestTemplateService.buildWeeklyDigestEmail(
-              await digestCompiler.compileDigestForRange(siteId, now, addMonths(now, 1), { locale: SOURCE_LOCALE }),
-              { locale: SOURCE_LOCALE, siteName, calendarUrl, galleryUrl },
-            )
-          : DigestTemplateService.buildMonthlyDigestEmail(
-              await digestCompiler.compileDigest(siteId, month, year, { locale: SOURCE_LOCALE }),
-              { locale: SOURCE_LOCALE, siteName, calendarUrl, galleryUrl },
-            );
-
-      const localized = await maybeTranslateDigest({
-        subject: template.subject,
-        html: template.html,
-        text: template.text,
-        from: SOURCE_LOCALE,
-        to: targetLocale,
+      const siteName = resolveDigestSiteName(site, siteDefaultLocale, siteId);
+      const digest = await digestCompiler.compileDigestForRange(siteId, now, windowEnd(cadence), {
+        locale: SOURCE_LOCALE,
       });
 
+      // Built per-member (not once per site): the greeting names the actual recipient,
+      // and each member may read in a different locale (mirrors InDayReminderService's
+      // existing per-member personalization).
       for (const member of recipients) {
         try {
+          const recipientLocale = normalizeLang(member.defaultLocale) ?? siteDefaultLocale;
+          const recipientName = member.firstName || member.displayName || member.email;
+          const template =
+            cadence === 'weekly'
+              ? DigestTemplateService.buildWeeklyDigestEmail(digest, {
+                  locale: SOURCE_LOCALE,
+                  siteName,
+                  recipientName,
+                  calendarUrl,
+                  galleryUrl,
+                })
+              : DigestTemplateService.buildMonthlyDigestEmail(digest, {
+                  locale: SOURCE_LOCALE,
+                  siteName,
+                  recipientName,
+                  calendarUrl,
+                  galleryUrl,
+                });
+
+          const localized = await maybeTranslateDigest({
+            subject: template.subject,
+            html: template.html,
+            text: template.text,
+            from: SOURCE_LOCALE,
+            to: recipientLocale,
+          });
+
           await ResendService.sendTransactionalEmail({
             to: member.email,
             subject: localized.subject,
             html: localized.html,
-            lang: targetLocale,
+            lang: recipientLocale,
           });
           sent++;
         } catch (memberErr) {
@@ -208,7 +224,7 @@ export async function GET(request: NextRequest) {
       }
 
       console.log(
-        `[cron/digest] sent: site=${siteId} cadence=${cadence} recipients=${recipients.length} locale=${targetLocale}`,
+        `[cron/digest] sent: site=${siteId} cadence=${cadence} recipients=${recipients.length} locale=${siteDefaultLocale}`,
       );
     } catch (err) {
       failed++;

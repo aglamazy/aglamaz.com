@@ -1,6 +1,6 @@
 import type { ISite } from '@/entities/Site';
 import type { AnniversaryType } from '@/entities/Anniversary';
-import type { DigestPayload, DigestRangePayload } from './DigestCompilerService';
+import type { DigestRangePayload } from './DigestCompilerService';
 import { getLocalizedFields } from './LocalizationService.client';
 import { renderEmailHtml, escapeHtml } from './emailTemplates';
 
@@ -13,6 +13,8 @@ export interface DigestEmailContent {
 export interface BuildDigestEmailOptions {
   locale: string;
   siteName: string;
+  /** The actual recipient's display name - the greeting addresses them, never the site. */
+  recipientName: string;
   /** Link into the app calendar - every event row wraps this, per family-digest-formats-spec.md §6. */
   calendarUrl: string;
   /** Link into the app gallery - every photo thumbnail wraps this. */
@@ -21,15 +23,6 @@ export interface BuildDigestEmailOptions {
 
 const EVENT_THUMB_SIZE = 48;
 const PHOTO_THUMB_SIZE = 96;
-
-function formatMonthLabel(month: number, year: number, locale: string): string {
-  const date = new Date(year, month, 1);
-  const formatterLocale = locale === 'he' ? 'he-IL' : locale === 'tr' ? 'tr-TR' : 'en-US';
-  return new Intl.DateTimeFormat(formatterLocale, {
-    month: 'long',
-    year: 'numeric',
-  }).format(date);
-}
 
 function formatRangeLabel(startDate: Date, endDate: Date, locale: string): string {
   const formatterLocale = locale === 'he' ? 'he-IL' : locale === 'tr' ? 'tr-TR' : 'en-US';
@@ -43,7 +36,7 @@ function formatRangeLabel(startDate: Date, endDate: Date, locale: string): strin
   return `${formatter.format(startDate)} – ${formatter.format(endDate)}`;
 }
 
-function formatEventDate(event: DigestPayload['events'][number], locale: string): string {
+function formatEventDate(event: DigestRangePayload['events'][number], locale: string): string {
   const formatterLocale = locale === 'he' ? 'he-IL' : locale === 'tr' ? 'tr-TR' : 'en-US';
   const date = new Date(event.year, event.month, event.day);
   return new Intl.DateTimeFormat(formatterLocale, {
@@ -53,7 +46,7 @@ function formatEventDate(event: DigestPayload['events'][number], locale: string)
   }).format(date);
 }
 
-function formatPhotoDate(photo: DigestPayload['photos'][number], locale: string): string {
+function formatPhotoDate(photo: DigestRangePayload['photos'][number], locale: string): string {
   const formatterLocale = locale === 'he' ? 'he-IL' : locale === 'tr' ? 'tr-TR' : 'en-US';
   const photoDate = photo.date?.toDate ? photo.date.toDate() : new Date(photo.date as unknown as string);
   return new Intl.DateTimeFormat(formatterLocale, {
@@ -82,14 +75,14 @@ function formatEventName(name: string, type: AnniversaryType, locale: string): s
   return fn(name);
 }
 
-function formatEventLine(event: DigestPayload['events'][number], locale: string): string {
+function formatEventLine(event: DigestRangePayload['events'][number], locale: string): string {
   const name = formatEventName(event.name, event.type, locale);
   return `${name} - ${formatEventDate(event, locale)}`;
 }
 
-function formatPhotoLine(photo: DigestPayload['photos'][number], locale: string): string {
+function formatPhotoLine(photo: DigestRangePayload['photos'][number], locale: string): string {
   const formattedDate = formatPhotoDate(photo, locale);
-  const description = (photo as DigestPayload['photos'][number] & { description?: string }).description;
+  const description = (photo as DigestRangePayload['photos'][number] & { description?: string }).description;
   if (description && description.trim()) {
     return `${description.trim()} - ${formattedDate}`;
   }
@@ -101,7 +94,7 @@ function formatPhotoLine(photo: DigestPayload['photos'][number], locale: string)
  * both wrapped in a single anchor into the calendar. Same visual weight for every event type -
  * per family-digest-formats-spec.md §6, memorial (death) events get NO distinct "warning" styling.
  */
-function renderEventRow(event: DigestPayload['events'][number], locale: string, calendarUrl: string): string {
+function renderEventRow(event: DigestRangePayload['events'][number], locale: string, calendarUrl: string): string {
   const name = formatEventName(escapeHtml(event.name), event.type, locale);
   const label = `${name} - ${escapeHtml(formatEventDate(event, locale))}`;
   const thumbnail = event.imageUrl
@@ -114,7 +107,7 @@ function renderEventRow(event: DigestPayload['events'][number], locale: string, 
  * One clickable photo thumbnail (real imagesWithDimensions[0].url, or a placeholder tile when
  * missing) wrapped in an anchor into the gallery.
  */
-function renderPhotoThumbnail(photo: DigestPayload['photos'][number], galleryUrl: string): string {
+function renderPhotoThumbnail(photo: DigestRangePayload['photos'][number], galleryUrl: string): string {
   const url = photo.imagesWithDimensions?.[0]?.url;
   const tile = url
     ? `<img src="${escapeHtml(url)}" alt="" width="${PHOTO_THUMB_SIZE}" height="${PHOTO_THUMB_SIZE}" style="width:${PHOTO_THUMB_SIZE}px;height:${PHOTO_THUMB_SIZE}px;border-radius:8px;object-fit:cover;" />`
@@ -122,122 +115,105 @@ function renderPhotoThumbnail(photo: DigestPayload['photos'][number], galleryUrl
   return `<a href="${escapeHtml(galleryUrl)}" style="display:inline-block;margin:4px;">${tile}</a>`;
 }
 
-function renderPhotoGrid(photos: DigestPayload['photos'], galleryUrl: string): string {
+function renderPhotoGrid(photos: DigestRangePayload['photos'], galleryUrl: string): string {
   return photos.map((photo) => renderPhotoThumbnail(photo, galleryUrl)).join('');
 }
 
+/**
+ * Shared render for both cadences - they differ only in subject prefix and the label
+ * under it (a specific month vs. a date range); content shape (events + recent photos)
+ * and personalization are identical. Greets the actual recipient (options.recipientName),
+ * never the site - and omits a section entirely when it has nothing in it, rather than
+ * printing an empty-state line (family-digest-formats-spec.md fixes, 2026-07-21).
+ */
+function buildRangeDigestEmail(
+  digest: DigestRangePayload,
+  options: BuildDigestEmailOptions,
+  subjectPrefix: string,
+  periodLabel: string,
+  introLine: string,
+  eventsHeading: string,
+): DigestEmailContent {
+  const eventLines = digest.events.map((event) => formatEventLine(event, options.locale));
+  const photoLines = digest.photos.map((photo) => formatPhotoLine(photo, options.locale));
+  const eventRows = digest.events
+    .map((event) => renderEventRow(event, options.locale, options.calendarUrl))
+    .join('');
+  const photoGrid = renderPhotoGrid(digest.photos, options.galleryUrl);
+
+  const summaryLine = `${digest.events.length} אירועים ו-${digest.photos.length} תמונות אחרונות`;
+  const subject = `${subjectPrefix} - ${options.siteName} - ${periodLabel}`;
+  const greeting = `שלום ${options.recipientName},`;
+
+  const paragraphs = [
+    introLine,
+    `סיכום: ${summaryLine}.`,
+    digest.events.length ? `${eventsHeading}:<br />${eventRows}` : null,
+    digest.photos.length ? `תמונות אחרונות:<br />${photoGrid}` : null,
+  ].filter((p): p is string => p !== null);
+
+  const html = renderEmailHtml({
+    subject,
+    lang: options.locale,
+    dir: options.locale === 'he' ? 'rtl' : 'ltr',
+    heading: `🌳 ${options.siteName}`,
+    preheader: subject,
+    greeting,
+    paragraphs,
+    footerLines: ['תקציר זה נוצר באופן אוטומטי.'],
+  });
+
+  const textSections = [
+    greeting,
+    introLine,
+    `סיכום: ${summaryLine}.`,
+    digest.events.length ? [`${eventsHeading}:`, ...eventLines.map((line) => `• ${line}`)].join('\n') : null,
+    digest.photos.length ? ['תמונות אחרונות:', ...photoLines.map((line) => `• ${line}`)].join('\n') : null,
+    'תקציר זה נוצר באופן אוטומטי.',
+  ].filter((s): s is string => s !== null);
+  const text = textSections.join('\n\n');
+
+  return { subject, html, text };
+}
+
 export class DigestTemplateService {
+  /**
+   * Monthly-cadence digest - forward-looking (upcoming events in the window ahead, not a
+   * past-month recap): coming birthdays/יום פטירה/anniversaries, per Agla's live-testing
+   * correction 2026-07-21 (a genuinely empty "last month" digest is not useful content).
+   */
   static buildMonthlyDigestEmail(
-    digest: DigestPayload,
+    digest: DigestRangePayload,
     options: BuildDigestEmailOptions,
   ): DigestEmailContent {
-    const monthLabel = formatMonthLabel(digest.month, digest.year, options.locale);
-    const eventLines = digest.events.map((event) => formatEventLine(event, options.locale));
-    const photoLines = digest.photos.map((photo) => formatPhotoLine(photo, options.locale));
-    const eventRows = digest.events
-      .map((event) => renderEventRow(event, options.locale, options.calendarUrl))
-      .join('');
-    const photoGrid = renderPhotoGrid(digest.photos, options.galleryUrl);
-
-    const summaryLine = `${digest.events.length} אירועים ו-${digest.photos.length} תמונות אחרונות`;
-    const subject = `תקציר חודשי - ${options.siteName} - ${monthLabel}`;
-
-    const paragraphs = [
-      `הנה התקציר החודשי עבור ${options.siteName} לחודש ${monthLabel}.`,
-      `סיכום: ${summaryLine}.`,
-      digest.events.length
-        ? `אירועים:<br />${eventRows}`
-        : 'אירועים: אין החודש.',
-      digest.photos.length
-        ? `תמונות אחרונות:<br />${photoGrid}`
-        : 'תמונות אחרונות: אין החודש.',
-    ];
-
-    const html = renderEmailHtml({
-      subject,
-      lang: options.locale,
-      dir: options.locale === 'he' ? 'rtl' : 'ltr',
-      heading: `🌳 ${options.siteName}`,
-      preheader: subject,
-      greeting: `שלום ${options.siteName},`,
-      paragraphs,
-      footerLines: ['תקציר זה נוצר באופן אוטומטי.'],
-    });
-
-    const textSections = [
-      `שלום ${options.siteName},`,
-      `הנה התקציר החודשי עבור ${options.siteName} לחודש ${monthLabel}.`,
-      `סיכום: ${summaryLine}.`,
-      digest.events.length
-        ? ['אירועים:', ...eventLines.map((line) => `• ${line}`)].join('\n')
-        : 'אירועים: אין החודש.',
-      digest.photos.length
-        ? ['תמונות אחרונות:', ...photoLines.map((line) => `• ${line}`)].join('\n')
-        : 'תמונות אחרונות: אין החודש.',
-      'תקציר זה נוצר באופן אוטומטי.',
-    ];
-    const text = textSections.join('\n\n');
-
-    return { subject, html, text };
+    const periodLabel = formatRangeLabel(digest.startDate, digest.endDate, options.locale);
+    return buildRangeDigestEmail(
+      digest,
+      options,
+      'תקציר חודשי',
+      periodLabel,
+      `הנה התקציר החודשי עבור ${options.siteName} - אירועים קרובים ותמונות אחרונות.`,
+      'אירועים קרובים',
+    );
   }
 
   /**
-   * Rolling-window variant for weekly-cadence subscribers (family-digest-formats-spec.md
-   * §1) - same row rendering (renderEventRow/renderPhotoGrid) as the monthly digest, just
-   * labeled by date range instead of a calendar month.
+   * Rolling-window variant for weekly-cadence subscribers (family-digest-formats-spec.md §1) -
+   * same render as the monthly digest, just a shorter window and different subject prefix.
    */
   static buildWeeklyDigestEmail(
     digest: DigestRangePayload,
     options: BuildDigestEmailOptions,
   ): DigestEmailContent {
     const periodLabel = formatRangeLabel(digest.startDate, digest.endDate, options.locale);
-    const eventLines = digest.events.map((event) => formatEventLine(event, options.locale));
-    const photoLines = digest.photos.map((photo) => formatPhotoLine(photo, options.locale));
-    const eventRows = digest.events
-      .map((event) => renderEventRow(event, options.locale, options.calendarUrl))
-      .join('');
-    const photoGrid = renderPhotoGrid(digest.photos, options.galleryUrl);
-
-    const summaryLine = `${digest.events.length} אירועים ו-${digest.photos.length} תמונות אחרונות`;
-    const subject = `תקציר שבועי - ${options.siteName} - ${periodLabel}`;
-
-    const paragraphs = [
-      `הנה התקציר השבועי עבור ${options.siteName} לתקופה ${periodLabel}.`,
-      `סיכום: ${summaryLine}.`,
-      digest.events.length
-        ? `אירועים קרובים:<br />${eventRows}`
-        : 'אירועים קרובים: אין בתקופה הקרובה.',
-      digest.photos.length
-        ? `תמונות אחרונות:<br />${photoGrid}`
-        : 'תמונות אחרונות: אין תמונות חדשות.',
-    ];
-
-    const html = renderEmailHtml({
-      subject,
-      lang: options.locale,
-      dir: options.locale === 'he' ? 'rtl' : 'ltr',
-      heading: `🌳 ${options.siteName}`,
-      preheader: subject,
-      greeting: `שלום ${options.siteName},`,
-      paragraphs,
-      footerLines: ['תקציר זה נוצר באופן אוטומטי.'],
-    });
-
-    const textSections = [
-      `שלום ${options.siteName},`,
-      `הנה התקציר השבועי עבור ${options.siteName} לתקופה ${periodLabel}.`,
-      `סיכום: ${summaryLine}.`,
-      digest.events.length
-        ? ['אירועים קרובים:', ...eventLines.map((line) => `• ${line}`)].join('\n')
-        : 'אירועים קרובים: אין בתקופה הקרובה.',
-      digest.photos.length
-        ? ['תמונות אחרונות:', ...photoLines.map((line) => `• ${line}`)].join('\n')
-        : 'תמונות אחרונות: אין תמונות חדשות.',
-      'תקציר זה נוצר באופן אוטומטי.',
-    ];
-    const text = textSections.join('\n\n');
-
-    return { subject, html, text };
+    return buildRangeDigestEmail(
+      digest,
+      options,
+      'תקציר שבועי',
+      periodLabel,
+      `הנה התקציר השבועי עבור ${options.siteName} - אירועים קרובים ותמונות אחרונות.`,
+      'אירועים קרובים',
+    );
   }
 }
 

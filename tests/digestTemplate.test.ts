@@ -14,15 +14,15 @@
 
 import assert from 'node:assert/strict';
 import { DigestTemplateService } from '../src/services/DigestTemplateService';
-import type { DigestPayload } from '../src/services/DigestCompilerService';
+import type { DigestRangePayload } from '../src/services/DigestCompilerService';
 
 const CALENDAR_URL = 'https://example.com/app/calendar';
 const GALLERY_URL = 'https://example.com/app/photos';
 
-const FIXTURE: DigestPayload = {
+const FIXTURE: DigestRangePayload = {
   siteId: 'site1',
-  month: 6,
-  year: 2026,
+  startDate: new Date(2026, 5, 1),
+  endDate: new Date(2026, 5, 30),
   events: [
     {
       id: 'e1',
@@ -91,6 +91,7 @@ function buildFixtureHtml(): string {
   const result = DigestTemplateService.buildMonthlyDigestEmail(FIXTURE, {
     locale: 'en',
     siteName: 'The Aglamaz Family',
+    recipientName: 'Grandpa Moshe',
     calendarUrl: CALENDAR_URL,
     galleryUrl: GALLERY_URL,
   });
@@ -143,6 +144,32 @@ function testNoMemorialWarningStyling() {
   console.log('no distinct memorial warning styling: PASSED');
 }
 
+function testGreetingUsesRecipientNameNotSiteName() {
+  const result = DigestTemplateService.buildMonthlyDigestEmail(FIXTURE, {
+    locale: 'en',
+    siteName: 'The Aglamaz Family',
+    recipientName: 'Dan',
+    calendarUrl: CALENDAR_URL,
+    galleryUrl: GALLERY_URL,
+  });
+  assert.ok(result.html.includes('Dan'), 'greeting must address the actual recipient');
+  assert.ok(!result.text.startsWith('שלום The Aglamaz Family'), 'greeting must not address the site');
+  console.log('greeting addresses the recipient, not the site: PASSED');
+}
+
+function testEmptyEventsSectionIsOmitted() {
+  const EMPTY_EVENTS_FIXTURE: DigestRangePayload = { ...FIXTURE, events: [] };
+  const result = DigestTemplateService.buildMonthlyDigestEmail(EMPTY_EVENTS_FIXTURE, {
+    locale: 'en',
+    siteName: 'The Aglamaz Family',
+    recipientName: 'Dan',
+    calendarUrl: CALENDAR_URL,
+    galleryUrl: GALLERY_URL,
+  });
+  assert.ok(!result.html.includes('אירועים קרובים:'), 'an empty events list must omit the section entirely, not print an empty-state line');
+  console.log('empty events section is omitted rather than shown empty: PASSED');
+}
+
 function run() {
   testEventRowsHaveRealImgTagsWhenImageUrlPresent();
   testMissingImageUrlFallsBackGracefully();
@@ -150,6 +177,8 @@ function run() {
   testEventRowsAreClickableIntoCalendar();
   testPhotoThumbnailsAreClickableIntoGallery();
   testNoMemorialWarningStyling();
+  testGreetingUsesRecipientNameNotSiteName();
+  testEmptyEventsSectionIsOmitted();
 }
 
 run();
