@@ -5,9 +5,11 @@
 // once the format is settled.
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useSiteStore } from '@/store/SiteStore';
 
 export default function DigestPreviewPage() {
   const { t } = useTranslation();
+  const siteInfo = useSiteStore((s) => s.siteInfo);
   const [cadence, setCadence] = useState<'monthly' | 'weekly'>('monthly');
 
   return (
@@ -32,13 +34,15 @@ export default function DigestPreviewPage() {
       {/* The digest is a standalone HTML email document (own <html>/<head>/styles) -
           an iframe keeps it visually isolated from the app's own page chrome, same
           as how it'll actually render inside an email client. */}
-      <iframe
-        key={cadence}
-        src={`/api/dev/digest-preview?cadence=${cadence}`}
-        title={t('digestPreview') as string}
-        className="w-full border rounded-lg"
-        style={{ height: '80vh' }}
-      />
+      {siteInfo?.id && (
+        <iframe
+          key={cadence}
+          src={`/api/site/${siteInfo.id}/dev/digest-preview?cadence=${cadence}`}
+          title={t('digestPreview') as string}
+          className="w-full border rounded-lg"
+          style={{ height: '80vh' }}
+        />
+      )}
     </div>
   );
 }
