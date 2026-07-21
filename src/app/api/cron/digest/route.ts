@@ -155,7 +155,12 @@ export async function GET(request: NextRequest) {
         throw new Error(`Unable to resolve digest locale for site ${siteId}`);
       }
 
-      const siteName = resolveDigestSiteName(site, siteDefaultLocale, siteId);
+      // Always resolve the name in SOURCE_LOCALE, matching the rest of the digest body
+      // (which is compiled+rendered in SOURCE_LOCALE below) - siteDefaultLocale is a loose
+      // "whatever locale this site has any data in" guess (any stray locales.* key can hijack
+      // it) and using it here produced a mixed-language digest when the site had an
+      // unexpected locale key present (Agla, 2026-07-21: "mixed Arabic Hebrew").
+      const siteName = resolveDigestSiteName(site, SOURCE_LOCALE, siteId);
       // Only the range computation differs between cadences - see CadenceDigestPayload's
       // doc comment (Agla, 2026-07-21 DRY correction).
       const digest =
