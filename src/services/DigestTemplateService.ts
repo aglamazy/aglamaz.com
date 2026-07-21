@@ -167,31 +167,6 @@ function renderPhotoGrid(photos: GalleryPhoto[], galleryUrl: string): string {
   return photos.map((photo) => renderPhotoThumbnail(photo, galleryUrl)).join('');
 }
 
-/**
- * The same collage visual language as renderEventCollage (rounded corners, real photos,
- * no forced-circle avatars) generalized to a longer list - a 3-per-row table grid rather
- * than a small uniform-thumbnail row, per Agla's 2026-07-21 request to use "the global
- * collage" for the general recent-photos section too. Table-based for email-client
- * robustness (same reason renderEventCollage uses tables, not flex/grid).
- */
-function renderGlobalCollage(photos: GalleryPhoto[], galleryUrl: string): string {
-  const urls = photos.map((p) => p.imagesWithDimensions?.[0]?.url).filter((u): u is string => !!u);
-  if (urls.length === 0) return '';
-
-  const cellStyle = 'border-radius:10px;overflow:hidden;height:110px;';
-  const rows: string[] = [];
-  for (let i = 0; i < urls.length; i += 3) {
-    const rowUrls = urls.slice(i, i + 3);
-    const cells = rowUrls
-      .map((u) => `<td width="33.33%" style="${cellStyle}">${collageImg(u, '', '')}</td>`)
-      .join('');
-    const padding = 3 - rowUrls.length;
-    const emptyCells = padding > 0 ? `<td width="${33.33 * padding}%"></td>`.repeat(padding) : '';
-    rows.push(`<tr>${cells}${emptyCells}</tr>`);
-  }
-  return `<a href="${escapeHtml(galleryUrl)}" style="display:block;"><table role="presentation" width="100%" style="border-collapse:separate;border-spacing:6px 6px;">${rows.join('')}</table></a>`;
-}
-
 const TYPE_ICON: Record<AnniversaryType, string> = {
   birthday: '🎂',
   wedding: '💍',
@@ -199,40 +174,29 @@ const TYPE_ICON: Record<AnniversaryType, string> = {
   other: '⭐',
 };
 
-function collageImg(url: string, alt: string, extraStyle: string): string {
-  return `<img src="${escapeHtml(url)}" alt="${escapeHtml(alt)}" style="width:100%;height:100%;object-fit:cover;display:block;${extraStyle}" />`;
+/**
+ * Same layout algorithm as the app's own ImageGrid component
+ * (src/components/media/ImageGrid.module.css: `columns: 2` + `break-inside: avoid`,
+ * each image at its own natural aspect ratio) - not a bespoke "1 big + N small" grid.
+ * Used for both a single event's photos and the general recent-photos section, per
+ * Agla's 2026-07-21 request to use the same real widget everywhere rather than a
+ * different one invented for email. CSS columns over table layout here is a deliberate
+ * tradeoff - this app's digest is Gmail-verified, not Outlook-targeted.
+ */
+function renderMasonryCollage(urls: string[], galleryUrl: string): string {
+  if (urls.length === 0) return '';
+  const items = urls
+    .map(
+      (u) =>
+        `<a href="${escapeHtml(galleryUrl)}" style="display:block;break-inside:avoid;margin:0 0 8px;"><img src="${escapeHtml(u)}" alt="" style="width:100%;height:auto;border-radius:10px;display:block;" /></a>`,
+    )
+    .join('');
+  return `<div style="column-count:2;column-gap:8px;margin-top:10px;">${items}</div>`;
 }
 
-/**
- * The event's own photos (merged from GalleryPhoto.anniversaryId links AND
- * AnniversaryOccurrence-embedded images - see DigestEventWithPhotos doc comment)
- * arranged like the app's own event page: one large image with the rest alongside it,
- * not a row of small thumbnails. 1 photo = full width; 2 = side by side; 3+ = one large +
- * the rest stacked beside it (extras beyond 4 are dropped, not worth cramming into an
- * email). Table-based so it holds together across email clients that don't support
- * flex/grid.
- */
-function renderEventCollage(urls: string[], galleryUrl: string): string {
-  if (urls.length === 0) return '';
-
-  const cellStyle = 'border-radius:10px;overflow:hidden;';
-  let inner: string;
-  if (urls.length === 1) {
-    inner = `<div style="${cellStyle}height:220px;">${collageImg(urls[0], '', '')}</div>`;
-  } else if (urls.length === 2) {
-    inner = `<table role="presentation" width="100%" style="border-collapse:separate;border-spacing:6px 0;"><tr>${urls
-      .map((u) => `<td width="50%" style="${cellStyle}height:160px;">${collageImg(u, '', '')}</td>`)
-      .join('')}</tr></table>`;
-  } else {
-    // Cap the side column at 2 (not "however many exist") - 3+ thin stacked tiles read
-    // as cramped; 1 large + 2 alongside is the proven layout (Agla, 2026-07-21). Extra
-    // photos beyond 3 total aren't worth cramming into an email.
-    const rest = urls.slice(1, 3);
-    inner = `<table role="presentation" width="100%" style="border-collapse:separate;border-spacing:6px 0;"><tr><td width="60%" style="${cellStyle}height:220px;">${collageImg(urls[0], '', '')}</td><td width="40%"><table role="presentation" width="100%" style="border-collapse:separate;border-spacing:0 6px;">${rest
-      .map((u) => `<tr><td style="${cellStyle}height:${Math.floor(220 / rest.length)}px;">${collageImg(u, '', '')}</td></tr>`)
-      .join('')}</table></td></tr></table>`;
-  }
-  return `<a href="${escapeHtml(galleryUrl)}" style="display:block;margin-top:10px;">${inner}</a>`;
+function renderGlobalCollage(photos: GalleryPhoto[], galleryUrl: string): string {
+  const urls = photos.map((p) => p.imagesWithDimensions?.[0]?.url).filter((u): u is string => !!u);
+  return renderMasonryCollage(urls, galleryUrl);
 }
 
 /**
@@ -252,7 +216,7 @@ function renderEventArticle(entry: DigestEventWithPhotos, locale: string, calend
   // photoUrls always includes event.imageUrl when present (DigestCompilerService folds
   // it in), so the only remaining fallback is the type icon for an event with no
   // picture at all.
-  const collage = renderEventCollage(photoUrls, galleryUrl);
+  const collage = renderMasonryCollage(photoUrls, galleryUrl);
   const visual =
     collage ||
     `<div aria-hidden="true" style="width:100%;height:96px;border-radius:14px;background:#e3ede6;display:flex;align-items:center;justify-content:center;font-size:36px;margin-top:10px;">${TYPE_ICON[event.type]}</div>`;

@@ -155,11 +155,11 @@ function testEventRowsAreClickableIntoCalendar() {
 function testPhotoThumbnailsAreClickableIntoGallery() {
   const html = buildFixtureHtml();
   const anchorCount = (html.match(new RegExp(`<a href="${GALLERY_URL}"`, 'g')) || []).length;
-  // Collages (both per-event and the general recent-photos one) wrap the whole grid in
-  // a single anchor, not one per photo: 2 coming events fall back to their single
-  // event.imageUrl (1 gallery anchor each) + 1 for the past event's own-photo collage +
-  // 1 for the general recent-photos collage.
-  assert.equal(anchorCount, 4, 'each photo/collage visual must be wrapped in an anchor to the gallery');
+  // Masonry collage: each image gets its own anchor (matches the app's ImageGrid, where
+  // every thumb is individually clickable) - 1 for each coming event's single photo (2),
+  // 1 for the past event's own photo, 1 for the general recent-photos section's one
+  // valid photo.
+  assert.equal(anchorCount, 4, 'each photo in a collage must be individually wrapped in an anchor to the gallery');
   console.log('photo collages are anchor-wrapped into the gallery: PASSED');
 }
 
@@ -250,12 +250,12 @@ function testNoRedundantIntroLine() {
 }
 
 function testGeneralPhotosUseCollageNotThumbnailRow() {
-  // The general recent-photos section now renders as a table-based collage (one anchor
-  // wrapping a grid), not a row of individually-anchored small square thumbnails
-  // (Agla, 2026-07-21 - "use the global collage here").
+  // The general recent-photos section uses the SAME masonry layout as the app's own
+  // ImageGrid component (CSS columns, natural aspect ratio) - not a bespoke email-only
+  // grid (Agla, 2026-07-21 - "use the global collage" / "use that component").
   const html = buildFixtureHtml();
-  assert.ok(html.includes('<table'), 'recent-photos section must render as a collage table, not a thumbnail row');
-  console.log('general recent-photos section uses the collage layout: PASSED');
+  assert.ok(html.includes('column-count:2'), 'recent-photos section must use the same masonry layout as the app');
+  console.log('general recent-photos section uses the app\'s masonry collage layout: PASSED');
 }
 
 function testAnnualEventShowsTargetYearNotOriginalEntryYear() {
