@@ -15,11 +15,24 @@ import TouchSelect from '@/components/ui/TouchSelect';
 interface EventFormContentProps {
   editEvent?: AnniversaryEvent | null;
   onSuccess: () => void;
+  /** Jump-to-and-highlight the matched event on the calendar instead of saving. */
+  onViewSimilarEvent?: (event: AnniversaryEvent) => void;
 }
 
-export default function EventFormContent({ editEvent, onSuccess }: EventFormContentProps) {
+function formatSimilarEventDate(event: AnniversaryEvent, locale: string): string {
+  const year = (event as any).originalYear ?? event.year;
+  const month = (event as any).originalMonth ?? event.month;
+  const day = (event as any).originalDay ?? event.day;
+  const formatterLocale = locale === 'he' ? 'he-IL' : locale === 'tr' ? 'tr-TR' : 'en-US';
+  return new Intl.DateTimeFormat(formatterLocale, { month: 'long', day: 'numeric', year: 'numeric' }).format(
+    new Date(year, month, day),
+  );
+}
+
+export default function EventFormContent({ editEvent, onSuccess, onViewSimilarEvent }: EventFormContentProps) {
   const { t, i18n } = useTranslation();
   const site = useSiteStore((state) => state.siteInfo);
+  const [similarEvent, setSimilarEvent] = useState<AnniversaryEvent | null>(null);
   const [form, setForm] = useState({
     name: '',
     description: '',
@@ -75,6 +88,28 @@ export default function EventFormContent({ editEvent, onSuccess }: EventFormCont
     setImageFile(null);
     setImageSrc('');
   }, [editEvent]);
+
+  // Soft duplicate-name guard: warns, doesn't block - two people can share a name
+  // legitimately. Excludes the event currently being edited from its own match.
+  useEffect(() => {
+    const trimmed = form.name.trim();
+    if (trimmed.length < 2) {
+      setSimilarEvent(null);
+      return;
+    }
+    const handle = setTimeout(async () => {
+      try {
+        const data = await apiFetch<{ events: AnniversaryEvent[] }>(ApiRoute.SITE_ANNIVERSARIES_SEARCH, {
+          queryParams: { q: trimmed },
+        });
+        const match = (data.events || []).find((e) => e.id !== editEvent?.id);
+        setSimilarEvent(match || null);
+      } catch (e) {
+        console.error('[EventFormContent] duplicate-name check failed', e);
+      }
+    }, 300);
+    return () => clearTimeout(handle);
+  }, [form.name, editEvent?.id]);
 
   useEffect(() => {
     if (imgRef.current) {
@@ -188,6 +223,26 @@ export default function EventFormContent({ editEvent, onSuccess }: EventFormCont
           onChange={(e) => setForm({ ...form, name: e.target.value })}
           required
         />
+        {similarEvent && (
+          <div className="mt-2 text-sm bg-amber-50 border border-amber-200 text-amber-800 rounded-lg px-3 py-2">
+            <p>
+              {t('similarEventExists', {
+                name: similarEvent.name,
+                date: formatSimilarEventDate(similarEvent, i18n.language),
+              })}{' '}
+              {t('continueAnywayQuestion')}
+            </p>
+            {onViewSimilarEvent && (
+              <button
+                type="button"
+                onClick={() => onViewSimilarEvent(similarEvent)}
+                className="underline font-medium"
+              >
+                {t('viewExistingEvent')}
+              </button>
+            )}
+          </div>
+        )}
       </div>
       <div>
         <label className="block mb-1 text-sm text-text">{t('description')}</label>

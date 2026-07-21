@@ -145,6 +145,54 @@ export class AnniversaryRepository {
     return events;
   }
 
+  /**
+   * Case-insensitive substring match on `name`, across every event on the site regardless
+   * of month/year - powers both the calendar search box and the add-event duplicate-name
+   * warning, so a family member can find an existing event before creating a near-duplicate.
+   * Sites here are family-scale (dozens of events, not thousands), so a full-collection
+   * fetch + in-memory filter is simpler and fine - no search infra needed.
+   */
+  async searchByName(siteId: string, query: string, locale?: string, limit = 8): Promise<AnniversaryEvent[]> {
+    const trimmed = query.trim();
+    if (!trimmed) return [];
+
+    const db = this.getDb();
+    const snapshot = await db
+      .collection(this.collection)
+      .where('siteId', '==', siteId)
+      .where('deletedAt', '==', null)
+      .get();
+    const events = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })) as AnniversaryEvent[];
+
+    const normalizedQuery = trimmed.toLowerCase();
+    const matches = events
+      .filter((e) => e.name?.toLowerCase().includes(normalizedQuery))
+      .sort((a, b) => {
+        const aPrefix = a.name.toLowerCase().startsWith(normalizedQuery) ? 0 : 1;
+        const bPrefix = b.name.toLowerCase().startsWith(normalizedQuery) ? 0 : 1;
+        if (aPrefix !== bPrefix) return aPrefix - bPrefix;
+        return a.name.localeCompare(b.name);
+      })
+      .slice(0, limit);
+
+    if (!locale) return matches;
+
+    const { ensureLocale, getLocalizedFields } = await import('@/services/LocalizationService');
+    const localized: AnniversaryEvent[] = [];
+    for (const event of matches) {
+      try {
+        const docRef = db.collection(this.collection).doc(event.id);
+        const ensured = await ensureLocale(event, docRef, locale, ['name']);
+        const fields = getLocalizedFields(ensured, locale, ['name']);
+        localized.push({ ...ensured, name: fields.name });
+      } catch (error) {
+        console.error(`[AnniversaryRepository] Failed to localize search result ${event.id}:`, error);
+        localized.push(event);
+      }
+    }
+    return localized;
+  }
+
   async getById(id: string, locale?: string): Promise<AnniversaryEvent | null> {
     const db = this.getDb();
     const doc = await db.collection(this.collection).doc(id).get();

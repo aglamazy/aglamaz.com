@@ -21,6 +21,7 @@ import { useRouter } from 'next/navigation';
 import type { AnniversaryEvent } from '@/entities/Anniversary';
 import { useAddAction } from '@/hooks/useAddAction';
 import EventFormContent from '@/components/calendar/EventFormContent';
+import EventSearchBox from '@/components/calendar/EventSearchBox';
 
 export default function AnniversariesPage() {
   const [events, setEvents] = useState<AnniversaryEvent[]>([]);
@@ -52,6 +53,7 @@ export default function AnniversariesPage() {
   const [deleteError, setDeleteError] = useState('');
   const [creatingBlessingPage, setCreatingBlessingPage] = useState(false);
   const [blessingPageError, setBlessingPageError] = useState('');
+  const [highlightedDay, setHighlightedDay] = useState<{ year: number; month: number; day: number } | null>(null);
   const user = useUserStore((s) => s.user);
   const checkAuth = useUserStore((s) => s.checkAuth);
   const member = useMemberStore((state) => state.member);
@@ -98,6 +100,35 @@ export default function AnniversariesPage() {
     const key = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}`;
     sessionStorage.setItem(calendarMonthKey, key);
   }, [selectedDate]);
+
+  // Auto-clear the search-result highlight after a moment, so it reads as a
+  // pointer rather than a permanent marker.
+  useEffect(() => {
+    if (!highlightedDay) return;
+    const handle = setTimeout(() => setHighlightedDay(null), 2500);
+    return () => clearTimeout(handle);
+  }, [highlightedDay]);
+
+  const handleSearchSelect = (event: AnniversaryEvent) => {
+    const month = (event as any).originalMonth ?? event.month;
+    const day = (event as any).originalDay ?? event.day;
+    const storedYear = (event as any).originalYear ?? event.year;
+
+    // For a recurring annual event, the original entry year (e.g. the wedding
+    // year itself) isn't the useful jump target - land on the nearest real
+    // occurrence (this year, or next year if this year's date already passed).
+    let year = storedYear;
+    if (event.isAnnual) {
+      const today = new Date();
+      const thisYearOccurrence = new Date(today.getFullYear(), month, day);
+      year = thisYearOccurrence >= new Date(today.getFullYear(), today.getMonth(), today.getDate())
+        ? today.getFullYear()
+        : today.getFullYear() + 1;
+    }
+
+    setSelectedDate(new Date(year, month, 1));
+    setHighlightedDay({ year, month, day });
+  };
 
   const fetchEvents = async (y: number, m: number) => {
     setLoading(true);
@@ -448,13 +479,18 @@ export default function AnniversariesPage() {
       cellDay === today.getDate() &&
       cellMonth === today.getMonth() &&
       cellYear === today.getFullYear();
+    const isSearchHighlighted =
+      !!highlightedDay &&
+      cellDay === highlightedDay.day &&
+      cellMonth === highlightedDay.month &&
+      cellYear === highlightedDay.year;
 
     dayCells.push(
       <div
         key={`${cellYear}-${cellMonth}-${cellDay}`}
         className={`border p-1 sm:p-2 h-24 sm:h-32 rounded-xl shadow-md transition-colors relative overflow-hidden ${
           isCurrentMonth ? 'hover:bg-emerald-50' : 'text-gray-400 bg-gray-50'
-        } ${isToday ? 'ring-2 ring-emerald-500' : ''}`}
+        } ${isToday ? 'ring-2 ring-emerald-500' : ''} ${isSearchHighlighted ? 'ring-4 ring-amber-400 animate-pulse' : ''}`}
         dir={i18n.dir()}
       >
         <div
@@ -630,6 +666,7 @@ export default function AnniversariesPage() {
     <div className="container mx-auto px-2 py-2 sm:px-4 sm:py-4">
       <h1 className="text-2xl font-bold mb-2 sm:mb-4">{t('familyCalendar')}</h1>
       <div className="mb-3 sm:mb-4 flex items-center justify-center gap-2">
+        <EventSearchBox onSelect={handleSearchSelect} />
         <Button
           aria-label={t('calendarPrevYear') as string}
           onClick={handlePrevYear}
@@ -717,6 +754,13 @@ export default function AnniversariesPage() {
             setImageFile(null);
             setImageSrc('');
             fetchEvents(selectedDate.getFullYear(), selectedDate.getMonth());
+          }}
+          onViewSimilarEvent={(event) => {
+            setIsModalOpen(false);
+            setEditEvent(null);
+            setImageFile(null);
+            setImageSrc('');
+            handleSearchSelect(event);
           }}
         />
       </Modal>
