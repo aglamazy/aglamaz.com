@@ -1,7 +1,7 @@
 /**
  * Tests for DigestTemplateService.buildMonthlyDigestEmail
  *
- * QA focus (famcircle#59, family-digest-formats-spec.md §6, real-data preview fixes):
+ * QA focus (famcircle#59/#65-fix, family-digest-formats-spec.md §6, real-data preview fixes):
  * - each event row renders a real <img> thumbnail when imageUrl is present, and a
  *   graceful (non-broken-image) placeholder when it's missing
  * - the "recent photos" section renders real <img> thumbnails from
@@ -10,20 +10,22 @@
  *   the site (calendar / gallery), not just visually styled
  * - no memorial (death) event gets a distinct "note/warning" box - same row markup as
  *   birthday/wedding
+ * - the digest covers two full calendar months (past + coming), not a rolling window
+ *   (Agla, 2026-07-21 live-testing correction)
  */
 
 import assert from 'node:assert/strict';
 import { DigestTemplateService } from '../src/services/DigestTemplateService';
-import type { DigestRangePayload } from '../src/services/DigestCompilerService';
+import type { MonthlyDigestPayload } from '../src/services/DigestCompilerService';
 
 const CALENDAR_URL = 'https://example.com/app/calendar';
 const GALLERY_URL = 'https://example.com/app/photos';
 
-const FIXTURE: DigestRangePayload = {
+const FIXTURE: MonthlyDigestPayload = {
   siteId: 'site1',
-  startDate: new Date(2026, 5, 1),
-  endDate: new Date(2026, 5, 30),
-  events: [
+  pastMonth: { month: 5, year: 2026 },
+  comingMonth: { month: 6, year: 2026 },
+  comingEvents: [
     {
       id: 'e1',
       siteId: 'site1',
@@ -39,20 +41,6 @@ const FIXTURE: DigestRangePayload = {
       createdAt: null,
     } as any,
     {
-      id: 'e2',
-      siteId: 'site1',
-      ownerId: 'owner1',
-      name: 'Grandma Sarah',
-      type: 'death',
-      date: null,
-      month: 6,
-      day: 10,
-      year: 2020,
-      isAnnual: true,
-      // no imageUrl - must fall back to a placeholder, not a broken <img>
-      createdAt: null,
-    } as any,
-    {
       id: 'e3',
       siteId: 'site1',
       ownerId: 'owner1',
@@ -64,6 +52,22 @@ const FIXTURE: DigestRangePayload = {
       year: 2015,
       isAnnual: true,
       imageUrl: 'https://example.com/photos/dan-mira.jpg',
+      createdAt: null,
+    } as any,
+  ],
+  pastEvents: [
+    {
+      id: 'e2',
+      siteId: 'site1',
+      ownerId: 'owner1',
+      name: 'Grandma Sarah',
+      type: 'death',
+      date: null,
+      month: 5,
+      day: 10,
+      year: 2020,
+      isAnnual: true,
+      // no imageUrl - must fall back to a placeholder, not a broken <img>
       createdAt: null,
     } as any,
   ],
@@ -123,7 +127,8 @@ function testPhotoSectionRendersRealThumbnails() {
 function testEventRowsAreClickableIntoCalendar() {
   const html = buildFixtureHtml();
   const anchorCount = (html.match(new RegExp(`<a href="${CALENDAR_URL}"`, 'g')) || []).length;
-  assert.equal(anchorCount, FIXTURE.events.length, 'every event row must be wrapped in an anchor to the calendar');
+  const totalEvents = FIXTURE.comingEvents.length + FIXTURE.pastEvents.length;
+  assert.equal(anchorCount, totalEvents, 'every event row (past + coming) must be wrapped in an anchor to the calendar');
   console.log('event rows are anchor-wrapped into the calendar: PASSED');
 }
 
@@ -157,17 +162,26 @@ function testGreetingUsesRecipientNameNotSiteName() {
   console.log('greeting addresses the recipient, not the site: PASSED');
 }
 
-function testEmptyEventsSectionIsOmitted() {
-  const EMPTY_EVENTS_FIXTURE: DigestRangePayload = { ...FIXTURE, events: [] };
-  const result = DigestTemplateService.buildMonthlyDigestEmail(EMPTY_EVENTS_FIXTURE, {
+function testEmptySectionsAreOmitted() {
+  const EMPTY_FIXTURE: MonthlyDigestPayload = { ...FIXTURE, comingEvents: [], pastEvents: [], photos: [] };
+  const result = DigestTemplateService.buildMonthlyDigestEmail(EMPTY_FIXTURE, {
     locale: 'en',
     siteName: 'The Aglamaz Family',
     recipientName: 'Dan',
     calendarUrl: CALENDAR_URL,
     galleryUrl: GALLERY_URL,
   });
-  assert.ok(!result.html.includes('אירועים קרובים:'), 'an empty events list must omit the section entirely, not print an empty-state line');
-  console.log('empty events section is omitted rather than shown empty: PASSED');
+  assert.ok(!result.html.includes('<a href='), 'a fully empty digest must render no section content at all');
+  console.log('empty sections are omitted rather than shown empty: PASSED');
+}
+
+function testCoversFullCalendarMonthsBothDirections() {
+  const html = buildFixtureHtml();
+  // Coming month (June, fixture) content present, past month (May, fixture) content present -
+  // both real calendar months, not a rolling window keyed off "now".
+  assert.ok(html.includes('Grandpa Moshe'), 'coming-month event must be present');
+  assert.ok(html.includes('Grandma Sarah'), 'past-month event must be present');
+  console.log('digest covers both the past and coming full calendar month: PASSED');
 }
 
 function run() {
@@ -178,7 +192,8 @@ function run() {
   testPhotoThumbnailsAreClickableIntoGallery();
   testNoMemorialWarningStyling();
   testGreetingUsesRecipientNameNotSiteName();
-  testEmptyEventsSectionIsOmitted();
+  testEmptySectionsAreOmitted();
+  testCoversFullCalendarMonthsBothDirections();
 }
 
 run();

@@ -31,6 +31,22 @@ export interface CompileDigestOptions {
   recentPhotosLimit?: number;
 }
 
+/**
+ * Two full calendar months (not a rolling window) for the monthly-cadence digest:
+ * everything that happened in the month just finished, and everything on the
+ * calendar for the month just starting. Per Agla's live-testing correction
+ * 2026-07-21 - a rolling "now to now+1 month" window produced random-looking
+ * period boundaries; recipients expect real calendar-month boundaries.
+ */
+export interface MonthlyDigestPayload {
+  siteId: string;
+  pastMonth: { month: number; year: number };
+  comingMonth: { month: number; year: number };
+  pastEvents: AnniversaryEvent[];
+  comingEvents: AnniversaryEvent[];
+  photos: GalleryPhoto[];
+}
+
 function enumerateMonthYearPairs(startDate: Date, endDate: Date): Array<{ month: number; year: number }> {
   const pairs: Array<{ month: number; year: number }> = [];
   let month = startDate.getMonth();
@@ -83,6 +99,39 @@ export class DigestCompilerService {
     ]);
 
     return { siteId, month, year, events, photos };
+  }
+
+  /**
+   * Monthly-cadence compile: the full calendar month before `referenceDate` (what happened)
+   * plus the full calendar month `referenceDate` falls in (what's coming) - see
+   * MonthlyDigestPayload doc comment for why this replaced a rolling window.
+   */
+  async compileMonthlyDigest(
+    siteId: string,
+    referenceDate: Date,
+    options?: CompileDigestOptions,
+  ): Promise<MonthlyDigestPayload> {
+    const recentPhotosLimit = options?.recentPhotosLimit ?? DEFAULT_RECENT_PHOTOS_LIMIT;
+    const comingMonth = referenceDate.getMonth();
+    const comingYear = referenceDate.getFullYear();
+    const pastRef = new Date(comingYear, comingMonth - 1, 1);
+    const pastMonth = pastRef.getMonth();
+    const pastYear = pastRef.getFullYear();
+
+    const [comingEvents, pastEvents, photos] = await Promise.all([
+      this.anniversaryRepository.getEventsForMonth(siteId, comingMonth, comingYear, options?.locale),
+      this.anniversaryRepository.getEventsForMonth(siteId, pastMonth, pastYear, options?.locale),
+      this.galleryPhotoRepository.listBySite(siteId, options?.locale, { limit: recentPhotosLimit }),
+    ]);
+
+    return {
+      siteId,
+      pastMonth: { month: pastMonth, year: pastYear },
+      comingMonth: { month: comingMonth, year: comingYear },
+      pastEvents,
+      comingEvents,
+      photos,
+    };
   }
 
   /**

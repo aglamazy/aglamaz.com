@@ -1,6 +1,7 @@
 import type { ISite } from '@/entities/Site';
-import type { AnniversaryType } from '@/entities/Anniversary';
-import type { DigestRangePayload } from './DigestCompilerService';
+import type { AnniversaryEvent, AnniversaryType } from '@/entities/Anniversary';
+import type { GalleryPhoto } from '@/repositories/GalleryPhotoRepository';
+import type { DigestRangePayload, MonthlyDigestPayload } from './DigestCompilerService';
 import { getLocalizedFields } from './LocalizationService.client';
 import { renderEmailHtml, escapeHtml } from './emailTemplates';
 
@@ -24,6 +25,12 @@ export interface BuildDigestEmailOptions {
 const EVENT_THUMB_SIZE = 48;
 const PHOTO_THUMB_SIZE = 96;
 
+function formatMonthLabel(month: number, year: number, locale: string): string {
+  const date = new Date(year, month, 1);
+  const formatterLocale = locale === 'he' ? 'he-IL' : locale === 'tr' ? 'tr-TR' : 'en-US';
+  return new Intl.DateTimeFormat(formatterLocale, { month: 'long', year: 'numeric' }).format(date);
+}
+
 function formatRangeLabel(startDate: Date, endDate: Date, locale: string): string {
   const formatterLocale = locale === 'he' ? 'he-IL' : locale === 'tr' ? 'tr-TR' : 'en-US';
   const formatter = new Intl.DateTimeFormat(formatterLocale, { month: 'long', day: 'numeric', year: 'numeric' });
@@ -36,7 +43,7 @@ function formatRangeLabel(startDate: Date, endDate: Date, locale: string): strin
   return `${formatter.format(startDate)} – ${formatter.format(endDate)}`;
 }
 
-function formatEventDate(event: DigestRangePayload['events'][number], locale: string): string {
+function formatEventDate(event: AnniversaryEvent, locale: string): string {
   const formatterLocale = locale === 'he' ? 'he-IL' : locale === 'tr' ? 'tr-TR' : 'en-US';
   const date = new Date(event.year, event.month, event.day);
   return new Intl.DateTimeFormat(formatterLocale, {
@@ -46,7 +53,7 @@ function formatEventDate(event: DigestRangePayload['events'][number], locale: st
   }).format(date);
 }
 
-function formatPhotoDate(photo: DigestRangePayload['photos'][number], locale: string): string {
+function formatPhotoDate(photo: GalleryPhoto, locale: string): string {
   const formatterLocale = locale === 'he' ? 'he-IL' : locale === 'tr' ? 'tr-TR' : 'en-US';
   const photoDate = photo.date?.toDate ? photo.date.toDate() : new Date(photo.date as unknown as string);
   return new Intl.DateTimeFormat(formatterLocale, {
@@ -75,14 +82,14 @@ function formatEventName(name: string, type: AnniversaryType, locale: string): s
   return fn(name);
 }
 
-function formatEventLine(event: DigestRangePayload['events'][number], locale: string): string {
+function formatEventLine(event: AnniversaryEvent, locale: string): string {
   const name = formatEventName(event.name, event.type, locale);
   return `${name} - ${formatEventDate(event, locale)}`;
 }
 
-function formatPhotoLine(photo: DigestRangePayload['photos'][number], locale: string): string {
+function formatPhotoLine(photo: GalleryPhoto, locale: string): string {
   const formattedDate = formatPhotoDate(photo, locale);
-  const description = (photo as DigestRangePayload['photos'][number] & { description?: string }).description;
+  const description = (photo as GalleryPhoto & { description?: string }).description;
   if (description && description.trim()) {
     return `${description.trim()} - ${formattedDate}`;
   }
@@ -94,7 +101,7 @@ function formatPhotoLine(photo: DigestRangePayload['photos'][number], locale: st
  * both wrapped in a single anchor into the calendar. Same visual weight for every event type -
  * per family-digest-formats-spec.md §6, memorial (death) events get NO distinct "warning" styling.
  */
-function renderEventRow(event: DigestRangePayload['events'][number], locale: string, calendarUrl: string): string {
+function renderEventRow(event: AnniversaryEvent, locale: string, calendarUrl: string): string {
   const name = formatEventName(escapeHtml(event.name), event.type, locale);
   const label = `${name} - ${escapeHtml(formatEventDate(event, locale))}`;
   const thumbnail = event.imageUrl
@@ -107,7 +114,7 @@ function renderEventRow(event: DigestRangePayload['events'][number], locale: str
  * One clickable photo thumbnail (real imagesWithDimensions[0].url, or a placeholder tile when
  * missing) wrapped in an anchor into the gallery.
  */
-function renderPhotoThumbnail(photo: DigestRangePayload['photos'][number], galleryUrl: string): string {
+function renderPhotoThumbnail(photo: GalleryPhoto, galleryUrl: string): string {
   const url = photo.imagesWithDimensions?.[0]?.url;
   const tile = url
     ? `<img src="${escapeHtml(url)}" alt="" width="${PHOTO_THUMB_SIZE}" height="${PHOTO_THUMB_SIZE}" style="width:${PHOTO_THUMB_SIZE}px;height:${PHOTO_THUMB_SIZE}px;border-radius:8px;object-fit:cover;" />`
@@ -115,7 +122,7 @@ function renderPhotoThumbnail(photo: DigestRangePayload['photos'][number], galle
   return `<a href="${escapeHtml(galleryUrl)}" style="display:inline-block;margin:4px;">${tile}</a>`;
 }
 
-function renderPhotoGrid(photos: DigestRangePayload['photos'], galleryUrl: string): string {
+function renderPhotoGrid(photos: GalleryPhoto[], galleryUrl: string): string {
   return photos.map((photo) => renderPhotoThumbnail(photo, galleryUrl)).join('');
 }
 
@@ -178,23 +185,62 @@ function buildRangeDigestEmail(
 
 export class DigestTemplateService {
   /**
-   * Monthly-cadence digest - forward-looking (upcoming events in the window ahead, not a
-   * past-month recap): coming birthdays/יום פטירה/anniversaries, per Agla's live-testing
-   * correction 2026-07-21 (a genuinely empty "last month" digest is not useful content).
+   * Monthly-cadence digest - two full calendar months (see MonthlyDigestPayload doc
+   * comment): "what happened" (the month just finished) and "what's coming" (the month
+   * just starting), each its own section, each omitted independently when empty. Per
+   * Agla's live-testing correction 2026-07-21 - a rolling window produced random-looking
+   * period boundaries and one-directional content; recipients expect real calendar-month
+   * boundaries and both a recap and a heads-up.
    */
   static buildMonthlyDigestEmail(
-    digest: DigestRangePayload,
+    digest: MonthlyDigestPayload,
     options: BuildDigestEmailOptions,
   ): DigestEmailContent {
-    const periodLabel = formatRangeLabel(digest.startDate, digest.endDate, options.locale);
-    return buildRangeDigestEmail(
-      digest,
-      options,
-      'תקציר חודשי',
-      periodLabel,
-      `הנה התקציר החודשי עבור ${options.siteName} - אירועים קרובים ותמונות אחרונות.`,
-      'אירועים קרובים',
-    );
+    const comingLabel = formatMonthLabel(digest.comingMonth.month, digest.comingMonth.year, options.locale);
+    const pastLabel = formatMonthLabel(digest.pastMonth.month, digest.pastMonth.year, options.locale);
+
+    const pastEventLines = digest.pastEvents.map((event) => formatEventLine(event, options.locale));
+    const comingEventLines = digest.comingEvents.map((event) => formatEventLine(event, options.locale));
+    const photoLines = digest.photos.map((photo) => formatPhotoLine(photo, options.locale));
+    const pastEventRows = digest.pastEvents.map((event) => renderEventRow(event, options.locale, options.calendarUrl)).join('');
+    const comingEventRows = digest.comingEvents
+      .map((event) => renderEventRow(event, options.locale, options.calendarUrl))
+      .join('');
+    const photoGrid = renderPhotoGrid(digest.photos, options.galleryUrl);
+
+    const subject = `תקציר חודשי - ${options.siteName} - ${comingLabel}`;
+    const greeting = `שלום ${options.recipientName},`;
+    const introLine = `הנה התקציר החודשי עבור ${options.siteName}.`;
+
+    const paragraphs = [
+      introLine,
+      digest.comingEvents.length ? `אירועים ב${comingLabel}:<br />${comingEventRows}` : null,
+      digest.pastEvents.length ? `מה היה ב${pastLabel}:<br />${pastEventRows}` : null,
+      digest.photos.length ? `תמונות אחרונות:<br />${photoGrid}` : null,
+    ].filter((p): p is string => p !== null);
+
+    const html = renderEmailHtml({
+      subject,
+      lang: options.locale,
+      dir: options.locale === 'he' ? 'rtl' : 'ltr',
+      heading: `🌳 ${options.siteName}`,
+      preheader: subject,
+      greeting,
+      paragraphs,
+      footerLines: ['תקציר זה נוצר באופן אוטומטי.'],
+    });
+
+    const textSections = [
+      greeting,
+      introLine,
+      digest.comingEvents.length ? [`אירועים ב${comingLabel}:`, ...comingEventLines.map((l) => `• ${l}`)].join('\n') : null,
+      digest.pastEvents.length ? [`מה היה ב${pastLabel}:`, ...pastEventLines.map((l) => `• ${l}`)].join('\n') : null,
+      digest.photos.length ? ['תמונות אחרונות:', ...photoLines.map((l) => `• ${l}`)].join('\n') : null,
+      'תקציר זה נוצר באופן אוטומטי.',
+    ].filter((s): s is string => s !== null);
+    const text = textSections.join('\n\n');
+
+    return { subject, html, text };
   }
 
   /**

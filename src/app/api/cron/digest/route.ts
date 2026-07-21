@@ -26,12 +26,6 @@ const SOURCE_LOCALE = 'he';
 
 type SendableCadence = Exclude<UnifiedMagazineCadence, 'none'>;
 
-function addMonths(date: Date, months: number): Date {
-  const result = new Date(date);
-  result.setMonth(result.getMonth() + months);
-  return result;
-}
-
 function addDays(date: Date, days: number): Date {
   const result = new Date(date);
   result.setDate(result.getDate() + days);
@@ -137,12 +131,6 @@ export async function GET(request: NextRequest) {
   }
 
   const now = new Date();
-  // Both cadences are forward-looking (coming birthdays/יום פטירה/anniversaries), not a
-  // recap of what already happened - a genuinely empty "last month" digest isn't useful
-  // content (Agla, 2026-07-21, live-testing correction). Weekly gets a ~week window,
-  // monthly a ~month window - previously both cadences shared the same 1-month window,
-  // which made them send near-identical content.
-  const windowEnd = (cadence: SendableCadence) => (cadence === 'weekly' ? addDays(now, 7) : addMonths(now, 1));
   const calendarUrl = new URL(getPath(AppRoute.APP_CALENDAR), request.nextUrl.origin).toString();
   const galleryUrl = new URL(getPath(AppRoute.APP_PHOTOS), request.nextUrl.origin).toString();
 
@@ -174,9 +162,15 @@ export async function GET(request: NextRequest) {
       }
 
       const siteName = resolveDigestSiteName(site, siteDefaultLocale, siteId);
-      const digest = await digestCompiler.compileDigestForRange(siteId, now, windowEnd(cadence), {
-        locale: SOURCE_LOCALE,
-      });
+      // Monthly = two full calendar months (what happened + what's coming); weekly = a
+      // real rolling week. See MonthlyDigestPayload's doc comment for why monthly moved
+      // off a rolling window (Agla, 2026-07-21, live-testing correction).
+      const monthlyDigest =
+        cadence === 'monthly' ? await digestCompiler.compileMonthlyDigest(siteId, now, { locale: SOURCE_LOCALE }) : null;
+      const weeklyDigest =
+        cadence === 'weekly'
+          ? await digestCompiler.compileDigestForRange(siteId, now, addDays(now, 7), { locale: SOURCE_LOCALE })
+          : null;
 
       // Built per-member (not once per site): the greeting names the actual recipient,
       // and each member may read in a different locale (mirrors InDayReminderService's
@@ -186,15 +180,15 @@ export async function GET(request: NextRequest) {
           const recipientLocale = normalizeLang(member.defaultLocale) ?? siteDefaultLocale;
           const recipientName = member.firstName || member.displayName || member.email;
           const template =
-            cadence === 'weekly'
-              ? DigestTemplateService.buildWeeklyDigestEmail(digest, {
+            weeklyDigest !== null
+              ? DigestTemplateService.buildWeeklyDigestEmail(weeklyDigest, {
                   locale: SOURCE_LOCALE,
                   siteName,
                   recipientName,
                   calendarUrl,
                   galleryUrl,
                 })
-              : DigestTemplateService.buildMonthlyDigestEmail(digest, {
+              : DigestTemplateService.buildMonthlyDigestEmail(monthlyDigest!, {
                   locale: SOURCE_LOCALE,
                   siteName,
                   recipientName,
