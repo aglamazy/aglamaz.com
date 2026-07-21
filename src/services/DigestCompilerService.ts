@@ -31,28 +31,28 @@ export interface CompileDigestOptions {
   recentPhotosLimit?: number;
 }
 
-/** One past event, told as a small article: its own description + its own photos, not just a row. */
-export interface PastDigestEvent {
+/** One event, told as a small article: its own description + its own linked photos, not just a row. */
+export interface DigestEventWithPhotos {
   event: AnniversaryEvent;
   photos: GalleryPhoto[];
 }
 
 /**
  * Full calendar months (not a rolling window) for the monthly-cadence digest: everything
- * that happened in the month just finished (as article-style entries with their own
- * description/photos), and everything coming up over the current + next calendar month
- * (two months, so there's always a real forward-looking window even sent on the last day
- * of a month - a single "current month" window would show almost nothing then). Per
- * Agla's live-testing correction 2026-07-21 - a rolling "now to now+1 month" window
- * produced random-looking period boundaries; recipients expect real calendar-month
- * boundaries.
+ * that happened in the month just finished, and everything coming up over the current +
+ * next calendar month (two months, so there's always a real forward-looking window even
+ * sent on the last day of a month - a single "current month" window would show almost
+ * nothing then). Every event - past or coming - carries its own description/photos for
+ * an article-style render. Per Agla's live-testing corrections 2026-07-21 - a rolling
+ * "now to now+1 month" window produced random-looking period boundaries; recipients
+ * expect real calendar-month boundaries and the same rich treatment for every event.
  */
 export interface MonthlyDigestPayload {
   siteId: string;
   pastMonth: { month: number; year: number };
   comingRange: { startMonth: number; startYear: number; endMonth: number; endYear: number };
-  pastEvents: PastDigestEvent[];
-  comingEvents: AnniversaryEvent[];
+  pastEvents: DigestEventWithPhotos[];
+  comingEvents: DigestEventWithPhotos[];
   photos: GalleryPhoto[];
 }
 
@@ -141,18 +141,24 @@ export class DigestCompilerService {
     // (e.g. a birth year) for non-Hebrew events - remap to the month actually being
     // displayed, or a birthday digest row shows "1993" instead of the real target
     // year (Agla, 2026-07-21 live-testing correction).
-    const comingEvents = [
+    const comingEventsRemapped = [
       ...comingEventsThisMonth.map((e) => ({ ...e, month: startMonth, year: startYear })),
       ...comingEventsNextMonth.map((e) => ({ ...e, month: endMonth, year: endYear })),
     ].sort((a, b) => new Date(a.year, a.month, a.day).getTime() - new Date(b.year, b.month, b.day).getTime());
-
     const pastEventsRemapped = pastEventsRaw.map((e) => ({ ...e, month: pastMonth, year: pastYear }));
-    const pastEvents: PastDigestEvent[] = await Promise.all(
-      pastEventsRemapped.map(async (event) => ({
-        event,
-        photos: await this.galleryPhotoRepository.listByAnniversary(event.id),
-      })),
-    );
+
+    const withPhotos = (events: AnniversaryEvent[]): Promise<DigestEventWithPhotos[]> =>
+      Promise.all(
+        events.map(async (event) => ({
+          event,
+          photos: await this.galleryPhotoRepository.listByAnniversary(event.id),
+        })),
+      );
+
+    const [comingEvents, pastEvents] = await Promise.all([
+      withPhotos(comingEventsRemapped),
+      withPhotos(pastEventsRemapped),
+    ]);
 
     return {
       siteId,

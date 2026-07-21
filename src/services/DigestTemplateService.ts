@@ -1,7 +1,7 @@
 import type { ISite } from '@/entities/Site';
 import type { AnniversaryEvent, AnniversaryType } from '@/entities/Anniversary';
 import type { GalleryPhoto } from '@/repositories/GalleryPhotoRepository';
-import type { DigestRangePayload, MonthlyDigestPayload, PastDigestEvent } from './DigestCompilerService';
+import type { DigestEventWithPhotos, DigestRangePayload, MonthlyDigestPayload } from './DigestCompilerService';
 import { getLocalizedFields } from './LocalizationService.client';
 import { renderEmailHtml, escapeHtml } from './emailTemplates';
 
@@ -157,26 +157,35 @@ const TYPE_ICON: Record<AnniversaryType, string> = {
 };
 
 /**
- * One past event told as a small article - photo/icon, name, date, its own description
- * (when written), and its own photos (via GalleryPhoto.anniversaryId) - not just a row,
- * per Agla's 2026-07-21 request. Name/date link into the calendar; each photo links into
- * the gallery separately (an <a> can't nest inside another <a>).
+ * One event told as a small magazine article - title on top, a full (not circular) hero
+ * image when the event has one, its own description (when written), and a collage of
+ * every photo linked to it (GalleryPhoto.anniversaryId) - the same treatment for every
+ * event, past or coming, per Agla's 2026-07-21 request. Title/date link into the
+ * calendar; each collage photo links into the gallery separately (an <a> can't nest
+ * inside another <a>).
  */
-function renderPastEventArticle(pastEvent: PastDigestEvent, locale: string, calendarUrl: string, galleryUrl: string): string {
-  const { event, photos } = pastEvent;
+function renderEventArticle(entry: DigestEventWithPhotos, locale: string, calendarUrl: string, galleryUrl: string): string {
+  const { event, photos } = entry;
   const name = formatEventName(escapeHtml(event.name), event.type, locale);
   const dateLabel = escapeHtml(formatEventDate(event, locale));
-  const thumbnail = event.imageUrl
-    ? `<img src="${escapeHtml(event.imageUrl)}" alt="${escapeHtml(event.name)}" width="56" height="56" style="width:56px;height:56px;border-radius:50%;object-fit:cover;flex-shrink:0;" />`
-    : `<span aria-hidden="true" style="display:inline-flex;align-items:center;justify-content:center;width:56px;height:56px;border-radius:50%;background:#e3ede6;font-size:24px;flex-shrink:0;">${TYPE_ICON[event.type]}</span>`;
+
+  const hero = event.imageUrl
+    ? `<img src="${escapeHtml(event.imageUrl)}" alt="${escapeHtml(event.name)}" style="width:100%;max-height:220px;border-radius:14px;object-fit:cover;display:block;margin-top:10px;" />`
+    : `<div aria-hidden="true" style="width:100%;height:96px;border-radius:14px;background:#e3ede6;display:flex;align-items:center;justify-content:center;font-size:36px;margin-top:10px;">${TYPE_ICON[event.type]}</div>`;
+
   const description = event.description?.trim()
-    ? `<p style="margin:10px 0 0;color:#3c4a3f;">${escapeHtml(event.description.trim())}</p>`
+    ? `<p style="margin:12px 0 0;color:#3c4a3f;">${escapeHtml(event.description.trim())}</p>`
     : '';
-  const photoStrip = photos.length
+  const collage = photos.length
     ? `<div style="margin-top:10px;">${photos.map((p) => renderPhotoThumbnail(p, galleryUrl)).join('')}</div>`
     : '';
 
-  return `<div style="display:flex;gap:14px;padding:16px 0;border-bottom:1px solid #e3ede6;">${thumbnail}<div style="flex:1;min-width:0;"><a href="${escapeHtml(calendarUrl)}" style="text-decoration:none;color:inherit;"><div style="font-weight:600;font-size:16px;">${name}</div><div style="font-size:13px;color:#6d7f74;margin-top:2px;">${dateLabel}</div></a>${description}${photoStrip}</div></div>`;
+  return `<div style="padding:18px 0;border-bottom:1px solid #e3ede6;"><a href="${escapeHtml(calendarUrl)}" style="text-decoration:none;color:inherit;"><div style="font-weight:700;font-size:17px;">${name}</div><div style="font-size:13px;color:#6d7f74;margin-top:2px;">${dateLabel}</div>${hero}</a>${description}${collage}</div>`;
+}
+
+/** A visually separate card for one section ("what was" vs "what's coming") - a shared background tint isn't enough to read as two distinct blocks. */
+function renderSectionCard(title: string, innerHtml: string, tint: string): string {
+  return `<div style="background:${tint};border-radius:16px;padding:18px 20px;margin:18px 0;"><div style="font-weight:700;font-size:15px;margin-bottom:4px;">${title}</div>${innerHtml}</div>`;
 }
 
 /**
@@ -253,13 +262,16 @@ export class DigestTemplateService {
     const comingLabel = formatMonthRangeLabel(startMonth, startYear, endMonth, endYear, options.locale);
     const pastLabel = formatMonthLabel(digest.pastMonth.month, digest.pastMonth.year, options.locale);
 
-    const comingEventLines = digest.comingEvents.map((event) => formatEventLine(event, options.locale));
+    const eventLine = (entry: DigestEventWithPhotos) => {
+      const line = formatEventLine(entry.event, options.locale);
+      return entry.event.description?.trim() ? `${line} - ${entry.event.description.trim()}` : line;
+    };
     const photoLines = digest.photos.map((photo) => formatPhotoLine(photo, options.locale));
-    const comingEventRows = digest.comingEvents
-      .map((event) => renderEventRow(event, options.locale, options.calendarUrl))
+    const comingArticles = digest.comingEvents
+      .map((entry) => renderEventArticle(entry, options.locale, options.calendarUrl, options.galleryUrl))
       .join('');
     const pastArticles = digest.pastEvents
-      .map((pastEvent) => renderPastEventArticle(pastEvent, options.locale, options.calendarUrl, options.galleryUrl))
+      .map((entry) => renderEventArticle(entry, options.locale, options.calendarUrl, options.galleryUrl))
       .join('');
     const photoGrid = renderPhotoGrid(digest.photos, options.galleryUrl);
 
@@ -267,12 +279,14 @@ export class DigestTemplateService {
     const greeting = `שלום ${options.recipientName},`;
     const introLine = `היי, הנה מה שקורה החודש אצל ${options.siteName} 🌿`;
 
+    // Two distinctly tinted cards - "what was" and "what's coming" need to read as
+    // clearly separate blocks, not just adjacent headings (Agla, 2026-07-21).
     const paragraphs = [
       introLine,
+      digest.pastEvents.length ? renderSectionCard(`מה היה ב${pastLabel}`, pastArticles, '#f7f3ec') : null,
       digest.comingEvents.length
-        ? `<strong>אירועים קרובים - ${comingLabel}</strong><br />${comingEventRows}`
+        ? renderSectionCard(`אירועים קרובים - ${comingLabel}`, comingArticles, '#eef5f0')
         : null,
-      digest.pastEvents.length ? `<strong>מה היה ב${pastLabel}</strong>${pastArticles}` : null,
       digest.photos.length ? `<strong>תמונות אחרונות מהמשפחה</strong><br />${photoGrid}` : null,
     ].filter((p): p is string => p !== null);
 
@@ -290,17 +304,11 @@ export class DigestTemplateService {
     const textSections = [
       greeting,
       introLine,
-      digest.comingEvents.length
-        ? [`אירועים קרובים - ${comingLabel}:`, ...comingEventLines.map((l) => `• ${l}`)].join('\n')
-        : null,
       digest.pastEvents.length
-        ? [
-            `מה היה ב${pastLabel}:`,
-            ...digest.pastEvents.map(({ event }) => {
-              const line = formatEventLine(event, options.locale);
-              return event.description?.trim() ? `• ${line} - ${event.description.trim()}` : `• ${line}`;
-            }),
-          ].join('\n')
+        ? [`מה היה ב${pastLabel}:`, ...digest.pastEvents.map((entry) => `• ${eventLine(entry)}`)].join('\n')
+        : null,
+      digest.comingEvents.length
+        ? [`אירועים קרובים - ${comingLabel}:`, ...digest.comingEvents.map((entry) => `• ${eventLine(entry)}`)].join('\n')
         : null,
       digest.photos.length ? ['תמונות אחרונות מהמשפחה:', ...photoLines.map((l) => `• ${l}`)].join('\n') : null,
       'תקציר זה נוצר באופן אוטומטי.',
