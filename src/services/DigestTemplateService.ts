@@ -1,7 +1,7 @@
 import type { ISite } from '@/entities/Site';
 import type { AnniversaryEvent, AnniversaryType } from '@/entities/Anniversary';
 import type { GalleryPhoto } from '@/repositories/GalleryPhotoRepository';
-import type { DigestRangePayload, MonthlyDigestPayload } from './DigestCompilerService';
+import type { DigestRangePayload, MonthlyDigestPayload, PastDigestEvent } from './DigestCompilerService';
 import { getLocalizedFields } from './LocalizationService.client';
 import { renderEmailHtml, escapeHtml } from './emailTemplates';
 
@@ -29,6 +29,29 @@ function formatMonthLabel(month: number, year: number, locale: string): string {
   const date = new Date(year, month, 1);
   const formatterLocale = locale === 'he' ? 'he-IL' : locale === 'tr' ? 'tr-TR' : 'en-US';
   return new Intl.DateTimeFormat(formatterLocale, { month: 'long', year: 'numeric' }).format(date);
+}
+
+function formatMonthRangeLabel(
+  startMonth: number,
+  startYear: number,
+  endMonth: number,
+  endYear: number,
+  locale: string,
+): string {
+  if (startMonth === endMonth && startYear === endYear) {
+    return formatMonthLabel(startMonth, startYear, locale);
+  }
+  const formatterLocale = locale === 'he' ? 'he-IL' : locale === 'tr' ? 'tr-TR' : 'en-US';
+  const formatter = new Intl.DateTimeFormat(formatterLocale, { month: 'long', year: 'numeric' });
+  const formatterWithRange = formatter as Intl.DateTimeFormat & {
+    formatRange?: (start: Date, end: Date) => string;
+  };
+  const start = new Date(startYear, startMonth, 1);
+  const end = new Date(endYear, endMonth, 1);
+  if (typeof formatterWithRange.formatRange === 'function') {
+    return formatterWithRange.formatRange(start, end);
+  }
+  return `${formatter.format(start)} – ${formatter.format(end)}`;
 }
 
 function formatRangeLabel(startDate: Date, endDate: Date, locale: string): string {
@@ -126,6 +149,36 @@ function renderPhotoGrid(photos: GalleryPhoto[], galleryUrl: string): string {
   return photos.map((photo) => renderPhotoThumbnail(photo, galleryUrl)).join('');
 }
 
+const TYPE_ICON: Record<AnniversaryType, string> = {
+  birthday: '🎂',
+  wedding: '💍',
+  death: '🕯️',
+  other: '⭐',
+};
+
+/**
+ * One past event told as a small article - photo/icon, name, date, its own description
+ * (when written), and its own photos (via GalleryPhoto.anniversaryId) - not just a row,
+ * per Agla's 2026-07-21 request. Name/date link into the calendar; each photo links into
+ * the gallery separately (an <a> can't nest inside another <a>).
+ */
+function renderPastEventArticle(pastEvent: PastDigestEvent, locale: string, calendarUrl: string, galleryUrl: string): string {
+  const { event, photos } = pastEvent;
+  const name = formatEventName(escapeHtml(event.name), event.type, locale);
+  const dateLabel = escapeHtml(formatEventDate(event, locale));
+  const thumbnail = event.imageUrl
+    ? `<img src="${escapeHtml(event.imageUrl)}" alt="${escapeHtml(event.name)}" width="56" height="56" style="width:56px;height:56px;border-radius:50%;object-fit:cover;flex-shrink:0;" />`
+    : `<span aria-hidden="true" style="display:inline-flex;align-items:center;justify-content:center;width:56px;height:56px;border-radius:50%;background:#e3ede6;font-size:24px;flex-shrink:0;">${TYPE_ICON[event.type]}</span>`;
+  const description = event.description?.trim()
+    ? `<p style="margin:10px 0 0;color:#3c4a3f;">${escapeHtml(event.description.trim())}</p>`
+    : '';
+  const photoStrip = photos.length
+    ? `<div style="margin-top:10px;">${photos.map((p) => renderPhotoThumbnail(p, galleryUrl)).join('')}</div>`
+    : '';
+
+  return `<div style="display:flex;gap:14px;padding:16px 0;border-bottom:1px solid #e3ede6;">${thumbnail}<div style="flex:1;min-width:0;"><a href="${escapeHtml(calendarUrl)}" style="text-decoration:none;color:inherit;"><div style="font-weight:600;font-size:16px;">${name}</div><div style="font-size:13px;color:#6d7f74;margin-top:2px;">${dateLabel}</div></a>${description}${photoStrip}</div></div>`;
+}
+
 /**
  * Shared render for both cadences - they differ only in subject prefix and the label
  * under it (a specific month vs. a date range); content shape (events + recent photos)
@@ -185,38 +238,42 @@ function buildRangeDigestEmail(
 
 export class DigestTemplateService {
   /**
-   * Monthly-cadence digest - two full calendar months (see MonthlyDigestPayload doc
-   * comment): "what happened" (the month just finished) and "what's coming" (the month
-   * just starting), each its own section, each omitted independently when empty. Per
-   * Agla's live-testing correction 2026-07-21 - a rolling window produced random-looking
-   * period boundaries and one-directional content; recipients expect real calendar-month
-   * boundaries and both a recap and a heads-up.
+   * Monthly-cadence digest: a recap of the month just finished (article-style, with each
+   * event's own description/photos) and a heads-up on the current + next calendar month
+   * (so there's always real forward-looking content, not just whatever's left of "this
+   * month"). Per Agla's live-testing corrections 2026-07-21: real calendar-month
+   * boundaries (not a rolling window), the coming window needs to reach into next month
+   * or it goes empty near month-end, and past events deserve more than a one-line row.
    */
   static buildMonthlyDigestEmail(
     digest: MonthlyDigestPayload,
     options: BuildDigestEmailOptions,
   ): DigestEmailContent {
-    const comingLabel = formatMonthLabel(digest.comingMonth.month, digest.comingMonth.year, options.locale);
+    const { startMonth, startYear, endMonth, endYear } = digest.comingRange;
+    const comingLabel = formatMonthRangeLabel(startMonth, startYear, endMonth, endYear, options.locale);
     const pastLabel = formatMonthLabel(digest.pastMonth.month, digest.pastMonth.year, options.locale);
 
-    const pastEventLines = digest.pastEvents.map((event) => formatEventLine(event, options.locale));
     const comingEventLines = digest.comingEvents.map((event) => formatEventLine(event, options.locale));
     const photoLines = digest.photos.map((photo) => formatPhotoLine(photo, options.locale));
-    const pastEventRows = digest.pastEvents.map((event) => renderEventRow(event, options.locale, options.calendarUrl)).join('');
     const comingEventRows = digest.comingEvents
       .map((event) => renderEventRow(event, options.locale, options.calendarUrl))
+      .join('');
+    const pastArticles = digest.pastEvents
+      .map((pastEvent) => renderPastEventArticle(pastEvent, options.locale, options.calendarUrl, options.galleryUrl))
       .join('');
     const photoGrid = renderPhotoGrid(digest.photos, options.galleryUrl);
 
     const subject = `תקציר חודשי - ${options.siteName} - ${comingLabel}`;
     const greeting = `שלום ${options.recipientName},`;
-    const introLine = `הנה התקציר החודשי עבור ${options.siteName}.`;
+    const introLine = `היי, הנה מה שקורה החודש אצל ${options.siteName} 🌿`;
 
     const paragraphs = [
       introLine,
-      digest.comingEvents.length ? `אירועים ב${comingLabel}:<br />${comingEventRows}` : null,
-      digest.pastEvents.length ? `מה היה ב${pastLabel}:<br />${pastEventRows}` : null,
-      digest.photos.length ? `תמונות אחרונות:<br />${photoGrid}` : null,
+      digest.comingEvents.length
+        ? `<strong>אירועים קרובים - ${comingLabel}</strong><br />${comingEventRows}`
+        : null,
+      digest.pastEvents.length ? `<strong>מה היה ב${pastLabel}</strong>${pastArticles}` : null,
+      digest.photos.length ? `<strong>תמונות אחרונות מהמשפחה</strong><br />${photoGrid}` : null,
     ].filter((p): p is string => p !== null);
 
     const html = renderEmailHtml({
@@ -233,9 +290,19 @@ export class DigestTemplateService {
     const textSections = [
       greeting,
       introLine,
-      digest.comingEvents.length ? [`אירועים ב${comingLabel}:`, ...comingEventLines.map((l) => `• ${l}`)].join('\n') : null,
-      digest.pastEvents.length ? [`מה היה ב${pastLabel}:`, ...pastEventLines.map((l) => `• ${l}`)].join('\n') : null,
-      digest.photos.length ? ['תמונות אחרונות:', ...photoLines.map((l) => `• ${l}`)].join('\n') : null,
+      digest.comingEvents.length
+        ? [`אירועים קרובים - ${comingLabel}:`, ...comingEventLines.map((l) => `• ${l}`)].join('\n')
+        : null,
+      digest.pastEvents.length
+        ? [
+            `מה היה ב${pastLabel}:`,
+            ...digest.pastEvents.map(({ event }) => {
+              const line = formatEventLine(event, options.locale);
+              return event.description?.trim() ? `• ${line} - ${event.description.trim()}` : `• ${line}`;
+            }),
+          ].join('\n')
+        : null,
+      digest.photos.length ? ['תמונות אחרונות מהמשפחה:', ...photoLines.map((l) => `• ${l}`)].join('\n') : null,
       'תקציר זה נוצר באופן אוטומטי.',
     ].filter((s): s is string => s !== null);
     const text = textSections.join('\n\n');
