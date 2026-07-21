@@ -31,6 +31,12 @@ function formatMonthLabel(month: number, year: number, locale: string): string {
   return new Intl.DateTimeFormat(formatterLocale, { month: 'long', year: 'numeric' }).format(date);
 }
 
+function formatMonthNameOnly(month: number, locale: string): string {
+  const date = new Date(2000, month, 1);
+  const formatterLocale = locale === 'he' ? 'he-IL' : locale === 'tr' ? 'tr-TR' : 'en-US';
+  return new Intl.DateTimeFormat(formatterLocale, { month: 'long' }).format(date);
+}
+
 function formatMonthRangeLabel(
   startMonth: number,
   startYear: number,
@@ -184,8 +190,14 @@ function renderEventArticle(entry: DigestEventWithPhotos, locale: string, calend
 }
 
 /** A visually separate card for one section ("what was" vs "what's coming") - a shared background tint isn't enough to read as two distinct blocks. */
-function renderSectionCard(title: string, innerHtml: string, tint: string): string {
-  return `<div style="background:${tint};border-radius:16px;padding:18px 20px;margin:18px 0;"><div style="font-weight:700;font-size:15px;margin-bottom:4px;">${title}</div>${innerHtml}</div>`;
+function renderSectionCard(title: string | null, innerHtml: string, tint: string): string {
+  const titleHtml = title ? `<div style="font-weight:700;font-size:15px;margin-bottom:4px;">${title}</div>` : '';
+  return `<div style="background:${tint};border-radius:16px;padding:18px 20px;margin:18px 0;">${titleHtml}${innerHtml}</div>`;
+}
+
+/** Sub-heading inside a section card, e.g. splitting "coming" into this-month vs next-month. */
+function renderSubHeading(text: string): string {
+  return `<h2 style="font-size:15px;font-weight:700;margin:16px 0 4px;">${text}</h2>`;
 }
 
 /**
@@ -261,19 +273,30 @@ export class DigestTemplateService {
     const { startMonth, startYear, endMonth, endYear } = digest.comingRange;
     const comingLabel = formatMonthRangeLabel(startMonth, startYear, endMonth, endYear, options.locale);
     const pastLabel = formatMonthLabel(digest.pastMonth.month, digest.pastMonth.year, options.locale);
+    const thisMonthName = formatMonthNameOnly(startMonth, options.locale);
+    const nextMonthName = formatMonthNameOnly(endMonth, options.locale);
 
     const eventLine = (entry: DigestEventWithPhotos) => {
       const line = formatEventLine(entry.event, options.locale);
       return entry.event.description?.trim() ? `${line} - ${entry.event.description.trim()}` : line;
     };
     const photoLines = digest.photos.map((photo) => formatPhotoLine(photo, options.locale));
-    const comingArticles = digest.comingEvents
-      .map((entry) => renderEventArticle(entry, options.locale, options.calendarUrl, options.galleryUrl))
-      .join('');
     const pastArticles = digest.pastEvents
       .map((entry) => renderEventArticle(entry, options.locale, options.calendarUrl, options.galleryUrl))
       .join('');
     const photoGrid = renderPhotoGrid(digest.photos, options.galleryUrl);
+
+    // The "coming" window spans this month + next month - split into two sub-groups
+    // under their own h2 so "what's left of this month" and "next month" read as
+    // distinct, not one merged list (Agla, 2026-07-21).
+    const thisMonthEvents = digest.comingEvents.filter((e) => e.event.month === startMonth && e.event.year === startYear);
+    const nextMonthEvents = digest.comingEvents.filter((e) => e.event.month === endMonth && e.event.year === endYear);
+    const renderArticles = (entries: DigestEventWithPhotos[]) =>
+      entries.map((entry) => renderEventArticle(entry, options.locale, options.calendarUrl, options.galleryUrl)).join('');
+    const comingInner = [
+      thisMonthEvents.length ? `${renderSubHeading(`אז מה היה לנו בחודש ${thisMonthName}`)}${renderArticles(thisMonthEvents)}` : '',
+      nextMonthEvents.length ? `${renderSubHeading(`מה צפוי בחודש ${nextMonthName}`)}${renderArticles(nextMonthEvents)}` : '',
+    ].join('');
 
     const subject = `תקציר חודשי - ${options.siteName} - ${comingLabel}`;
     const greeting = `שלום ${options.recipientName},`;
@@ -284,9 +307,7 @@ export class DigestTemplateService {
     const paragraphs = [
       introLine,
       digest.pastEvents.length ? renderSectionCard(`מה היה ב${pastLabel}`, pastArticles, '#f7f3ec') : null,
-      digest.comingEvents.length
-        ? renderSectionCard(`אירועים קרובים - ${comingLabel}`, comingArticles, '#eef5f0')
-        : null,
+      digest.comingEvents.length ? renderSectionCard(null, comingInner, '#eef5f0') : null,
       digest.photos.length ? `<strong>תמונות אחרונות מהמשפחה</strong><br />${photoGrid}` : null,
     ].filter((p): p is string => p !== null);
 
@@ -307,8 +328,11 @@ export class DigestTemplateService {
       digest.pastEvents.length
         ? [`מה היה ב${pastLabel}:`, ...digest.pastEvents.map((entry) => `• ${eventLine(entry)}`)].join('\n')
         : null,
-      digest.comingEvents.length
-        ? [`אירועים קרובים - ${comingLabel}:`, ...digest.comingEvents.map((entry) => `• ${eventLine(entry)}`)].join('\n')
+      thisMonthEvents.length
+        ? [`אז מה היה לנו בחודש ${thisMonthName}:`, ...thisMonthEvents.map((entry) => `• ${eventLine(entry)}`)].join('\n')
+        : null,
+      nextMonthEvents.length
+        ? [`מה צפוי בחודש ${nextMonthName}:`, ...nextMonthEvents.map((entry) => `• ${eventLine(entry)}`)].join('\n')
         : null,
       digest.photos.length ? ['תמונות אחרונות מהמשפחה:', ...photoLines.map((l) => `• ${l}`)].join('\n') : null,
       'תקציר זה נוצר באופן אוטומטי.',

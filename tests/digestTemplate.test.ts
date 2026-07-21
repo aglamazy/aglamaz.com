@@ -210,6 +210,32 @@ function testCoversPastMonthAndTwoComingMonths() {
   console.log('digest covers the past month plus a two-month coming window: PASSED');
 }
 
+function testComingSectionSplitsIntoTwoSubHeadings() {
+  // Fixture: comingRange is July (this month, has Grandpa Moshe) -> August (next
+  // month, has Dan & Mira) - regression guard for the two-h2 split (Agla, 2026-07-21).
+  // Recipient name deliberately distinct from any event name, or the greeting's
+  // occurrence of "Grandpa Moshe" would shift the ordering assertion below.
+  const { html } = DigestTemplateService.buildMonthlyDigestEmail(FIXTURE, {
+    locale: 'en',
+    siteName: 'The Aglamaz Family',
+    recipientName: 'Test Recipient',
+    calendarUrl: CALENDAR_URL,
+    galleryUrl: GALLERY_URL,
+  });
+  assert.ok(html.includes('<h2'), 'coming section must use real h2 sub-headings');
+  assert.ok(html.includes('אז מה היה לנו בחודש July'), 'this-month sub-heading missing or wrong copy');
+  assert.ok(html.includes('מה צפוי בחודש August'), 'next-month sub-heading missing or wrong copy');
+  const thisMonthIdx = html.indexOf('אז מה היה לנו בחודש July');
+  const nextMonthIdx = html.indexOf('מה צפוי בחודש August');
+  const moshIdx = html.indexOf('Grandpa Moshe');
+  const danIdx = html.indexOf('Dan &amp; Mira') !== -1 ? html.indexOf('Dan &amp; Mira') : html.indexOf('Dan & Mira');
+  assert.ok(
+    thisMonthIdx < moshIdx && moshIdx < nextMonthIdx && nextMonthIdx < danIdx,
+    'this-month heading must precede this-month events, next-month heading must sit between the two groups',
+  );
+  console.log('coming section splits into this-month/next-month sub-headings: PASSED');
+}
+
 function testAnnualEventShowsTargetYearNotOriginalEntryYear() {
   // Fixture events are already stamped with the digest's target year (2026), mirroring
   // what DigestCompilerService.compileMonthlyDigest now remaps to - regression guard
@@ -230,6 +256,7 @@ function run() {
   testGreetingUsesRecipientNameNotSiteName();
   testEmptySectionsAreOmitted();
   testCoversPastMonthAndTwoComingMonths();
+  testComingSectionSplitsIntoTwoSubHeadings();
   testAnnualEventShowsTargetYearNotOriginalEntryYear();
 }
 
