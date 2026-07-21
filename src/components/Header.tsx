@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import Navigation from "@/components/Navigation";
 import { useTranslation } from 'react-i18next';
-import { LogOut, Users, MessageCircle, Home as HomeIcon, BookOpen, User, LayoutDashboard, Images, Calendar, Mail } from 'lucide-react';
+import { LogOut, Users, MessageCircle, Home as HomeIcon, BookOpen, User, LayoutDashboard, Images, Calendar } from 'lucide-react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { IUser } from "@/entities/User";
 import { IMember } from "@/entities/Member";
@@ -130,10 +130,7 @@ export default function Header({ user, member, onLogout, siteInfo }: HeaderProps
                 <a className="hover:underline flex items-center gap-1" href={`/${currentLocale}/blog`}>
                   {isRTL ? (<><span>{t('blog') as string}</span><BookOpen size={18} /></>) : (<><BookOpen size={18} /><span>{t('blog') as string}</span></>)}
                 </a>
-                {/* TEMPORARY - digest template composing (Agla, 2026-07-21), remove with the page + route once settled */}
-                <a className="hover:underline flex items-center gap-1" href="/app/digest-preview">
-                  {isRTL ? (<><span>{t('digestPreview') as string}</span><Mail size={18} /></>) : (<><Mail size={18} /><span>{t('digestPreview') as string}</span></>)}
-                </a>
+                {/* Digest-preview nav link hidden (Agla, 2026-07-21) - page + route stay reachable by direct URL. */}
               </>
             ); })()}
           </nav>
