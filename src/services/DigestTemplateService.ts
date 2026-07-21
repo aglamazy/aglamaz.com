@@ -2,6 +2,7 @@ import type { ISite } from '@/entities/Site';
 import type { AnniversaryEvent, AnniversaryType } from '@/entities/Anniversary';
 import type { GalleryPhoto } from '@/repositories/GalleryPhotoRepository';
 import type { DigestEventWithPhotos, DigestRangePayload, MonthlyDigestPayload } from './DigestCompilerService';
+import { formatHebrewDisplay } from '@/utils/hebrew';
 import { getLocalizedFields } from './LocalizationService.client';
 import { renderEmailHtml, escapeHtml } from './emailTemplates';
 
@@ -72,14 +73,25 @@ function formatRangeLabel(startDate: Date, endDate: Date, locale: string): strin
   return `${formatter.format(startDate)} – ${formatter.format(endDate)}`;
 }
 
+/**
+ * Death (יום פטירה) dates always show the Hebrew date alongside the Gregorian one -
+ * regardless of the event's own useHebrew flag, since a Hebrew yahrzeit date is always
+ * computable and is the meaningful one for this event type (Agla, 2026-07-21). Built
+ * from the already-remapped month/day/year (the digest's target-year occurrence, not
+ * whatever year the doc happens to store), never from the stored `date` Timestamp
+ * directly - see DigestCompilerService's year-remap fix.
+ */
 function formatEventDate(event: AnniversaryEvent, locale: string): string {
   const formatterLocale = locale === 'he' ? 'he-IL' : locale === 'tr' ? 'tr-TR' : 'en-US';
   const date = new Date(event.year, event.month, event.day);
-  return new Intl.DateTimeFormat(formatterLocale, {
+  const gregorian = new Intl.DateTimeFormat(formatterLocale, {
     month: 'long',
     day: 'numeric',
     year: 'numeric',
   }).format(date);
+  if (event.type !== 'death') return gregorian;
+  const hebrew = formatHebrewDisplay(date);
+  return hebrew ? `${gregorian} (${hebrew})` : gregorian;
 }
 
 function formatPhotoDate(photo: GalleryPhoto, locale: string): string {
@@ -155,6 +167,31 @@ function renderPhotoGrid(photos: GalleryPhoto[], galleryUrl: string): string {
   return photos.map((photo) => renderPhotoThumbnail(photo, galleryUrl)).join('');
 }
 
+/**
+ * The same collage visual language as renderEventCollage (rounded corners, real photos,
+ * no forced-circle avatars) generalized to a longer list - a 3-per-row table grid rather
+ * than a small uniform-thumbnail row, per Agla's 2026-07-21 request to use "the global
+ * collage" for the general recent-photos section too. Table-based for email-client
+ * robustness (same reason renderEventCollage uses tables, not flex/grid).
+ */
+function renderGlobalCollage(photos: GalleryPhoto[], galleryUrl: string): string {
+  const urls = photos.map((p) => p.imagesWithDimensions?.[0]?.url).filter((u): u is string => !!u);
+  if (urls.length === 0) return '';
+
+  const cellStyle = 'border-radius:10px;overflow:hidden;height:110px;';
+  const rows: string[] = [];
+  for (let i = 0; i < urls.length; i += 3) {
+    const rowUrls = urls.slice(i, i + 3);
+    const cells = rowUrls
+      .map((u) => `<td width="33.33%" style="${cellStyle}">${collageImg(u, '', '')}</td>`)
+      .join('');
+    const padding = 3 - rowUrls.length;
+    const emptyCells = padding > 0 ? `<td width="${33.33 * padding}%"></td>`.repeat(padding) : '';
+    rows.push(`<tr>${cells}${emptyCells}</tr>`);
+  }
+  return `<a href="${escapeHtml(galleryUrl)}" style="display:block;"><table role="presentation" width="100%" style="border-collapse:separate;border-spacing:6px 6px;">${rows.join('')}</table></a>`;
+}
+
 const TYPE_ICON: Record<AnniversaryType, string> = {
   birthday: '🎂',
   wedding: '💍',
@@ -162,31 +199,64 @@ const TYPE_ICON: Record<AnniversaryType, string> = {
   other: '⭐',
 };
 
+function collageImg(url: string, alt: string, extraStyle: string): string {
+  return `<img src="${escapeHtml(url)}" alt="${escapeHtml(alt)}" style="width:100%;height:100%;object-fit:cover;display:block;${extraStyle}" />`;
+}
+
 /**
- * One event told as a small magazine article - title on top, a full (not circular) hero
- * image when the event has one, its own description (when written), and a collage of
- * every photo linked to it (GalleryPhoto.anniversaryId) - the same treatment for every
- * event, past or coming, per Agla's 2026-07-21 request. Title/date link into the
- * calendar; each collage photo links into the gallery separately (an <a> can't nest
- * inside another <a>).
+ * The event's own linked photos (GalleryPhoto.anniversaryId) arranged like the app's own
+ * event page: one large image with the rest alongside it, not a row of small thumbnails.
+ * 1 photo = full width; 2 = side by side; 3+ = one large + the rest stacked beside it
+ * (extras beyond 4 are dropped, not worth cramming into an email). Table-based so it
+ * holds together across email clients that don't support flex/grid.
+ */
+function renderEventCollage(photos: GalleryPhoto[], galleryUrl: string): string {
+  const urls = photos.map((p) => p.imagesWithDimensions?.[0]?.url).filter((u): u is string => !!u);
+  if (urls.length === 0) return '';
+
+  const cellStyle = 'border-radius:10px;overflow:hidden;';
+  let inner: string;
+  if (urls.length === 1) {
+    inner = `<div style="${cellStyle}height:220px;">${collageImg(urls[0], '', '')}</div>`;
+  } else if (urls.length === 2) {
+    inner = `<table role="presentation" width="100%" style="border-collapse:separate;border-spacing:6px 0;"><tr>${urls
+      .map((u) => `<td width="50%" style="${cellStyle}height:160px;">${collageImg(u, '', '')}</td>`)
+      .join('')}</tr></table>`;
+  } else {
+    const rest = urls.slice(1, 4);
+    inner = `<table role="presentation" width="100%" style="border-collapse:separate;border-spacing:6px 0;"><tr><td width="60%" style="${cellStyle}height:220px;">${collageImg(urls[0], '', '')}</td><td width="40%"><table role="presentation" width="100%" style="border-collapse:separate;border-spacing:0 6px;">${rest
+      .map((u) => `<tr><td style="${cellStyle}height:${Math.floor(220 / rest.length)}px;">${collageImg(u, '', '')}</td></tr>`)
+      .join('')}</table></td></tr></table>`;
+  }
+  return `<a href="${escapeHtml(galleryUrl)}" style="display:block;margin-top:10px;">${inner}</a>`;
+}
+
+/**
+ * One event told as a small magazine article - title on top, its own description (when
+ * written), and its own images: the app's own multi-photo collage
+ * (GalleryPhoto.anniversaryId) when there is one, falling back to the event's single
+ * cover image, falling back to a type icon - never both, per Agla's 2026-07-21 request
+ * (showing the cover image AND a separate photo row was redundant). Same treatment for
+ * every event, past or coming. Title/date link into the calendar; the collage/hero links
+ * into the gallery separately (an <a> can't nest inside another <a>).
  */
 function renderEventArticle(entry: DigestEventWithPhotos, locale: string, calendarUrl: string, galleryUrl: string): string {
   const { event, photos } = entry;
   const name = formatEventName(escapeHtml(event.name), event.type, locale);
   const dateLabel = escapeHtml(formatEventDate(event, locale));
 
-  const hero = event.imageUrl
-    ? `<img src="${escapeHtml(event.imageUrl)}" alt="${escapeHtml(event.name)}" style="width:100%;max-height:220px;border-radius:14px;object-fit:cover;display:block;margin-top:10px;" />`
-    : `<div aria-hidden="true" style="width:100%;height:96px;border-radius:14px;background:#e3ede6;display:flex;align-items:center;justify-content:center;font-size:36px;margin-top:10px;">${TYPE_ICON[event.type]}</div>`;
+  const collage = renderEventCollage(photos, galleryUrl);
+  const visual = collage
+    ? collage
+    : event.imageUrl
+      ? `<a href="${escapeHtml(galleryUrl)}" style="display:block;margin-top:10px;"><img src="${escapeHtml(event.imageUrl)}" alt="${escapeHtml(event.name)}" style="width:100%;max-height:220px;border-radius:14px;object-fit:cover;display:block;" /></a>`
+      : `<div aria-hidden="true" style="width:100%;height:96px;border-radius:14px;background:#e3ede6;display:flex;align-items:center;justify-content:center;font-size:36px;margin-top:10px;">${TYPE_ICON[event.type]}</div>`;
 
   const description = event.description?.trim()
     ? `<p style="margin:12px 0 0;color:#3c4a3f;">${escapeHtml(event.description.trim())}</p>`
     : '';
-  const collage = photos.length
-    ? `<div style="margin-top:10px;">${photos.map((p) => renderPhotoThumbnail(p, galleryUrl)).join('')}</div>`
-    : '';
 
-  return `<div style="padding:18px 0;border-bottom:1px solid #e3ede6;"><a href="${escapeHtml(calendarUrl)}" style="text-decoration:none;color:inherit;"><div style="font-weight:700;font-size:17px;">${name}</div><div style="font-size:13px;color:#6d7f74;margin-top:2px;">${dateLabel}</div>${hero}</a>${description}${collage}</div>`;
+  return `<div style="padding:18px 0;border-bottom:1px solid #e3ede6;"><a href="${escapeHtml(calendarUrl)}" style="text-decoration:none;color:inherit;"><div style="font-weight:700;font-size:17px;">${name}</div><div style="font-size:13px;color:#6d7f74;margin-top:2px;">${dateLabel}</div></a>${visual}${description}</div>`;
 }
 
 /** A visually separate card for one section ("what was" vs "what's coming") - a shared background tint isn't enough to read as two distinct blocks. */
@@ -284,7 +354,7 @@ export class DigestTemplateService {
     const pastArticles = digest.pastEvents
       .map((entry) => renderEventArticle(entry, options.locale, options.calendarUrl, options.galleryUrl))
       .join('');
-    const photoGrid = renderPhotoGrid(digest.photos, options.galleryUrl);
+    const photoCollage = renderGlobalCollage(digest.photos, options.galleryUrl);
 
     // The "coming" window spans this month + next month - split into two sub-groups
     // under their own h2 so "what's left of this month" and "next month" read as
@@ -300,15 +370,15 @@ export class DigestTemplateService {
 
     const subject = `תקציר חודשי - ${options.siteName} - ${comingLabel}`;
     const greeting = `שלום ${options.recipientName},`;
-    const introLine = `היי, הנה מה שקורה החודש אצל ${options.siteName} 🌿`;
 
     // Two distinctly tinted cards - "what was" and "what's coming" need to read as
-    // clearly separate blocks, not just adjacent headings (Agla, 2026-07-21).
+    // clearly separate blocks, not just adjacent headings (Agla, 2026-07-21). No
+    // separate intro line - it just repeated what the first section heading already
+    // says (Agla, 2026-07-21).
     const paragraphs = [
-      introLine,
       digest.pastEvents.length ? renderSectionCard(`מה היה ב${pastLabel}`, pastArticles, '#f7f3ec') : null,
       digest.comingEvents.length ? renderSectionCard(null, comingInner, '#eef5f0') : null,
-      digest.photos.length ? `<strong>תמונות אחרונות מהמשפחה</strong><br />${photoGrid}` : null,
+      digest.photos.length ? `<strong>תמונות אחרונות מהמשפחה</strong><br />${photoCollage}` : null,
     ].filter((p): p is string => p !== null);
 
     const html = renderEmailHtml({
@@ -324,7 +394,6 @@ export class DigestTemplateService {
 
     const textSections = [
       greeting,
-      introLine,
       digest.pastEvents.length
         ? [`מה היה ב${pastLabel}:`, ...digest.pastEvents.map((entry) => `• ${eventLine(entry)}`)].join('\n')
         : null,

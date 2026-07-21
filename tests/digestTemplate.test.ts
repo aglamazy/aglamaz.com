@@ -164,9 +164,12 @@ function testEventRowsAreClickableIntoCalendar() {
 function testPhotoThumbnailsAreClickableIntoGallery() {
   const html = buildFixtureHtml();
   const anchorCount = (html.match(new RegExp(`<a href="${GALLERY_URL}"`, 'g')) || []).length;
-  // 1 photo on the past event + 2 in the general recent-photos grid.
-  assert.equal(anchorCount, 3, 'every photo thumbnail (event-specific + general) must be wrapped in an anchor to the gallery');
-  console.log('photo thumbnails are anchor-wrapped into the gallery: PASSED');
+  // Collages (both per-event and the general recent-photos one) wrap the whole grid in
+  // a single anchor, not one per photo: 2 coming events fall back to their single
+  // event.imageUrl (1 gallery anchor each) + 1 for the past event's own-photo collage +
+  // 1 for the general recent-photos collage.
+  assert.equal(anchorCount, 4, 'each photo/collage visual must be wrapped in an anchor to the gallery');
+  console.log('photo collages are anchor-wrapped into the gallery: PASSED');
 }
 
 function testNoMemorialWarningStyling() {
@@ -236,6 +239,34 @@ function testComingSectionSplitsIntoTwoSubHeadings() {
   console.log('coming section splits into this-month/next-month sub-headings: PASSED');
 }
 
+function testDeathEventShowsHebrewDate() {
+  // Grandma Sarah (death type) must show a parenthesized Hebrew date alongside the
+  // Gregorian one - Dan & Mira (wedding) must not (Agla, 2026-07-21).
+  const html = buildFixtureHtml();
+  const sarahBlock = html.slice(html.indexOf('Grandma Sarah'), html.indexOf('Grandma Sarah') + 200);
+  assert.ok(/\(.+\)/.test(sarahBlock), 'death event date must include a parenthesized Hebrew date');
+  const danBlock = html.slice(html.indexOf('Dan'), html.indexOf('Dan') + 120);
+  assert.ok(!/\(.+\)/.test(danBlock), 'non-death event date must not show a Hebrew date');
+  console.log('death events show the Hebrew date alongside the Gregorian one: PASSED');
+}
+
+function testNoRedundantIntroLine() {
+  // The generic "here's what's happening this month" line was dropped - it just
+  // repeated the first section heading (Agla, 2026-07-21).
+  const html = buildFixtureHtml();
+  assert.ok(!html.includes('הנה מה שקורה החודש'), 'redundant intro line must be removed');
+  console.log('redundant intro line removed: PASSED');
+}
+
+function testGeneralPhotosUseCollageNotThumbnailRow() {
+  // The general recent-photos section now renders as a table-based collage (one anchor
+  // wrapping a grid), not a row of individually-anchored small square thumbnails
+  // (Agla, 2026-07-21 - "use the global collage here").
+  const html = buildFixtureHtml();
+  assert.ok(html.includes('<table'), 'recent-photos section must render as a collage table, not a thumbnail row');
+  console.log('general recent-photos section uses the collage layout: PASSED');
+}
+
 function testAnnualEventShowsTargetYearNotOriginalEntryYear() {
   // Fixture events are already stamped with the digest's target year (2026), mirroring
   // what DigestCompilerService.compileMonthlyDigest now remaps to - regression guard
@@ -257,6 +288,9 @@ function run() {
   testEmptySectionsAreOmitted();
   testCoversPastMonthAndTwoComingMonths();
   testComingSectionSplitsIntoTwoSubHeadings();
+  testDeathEventShowsHebrewDate();
+  testNoRedundantIntroLine();
+  testGeneralPhotosUseCollageNotThumbnailRow();
   testAnnualEventShowsTargetYearNotOriginalEntryYear();
 }
 
