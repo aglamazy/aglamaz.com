@@ -147,20 +147,20 @@ function testPastEventShowsDescriptionAndOwnPhotos() {
 function testEventRowsAreClickableIntoCalendar() {
   const html = buildFixtureHtml();
   const anchorCount = (html.match(new RegExp(`<a href="${CALENDAR_URL}"`, 'g')) || []).length;
-  // 2 coming-event rows + 1 past-event article header link.
-  assert.equal(anchorCount, 3, 'every event (coming rows + past article header) must link to the calendar');
-  console.log('events are anchor-wrapped into the calendar: PASSED');
+  // Per event: 1 header (title+date) anchor + 1 anchor per collage photo, into the
+  // calendar (the event's own context) - not the general gallery (Agla, 2026-07-21).
+  // 2 coming events + 1 past event, each with exactly 1 photo -> 2 anchors each = 6.
+  assert.equal(anchorCount, 6, 'event headers AND their own collage photos must link to the calendar');
+  console.log('events and their own photos are anchor-wrapped into the calendar: PASSED');
 }
 
 function testPhotoThumbnailsAreClickableIntoGallery() {
   const html = buildFixtureHtml();
   const anchorCount = (html.match(new RegExp(`<a href="${GALLERY_URL}"`, 'g')) || []).length;
-  // Masonry collage: each image gets its own anchor (matches the app's ImageGrid, where
-  // every thumb is individually clickable) - 1 for each coming event's single photo (2),
-  // 1 for the past event's own photo, 1 for the general recent-photos section's one
-  // valid photo.
-  assert.equal(anchorCount, 4, 'each photo in a collage must be individually wrapped in an anchor to the gallery');
-  console.log('photo collages are anchor-wrapped into the gallery: PASSED');
+  // Only the general recent-photos section (not tied to any one event) links to the
+  // gallery now - per-event collages link to the calendar instead (Agla, 2026-07-21).
+  assert.equal(anchorCount, 1, 'only the general recent-photos collage should link to the gallery');
+  console.log('general recent-photos collage links to the gallery: PASSED');
 }
 
 function testNoMemorialWarningStyling() {
@@ -231,14 +231,24 @@ function testComingSectionSplitsIntoTwoSubHeadings() {
 }
 
 function testDeathEventShowsHebrewDate() {
-  // Grandma Sarah (death type) must show a parenthesized Hebrew date alongside the
-  // Gregorian one - Dan & Mira (wedding) must not (Agla, 2026-07-21).
+  // Grandma Sarah (death type) must show a parenthesized REAL Hebrew-letter date
+  // (gematria, e.g. ט"ז אלול תשפ"ו) alongside the Gregorian one, not Western digits -
+  // Dan & Mira (wedding) must not show one at all (Agla, 2026-07-21).
   const html = buildFixtureHtml();
   const sarahBlock = html.slice(html.indexOf('Grandma Sarah'), html.indexOf('Grandma Sarah') + 200);
-  assert.ok(/\(.+\)/.test(sarahBlock), 'death event date must include a parenthesized Hebrew date');
+  assert.ok(/\([א-ת]/.test(sarahBlock), 'death event date must include a parenthesized Hebrew-letter (gematria) date, not digits');
   const danBlock = html.slice(html.indexOf('Dan'), html.indexOf('Dan') + 120);
   assert.ok(!/\(.+\)/.test(danBlock), 'non-death event date must not show a Hebrew date');
-  console.log('death events show the Hebrew date alongside the Gregorian one: PASSED');
+  console.log('death events show a real Hebrew-letter date alongside the Gregorian one: PASSED');
+}
+
+function testHeadingHierarchy() {
+  // Section titles are h2, individual event titles inside them are h3 - a real semantic
+  // hierarchy, not styled divs (Agla, 2026-07-21).
+  const html = buildFixtureHtml();
+  assert.ok(/<h2[^>]*>מה היה ב/.test(html), 'section card title must be a real h2');
+  assert.ok(/<h3[^>]*>Grandpa Moshe<\/h3>/.test(html), 'individual event title must be a real h3');
+  console.log('section titles are h2, event titles are h3: PASSED');
 }
 
 function testNoRedundantIntroLine() {
@@ -280,6 +290,7 @@ function run() {
   testCoversPastMonthAndTwoComingMonths();
   testComingSectionSplitsIntoTwoSubHeadings();
   testDeathEventShowsHebrewDate();
+  testHeadingHierarchy();
   testNoRedundantIntroLine();
   testGeneralPhotosUseCollageNotThumbnailRow();
   testAnnualEventShowsTargetYearNotOriginalEntryYear();
