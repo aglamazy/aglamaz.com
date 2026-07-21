@@ -1,4 +1,5 @@
 import type { ISite } from '@/entities/Site';
+import type { AnniversaryType } from '@/entities/Anniversary';
 import type { DigestPayload, DigestRangePayload } from './DigestCompilerService';
 import { getLocalizedFields } from './LocalizationService.client';
 import { renderEmailHtml, escapeHtml } from './emailTemplates';
@@ -62,8 +63,28 @@ function formatPhotoDate(photo: DigestPayload['photos'][number], locale: string)
   }).format(photoDate);
 }
 
+/**
+ * Couple-appropriate label for a wedding-anniversary event - "{name}'s anniversary" rather
+ * than the plain "{name}" used for birthday/death, since `name` already holds both names
+ * (e.g. "Dan & Mira" - see AnniversaryEvent.name, no separate person1/person2 fields).
+ * Per family-digest-formats-spec.md open question on wedding tone: not the individual
+ * birthday/yahrzeit phrasing reused verbatim.
+ */
+const WEDDING_DIGEST_LABEL: Record<string, (name: string) => string> = {
+  en: (name) => `${name}'s anniversary`,
+  he: (name) => `יום הנישואים של ${name}`,
+  tr: (name) => `${name} evlilik yıldönümü`,
+};
+
+function formatEventName(name: string, type: AnniversaryType, locale: string): string {
+  if (type !== 'wedding') return name;
+  const fn = WEDDING_DIGEST_LABEL[locale] ?? WEDDING_DIGEST_LABEL.en;
+  return fn(name);
+}
+
 function formatEventLine(event: DigestPayload['events'][number], locale: string): string {
-  return `${event.name} - ${formatEventDate(event, locale)}`;
+  const name = formatEventName(event.name, event.type, locale);
+  return `${name} - ${formatEventDate(event, locale)}`;
 }
 
 function formatPhotoLine(photo: DigestPayload['photos'][number], locale: string): string {
@@ -81,7 +102,8 @@ function formatPhotoLine(photo: DigestPayload['photos'][number], locale: string)
  * per family-digest-formats-spec.md §6, memorial (death) events get NO distinct "warning" styling.
  */
 function renderEventRow(event: DigestPayload['events'][number], locale: string, calendarUrl: string): string {
-  const label = `${escapeHtml(event.name)} - ${escapeHtml(formatEventDate(event, locale))}`;
+  const name = formatEventName(escapeHtml(event.name), event.type, locale);
+  const label = `${name} - ${escapeHtml(formatEventDate(event, locale))}`;
   const thumbnail = event.imageUrl
     ? `<img src="${escapeHtml(event.imageUrl)}" alt="${escapeHtml(event.name)}" width="${EVENT_THUMB_SIZE}" height="${EVENT_THUMB_SIZE}" style="width:${EVENT_THUMB_SIZE}px;height:${EVENT_THUMB_SIZE}px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-inline-end:12px;" />`
     : `<span aria-hidden="true" style="display:inline-block;width:${EVENT_THUMB_SIZE}px;height:${EVENT_THUMB_SIZE}px;line-height:${EVENT_THUMB_SIZE}px;border-radius:50%;background:#e3ede6;color:#295640;text-align:center;font-size:20px;vertical-align:middle;margin-inline-end:12px;">🌳</span>`;
