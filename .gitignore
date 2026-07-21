@@ -2,6 +2,7 @@
 node_modules
 .env.local
 .env.local.backup
+.env.preview.local
 .idea/
 tsconfig.tsbuildinfo
 next-env.d.ts
