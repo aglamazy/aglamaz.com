@@ -156,6 +156,15 @@ export class DigestCompilerService {
     ].sort((a, b) => new Date(a.year, a.month, a.day).getTime() - new Date(b.year, b.month, b.day).getTime());
     const pastEventsRemapped = pastEventsRaw.map((e) => ({ ...e, month: pastMonth, year: pastYear }));
 
+    const toDate = (value: any): Date | null => {
+      if (!value) return null;
+      if (typeof value.toDate === 'function') return value.toDate();
+      const sec = value._seconds ?? value.seconds;
+      if (typeof sec === 'number') return new Date(sec * 1000);
+      const parsed = new Date(value);
+      return isNaN(parsed.getTime()) ? null : parsed;
+    };
+
     const withPhotos = (events: AnniversaryEvent[]): Promise<DigestEventWithPhotos[]> =>
       Promise.all(
         events.map(async (event) => {
@@ -163,11 +172,24 @@ export class DigestCompilerService {
             this.galleryPhotoRepository.listByAnniversary(event.id),
             this.occurrenceRepository.listByEvent(event.id),
           ]);
-          const linkedUrls = linkedPhotos.map((p) => p.imagesWithDimensions?.[0]?.url).filter((u): u is string => !!u);
-          const occurrenceUrls = occurrences.flatMap(
-            (occ) => occ.imagesWithDimensions?.map((img) => img.url).filter((u): u is string => !!u) ?? [],
-          );
-          return { event, photoUrls: [...occurrenceUrls, ...linkedUrls] };
+          // Only photos from THIS occurrence's target year - an upcoming event with no
+          // photos yet (it hasn't happened this year) must not show a collage built from
+          // an unrelated past year's party; that reads as "this is what's coming" when
+          // it's actually old (Agla, 2026-07-21). Falls back to just the main picture.
+          const sameYear = (d: Date | null) => d !== null && d.getFullYear() === event.year;
+          const linkedUrls = linkedPhotos
+            .filter((p) => sameYear(toDate(p.date)))
+            .map((p) => p.imagesWithDimensions?.[0]?.url)
+            .filter((u): u is string => !!u);
+          const occurrenceUrls = occurrences
+            .filter((occ) => sameYear(toDate(occ.date)))
+            .flatMap((occ) => occ.imagesWithDimensions?.map((img) => img.url).filter((u): u is string => !!u) ?? []);
+          // The event's own chosen cover picture (event.imageUrl) leads the collage when
+          // there IS real matching-year content - it's the one the family deliberately
+          // picked. With no matching-year photos at all, it's the only thing shown.
+          const allUrls = event.imageUrl ? [event.imageUrl, ...occurrenceUrls, ...linkedUrls] : [...occurrenceUrls, ...linkedUrls];
+          const photoUrls = Array.from(new Set(allUrls));
+          return { event, photoUrls };
         }),
       );
 

@@ -119,11 +119,103 @@ async function testRangeSpansRollingWindowNotFixedMonth() {
   console.log('rolling window spans ~1 week to ~1 month forward (crosses month boundary): PASSED');
 }
 
+async function testCollagePhotosAreYearFilteredWithMainImageFallback() {
+  // A wedding anniversary in August: real photos exist from last year's occurrence
+  // (2025), but this year's (2026) hasn't happened yet - the collage must NOT show last
+  // year's party as if it were "what's coming", it should fall back to just the event's
+  // main picture (Agla, 2026-07-21: "This is from last year - keep just the main image").
+  const referenceDate = new Date(2026, 6, 21); // July 21, 2026
+  const comingEvent = {
+    id: 'wedding-1',
+    siteId: 'site1',
+    type: 'wedding',
+    name: 'Liat & Matan',
+    month: 7,
+    day: 6,
+    year: 2015, // original entry year - compiler remaps to 2026 for the "coming" slot
+    isAnnual: true,
+    imageUrl: 'https://x/cover.jpg',
+  };
+
+  const anniversaryRepository: any = {
+    getEventsForMonth: async (siteId: string, month: number, year: number) =>
+      month === 7 ? [comingEvent] : [], // only present in August (month index 7)
+  };
+  const galleryPhotoRepository: any = {
+    listBySite: async () => [],
+    listByAnniversary: async () => [],
+  };
+  const occurrenceRepository: any = {
+    listByEvent: async () => [
+      {
+        id: 'occ-2025',
+        eventId: 'wedding-1',
+        date: { toDate: () => new Date(2025, 7, 6) }, // last year's real party photos
+        imagesWithDimensions: [{ url: 'https://x/last-year-1.jpg' }, { url: 'https://x/last-year-2.jpg' }],
+      },
+    ],
+  };
+
+  const service = new DigestCompilerService(anniversaryRepository, galleryPhotoRepository, occurrenceRepository);
+  const digest = await service.compileMonthlyDigest('site1', referenceDate);
+
+  const entry = digest.comingEvents.find((e: any) => e.event.id === 'wedding-1');
+  assert.ok(entry, 'the wedding event must be in the coming list');
+  assert.deepEqual(entry.photoUrls, ['https://x/cover.jpg'], 'must fall back to just the main image, not last year\'s photos');
+  console.log('collage photos are year-filtered, falling back to the main image: PASSED');
+}
+
+async function testCollageIncludesMatchingYearOccurrencePhotos() {
+  // Same shape, but the occurrence IS from the target year - its real photos (plus the
+  // main image) must be included.
+  const referenceDate = new Date(2026, 6, 21);
+  const comingEvent = {
+    id: 'party-1',
+    siteId: 'site1',
+    type: 'other',
+    name: 'Party!',
+    month: 7,
+    day: 18,
+    year: 2026,
+    isAnnual: false,
+    imageUrl: 'https://x/cover.jpg',
+  };
+
+  const anniversaryRepository: any = {
+    getEventsForMonth: async (siteId: string, month: number) => (month === 6 ? [comingEvent] : []),
+  };
+  const galleryPhotoRepository: any = { listBySite: async () => [], listByAnniversary: async () => [] };
+  const occurrenceRepository: any = {
+    listByEvent: async () => [
+      {
+        id: 'occ-2026',
+        eventId: 'party-1',
+        date: { toDate: () => new Date(2026, 6, 18) },
+        imagesWithDimensions: [{ url: 'https://x/party-1.jpg' }, { url: 'https://x/party-2.jpg' }],
+      },
+    ],
+  };
+
+  const service = new DigestCompilerService(anniversaryRepository, galleryPhotoRepository, occurrenceRepository);
+  const digest = await service.compileMonthlyDigest('site1', referenceDate);
+
+  const entry = digest.comingEvents.find((e: any) => e.event.id === 'party-1');
+  assert.ok(entry, 'the party event must be in the coming list');
+  assert.deepEqual(
+    entry.photoUrls,
+    ['https://x/cover.jpg', 'https://x/party-1.jpg', 'https://x/party-2.jpg'],
+    'main image + this year\'s real occurrence photos must all be included',
+  );
+  console.log('collage includes matching-year occurrence photos alongside the main image: PASSED');
+}
+
 async function run() {
   await testCompilesEventsAndPhotos();
   await testEmptyWhenNothingInRange();
   await testPassesLocaleAndCustomLimit();
   await testRangeSpansRollingWindowNotFixedMonth();
+  await testCollagePhotosAreYearFilteredWithMainImageFallback();
+  await testCollageIncludesMatchingYearOccurrencePhotos();
 }
 
 run();

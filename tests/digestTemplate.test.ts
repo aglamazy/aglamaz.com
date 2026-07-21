@@ -43,7 +43,8 @@ const FIXTURE: MonthlyDigestPayload = {
         imageUrl: 'https://example.com/photos/moshe.jpg',
         createdAt: null,
       } as any,
-      photoUrls: [],
+      // DigestCompilerService always folds event.imageUrl into photoUrls - simulate that here.
+      photoUrls: ['https://example.com/photos/moshe.jpg'],
     },
     {
       event: {
@@ -60,7 +61,7 @@ const FIXTURE: MonthlyDigestPayload = {
         imageUrl: 'https://example.com/photos/dan-mira.jpg',
         createdAt: null,
       } as any,
-      photoUrls: [],
+      photoUrls: ['https://example.com/photos/dan-mira.jpg'],
     },
   ],
   pastEvents: [

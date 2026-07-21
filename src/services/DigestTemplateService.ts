@@ -224,7 +224,10 @@ function renderEventCollage(urls: string[], galleryUrl: string): string {
       .map((u) => `<td width="50%" style="${cellStyle}height:160px;">${collageImg(u, '', '')}</td>`)
       .join('')}</tr></table>`;
   } else {
-    const rest = urls.slice(1, 4);
+    // Cap the side column at 2 (not "however many exist") - 3+ thin stacked tiles read
+    // as cramped; 1 large + 2 alongside is the proven layout (Agla, 2026-07-21). Extra
+    // photos beyond 3 total aren't worth cramming into an email.
+    const rest = urls.slice(1, 3);
     inner = `<table role="presentation" width="100%" style="border-collapse:separate;border-spacing:6px 0;"><tr><td width="60%" style="${cellStyle}height:220px;">${collageImg(urls[0], '', '')}</td><td width="40%"><table role="presentation" width="100%" style="border-collapse:separate;border-spacing:0 6px;">${rest
       .map((u) => `<tr><td style="${cellStyle}height:${Math.floor(220 / rest.length)}px;">${collageImg(u, '', '')}</td></tr>`)
       .join('')}</table></td></tr></table>`;
@@ -246,12 +249,13 @@ function renderEventArticle(entry: DigestEventWithPhotos, locale: string, calend
   const name = formatEventName(escapeHtml(event.name), event.type, locale);
   const dateLabel = escapeHtml(formatEventDate(event, locale));
 
+  // photoUrls always includes event.imageUrl when present (DigestCompilerService folds
+  // it in), so the only remaining fallback is the type icon for an event with no
+  // picture at all.
   const collage = renderEventCollage(photoUrls, galleryUrl);
-  const visual = collage
-    ? collage
-    : event.imageUrl
-      ? `<a href="${escapeHtml(galleryUrl)}" style="display:block;margin-top:10px;"><img src="${escapeHtml(event.imageUrl)}" alt="${escapeHtml(event.name)}" style="width:100%;max-height:220px;border-radius:14px;object-fit:cover;display:block;" /></a>`
-      : `<div aria-hidden="true" style="width:100%;height:96px;border-radius:14px;background:#e3ede6;display:flex;align-items:center;justify-content:center;font-size:36px;margin-top:10px;">${TYPE_ICON[event.type]}</div>`;
+  const visual =
+    collage ||
+    `<div aria-hidden="true" style="width:100%;height:96px;border-radius:14px;background:#e3ede6;display:flex;align-items:center;justify-content:center;font-size:36px;margin-top:10px;">${TYPE_ICON[event.type]}</div>`;
 
   const description = event.description?.trim()
     ? `<p style="margin:12px 0 0;color:#3c4a3f;">${escapeHtml(event.description.trim())}</p>`
