@@ -242,6 +242,24 @@ function testDeathEventShowsHebrewDate() {
   console.log('death events show a real Hebrew-letter date alongside the Gregorian one: PASSED');
 }
 
+function testGreetingBidiIsolatesLatinNameAndTextStaysClean() {
+  // A Latin-script name (common: many members' stored firstName/displayName come from
+  // Google OAuth in Latin characters, even on a Hebrew site) embedded in the Hebrew
+  // greeting must be bdi-isolated in HTML - and the plain-text version must never leak
+  // that HTML markup as literal text (Agla, 2026-07-21: "this is worst").
+  const result = DigestTemplateService.buildMonthlyDigestEmail(FIXTURE, {
+    locale: 'en',
+    siteName: 'The Aglamaz Family',
+    recipientName: 'Yaakov Aglamaz',
+    calendarUrl: CALENDAR_URL,
+    galleryUrl: GALLERY_URL,
+  });
+  assert.ok(result.html.includes('<bdi>Yaakov Aglamaz</bdi>'), 'HTML greeting must bidi-isolate the recipient name');
+  assert.ok(!result.text.includes('<bdi>'), 'plain-text greeting must not contain HTML markup');
+  assert.ok(result.text.startsWith('שלום Yaakov Aglamaz,'), 'plain-text greeting must still read naturally');
+  console.log('greeting bidi-isolates the name in HTML, stays clean in plain text: PASSED');
+}
+
 function testHeadingHierarchy() {
   // Section titles are h2, individual event titles inside them are h3 - a real semantic
   // hierarchy, not styled divs (Agla, 2026-07-21).
@@ -286,6 +304,7 @@ function run() {
   testPhotoThumbnailsAreClickableIntoGallery();
   testNoMemorialWarningStyling();
   testGreetingUsesRecipientNameNotSiteName();
+  testGreetingBidiIsolatesLatinNameAndTextStaysClean();
   testEmptySectionsAreOmitted();
   testCoversPastMonthAndTwoComingMonths();
   testComingSectionSplitsIntoTwoSubHeadings();

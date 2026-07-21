@@ -26,6 +26,22 @@ export interface BuildDigestEmailOptions {
 const EVENT_THUMB_SIZE = 48;
 const PHOTO_THUMB_SIZE = 96;
 
+/**
+ * <bdi> isolates the recipient's name from the surrounding Hebrew paragraph's
+ * bidi direction - without it, a Latin-script name (common: many members' stored
+ * firstName/displayName come from Google OAuth in Latin characters even on a Hebrew
+ * site) embedded in "שלום X," reads confusingly (Agla, 2026-07-21: "this is worst").
+ * Also the one place a member-controlled string reaches this HTML unescaped.
+ */
+function renderGreeting(recipientName: string): string {
+  return `שלום <bdi>${escapeHtml(recipientName)}</bdi>,`;
+}
+
+/** Plain-text counterpart to renderGreeting - no bdi/escaping, those are HTML-only concerns. */
+function plainGreeting(recipientName: string): string {
+  return `שלום ${recipientName},`;
+}
+
 function formatMonthLabel(month: number, year: number, locale: string): string {
   const date = new Date(year, month, 1);
   const formatterLocale = locale === 'he' ? 'he-IL' : locale === 'tr' ? 'tr-TR' : 'en-US';
@@ -227,18 +243,18 @@ function renderEventArticle(entry: DigestEventWithPhotos, locale: string, calend
     : '';
 
   // Text (title/date/description) reads before the images, not after (Agla, 2026-07-21).
-  return `<div style="padding:18px 0;border-bottom:1px solid #e3ede6;"><a href="${escapeHtml(calendarUrl)}" style="text-decoration:none;color:inherit;"><h3 style="font-weight:700;font-size:17px;margin:0;">${name}</h3><div style="font-size:13px;color:#6d7f74;margin-top:2px;">${dateLabel}</div></a>${description}${visual}</div>`;
+  return `<div style="padding:18px 0;border-bottom:1px solid #e3ede6;"><a href="${escapeHtml(calendarUrl)}" style="text-decoration:none;color:inherit;"><h3 style="font-weight:700;font-size:16px;margin:0;">${name}</h3><div style="font-size:13px;color:#6d7f74;margin-top:2px;">${dateLabel}</div></a>${description}${visual}</div>`;
 }
 
 /** A visually separate card for one section ("what was" vs "what's coming") - a shared background tint isn't enough to read as two distinct blocks. */
 function renderSectionCard(title: string | null, innerHtml: string, tint: string): string {
-  const titleHtml = title ? `<h2 style="font-weight:700;font-size:15px;margin:0 0 4px;">${title}</h2>` : '';
+  const titleHtml = title ? `<h2 style="font-weight:700;font-size:20px;margin:0 0 4px;">${title}</h2>` : '';
   return `<div style="background:${tint};border-radius:16px;padding:18px 20px;margin:18px 0;">${titleHtml}${innerHtml}</div>`;
 }
 
 /** Sub-heading inside a section card, e.g. splitting "coming" into this-month vs next-month. */
 function renderSubHeading(text: string): string {
-  return `<h2 style="font-size:15px;font-weight:700;margin:16px 0 4px;">${text}</h2>`;
+  return `<h2 style="font-size:20px;font-weight:700;margin:16px 0 4px;">${text}</h2>`;
 }
 
 /**
@@ -265,7 +281,7 @@ function buildRangeDigestEmail(
 
   const summaryLine = `${digest.events.length} אירועים ו-${digest.photos.length} תמונות אחרונות`;
   const subject = `${subjectPrefix} - ${options.siteName} - ${periodLabel}`;
-  const greeting = `שלום ${options.recipientName},`;
+  const greeting = renderGreeting(options.recipientName);
 
   const paragraphs = [
     introLine,
@@ -286,7 +302,7 @@ function buildRangeDigestEmail(
   });
 
   const textSections = [
-    greeting,
+    plainGreeting(options.recipientName),
     introLine,
     `סיכום: ${summaryLine}.`,
     digest.events.length ? [`${eventsHeading}:`, ...eventLines.map((line) => `• ${line}`)].join('\n') : null,
@@ -340,7 +356,7 @@ export class DigestTemplateService {
     ].join('');
 
     const subject = `תקציר חודשי - ${options.siteName} - ${comingLabel}`;
-    const greeting = `שלום ${options.recipientName},`;
+    const greeting = renderGreeting(options.recipientName);
 
     // Two distinctly tinted cards - "what was" and "what's coming" need to read as
     // clearly separate blocks, not just adjacent headings (Agla, 2026-07-21). No
@@ -364,7 +380,7 @@ export class DigestTemplateService {
     });
 
     const textSections = [
-      greeting,
+      plainGreeting(options.recipientName),
       digest.pastEvents.length
         ? [`מה היה ב${pastLabel}:`, ...digest.pastEvents.map((entry) => `• ${eventLine(entry)}`)].join('\n')
         : null,
