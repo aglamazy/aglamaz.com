@@ -8,6 +8,8 @@ import type { AnniversaryEvent } from '@/entities/Anniversary';
 import type { Blessing } from '@/entities/Blessing';
 import { AppRoute, ApiRoute } from '@/entities/Routes';
 import { getApiPath, getPath } from '@/utils/urls';
+import { formatLocalizedDate } from '@/utils/dateFormat';
+import { formatHebrewDisplay } from '@/utils/hebrew';
 
 interface Props {
   blessingPage: BlessingPage;
@@ -27,6 +29,17 @@ export default function PublicMemorialPage({ blessingPage, event, blessings: ini
   const [submitError, setSubmitError] = useState('');
   const [justSubmitted, setJustSubmitted] = useState(false);
   const formOpenedAt = useRef<number | null>(null);
+
+  // event.originalDate ?? event.date is the true originally-entered date,
+  // independent of any occurrence-overwritten month/day/year (see the
+  // Hebrew-tracked-events landmine) — blessingPage.year must never be used
+  // here, it's just the blessing page's grouping year, not the event date.
+  const rawEventDate = event.originalDate ?? event.date;
+  const eventDateObj = rawEventDate ? new Date(rawEventDate) : null;
+  const hasValidEventDate = !!eventDateObj && !Number.isNaN(eventDateObj.getTime());
+  const gregorianDate = hasValidEventDate ? formatLocalizedDate(eventDateObj, i18n.language) : null;
+  const hebrewDateDisplay =
+    event.useHebrew && hasValidEventDate ? formatHebrewDisplay(eventDateObj as Date) : null;
 
   useEffect(() => {
     if (formOpen && formOpenedAt.current === null) {
@@ -83,9 +96,14 @@ export default function PublicMemorialPage({ blessingPage, event, blessings: ini
       <div className="max-w-4xl mx-auto">
         <div className="bg-white dark:bg-gray-800 p-8">
           <h1 className="text-3xl font-bold mb-4 text-gray-900 dark:text-gray-100">{event.name}</h1>
-          {event.type !== 'death' && typeof blessingPage.year === 'number' && (
+          {gregorianDate && (
             <p className="text-lg text-gray-600 dark:text-gray-400 mb-2">
-              {t('blessingPageTitle')} - {blessingPage.year}
+              {t('date')}: {gregorianDate}
+              {hebrewDateDisplay && (
+                <span className="block">
+                  {t('hebrewDate')}: {hebrewDateDisplay}
+                </span>
+              )}
             </p>
           )}
           {event.description && (

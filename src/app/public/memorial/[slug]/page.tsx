@@ -21,10 +21,28 @@ export default async function PublicMemorialPageRoute({ params }: { params: Prom
   }
 
   const anniversaryRepo = new AnniversaryRepository();
-  const event = await anniversaryRepo.getById(blessingPage.eventId);
-  if (!event) {
+  const rawEvent = await anniversaryRepo.getById(blessingPage.eventId);
+  if (!rawEvent) {
     notFound();
   }
+
+  // getById returns the raw Firestore doc, whose date fields are Admin SDK
+  // Timestamp instances — not safely serializable across the server/client
+  // component boundary. Convert to ISO strings here so the client component
+  // only ever handles plain-data date values.
+  const toIso = (raw: unknown): string | null => {
+    if (!raw) return null;
+    if (typeof (raw as { toDate?: () => Date }).toDate === 'function') {
+      return (raw as { toDate: () => Date }).toDate().toISOString();
+    }
+    const d = new Date(raw as string | number | Date);
+    return Number.isNaN(d.getTime()) ? null : d.toISOString();
+  };
+  const event = {
+    ...rawEvent,
+    date: toIso(rawEvent.date),
+    originalDate: rawEvent.originalDate ? toIso(rawEvent.originalDate) : undefined,
+  };
 
   const headerStore = await headers();
   const preferred = headerStore.get('accept-language')?.split(',')[0]?.split(';')[0]?.toLowerCase() || DEFAULT_LOCALE;
