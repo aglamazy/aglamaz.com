@@ -43,7 +43,7 @@ const FIXTURE: MonthlyDigestPayload = {
         imageUrl: 'https://example.com/photos/moshe.jpg',
         createdAt: null,
       } as any,
-      photos: [],
+      photoUrls: [],
     },
     {
       event: {
@@ -60,7 +60,7 @@ const FIXTURE: MonthlyDigestPayload = {
         imageUrl: 'https://example.com/photos/dan-mira.jpg',
         createdAt: null,
       } as any,
-      photos: [],
+      photoUrls: [],
     },
   ],
   pastEvents: [
@@ -80,17 +80,7 @@ const FIXTURE: MonthlyDigestPayload = {
         // no imageUrl - must fall back to a placeholder, not a broken <img>
         createdAt: null,
       } as any,
-      photos: [
-        {
-          id: 'pe1',
-          siteId: 'site1',
-          createdBy: 'owner1',
-          createdAt: null,
-          anniversaryId: 'e2',
-          date: { toDate: () => new Date(2026, 5, 10) } as any,
-          imagesWithDimensions: [{ url: 'https://example.com/photos/sarah-visit.jpg', width: 800, height: 600 }],
-        } as any,
-      ],
+      photoUrls: ['https://example.com/photos/sarah-visit.jpg'],
     },
   ],
   photos: [

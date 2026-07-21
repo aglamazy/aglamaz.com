@@ -204,14 +204,15 @@ function collageImg(url: string, alt: string, extraStyle: string): string {
 }
 
 /**
- * The event's own linked photos (GalleryPhoto.anniversaryId) arranged like the app's own
- * event page: one large image with the rest alongside it, not a row of small thumbnails.
- * 1 photo = full width; 2 = side by side; 3+ = one large + the rest stacked beside it
- * (extras beyond 4 are dropped, not worth cramming into an email). Table-based so it
- * holds together across email clients that don't support flex/grid.
+ * The event's own photos (merged from GalleryPhoto.anniversaryId links AND
+ * AnniversaryOccurrence-embedded images - see DigestEventWithPhotos doc comment)
+ * arranged like the app's own event page: one large image with the rest alongside it,
+ * not a row of small thumbnails. 1 photo = full width; 2 = side by side; 3+ = one large +
+ * the rest stacked beside it (extras beyond 4 are dropped, not worth cramming into an
+ * email). Table-based so it holds together across email clients that don't support
+ * flex/grid.
  */
-function renderEventCollage(photos: GalleryPhoto[], galleryUrl: string): string {
-  const urls = photos.map((p) => p.imagesWithDimensions?.[0]?.url).filter((u): u is string => !!u);
+function renderEventCollage(urls: string[], galleryUrl: string): string {
   if (urls.length === 0) return '';
 
   const cellStyle = 'border-radius:10px;overflow:hidden;';
@@ -241,11 +242,11 @@ function renderEventCollage(photos: GalleryPhoto[], galleryUrl: string): string 
  * into the gallery separately (an <a> can't nest inside another <a>).
  */
 function renderEventArticle(entry: DigestEventWithPhotos, locale: string, calendarUrl: string, galleryUrl: string): string {
-  const { event, photos } = entry;
+  const { event, photoUrls } = entry;
   const name = formatEventName(escapeHtml(event.name), event.type, locale);
   const dateLabel = escapeHtml(formatEventDate(event, locale));
 
-  const collage = renderEventCollage(photos, galleryUrl);
+  const collage = renderEventCollage(photoUrls, galleryUrl);
   const visual = collage
     ? collage
     : event.imageUrl

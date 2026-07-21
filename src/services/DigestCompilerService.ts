@@ -1,4 +1,5 @@
 import { AnniversaryRepository } from '@/repositories/AnniversaryRepository';
+import { AnniversaryOccurrenceRepository } from '@/repositories/AnniversaryOccurrenceRepository';
 import { GalleryPhotoRepository } from '@/repositories/GalleryPhotoRepository';
 import type { AnniversaryEvent } from '@/entities/Anniversary';
 import type { GalleryPhoto } from '@/repositories/GalleryPhotoRepository';
@@ -31,10 +32,17 @@ export interface CompileDigestOptions {
   recentPhotosLimit?: number;
 }
 
-/** One event, told as a small article: its own description + its own linked photos, not just a row. */
+/**
+ * One event, told as a small article: its own description + its own photos, not just a
+ * row. Photo URLs are merged from two DIFFERENT stores real usage actually populates:
+ * GalleryPhoto docs linked via anniversaryId (uploaded through the general photo-add
+ * flow), AND images embedded directly on AnniversaryOccurrence docs (uploaded inline
+ * from the event's own detail page - the more common path in practice). Plain URLs, not
+ * GalleryPhoto[], since occurrence images aren't GalleryPhoto docs at all.
+ */
 export interface DigestEventWithPhotos {
   event: AnniversaryEvent;
-  photos: GalleryPhoto[];
+  photoUrls: string[];
 }
 
 /**
@@ -96,7 +104,8 @@ function endOfDay(date: Date): Date {
 export class DigestCompilerService {
   constructor(
     private readonly anniversaryRepository: AnniversaryRepository = new AnniversaryRepository(),
-    private readonly galleryPhotoRepository: GalleryPhotoRepository = new GalleryPhotoRepository()
+    private readonly galleryPhotoRepository: GalleryPhotoRepository = new GalleryPhotoRepository(),
+    private readonly occurrenceRepository: AnniversaryOccurrenceRepository = new AnniversaryOccurrenceRepository()
   ) {}
 
   async compileDigest(siteId: string, month: number, year: number, options?: CompileDigestOptions): Promise<DigestPayload> {
@@ -149,10 +158,17 @@ export class DigestCompilerService {
 
     const withPhotos = (events: AnniversaryEvent[]): Promise<DigestEventWithPhotos[]> =>
       Promise.all(
-        events.map(async (event) => ({
-          event,
-          photos: await this.galleryPhotoRepository.listByAnniversary(event.id),
-        })),
+        events.map(async (event) => {
+          const [linkedPhotos, occurrences] = await Promise.all([
+            this.galleryPhotoRepository.listByAnniversary(event.id),
+            this.occurrenceRepository.listByEvent(event.id),
+          ]);
+          const linkedUrls = linkedPhotos.map((p) => p.imagesWithDimensions?.[0]?.url).filter((u): u is string => !!u);
+          const occurrenceUrls = occurrences.flatMap(
+            (occ) => occ.imagesWithDimensions?.map((img) => img.url).filter((u): u is string => !!u) ?? [],
+          );
+          return { event, photoUrls: [...occurrenceUrls, ...linkedUrls] };
+        }),
       );
 
     const [comingEvents, pastEvents] = await Promise.all([
