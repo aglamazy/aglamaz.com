@@ -7,6 +7,7 @@ import type { AnniversaryEvent } from '@/entities/Anniversary';
 import type { Blessing } from '@/entities/Blessing';
 import { ApiRoute, AppRoute } from '@/entities/Routes';
 import { getApiPath, getPath } from '@/utils/urls';
+import { formatHebrewDisplay } from '@/utils/hebrew';
 
 interface Props {
   blessingPage: BlessingPage;
@@ -85,16 +86,29 @@ export default function PublicMemorialPage({ blessingPage, event, blessings: ini
 
   const signupPath = getPath(AppRoute.AUTH_SIGNUP);
 
+  // event.month is 0-indexed (stored via Date.getMonth()), day and year are standard.
+  // Use originalDate fields if present (they'd only be set by getEventsForMonth's
+  // occurrence branch, not by getById, but we follow the pattern for safety).
+  const originalMonth = event.originalMonth ?? event.month;
+  const originalDay = event.originalDay ?? event.day;
+  const originalYear = event.originalYear ?? event.year;
+  const eventDate = new Date(originalYear, originalMonth, originalDay);
+  const gregorianDateStr = eventDate.toLocaleDateString(i18n.language || 'en', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+  const hebrewDateStr = event.useHebrew ? formatHebrewDisplay(eventDate) : null;
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900" dir={i18n.dir()}>
       <div className="max-w-4xl mx-auto">
         <div className="bg-white dark:bg-gray-800 p-8">
           <h1 className="text-3xl font-bold mb-4 text-gray-900 dark:text-gray-100">{event.name}</h1>
-          {event.type !== 'death' && typeof blessingPage.year === 'number' && (
-            <p className="text-lg text-gray-600 dark:text-gray-400 mb-2">
-              {t('blessingPageTitle')} - {blessingPage.year}
-            </p>
-          )}
+          <p className="text-lg text-gray-600 dark:text-gray-400 mb-2">
+            {gregorianDateStr}
+            {hebrewDateStr && <> &middot; {hebrewDateStr}</>}
+          </p>
           {event.description && (
             <p className="text-gray-700 dark:text-gray-300 mb-4">{event.description}</p>
           )}
