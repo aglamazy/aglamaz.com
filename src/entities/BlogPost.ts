@@ -23,6 +23,8 @@ export interface BlogPostLocalizedFields {
   locale: string;
   title: string;
   content: string;
+  // Carried through from the parent post so render sites can pick md→html vs raw-html.
+  contentFormat?: BlogPostContentFormat;
   seoTitle?: string;
   seoDescription?: string;
   fallbackChain: string[];
@@ -47,7 +49,14 @@ export interface BlogPostTranslationMeta {
   attempts?: number;
 }
 
+export type BlogPostContentFormat = 'md' | 'html';
+
+// Draft-review workflow status. Missing status = 'published' (back-compat for
+// posts written before this field existed) - always gate through isPublished()
+// exported from BlogRepository rather than comparing status inline.
 export type BlogPostStatus = 'draft' | 'in_review' | 'published';
+
+export type BlogPostReviewDecision = 'approved' | 'changes_requested';
 
 export interface IBlogPost {
   id: string;
@@ -57,12 +66,18 @@ export interface IBlogPost {
   locales: BlogPostLocales;
   translationMeta?: BlogPostTranslationMeta;
   isPublic: boolean;
-  /** Workflow status; absent on legacy posts → treat as 'published' */
+  // Content format applies to ALL locales (per-post, not per-locale). Authoring
+  // happens once in the primary locale; translations preserve the same format.
+  // Missing field = 'html' (back-compat for posts written before this field existed).
+  contentFormat?: BlogPostContentFormat;
+  // Draft-review workflow. isPublic is an orthogonal audience choice the author
+  // sets independently - approving a review flips status only, never isPublic.
+  // Absent on legacy posts → treat as 'published'.
   status?: BlogPostStatus;
   reviewToken?: string;
   reviewTokenExpiresAt?: any;
   reviewFeedback?: string;
-  reviewDecision?: 'approved' | 'changes_requested';
+  reviewDecision?: BlogPostReviewDecision;
   reviewDecidedAt?: any;
   likeCount?: number;
   shareCount?: number;

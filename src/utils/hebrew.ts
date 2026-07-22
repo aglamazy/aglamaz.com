@@ -1,12 +1,46 @@
 // Utilities to work with Hebrew calendar using Intl
 
+// Greatest-value-first so the greedy conversion below always picks the largest letter
+// that still fits, which is exactly how Hebrew numerals compose (e.g. 786 -> ת(400) +
+// ש(300) + פ(80) + ו(6)).
+const HEBREW_LETTER_VALUES: Array<[number, string]> = [
+  [400, 'ת'], [300, 'ש'], [200, 'ר'], [100, 'ק'],
+  [90, 'צ'], [80, 'פ'], [70, 'ע'], [60, 'ס'], [50, 'נ'], [40, 'מ'], [30, 'ל'], [20, 'כ'], [10, 'י'],
+  [9, 'ט'], [8, 'ח'], [7, 'ז'], [6, 'ו'], [5, 'ה'], [4, 'ד'], [3, 'ג'], [2, 'ב'], [1, 'א'],
+];
+
+/**
+ * Hebrew numeral (gematria) for 1-999. Node's bundled ICU does not support the `hebr`
+ * numbering system for Intl.DateTimeFormat/NumberFormat (verified: silently falls back
+ * to Western digits regardless of locale/extension requested) - real Hebrew letters
+ * have to be composed manually, not left to Intl.
+ */
+function toHebrewNumeral(num: number): string {
+  // 15 and 16 are written ט"ו / ט"ז, not יה / יו, which would visually resemble God's name.
+  if (num === 15) return 'ט"ו';
+  if (num === 16) return 'ט"ז';
+
+  let remaining = num;
+  let letters = '';
+  for (const [value, letter] of HEBREW_LETTER_VALUES) {
+    while (remaining >= value) {
+      letters += letter;
+      remaining -= value;
+    }
+  }
+  if (letters.length <= 1) return `${letters}'`;
+  return `${letters.slice(0, -1)}"${letters.slice(-1)}`;
+}
+
+/** Real Hebrew day/year numerals (e.g. "ט"ז אלול תשע"ו"), not Arabic digits - see toHebrewNumeral. */
 export function formatHebrewDisplay(date: Date): string {
   try {
-    const day = new Intl.DateTimeFormat('he-u-ca-hebrew', { day: 'numeric' }).format(date);
+    const day = Number(new Intl.DateTimeFormat('en-u-ca-hebrew', { day: 'numeric' }).format(date));
     const month = new Intl.DateTimeFormat('he-u-ca-hebrew', { month: 'long' }).format(date);
-    const year = new Intl.DateTimeFormat('he-u-ca-hebrew', { year: 'numeric' }).format(date);
-    // Normalize quotes
-    return `${day} ${month} ${year}`;
+    const year = Number(new Intl.DateTimeFormat('en-u-ca-hebrew', { year: 'numeric' }).format(date));
+    // Hebrew calendar years are conventionally written without the thousands digit
+    // (5786 -> תשפ"ו, not a 4-digit-equivalent form).
+    return `${toHebrewNumeral(day)} ${month} ${toHebrewNumeral(year % 1000)}`;
   } catch {
     return '';
   }

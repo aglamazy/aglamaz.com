@@ -68,6 +68,9 @@ export class TranslationService {
     if (!apiKey) throw new Error('OPENAI_API_KEY not configured');
 
     const model = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+    // BlogPost content is now per-post `contentFormat: 'md' | 'html'` — same translator
+    // handles both because the prompt covers preservation of HTML AND markdown structure.
+    // (See IBlogPost.contentFormat in @/entities/BlogPost.)
     const sys = `You are a translation engine. Translate from ${from} to ${to}.
 Preserve HTML/Markdown structure; do not translate URLs, code, or proper names; keep the tone.
 Output ONLY the translated text, no labels or extra commentary.`;

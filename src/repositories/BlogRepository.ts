@@ -1,12 +1,15 @@
 import { FieldValue, getFirestore, Timestamp } from 'firebase-admin/firestore';
-import { initAdmin } from '../firebase/admin';
 import crypto from 'crypto';
+import { initAdmin } from '../firebase/admin';
 import type {
   BlogPostLocale,
   BlogPostLocaleUpsertPayload,
   BlogPostLocales,
+  BlogPostReviewDecision,
   IBlogPost,
 } from '@/entities/BlogPost';
+
+const REVIEW_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
 
 /** Returns true for any post that should appear in public feeds. Missing status is treated as 'published' for back-compat. */
 export function isPublished(post: IBlogPost): boolean {
@@ -125,6 +128,8 @@ export class BlogRepository {
     }
     const locales = (raw.locales as BlogPostLocales | undefined) || this.legacyLocales(raw);
     const primaryLocale = (raw.primaryLocale || raw.sourceLang || Object.keys(locales)[0] || 'en').toLowerCase();
+    // Back-compat: posts written before contentFormat existed are HTML.
+    const contentFormat: 'md' | 'html' = raw.contentFormat === 'md' ? 'md' : 'html';
     return {
       id: doc.id,
       authorId: raw.authorId,
@@ -133,6 +138,7 @@ export class BlogRepository {
       locales,
       translationMeta: raw.translationMeta,
       isPublic: Boolean(raw.isPublic),
+      contentFormat,
       status: raw.status,
       reviewToken: raw.reviewToken,
       reviewTokenExpiresAt: raw.reviewTokenExpiresAt,
@@ -155,6 +161,8 @@ export class BlogRepository {
     isPublic: boolean;
     localeContent: BlogPostLocaleUpsertPayload;
     translationMeta?: IBlogPost['translationMeta'];
+    contentFormat?: IBlogPost['contentFormat'];
+    status?: IBlogPost['status'];
     taggedMemberIds?: string[];
   }): Promise<IBlogPost> {
     const db = this.getDb();
@@ -162,6 +170,8 @@ export class BlogRepository {
     const now = Timestamp.now();
     const localeKey = post.primaryLocale.toLowerCase();
     const localeSnapshot = this.makeLocaleSnapshot(localeKey, post.localeContent, now);
+    const contentFormat: IBlogPost['contentFormat'] = post.contentFormat === 'md' ? 'md' : 'html';
+    const status: IBlogPost['status'] = post.status ?? 'published';
     const data: {
       authorId: string;
       siteId: string;
@@ -169,6 +179,8 @@ export class BlogRepository {
       locales: Record<string, BlogPostLocale>;
       translationMeta?: IBlogPost['translationMeta'];
       isPublic: boolean;
+      contentFormat: IBlogPost['contentFormat'];
+      status: IBlogPost['status'];
       likeCount: number;
       shareCount: number;
       taggedMemberIds: string[];
@@ -181,6 +193,8 @@ export class BlogRepository {
       primaryLocale: localeKey,
       locales: { [localeKey]: localeSnapshot },
       isPublic: post.isPublic,
+      contentFormat,
+      status,
       likeCount: 0,
       shareCount: 0,
       taggedMemberIds: post.taggedMemberIds || [],
@@ -325,16 +339,23 @@ export class BlogRepository {
     return this.incrementCounter(id, 'likeCount');
   }
 
-  /** Sets status='in_review', generates a 24h review token, and returns it. */
+  /**
+   * Sets status='in_review', generates a 24h review token, and returns it.
+   * Re-requesting overwrites any prior token and clears a stale decision/feedback
+   * so the reviewer always sees a fresh review cycle.
+   */
   async requestReview(postId: string): Promise<string> {
     const db = this.getDb();
     const token = crypto.randomUUID();
     const now = Timestamp.now();
-    const expiresAt = Timestamp.fromMillis(now.toMillis() + 24 * 60 * 60 * 1000);
+    const expiresAt = Timestamp.fromMillis(now.toMillis() + REVIEW_TOKEN_TTL_MS);
     await db.collection(this.collection).doc(postId).update({
       status: 'in_review',
       reviewToken: token,
       reviewTokenExpiresAt: expiresAt,
+      reviewFeedback: FieldValue.delete(),
+      reviewDecision: FieldValue.delete(),
+      reviewDecidedAt: FieldValue.delete(),
       updatedAt: now,
     });
     return token;
@@ -362,13 +383,15 @@ export class BlogRepository {
 
   /**
    * Records the reviewer's decision:
-   * - 'approved' → sets status='published' (isPublic is NOT touched per spec)
-   * - 'changes_requested' → stores feedback/decision/decidedAt; status stays 'in_review'
+   * - 'approved' → sets status='published' (isPublic is NOT touched — isPublic stays
+   *   the author's own orthogonal audience choice, locked decision famcircle#15)
+   * - 'changes_requested' → stores feedback/decision/decidedAt; status flips to 'draft'
+   * The review token is single-use: cleared here so the link can't be replayed.
    * Returns the updated post, or null if the token is missing/expired.
    */
   async decideReview(
     token: string,
-    decision: 'approved' | 'changes_requested',
+    decision: BlogPostReviewDecision,
     feedback?: string,
   ): Promise<IBlogPost | null> {
     const post = await this.getByReviewToken(token);
@@ -378,11 +401,15 @@ export class BlogRepository {
     const updates: Record<string, unknown> = {
       reviewDecision: decision,
       reviewDecidedAt: now,
+      reviewToken: FieldValue.delete(),
+      reviewTokenExpiresAt: FieldValue.delete(),
       updatedAt: now,
     };
     if (decision === 'approved') {
       updates.status = 'published';
+      updates.reviewFeedback = FieldValue.delete();
     } else {
+      updates.status = 'draft';
       updates.reviewFeedback = feedback ?? '';
     }
     await db.collection(this.collection).doc(post.id).update(updates);

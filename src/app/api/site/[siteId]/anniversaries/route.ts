@@ -1,6 +1,8 @@
 import { withMemberGuard } from '@/lib/withMemberGuard';
+import { withReadableGuard } from '@/lib/withReadableGuard';
 import { AnniversaryRepository } from '@/repositories/AnniversaryRepository';
 import { AnniversaryOccurrenceRepository } from '@/repositories/AnniversaryOccurrenceRepository';
+import { sendHonoreeBlessingLink } from '@/services/HonoreeInviteService';
 import { GuardContext } from '@/app/api/types';
 
 export const dynamic = 'force-dynamic';
@@ -55,8 +57,9 @@ const postHandler = async (request: Request, context: GuardContext) => {
     }
 
     const user = context.user!;
+    const member = context.member!;
     const body = await request.json();
-    const { name, description, type, date, isAnnual, imageUrl, useHebrew } = body;
+    const { name, description, type, date, isAnnual, imageUrl, useHebrew, honoreeMemberId, honoreeEmail, sendInviteNow } = body;
     if (!name || !date || !type) {
       return Response.json({ error: 'Missing fields' }, { status: 400 });
     }
@@ -77,10 +80,27 @@ const postHandler = async (request: Request, context: GuardContext) => {
       imageUrl,
       useHebrew: Boolean(useHebrew),
       locale,
+      honoreeMemberId: honoreeMemberId || undefined,
+      honoreeEmail: honoreeMemberId ? undefined : honoreeEmail || undefined,
     });
 
     const occRepo = new AnniversaryOccurrenceRepository();
     const originalOccurrence = await occRepo.ensureOriginalOccurrence(event, user.userId);
+
+    // Best-effort - a failed link send must not fail the event save itself.
+    if ((honoreeMemberId || honoreeEmail) && sendInviteNow) {
+      try {
+        await sendHonoreeBlessingLink({
+          siteId,
+          event,
+          honoreeMemberId: honoreeMemberId || undefined,
+          honoreeEmail: honoreeMemberId ? undefined : honoreeEmail,
+          authorName: (member as any).firstName || (member as any).displayName || user.email || '',
+        });
+      } catch (inviteError) {
+        console.error('[anniversaries] failed to send honoree blessing link', inviteError);
+      }
+    }
 
     return Response.json({ event: { ...event, originalOccurrenceId: originalOccurrence.id } }, { status: 201 });
   } catch (error) {
@@ -89,5 +109,5 @@ const postHandler = async (request: Request, context: GuardContext) => {
   }
 };
 
-export const GET = withMemberGuard(getHandler);
+export const GET = withReadableGuard(getHandler);
 export const POST = withMemberGuard(postHandler);

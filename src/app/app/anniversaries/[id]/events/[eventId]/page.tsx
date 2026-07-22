@@ -31,6 +31,7 @@ interface OccurrenceDoc {
 interface EventDoc {
   id: string;
   name: string;
+  imageUrl?: string;
 }
 
 export default function OccurrenceDetailsPage({ params: paramsPromise }: { params: Promise<{ id: string; eventId: string }> }) {
@@ -101,9 +102,14 @@ export default function OccurrenceDetailsPage({ params: paramsPromise }: { param
     })();
   }, [occ?.id, params.eventId, params.id, siteId]);
 
-  const visibleImages = Array.isArray((occ as any)?.imagesWithDimensions) && (occ as any).imagesWithDimensions.length > 0
+  // The event's own chosen cover picture (event.imageUrl) belongs in the grid too, not
+  // just as a separate no-occurrence-images fallback - it's a real photo of this event
+  // the family deliberately picked, and dropping it here means it's invisible on the
+  // one page dedicated to this occurrence (Agla, 2026-07-21).
+  const occurrenceImages: string[] = Array.isArray((occ as any)?.imagesWithDimensions) && (occ as any).imagesWithDimensions.length > 0
     ? (occ as any).imagesWithDimensions.map((img: any) => img.url)
     : Array.isArray(occ?.images) ? (occ?.images as string[]) : [];
+  const visibleImages = Array.from(new Set(event?.imageUrl ? [event.imageUrl, ...occurrenceImages] : occurrenceImages));
 
 
   if (loading) {

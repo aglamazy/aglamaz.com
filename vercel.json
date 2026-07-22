@@ -10,7 +10,15 @@
     },
     {
       "path": "/api/cron/digest",
-      "schedule": "0 6 1 * *"
+      "schedule": "0 0 1 * *"
+    },
+    {
+      "path": "/api/cron/digest?cadence=weekly",
+      "schedule": "0 6 * * 5"
+    },
+    {
+      "path": "/api/cron/in-day-reminders",
+      "schedule": "10 6 * * *"
     }
   ]
 }

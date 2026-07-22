@@ -1,6 +1,7 @@
 import { withMemberGuard } from '@/lib/withMemberGuard';
 import { GuardContext } from '@/app/api/types';
 import { AnniversaryOccurrenceRepository } from '@/repositories/AnniversaryOccurrenceRepository';
+import { AnniversaryRepository } from '@/repositories/AnniversaryRepository';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,7 +30,28 @@ const getHandler = async (req: Request, context: GuardContext) => {
     const end = new Date(Date.UTC(year, month + 1, 1, 0, 0, 0));
     const repo = new AnniversaryOccurrenceRepository();
     const items = await repo.listBySiteAndRange(siteId, start, end);
-    return Response.json({ items });
+
+    // Denormalize the parent event's name onto each occurrence so callers never
+    // need a separate, horizon-dependent events[] lookup to render a label -
+    // the occurrence->event link is resolved directly by id here, same principle
+    // as famcircle#4's originalDate fields.
+    const locale = req.headers.get('x-locale') || undefined;
+    const annRepo = new AnniversaryRepository();
+    const eventIds = Array.from(new Set(items.map((item) => item.eventId)));
+    const eventNameById = new Map<string, string>();
+    await Promise.all(
+      eventIds.map(async (eventId) => {
+        const event = await annRepo.getById(eventId, locale);
+        if (event) {
+          eventNameById.set(eventId, event.name);
+        }
+      })
+    );
+    const itemsWithNames = items.map((item) => ({
+      ...item,
+      eventName: eventNameById.get(item.eventId),
+    }));
+    return Response.json({ items: itemsWithNames });
   } catch (error) {
     console.error('[calendar][occurrences] error', error);
     return Response.json({ error: 'Failed to fetch occurrences' }, { status: 500 });

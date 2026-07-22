@@ -27,6 +27,7 @@ import crypto from 'crypto';
 import { DEFAULT_LOCALE, SUPPORTED_LOCALES } from '@/i18n';
 import type { Metadata } from 'next';
 import { buildTranslationTriggerPayload, localizeBlogPosts } from '@/utils/blogLocales';
+import BlogPostBody from '@/components/blog/BlogPostBody';
 import { isPublished } from '@/repositories/BlogRepository';
 import { buildPageMetadata } from '@/utils/seo';
 
@@ -206,9 +207,10 @@ export default async function AuthorBlogPage({ params }: { params: Promise<Autho
             {post.createdAt && <div className="text-xs text-gray-500">{formatLocalizedDate(post.createdAt, dateLocale)}</div>}
           </CardHeader>
           <CardContent>
-            <div
+            <BlogPostBody
+              content={localized.content || ''}
+              format={localized.contentFormat}
               className={`prose max-w-none ${blogStyles.content}`}
-              dangerouslySetInnerHTML={{ __html: localized.content || '' }}
             />
           </CardContent>
         </Card>

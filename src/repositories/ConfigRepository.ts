@@ -4,7 +4,6 @@ import { initAdmin } from '@/firebase/admin';
 export interface SiteConfigDoc {
   hebHorizonYear?: number;
   siteNameTranslations?: Record<string, string>;
-  listmonkListId?: number;
 }
 
 export class ConfigRepository {
@@ -48,14 +47,5 @@ export class ConfigRepository {
 
   async setSiteNameTranslations(siteId: string, translations: Record<string, string>): Promise<void> {
     await this.setSiteConfig(siteId, { siteNameTranslations: translations });
-  }
-
-  async getListmonkListId(siteId: string): Promise<number> {
-    const data = await this.getSiteConfig(siteId);
-    if (typeof data.listmonkListId !== 'number' || !Number.isFinite(data.listmonkListId)) {
-      throw new Error(`Missing listmonkListId for site ${siteId}`);
-    }
-
-    return data.listmonkListId;
   }
 }

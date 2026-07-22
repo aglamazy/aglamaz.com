@@ -20,7 +20,9 @@ const handler = async (request: Request, context: GuardContext & { params: { sit
     if (!signupRequest || signupRequest.siteId !== siteId) {
       return Response.json({ error: 'Signup request not found' }, { status: 404 });
     }
-    // Create the member object (uid may be empty if user hasn't completed email verification yet)
+    // Admin override: a signup can be approved even if the user never completed
+    // email verification (missing userId) - this is the escape hatch for stuck
+    // signups. The resulting member has no linked uid until the user signs in.
     const newMember: Partial<IMember> = {
       uid: signupRequest.userId || '',
       siteId: signupRequest.siteId,

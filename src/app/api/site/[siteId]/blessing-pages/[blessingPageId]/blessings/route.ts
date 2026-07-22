@@ -69,10 +69,14 @@ const postHandler = async (request: Request, context: GuardContext & { params: P
     const user = context.user!;
     const member = context.member!;
     const body = await request.json();
-    const { content, taggedMemberIds } = body;
+    const { content, taggedMemberIds, visibleToPublic } = body;
 
     if (!content || !content.trim()) {
       return Response.json({ error: 'Content is required' }, { status: 400 });
+    }
+
+    if (visibleToPublic !== undefined && typeof visibleToPublic !== 'boolean') {
+      return Response.json({ error: 'visibleToPublic must be a boolean' }, { status: 400 });
     }
 
     // Verify blessing page exists and belongs to member's site
@@ -102,6 +106,7 @@ const postHandler = async (request: Request, context: GuardContext & { params: P
       content,
       locale,
       taggedMemberIds: validTaggedMemberIds,
+      visibleToPublic: visibleToPublic === true,
     });
 
     if (validTaggedMemberIds.length) {

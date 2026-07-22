@@ -25,6 +25,8 @@ export class AnniversaryRepository {
     imageUrl?: string;
     useHebrew?: boolean;
     locale: string;
+    honoreeMemberId?: string;
+    honoreeEmail?: string;
   }): Promise<AnniversaryEvent> {
     const db = this.getDb();
     const now = Timestamp.now();
@@ -57,13 +59,19 @@ export class AnniversaryRepository {
       },
       createdAt: now,
     };
+    // Mutually exclusive - a member link always wins over a raw email if both are somehow sent.
+    if (eventData.honoreeMemberId) {
+      base.honoreeMemberId = eventData.honoreeMemberId;
+    } else if (eventData.honoreeEmail) {
+      base.honoreeEmail = eventData.honoreeEmail;
+    }
     if (eventData.useHebrew) {
       base.useHebrew = true;
       base.hebrewDate = formatHebrewDisplay(eventData.date);
       base.hebrewKey = formatHebrewKey(eventData.date);
       // Precompute occurrences up to horizon year
       const hebHorizonYear = await this.config.getHorizonYear(eventData.siteId);
-      const startYear = Math.max(new Date().getFullYear(), eventData.date.getFullYear());
+      const startYear = eventData.date.getFullYear();
       const endYear = Math.max(hebHorizonYear, startYear);
       const occurrences: Array<{ year: number; month: number; day: number; date: any }> = [];
       for (let y = startYear; y <= endYear; y++) {
@@ -101,6 +109,14 @@ export class AnniversaryRepository {
     const hebEventsForMonth: AnniversaryEvent[] = [];
     for (const ev of hebEventsAll) {
       if (!ev.isAnnual) continue;
+      const original = { originalDate: ev.date, originalMonth: ev.month, originalDay: ev.day, originalYear: ev.year };
+      // The originally-entered date is always known directly and must be visible
+      // regardless of whether the lazy hebrewOccurrences horizon has reached this
+      // year yet - it is occurrence zero, not something "computed on demand".
+      if (ev.month === month && ev.year === year) {
+        hebEventsForMonth.push({ ...ev, ...original } as any);
+        continue;
+      }
       const occ = (ev.hebrewOccurrences || []).find((o) => o.year === year && o.month === month);
       if (!occ) continue;
       hebEventsForMonth.push({
@@ -109,6 +125,7 @@ export class AnniversaryRepository {
         day: occ.day,
         year: occ.year,
         date: occ.date,
+        ...original,
       } as any);
     }
 
@@ -134,6 +151,54 @@ export class AnniversaryRepository {
     }
 
     return events;
+  }
+
+  /**
+   * Case-insensitive substring match on `name`, across every event on the site regardless
+   * of month/year - powers both the calendar search box and the add-event duplicate-name
+   * warning, so a family member can find an existing event before creating a near-duplicate.
+   * Sites here are family-scale (dozens of events, not thousands), so a full-collection
+   * fetch + in-memory filter is simpler and fine - no search infra needed.
+   */
+  async searchByName(siteId: string, query: string, locale?: string, limit = 8): Promise<AnniversaryEvent[]> {
+    const trimmed = query.trim();
+    if (!trimmed) return [];
+
+    const db = this.getDb();
+    const snapshot = await db
+      .collection(this.collection)
+      .where('siteId', '==', siteId)
+      .where('deletedAt', '==', null)
+      .get();
+    const events = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })) as AnniversaryEvent[];
+
+    const normalizedQuery = trimmed.toLowerCase();
+    const matches = events
+      .filter((e) => e.name?.toLowerCase().includes(normalizedQuery))
+      .sort((a, b) => {
+        const aPrefix = a.name.toLowerCase().startsWith(normalizedQuery) ? 0 : 1;
+        const bPrefix = b.name.toLowerCase().startsWith(normalizedQuery) ? 0 : 1;
+        if (aPrefix !== bPrefix) return aPrefix - bPrefix;
+        return a.name.localeCompare(b.name);
+      })
+      .slice(0, limit);
+
+    if (!locale) return matches;
+
+    const { ensureLocale, getLocalizedFields } = await import('@/services/LocalizationService');
+    const localized: AnniversaryEvent[] = [];
+    for (const event of matches) {
+      try {
+        const docRef = db.collection(this.collection).doc(event.id);
+        const ensured = await ensureLocale(event, docRef, locale, ['name']);
+        const fields = getLocalizedFields(ensured, locale, ['name']);
+        localized.push({ ...ensured, name: fields.name });
+      } catch (error) {
+        console.error(`[AnniversaryRepository] Failed to localize search result ${event.id}:`, error);
+        localized.push(event);
+      }
+    }
+    return localized;
   }
 
   async getById(id: string, locale?: string): Promise<AnniversaryEvent | null> {
@@ -169,6 +234,9 @@ export class AnniversaryRepository {
     imageUrl?: string;
     useHebrew?: boolean;
     locale?: string;
+    /** undefined = leave untouched; null = clear; string = set. Setting one always clears the other (mutually exclusive). */
+    honoreeMemberId?: string | null;
+    honoreeEmail?: string | null;
   }): Promise<void> {
     const db = this.getDb();
     const existing = await this.getById(id);
@@ -216,7 +284,7 @@ export class AnniversaryRepository {
         data.hebrewKey = formatHebrewKey(updates.date);
         // Recompute occurrences up to horizon
         const hebHorizonYear = await this.config.getHorizonYear(existing.siteId);
-        const startYear = Math.max(new Date().getFullYear(), updates.date.getFullYear());
+        const startYear = updates.date.getFullYear();
         const endYear = Math.max(hebHorizonYear, startYear);
         const occurrences: Array<{ year: number; month: number; day: number; date: any }> = [];
         for (let y = startYear; y <= endYear; y++) {
@@ -236,7 +304,7 @@ export class AnniversaryRepository {
         data.hebrewKey = formatHebrewKey(d);
         // compute occurrences up to horizon
         const hebHorizonYear = await this.config.getHorizonYear(existing.siteId);
-        const startYear = Math.max(new Date().getFullYear(), d.getFullYear());
+        const startYear = d.getFullYear();
         const endYear = Math.max(hebHorizonYear, startYear);
         const occurrences: Array<{ year: number; month: number; day: number; date: any }> = [];
         for (let y = startYear; y <= endYear; y++) {
@@ -248,6 +316,14 @@ export class AnniversaryRepository {
         data.hebrewOccurrences = occurrences;
       }
     }
+    if (updates.honoreeMemberId !== undefined) {
+      data.honoreeMemberId = updates.honoreeMemberId;
+      data.honoreeEmail = null;
+    } else if (updates.honoreeEmail !== undefined) {
+      data.honoreeEmail = updates.honoreeEmail;
+      data.honoreeMemberId = null;
+    }
+
     await db.collection(this.collection).doc(id).update(data);
   }
 
@@ -277,7 +353,7 @@ export class AnniversaryRepository {
       const existing: Array<{ year: number; month: number; day: number; date: any }> = Array.isArray(ev.hebrewOccurrences) ? ev.hebrewOccurrences : [];
       const existingYears = new Set(existing.map((o) => o.year));
       const eventYear = ev.date ? (ev.date as Timestamp).toDate().getFullYear() : currentYear;
-      const start = Math.max(currentYear, eventYear);
+      const start = eventYear;
       const additions: Array<{ year: number; month: number; day: number; date: any }> = [];
       for (let y = start; y <= targetYear; y++) {
         if (existingYears.has(y)) continue;

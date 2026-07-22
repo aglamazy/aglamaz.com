@@ -28,6 +28,7 @@ export default function SignupForm({
   const [error, setError] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
+  const [autoApproved, setAutoApproved] = useState(false);
   const { t, i18n } = useTranslation();
 
   const siteId = useSiteStore((s) => s.siteInfo?.id) || process.env.NEXT_SITE_ID || '';
@@ -60,7 +61,7 @@ export default function SignupForm({
         onSuccess();
       } else {
         // Step 1: Send email verification request (no Firebase auth yet)
-        const data = await apiFetch<{ success: boolean }>(ApiRoute.AUTH_SIGNUP_REQUEST_VERIFICATION, {
+        const data = await apiFetch<{ success: boolean; data?: { autoApproved?: boolean } }>(ApiRoute.AUTH_SIGNUP_REQUEST_VERIFICATION, {
           method: 'POST',
           body: {
             firstName: firstName.trim(),
@@ -72,6 +73,7 @@ export default function SignupForm({
         console.log('request verification', data);
 
         setIsSubmitted(true);
+        setAutoApproved(data.data?.autoApproved === true);
         setEmailSent(data.success == true);
       }
     } catch (error: unknown) {
@@ -96,10 +98,19 @@ export default function SignupForm({
         <div className="text-center">
           <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-gray-900 mb-2">
-            {emailSent ? t('verificationEmailSent') : t('requestSentSuccessfully')}
+            {autoApproved ? t('signupAutoApproved') : emailSent ? t('verificationEmailSent') : t('requestSentSuccessfully')}
           </h3>
-          
-          {emailSent ? (
+
+          {autoApproved ? (
+            <>
+              <p className="text-gray-600 mb-4">
+                {t('signupAutoApprovedDetails')}
+              </p>
+              <p className="text-sm text-gray-500">
+                {email}
+              </p>
+            </>
+          ) : emailSent ? (
             <>
               <p className="text-gray-600 mb-4">
                 {t('checkInboxContactAdmin')}

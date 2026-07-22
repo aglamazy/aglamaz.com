@@ -14,6 +14,15 @@ export interface AnniversaryEvent extends LocalizableDocument {
   month: number;
   day: number;
   year: number;
+  // Present only on Hebrew events returned by getEventsForMonth for an occurrence
+  // other than their own stored date - month/day/year/date above get overwritten
+  // with the occurrence being displayed for the queried month, so callers that
+  // need the true originally-entered date (e.g. the edit form) must use these
+  // instead of month/day/year/date.
+  originalDate?: any;
+  originalMonth?: number;
+  originalDay?: number;
+  originalYear?: number;
   isAnnual: boolean;
   useHebrew?: boolean;
   deletedAt?: any;
@@ -28,7 +37,11 @@ export interface AnniversaryEvent extends LocalizableDocument {
   imageUrl?: string;
   createdAt: any;
   blessingPages?: Array<{
-    year: number;
+    year?: number;
     slug: string;
   }>;
+  /** Links this event to an existing site Member - the honoree who blessings are for. Mutually exclusive with honoreeEmail. */
+  honoreeMemberId?: string;
+  /** Raw email for a honoree not yet on the site - used to invite them. Ignored once honoreeMemberId is set. */
+  honoreeEmail?: string;
 }

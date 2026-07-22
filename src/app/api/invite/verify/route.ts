@@ -135,6 +135,7 @@ export async function POST(request: Request) {
       customToken,
       member,
       needsCredentialSetup,
+      redirectPath: invite.redirectPath || null,
     });
     setAuthCookies(response, access, refresh);
     try {

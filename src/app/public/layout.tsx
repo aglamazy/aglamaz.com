@@ -1,4 +1,6 @@
 import PublicLayoutShell from '@/components/PublicLayoutShell';
+import I18nProvider from '@/components/I18nProvider';
+import I18nGate from '@/components/I18nGate';
 import { fetchSiteInfo } from '@/firebase/admin';
 import { resolveSiteId } from '@/utils/resolveSiteId';
 import { DEFAULT_LOCALE } from '@/i18n';
@@ -20,8 +22,12 @@ export default async function PublicLayout({ children }: { children: React.React
   }
 
   return (
-    <PublicLayoutShell siteInfo={siteInfo} locale={locale} resolvedLocale={resolvedLocale}>
-      {children}
-    </PublicLayoutShell>
+    <I18nProvider initialLocale={resolvedLocale}>
+      <I18nGate>
+        <PublicLayoutShell siteInfo={siteInfo} locale={locale} resolvedLocale={resolvedLocale}>
+          {children}
+        </PublicLayoutShell>
+      </I18nGate>
+    </I18nProvider>
   );
 }

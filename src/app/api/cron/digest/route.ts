@@ -1,28 +1,39 @@
-// Monthly cron: compile a digest for each site and push it to Listmonk.
-// Schedule: 0 6 1 * * (06:00 UTC on the first day of the month) — configured in vercel.json.
+// Digest cron: compile a digest per member's magazineCadence preference and send it
+// directly (per-member, via Resend) - not a single site-wide Listmonk campaign.
+// Per docs/family-digest-formats-spec.md §1: cadence is a per-member choice
+// ('weekly' | 'monthly' | 'none'), resolved at send time, from ONE shared route.
+// Two cron schedules point at this same route (see vercel.json):
+//   - "0 6 1 * *"                    -> monthly cadence (default, no query param)
+//   - "0 6 * * 1?cadence=weekly"     -> weekly cadence (rolling window)
 // Auth: Vercel Cron sends Authorization: Bearer {CRON_SECRET}; same secret used for manual curl tests.
 
 import { NextRequest, NextResponse } from 'next/server';
-import { ConfigRepository } from '@/repositories/ConfigRepository';
 import { SiteRepository } from '@/repositories/SiteRepository';
+import { MemberRepository } from '@/repositories/MemberRepository';
+import { notificationPreferencesRepository } from '@/repositories/NotificationPreferencesRepository';
 import { DigestCompilerService } from '@/services/DigestCompilerService';
 import { DigestTemplateService, resolveDigestSiteName } from '@/services/DigestTemplateService';
-import { ListmonkService } from '@/services/ListmonkService';
+import { ResendService } from '@/services/ResendService';
 import { TranslationService } from '@/services/TranslationService';
 import { getMostRecentFieldVersion, normalizeLang } from '@/services/LocalizationService';
+import { AppRoute } from '@/utils/urls';
+import { getUrl } from '@/utils/serverUrls';
 import type { ISite } from '@/entities/Site';
+import type { UnifiedMagazineCadence } from '@/repositories/NotificationPreferencesRepository';
 
 export const dynamic = 'force-dynamic';
 
 const SOURCE_LOCALE = 'he';
 
-function getPreviousMonth(reference: Date): { month: number; year: number } {
-  const startOfMonthUtc = new Date(Date.UTC(reference.getUTCFullYear(), reference.getUTCMonth(), 1));
-  startOfMonthUtc.setUTCMonth(startOfMonthUtc.getUTCMonth() - 1);
-  return {
-    month: startOfMonthUtc.getUTCMonth(),
-    year: startOfMonthUtc.getUTCFullYear(),
-  };
+type SendableCadence = Exclude<UnifiedMagazineCadence, 'none'>;
+
+function resolveCadence(request: NextRequest): SendableCadence {
+  return request.nextUrl.searchParams.get('cadence') === 'weekly' ? 'weekly' : 'monthly';
+}
+
+/** Optional single-recipient scope for manual real-path verification (avoids emailing the whole site). */
+function resolveMemberIdFilter(request: NextRequest): string | null {
+  return request.nextUrl.searchParams.get('memberId');
 }
 
 function resolveTargetLocale(site: ISite): string | null {
@@ -101,9 +112,10 @@ export async function GET(request: NextRequest) {
   }
 
   const siteRepo = new SiteRepository();
-  const configRepo = new ConfigRepository();
+  const memberRepo = new MemberRepository();
   const digestCompiler = new DigestCompilerService();
-  const listmonk = new ListmonkService();
+  const cadence = resolveCadence(request);
+  const memberIdFilter = resolveMemberIdFilter(request);
 
   let siteIds: string[] = [];
   try {
@@ -114,9 +126,8 @@ export async function GET(request: NextRequest) {
   }
 
   const now = new Date();
-  const { month, year } = getPreviousMonth(now);
 
-  let created = 0;
+  let sent = 0;
   let failed = 0;
 
   for (const siteId of siteIds) {
@@ -126,43 +137,88 @@ export async function GET(request: NextRequest) {
         throw new Error(`Site ${siteId} not found`);
       }
 
-      const targetLocale = resolveTargetLocale(site);
-      if (!targetLocale) {
+      const members = await memberRepo.listActiveMembers(siteId);
+      const prefs = await Promise.all(members.map((m) => notificationPreferencesRepository.get(m.id, siteId)));
+      let recipients = members.filter((member, i) => prefs[i].magazineCadence === cadence && !!member.email);
+      if (memberIdFilter) {
+        recipients = recipients.filter((member) => member.id === memberIdFilter);
+      }
+
+      if (recipients.length === 0) {
+        // Nobody on this site wants this cadence's send this run - skip compiling entirely.
+        continue;
+      }
+
+      // Per-site canonical domain, not the cron request's runtime host - a request against
+      // localhost or a Vercel preview deployment must never bake that host into a sent link.
+      const calendarUrl = await getUrl(AppRoute.APP_CALENDAR, siteId);
+      const galleryUrl = await getUrl(AppRoute.APP_PHOTOS, siteId);
+
+      const siteDefaultLocale = resolveTargetLocale(site);
+      if (!siteDefaultLocale) {
         throw new Error(`Unable to resolve digest locale for site ${siteId}`);
       }
 
-      const compiled = await digestCompiler.compileDigest(siteId, month, year, { locale: SOURCE_LOCALE });
-      const siteName = resolveDigestSiteName(site, targetLocale, siteId);
-      const template = DigestTemplateService.buildMonthlyDigestEmail(compiled, {
-        locale: SOURCE_LOCALE,
-        siteName,
-      });
-      const localized = await maybeTranslateDigest({
-        subject: template.subject,
-        html: template.html,
-        text: template.text,
-        from: SOURCE_LOCALE,
-        to: targetLocale,
-      });
-      const listId = await configRepo.getListmonkListId(siteId);
-      const monthLabel = new Intl.DateTimeFormat(targetLocale === 'he' ? 'he-IL' : targetLocale === 'tr' ? 'tr-TR' : 'en-US', {
-        month: 'long',
-        year: 'numeric',
-      }).format(new Date(year, month, 1));
+      // Always resolve the name in SOURCE_LOCALE, matching the rest of the digest body
+      // (which is compiled+rendered in SOURCE_LOCALE below) - siteDefaultLocale is a loose
+      // "whatever locale this site has any data in" guess (any stray locales.* key can hijack
+      // it) and using it here produced a mixed-language digest when the site had an
+      // unexpected locale key present (Agla, 2026-07-21: "mixed Arabic Hebrew").
+      const siteName = resolveDigestSiteName(site, SOURCE_LOCALE, siteId);
+      // Only the range computation differs between cadences - see CadenceDigestPayload's
+      // doc comment (Agla, 2026-07-21 DRY correction).
+      const digest =
+        cadence === 'monthly'
+          ? await digestCompiler.compileMonthlyDigest(siteId, now, { locale: SOURCE_LOCALE })
+          : await digestCompiler.compileWeeklyDigest(siteId, now, { locale: SOURCE_LOCALE });
 
-      const campaign = await listmonk.createCampaign({
-        listId,
-        name: `${siteName} digest ${monthLabel}`,
-        subject: localized.subject,
-        body: localized.html,
-        altBody: localized.text,
-        tags: ['monthly-digest'],
-      });
-      await listmonk.setCampaignStatus(campaign.id, 'running');
+      // Built per-member (not once per site): the greeting names the actual recipient,
+      // and each member may read in a different locale (mirrors InDayReminderService's
+      // existing per-member personalization).
+      for (const member of recipients) {
+        try {
+          const recipientLocale = normalizeLang(member.defaultLocale) ?? siteDefaultLocale;
+          const recipientName = member.firstName || member.displayName || member.email;
+          const template =
+            cadence === 'weekly'
+              ? DigestTemplateService.buildWeeklyDigestEmail(digest, {
+                  locale: SOURCE_LOCALE,
+                  siteName,
+                  recipientName,
+                  calendarUrl,
+                  galleryUrl,
+                })
+              : DigestTemplateService.buildMonthlyDigestEmail(digest, {
+                  locale: SOURCE_LOCALE,
+                  siteName,
+                  recipientName,
+                  calendarUrl,
+                  galleryUrl,
+                });
 
-      created++;
+          const localized = await maybeTranslateDigest({
+            subject: template.subject,
+            html: template.html,
+            text: template.text,
+            from: SOURCE_LOCALE,
+            to: recipientLocale,
+          });
+
+          await ResendService.sendTransactionalEmail({
+            to: member.email,
+            subject: localized.subject,
+            html: localized.html,
+            lang: recipientLocale,
+          });
+          sent++;
+        } catch (memberErr) {
+          failed++;
+          console.error(`[cron/digest] error sending to member=${member.id} site=${siteId}:`, memberErr);
+        }
+      }
+
       console.log(
-        `[cron/digest] campaign running: site=${siteId} campaign=${campaign.id} list=${listId} locale=${targetLocale}`,
+        `[cron/digest] sent: site=${siteId} cadence=${cadence} recipients=${recipients.length} locale=${siteDefaultLocale}`,
       );
     } catch (err) {
       failed++;
@@ -170,6 +226,6 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  console.log(`[cron/digest] complete: sites=${siteIds.length} created=${created} failed=${failed}`);
-  return NextResponse.json({ ok: true, sites: siteIds.length, created, failed });
+  console.log(`[cron/digest] complete: cadence=${cadence} sites=${siteIds.length} sent=${sent} failed=${failed}`);
+  return NextResponse.json({ ok: true, cadence, sites: siteIds.length, sent, failed });
 }

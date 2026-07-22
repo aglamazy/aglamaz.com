@@ -3,6 +3,8 @@
 import dynamic from 'next/dynamic';
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { ApiRoute } from '@/entities/Routes';
+import { getApiPath } from '@/utils/urls';
 
 // TinyMCE core, theme and plugins — only load in the browser
 if (typeof window !== 'undefined') {
@@ -27,6 +29,8 @@ interface EditorRichProps {
   deleteLabel?: string;
   deleteConfirmMessage?: string;
   emojis?: string[];
+  /** Site scope for uploaded content images (@see ApiRoute.SITE_CONTENT_IMAGES). Required for the image toolbar button to work. */
+  siteId?: string;
 }
 
 export default function EditorRich({
@@ -37,6 +41,7 @@ export default function EditorRich({
   deleteLabel,
   deleteConfirmMessage,
   emojis = [],
+  siteId,
 }: EditorRichProps) {
   const { t } = useTranslation();
   const [deleting, setDeleting] = useState(false);
@@ -88,17 +93,29 @@ export default function EditorRich({
             toolbar_mode: 'wrap',
           },
           license_key: 'gpl',
-          // Image upload handler - converts to base64
-          images_upload_handler: (blobInfo: any, progress: any) => new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => {
-              resolve(reader.result as string);
-            };
-            reader.onerror = () => {
-              reject('Failed to read image');
-            };
-            reader.readAsDataURL(blobInfo.blob());
-          }),
+          // Uploads to Firebase Storage and embeds the resulting URL - never inline base64,
+          // which blows past Firestore's ~1MB field limit on save (famcircle: "משהו השתבש" bug).
+          images_upload_handler: async (blobInfo: any) => {
+            if (!siteId) {
+              throw new Error('Cannot upload image: siteId not provided to EditorRich');
+            }
+            const formData = new FormData();
+            formData.append('file', blobInfo.blob(), blobInfo.filename());
+            // Deliberately native fetch, not apiFetch: apiFetch always JSON.stringifies the
+            // body, which can't carry multipart FormData. Auth is cookie-based (credentials:
+            // 'include'), matching withMemberGuard's session cookie, same as PublicMemorialPage.tsx.
+            // eslint-disable-next-line no-restricted-globals
+            const res = await fetch(getApiPath(ApiRoute.SITE_CONTENT_IMAGES, siteId), {
+              method: 'POST',
+              credentials: 'include',
+              body: formData,
+            });
+            if (!res.ok) {
+              throw new Error(`Image upload failed: HTTP ${res.status}`);
+            }
+            const data = await res.json();
+            return data.url as string;
+          },
           // Allow all image file types
           file_picker_types: 'image',
           // Configure image dialog

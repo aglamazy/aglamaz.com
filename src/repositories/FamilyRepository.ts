@@ -64,6 +64,10 @@ export interface SiteInvite {
   usedAt?: Timestamp;
   usedBy?: string;
   usedByEmail?: string;
+  /** Who this invite was sent to, when created for a specific person (e.g. an event honoree) rather than a general shareable link. */
+  invitedEmail?: string;
+  /** App-relative path to land on right after accepting - e.g. the honoree's blessing page. */
+  redirectPath?: string;
 }
 
 export class FamilyRepository {
@@ -182,13 +186,20 @@ export class FamilyRepository {
   }
 
   // Invite Management
-  async createInvite(siteId: string, inviter?: { id?: string; email?: string; name?: string }): Promise<SiteInvite> {
+  async createInvite(
+    siteId: string,
+    inviter?: { id?: string; email?: string; name?: string },
+    options?: { invitedEmail?: string; redirectPath?: string; expiresInMs?: number },
+  ): Promise<SiteInvite> {
     try {
       const db = this.getDb();
       const { randomUUID } = require('crypto');
       const token = randomUUID();
       const now = Timestamp.now();
-      const expiresAt = Timestamp.fromDate(new Date(Date.now() + 24 * 60 * 60 * 1000));
+      // Default 24h suits the generic admin-shares-a-link-immediately flow. A
+      // person-addressed invite that sits in an inbox (e.g. an event-honoree invite)
+      // needs longer - callers pass expiresInMs to override.
+      const expiresAt = Timestamp.fromDate(new Date(Date.now() + (options?.expiresInMs ?? 24 * 60 * 60 * 1000)));
 
       const inviteData = {
         token,
@@ -200,6 +211,8 @@ export class FamilyRepository {
         createdAt: now,
         updatedAt: now,
         expiresAt,
+        invitedEmail: options?.invitedEmail || null,
+        redirectPath: options?.redirectPath || null,
       };
 
       const docRef = db.collection(this.invitesCollection).doc(token);
@@ -360,15 +373,15 @@ export class FamilyRepository {
     try {
       const db = this.getDb();
       const now = Timestamp.now();
-      
+
       // Create deterministic document ID based on email + siteId
       const emailKey = requestData.email.toLowerCase().trim();
       const documentKey = `${emailKey}_${requestData.siteId}`;
-      
+
       // Hash the key to create a safe document ID
       const crypto = require('crypto');
       const documentId = crypto.createHash('sha256').update(documentKey).digest('hex');
-      
+
       // Use setDoc with merge to ensure idempotency
       const requestRef = db.collection(this.signupRequestsCollection).doc(documentId);
       const payload: Record<string, unknown> = {
@@ -407,7 +420,7 @@ export class FamilyRepository {
         .where('status', 'in', ['pending', 'pending_verification'])
         .orderBy('createdAt', 'asc')
         .get();
-      
+
       return querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
@@ -425,7 +438,7 @@ export class FamilyRepository {
         .where('verificationToken', '==', verificationToken)
         .where('status', '==', 'pending_verification')
         .get();
-      
+
       if (querySnapshot.empty) {
         throw new Error('Invalid or expired verification token');
       }
@@ -628,15 +641,15 @@ export class FamilyRepository {
   async getSignupRequestByEmail(email: string, siteId: string): Promise<SignupRequest | null> {
     try {
       const db = this.getDb();
-      
+
       // Create the same deterministic document ID
       const emailKey = email.toLowerCase().trim();
       const documentKey = `${emailKey}_${siteId}`;
       const crypto = require('crypto');
       const documentId = crypto.createHash('sha256').update(documentKey).digest('hex');
-      
+
       const requestDoc = await db.collection(this.signupRequestsCollection).doc(documentId).get();
-      
+
       if (!requestDoc.exists) {
         return null;
       }
@@ -666,4 +679,4 @@ export class FamilyRepository {
 }
 
 // Export singleton instance
-export const familyRepository = new FamilyRepository(); 
+export const familyRepository = new FamilyRepository();

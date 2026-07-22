@@ -162,13 +162,15 @@ const postHandler = async (request: Request, context: GuardContext & { params: P
     const repo = new BlogRepository();
     const user = context.user!;
     const body = await request.json();
-    const { title, content, isPublic, lang, taggedMemberIds } = body;
+    const { title, content, isPublic, lang, contentFormat, taggedMemberIds } = body;
     if (!title || !content) {
       return Response.json({ error: 'Missing fields' }, { status: 400 });
     }
     const accept = request.headers.get('accept-language');
     const headerLang = parseLocaleInput(accept);
     const primaryLocale = (parseLocaleInput(lang) || headerLang || DEFAULT_LANG).toLowerCase();
+    // Default 'html' if client omits the field — keeps the legacy posting flow working unchanged.
+    const normalizedFormat: 'md' | 'html' = contentFormat === 'md' ? 'md' : 'html';
     const validTaggedMemberIds = await TagNotificationService.filterSiteMemberIds(taggedMemberIds, siteId);
     const post = await repo.create({
       authorId: user.userId,
@@ -181,6 +183,7 @@ const postHandler = async (request: Request, context: GuardContext & { params: P
         sourceLocale: primaryLocale,
       },
       isPublic: Boolean(isPublic),
+      contentFormat: normalizedFormat,
       taggedMemberIds: validTaggedMemberIds,
     });
 
@@ -225,12 +228,13 @@ const putHandler = async (request: Request, context: GuardContext & { params: Pr
     const user = context.user!;
     const member = context.member!;
     const body = await request.json();
-    const { id, title, content, isPublic, lang, taggedMemberIds } = body as {
+    const { id, title, content, isPublic, lang, contentFormat, taggedMemberIds } = body as {
       id?: string;
       title?: string;
       content?: string;
       isPublic?: boolean;
       lang?: string;
+      contentFormat?: 'md' | 'html';
       taggedMemberIds?: string[];
     };
     if (!id) {
@@ -253,6 +257,9 @@ const putHandler = async (request: Request, context: GuardContext & { params: Pr
     }
     if (typeof isPublic === 'boolean') {
       updates.isPublic = !!isPublic;
+    }
+    if (contentFormat === 'md' || contentFormat === 'html') {
+      updates.contentFormat = contentFormat;
     }
 
     let newlyTaggedMemberIds: string[] = [];

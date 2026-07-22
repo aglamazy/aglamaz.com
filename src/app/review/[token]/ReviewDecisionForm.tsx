@@ -23,6 +23,10 @@ export default function ReviewDecisionForm({ token }: Props) {
     setSubmitting(true);
     setError('');
     try {
+      // Deliberately native fetch, not apiFetch: this is a public, token-gated route
+      // with no member session — apiFetch's auth headers don't apply here (the
+      // reviewToken itself is the auth, see api/review/[token]/route.ts).
+      // eslint-disable-next-line no-restricted-globals
       const res = await fetch(`/api/review/${token}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

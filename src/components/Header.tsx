@@ -130,6 +130,7 @@ export default function Header({ user, member, onLogout, siteInfo }: HeaderProps
                 <a className="hover:underline flex items-center gap-1" href={`/${currentLocale}/blog`}>
                   {isRTL ? (<><span>{t('blog') as string}</span><BookOpen size={18} /></>) : (<><BookOpen size={18} /><span>{t('blog') as string}</span></>)}
                 </a>
+                {/* Digest-preview nav link hidden (Agla, 2026-07-21) - page + route stay reachable by direct URL. */}
               </>
             ); })()}
           </nav>

@@ -24,6 +24,7 @@ const LOCALIZED_PUBLIC_PATHS = [
   '/contact',
   '/blog',
   '/terms',
+  '/privacy',
 ];
 
 // All public paths (accessible without auth)
@@ -41,10 +42,24 @@ const PUBLIC_PATHS = [
   '/sitemap.xml',
   '/robots.txt',
   '/terms',
+  '/privacy',
   '/og',
+  '/public',
 ];
 
 const PUBLIC_REDIRECT_PATHS = ['/auth/login'];
+
+// API routes that are deliberately reachable with no session (see the route
+// handler's own comment) — the non-member memorial-page write path. Matched
+// by pattern rather than folded into PUBLIC_PATHS since that's a plain
+// prefix list and would otherwise expose the rest of /api/site/*.
+const PUBLIC_API_PATTERNS = [
+  /^\/api\/site\/[^/]+\/blessing-pages\/[^/]+\/blessings\/public$/,
+];
+
+function isPublicApiPath(pathname: string) {
+  return PUBLIC_API_PATTERNS.some((re) => re.test(pathname));
+}
 
 function stripLocale(pathname: string) {
   const match = pathname.match(/^\/(\w{2})(\/.*)?$/);
@@ -95,7 +110,8 @@ export async function proxy(request: NextRequest) {
   }
 
   const token = request.cookies.get(ACCESS_TOKEN)?.value;
-  const isPublic = PUBLIC_PATHS.some((p) => normalizedPath === p || normalizedPath.startsWith(p + '/'));
+  const isPublic = PUBLIC_PATHS.some((p) => normalizedPath === p || normalizedPath.startsWith(p + '/'))
+    || isPublicApiPath(normalizedPath);
 
   // Allow public paths regardless of auth status
   if (isPublic) {

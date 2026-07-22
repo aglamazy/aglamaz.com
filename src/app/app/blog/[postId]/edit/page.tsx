@@ -1,30 +1,40 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
+import { marked } from 'marked';
+import DOMPurify from 'dompurify';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { apiFetch } from '@/utils/apiFetch';
 import { ApiRoute } from '@/entities/Routes';
 import EditorRich from '@/components/ui/EditorRich';
-import type { IBlogPost, BlogPostLocalizedFields } from '@/entities/BlogPost';
+import type { IBlogPost, BlogPostLocalizedFields, BlogPostContentFormat } from '@/entities/BlogPost';
 import { localizeBlogPost } from '@/utils/blogLocales';
 import { DEFAULT_LOCALE } from '@/i18n';
 import { useUserStore } from '@/store/UserStore';
 import { useMemberStore } from '@/store/MemberStore';
+import { useSiteStore } from '@/store/SiteStore';
 
+// Edit honors the existing post's contentFormat. Authors can switch formats
+// here too, but as in the new-post page, switching does NOT auto-convert the
+// content body (would be a lossy round-trip). Existing posts without the field
+// load as 'html' (back-compat default in BlogRepository.mapDoc).
 export default function EditPostPage() {
   const { t, i18n } = useTranslation();
   const params = useParams<{ postId: string }>();
   const router = useRouter();
   const user = useUserStore((state) => state.user);
   const member = useMemberStore((state) => state.member);
+  const siteId = useSiteStore((state) => state.siteInfo?.id);
 
   const [post, setPost] = useState<IBlogPost | null>(null);
   const [draftTitle, setDraftTitle] = useState('');
   const [draftContent, setDraftContent] = useState('');
+  const [draftFormat, setDraftFormat] = useState<BlogPostContentFormat>('html');
   const [draftPublic, setDraftPublic] = useState(false);
+  const [draftLocale, setDraftLocale] = useState(DEFAULT_LOCALE);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -45,7 +55,9 @@ export default function EditPostPage() {
         }).localized;
         setDraftTitle(localizedData.title ?? '');
         setDraftContent(localizedData.content ?? '');
+        setDraftFormat(data.post?.contentFormat ?? 'html');
         setDraftPublic(data.post?.isPublic ?? false);
+        setDraftLocale(localizedData.locale || DEFAULT_LOCALE);
         setError(null);
       } catch (err) {
         console.error('[blog-edit] failed to load post', err);
@@ -67,6 +79,21 @@ export default function EditPostPage() {
     }
   }, [post, user?.user_id, member?.role, router]);
 
+  // The post's own authored language, not the admin's current UI language -
+  // an admin viewing the site in Hebrew must still be able to edit an
+  // English post without its title/body being forced into RTL layout.
+  const contentDir = draftLocale.toLowerCase().startsWith('he') ? 'rtl' : 'ltr';
+
+  const mdPreviewHtml = useMemo(() => {
+    if (draftFormat !== 'md') return '';
+    try {
+      const raw = marked.parse(draftContent || '', { async: false, gfm: true, breaks: false }) as string;
+      return DOMPurify.sanitize(raw);
+    } catch {
+      return '';
+    }
+  }, [draftContent, draftFormat]);
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!post) return;
@@ -81,6 +108,7 @@ export default function EditPostPage() {
           content: draftContent,
           isPublic: draftPublic,
           lang: i18n.language,
+          contentFormat: draftFormat,
         }),
       });
       router.push('/app/blog');
@@ -136,12 +164,53 @@ export default function EditPostPage() {
             onChange={(event) => setDraftTitle(event.target.value)}
             className="w-full border border-sage-200 rounded-md px-3 py-2"
             placeholder={t('title') as string}
+            dir={contentDir}
           />
-          <EditorRich
-            value={draftContent}
-            locale={(i18n.language || 'en').split('-')[0]}
-            onChange={(html) => setDraftContent(html)}
-          />
+          <div className="flex items-center gap-4 text-sm">
+            <label className="flex items-center gap-1">
+              <input
+                type="radio"
+                name="contentFormat"
+                value="md"
+                checked={draftFormat === 'md'}
+                onChange={() => setDraftFormat('md')}
+              />
+              <span>{t('formatMarkdown', { defaultValue: 'Markdown' }) as string}</span>
+            </label>
+            <label className="flex items-center gap-1">
+              <input
+                type="radio"
+                name="contentFormat"
+                value="html"
+                checked={draftFormat === 'html'}
+                onChange={() => setDraftFormat('html')}
+              />
+              <span>{t('formatRichHtml', { defaultValue: 'Rich (HTML)' }) as string}</span>
+            </label>
+          </div>
+          {draftFormat === 'md' ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <textarea
+                value={draftContent}
+                onChange={(e) => setDraftContent(e.target.value)}
+                className="w-full border p-2 text-sm font-mono min-h-[400px]"
+                placeholder={t('writeMarkdownHere', { defaultValue: 'Write markdown here…' }) as string}
+                dir={contentDir}
+              />
+              <div
+                className="prose max-w-none border p-3 min-h-[400px] overflow-auto text-sm"
+                dir={contentDir}
+                dangerouslySetInnerHTML={{ __html: mdPreviewHtml }}
+              />
+            </div>
+          ) : (
+            <EditorRich
+              value={draftContent}
+              locale={draftLocale.split('-')[0]}
+              onChange={(html) => setDraftContent(html)}
+              siteId={siteId}
+            />
+          )}
           <label className="flex items-center gap-2 text-sage-700">
             <input
               type="checkbox"

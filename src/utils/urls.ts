@@ -17,6 +17,8 @@ export const routePaths: Record<AppRoute, string> = {
   // Public pages
   [AppRoute.HOME]: '/{locale}',
   [AppRoute.CONTACT]: '/{locale}/contact',
+  [AppRoute.TERMS]: '/{locale}/terms',
+  [AppRoute.PRIVACY]: '/{locale}/privacy',
   [AppRoute.BLOG]: '/{locale}/blog',
   [AppRoute.BLOG_POST]: '/{locale}/blog/{id}',
 
@@ -36,6 +38,7 @@ export const routePaths: Record<AppRoute, string> = {
   [AppRoute.APP_ANNIVERSARY_EVENT]: '/app/anniversaries/{id}/events/{eventId}',
   [AppRoute.APP_ANNIVERSARY_EVENT_NEW]: '/app/anniversaries/{id}/events/new',
   [AppRoute.APP_SLIDESHOW]: '/app/slideshow',
+  [AppRoute.APP_PHOTOS]: '/app/photos',
 
   // Admin pages
   [AppRoute.ADMIN_DASHBOARD]: '/admin/dashboard',
@@ -126,6 +129,7 @@ export const apiRoutePaths: Record<ApiRoute, string> = {
   [ApiRoute.SITE_MAGAZINE_TEMPLATE_SUGGEST]: '/api/site/{siteId}/magazine-template/suggest',
 
   // Pictures & Photos
+  [ApiRoute.SITE_CONTENT_IMAGES]: '/api/site/{siteId}/content-images',
   [ApiRoute.SITE_PICTURES]: '/api/site/{siteId}/pictures',
   [ApiRoute.SITE_PHOTOS]: '/api/site/{siteId}/photos',
   [ApiRoute.SITE_PHOTO_BY_ID]: '/api/site/{siteId}/photos/{photoId}',
@@ -134,6 +138,7 @@ export const apiRoutePaths: Record<ApiRoute, string> = {
 
   // Anniversaries & Calendar
   [ApiRoute.SITE_ANNIVERSARIES]: '/api/site/{siteId}/anniversaries',
+  [ApiRoute.SITE_ANNIVERSARIES_SEARCH]: '/api/site/{siteId}/anniversaries/search',
   [ApiRoute.SITE_ANNIVERSARY_BY_ID]: '/api/site/{siteId}/anniversaries/{anniversaryId}',
   [ApiRoute.SITE_ANNIVERSARY_EVENT_BY_ID]: '/api/site/{siteId}/anniversaries/{anniversaryId}/events/{eventId}',
   [ApiRoute.SITE_ANNIVERSARY_EVENT_IMAGE_LIKES]: '/api/site/{siteId}/anniversaries/{anniversaryId}/events/{eventId}/image-likes',
@@ -157,6 +162,7 @@ export const apiRoutePaths: Record<ApiRoute, string> = {
   // Profile
   [ApiRoute.SITE_PROFILE]: '/api/site/{siteId}/profile',
   [ApiRoute.SITE_PROFILE_AVATAR]: '/api/site/{siteId}/profile/avatar',
+  [ApiRoute.SITE_NOTIFICATION_PREFERENCES]: '/api/site/{siteId}/notification-preferences',
 
   // Blog
   [ApiRoute.SITE_BLOG]: '/api/site/{siteId}/blog',
@@ -169,8 +175,10 @@ export const apiRoutePaths: Record<ApiRoute, string> = {
 
   // Blessing Pages
   [ApiRoute.SITE_BLESSING_PAGES_BY_SLUG]: '/api/site/{siteId}/blessing-pages/by-slug/{slug}',
+  [ApiRoute.SITE_BLESSING_PAGE_BY_ID]: '/api/site/{siteId}/blessing-pages/{pageId}',
   [ApiRoute.SITE_BLESSING_PAGE_BLESSINGS]: '/api/site/{siteId}/blessing-pages/{pageId}/blessings',
   [ApiRoute.SITE_BLESSING_BY_ID]: '/api/site/{siteId}/blessing-pages/{pageId}/blessings/{blessingId}',
+  [ApiRoute.SITE_BLESSING_PAGE_PUBLIC_BLESSINGS]: '/api/site/{siteId}/blessing-pages/{pageId}/blessings/public',
 
   // Admin
   [ApiRoute.SITE_ADMIN_CONTACT]: '/api/site/{siteId}/admin/contact',
@@ -184,6 +192,12 @@ export const apiRoutePaths: Record<ApiRoute, string> = {
 
   // Contact
   [ApiRoute.SITE_CONTACT]: '/api/site/{siteId}/contact',
+
+  // Token-gated reminder preferences
+  [ApiRoute.REMINDER_PREFERENCES]: '/api/notifications/preferences',
+
+  // Review (token-gated, non-site-scoped)
+  [ApiRoute.REVIEW_DECISION]: '/api/review/{token}',
 };
 
 /**

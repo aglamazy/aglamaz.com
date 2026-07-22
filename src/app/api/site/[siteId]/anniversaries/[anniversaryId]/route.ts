@@ -2,6 +2,7 @@ import { withMemberGuard } from '@/lib/withMemberGuard';
 import { AnniversaryRepository } from '@/repositories/AnniversaryRepository';
 import { AnniversaryOccurrenceRepository } from '@/repositories/AnniversaryOccurrenceRepository';
 import { BlessingPageRepository } from '@/repositories/BlessingPageRepository';
+import { sendHonoreeBlessingLink } from '@/services/HonoreeInviteService';
 import { GuardContext } from '@/app/api/types';
 
 export const dynamic = 'force-dynamic';
@@ -38,7 +39,7 @@ const getHandler = async (_request: Request, context: GuardContext & { params: P
 
     // Fetch blessing pages for this event
     const blessingPageRepo = new BlessingPageRepository();
-    const blessingPages = await blessingPageRepo.listByEvent(anniversaryId);
+    const blessingPages = await blessingPageRepo.listByEvent(anniversaryId, existing.type);
 
     return Response.json({
       event: {
@@ -84,7 +85,7 @@ const putHandler = async (request: Request, context: GuardContext & { params: Pr
       return Response.json({ error: 'Forbidden' }, { status: 403 });
     }
     const body = await request.json();
-    const { name, description, type, date, isAnnual, imageUrl, useHebrew } = body;
+    const { name, description, type, date, isAnnual, imageUrl, useHebrew, honoreeMemberId, honoreeEmail, sendInviteNow } = body;
 
     // Get locale from header (injected by proxy from query param)
     const locale = request.headers.get('x-locale') || 'he';
@@ -98,8 +99,26 @@ const putHandler = async (request: Request, context: GuardContext & { params: Pr
       imageUrl,
       useHebrew,
       locale,
+      honoreeMemberId: honoreeMemberId !== undefined ? (honoreeMemberId || null) : undefined,
+      honoreeEmail: honoreeMemberId ? null : (honoreeEmail !== undefined ? (honoreeEmail || null) : undefined),
     });
     const updated = await repo.getById(anniversaryId);
+
+    // Best-effort - a failed link send must not fail the event save itself.
+    if (updated && (honoreeMemberId || honoreeEmail) && sendInviteNow) {
+      try {
+        await sendHonoreeBlessingLink({
+          siteId,
+          event: updated,
+          honoreeMemberId: honoreeMemberId || undefined,
+          honoreeEmail: honoreeMemberId ? undefined : honoreeEmail,
+          authorName: (member as any).firstName || (member as any).displayName || user.email || '',
+        });
+      } catch (inviteError) {
+        console.error('[anniversaries] failed to send honoree blessing link', inviteError);
+      }
+    }
+
     return Response.json({ event: updated });
   } catch (error) {
     console.error(error);

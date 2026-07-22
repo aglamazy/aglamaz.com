@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import styles from './ImageGrid.module.css';
 import { useTranslation } from 'react-i18next';
@@ -17,6 +17,10 @@ export interface GridItem {
   meta?: Record<string, unknown>;
   dir?: 'ltr' | 'rtl' | 'auto';
   mediaType?: 'image' | 'video';
+  // Height/width ratio of the source image, used by the JS row-major masonry
+  // (useJsMasonry) to size tiles without waiting for the image to load.
+  // Falls back to a square tile when omitted.
+  aspectRatio?: number;
 }
 
 export interface LikeMeta {
@@ -32,9 +36,17 @@ interface ImageGridProps {
   onTitleClick?: (item: GridItem) => void;
   getLightboxLink?: (item: GridItem) => string | undefined;
   autoSlideshow?: boolean;
+  // Opt-in row-major (Pinterest-style) JS masonry instead of the default
+  // CSS column-count masonry. CSS column-count fills column-major (balances
+  // height column-by-column), which buries newest items in paginated feeds
+  // that rely on DOM order == chronological order (see famcircle#72). Only
+  // enable this where callers supply per-item `aspectRatio` (or accept the
+  // square-tile fallback) — the digest email's masonry collage is a
+  // separate, non-React, inlined-CSS render and is unaffected either way.
+  useJsMasonry?: boolean;
 }
 
-export default function ImageGrid({ items, getMeta, onToggle, onTitleClick, getLightboxLink, autoSlideshow }: ImageGridProps) {
+export default function ImageGrid({ items, getMeta, onToggle, onTitleClick, getLightboxLink, autoSlideshow, useJsMasonry }: ImageGridProps) {
   const { t, i18n } = useTranslation();
   const [isMobile, setIsMobile] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -51,6 +63,9 @@ export default function ImageGrid({ items, getMeta, onToggle, onTitleClick, getL
   const autoSlideshowTriggered = useRef(false);
   const prefetchedSrc = useRef<Set<string>>(new Set());
   const presentationListRef = useRef<HTMLDivElement | null>(null);
+  const gridContainerRef = useRef<HTMLDivElement | null>(null);
+  const [gridColumnCount, setGridColumnCount] = useState(4);
+  const [gridWidth, setGridWidth] = useState(0);
 
   const enablePresentation = usePresentationModeStore((state) => state.enable);
   const disablePresentation = usePresentationModeStore((state) => state.disable);
@@ -67,6 +82,67 @@ export default function ImageGrid({ items, getMeta, onToggle, onTitleClick, getL
     mediaQuery.addEventListener('change', update);
     return () => mediaQuery.removeEventListener('change', update);
   }, []);
+
+  // Mirrors the .imagesGrid CSS column-count breakpoints so the JS masonry
+  // (when enabled) lays out the same number of columns as the CSS fallback.
+  useEffect(() => {
+    if (!useJsMasonry || typeof window === 'undefined') return;
+    const updateColumns = () => {
+      const w = window.innerWidth;
+      setGridColumnCount(w >= 1024 ? 4 : w >= 768 ? 3 : 2);
+    };
+    updateColumns();
+    window.addEventListener('resize', updateColumns);
+    return () => window.removeEventListener('resize', updateColumns);
+  }, [useJsMasonry]);
+
+  // Measure synchronously (before paint) so the first render already has the
+  // real width where possible, avoiding a flash of CSS-column fallback layout.
+  useLayoutEffect(() => {
+    if (!useJsMasonry || isMobile) return;
+    const el = gridContainerRef.current;
+    if (!el) return;
+    setGridWidth(el.getBoundingClientRect().width);
+  }, [useJsMasonry, isMobile, gridColumnCount, items.length]);
+
+  useEffect(() => {
+    if (!useJsMasonry || isMobile) return;
+    const el = gridContainerRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (entry) setGridWidth(entry.contentRect.width);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [useJsMasonry, isMobile]);
+
+  // Row-major (Pinterest-style) masonry: place each item, in existing DOM
+  // order (newest-first per GalleryPhotoRepository), into whichever column
+  // currently has the least accumulated height. This keeps reading order
+  // (and therefore chronological order) tracking visual position, unlike
+  // CSS column-count which balances height column-by-column first.
+  const masonryLayout = useMemo(() => {
+    if (!useJsMasonry || isMobile || gridWidth <= 0 || gridColumnCount <= 0) return null;
+    const gap = 8; // matches .imagesGrid's column-gap: 0.5rem
+    const cols = gridColumnCount;
+    const columnWidth = (gridWidth - gap * (cols - 1)) / cols;
+    if (columnWidth <= 0) return null;
+    const columnHeights = new Array(cols).fill(0);
+    const positions = items.map((item) => {
+      const ratio = item.aspectRatio && item.aspectRatio > 0 ? item.aspectRatio : 1;
+      const height = columnWidth * ratio;
+      let col = 0;
+      for (let c = 1; c < cols; c++) {
+        if (columnHeights[c] < columnHeights[col]) col = c;
+      }
+      const top = columnHeights[col];
+      columnHeights[col] = top + height + gap;
+      return { top, left: col * (columnWidth + gap), width: columnWidth };
+    });
+    const tallest = Math.max(...columnHeights);
+    return { positions, containerHeight: tallest > 0 ? tallest - gap : 0 };
+  }, [useJsMasonry, isMobile, items, gridColumnCount, gridWidth]);
 
   useEffect(() => {
     if (typeof window === 'undefined' || items.length === 0) return;
@@ -452,14 +528,22 @@ export default function ImageGrid({ items, getMeta, onToggle, onTitleClick, getL
 
   return (
     <>
-      <div className={styles.imagesGrid}>
+      <div
+        className={styles.imagesGrid}
+        ref={gridContainerRef}
+        style={masonryLayout ? { position: 'relative', height: masonryLayout.containerHeight } : undefined}
+      >
         {items.map((it, i) => {
           const meta = getMeta(it);
           const metaInfo = it.meta as { canEdit?: boolean } | undefined;
           const clickable = Boolean(onTitleClick && metaInfo?.canEdit);
           const titleDir = (it as GridItem).dir as ('ltr' | 'rtl' | 'auto') | undefined;
+          const pos = masonryLayout?.positions[i];
+          const thumbWrapStyle = pos
+            ? { position: 'absolute' as const, top: pos.top, insetInlineStart: pos.left, width: pos.width, marginBottom: 0 }
+            : undefined;
           return (
-            <div key={it.key} className={styles.thumbWrap}>
+            <div key={it.key} className={styles.thumbWrap} style={thumbWrapStyle}>
               {it.mediaType === 'video' ? (
                 <div
                   style={{ position: 'relative', cursor: 'pointer' }}

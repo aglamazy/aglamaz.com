@@ -31,6 +31,7 @@ export interface ISite {
   ownerUid: string;
   createdAt: any;
   updatedAt: any;
+  // Demo sites let anyone onboard with zero admin friction (see utils/siteUtils.shouldAutoApprove)
   isDemo?: boolean;
 
   // Flattened fields from current locale (for convenience)

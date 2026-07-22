@@ -1,0 +1,132 @@
+.page {
+  min-height: 100%;
+  padding: 3rem 1rem 4rem;
+  background:
+    radial-gradient(circle at top left, rgba(132, 204, 22, 0.14), transparent 32%),
+    radial-gradient(circle at top right, rgba(59, 130, 246, 0.12), transparent 28%),
+    linear-gradient(180deg, #f8faf5 0%, #f4f7f1 100%);
+}
+
+.shell {
+  max-width: 920px;
+  margin: 0 auto;
+}
+
+.hero {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 28px;
+  padding: 2rem;
+  margin-bottom: 1.5rem;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(16px);
+}
+
+.hero::after {
+  content: '';
+  position: absolute;
+  inset: auto -8rem -10rem auto;
+  width: 18rem;
+  height: 18rem;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(34, 197, 94, 0.16) 0%, rgba(34, 197, 94, 0.02) 70%, transparent 72%);
+  pointer-events: none;
+}
+
+.eyebrow {
+  margin: 0 0 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.title {
+  margin: 0;
+  font-size: clamp(2.2rem, 4vw, 3.4rem);
+  line-height: 1.05;
+  color: #0f172a;
+}
+
+.intro {
+  max-width: 62ch;
+  margin: 1rem 0 0;
+  font-size: 1.05rem;
+  line-height: 1.75;
+  color: #334155;
+}
+
+.metaRow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+  padding: 0.7rem 1rem;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.04);
+  color: #334155;
+}
+
+.metaLabel {
+  font-weight: 700;
+}
+
+.metaValue {
+  font-weight: 500;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.card {
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 24px;
+  padding: 1.35rem 1.35rem 1.25rem;
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.06);
+}
+
+.cardTitle {
+  margin: 0 0 0.75rem;
+  font-size: 1.1rem;
+  line-height: 1.3;
+  color: #0f172a;
+}
+
+.cardText {
+  margin: 0;
+  line-height: 1.75;
+  color: #334155;
+}
+
+.list {
+  margin: 0;
+  padding-inline-start: 1.2rem;
+  color: #334155;
+  line-height: 1.75;
+}
+
+.listItem + .listItem {
+  margin-top: 0.65rem;
+}
+
+@media (max-width: 720px) {
+  .page {
+    padding: 1.25rem 0.75rem 3rem;
+  }
+
+  .hero {
+    padding: 1.5rem;
+    border-radius: 22px;
+  }
+
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}

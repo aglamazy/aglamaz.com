@@ -8,6 +8,7 @@ import LoginPage from '@/components/LoginPage';
 import PendingMemberContent from '@/components/PendingMemberContent';
 import NotMemberContent from '@/components/NotMemberContent';
 import EditUserDetails from '@/components/EditUserDetails';
+import NotificationPreferences from '@/components/NotificationPreferences';
 import styles from './ClientLayoutShell.module.css';
 import type { IUser } from '@/entities/User';
 import type { IMember } from '@/entities/Member';
@@ -73,6 +74,7 @@ export default function ClientDesktopShell({
       </Modal>
       <Modal isOpen={isEditOpen} onClose={closeEdit}>
         <EditUserDetails standalone={false} />
+        <NotificationPreferences />
       </Modal>
     </div>
   );

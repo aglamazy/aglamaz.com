@@ -54,9 +54,19 @@ export default function PendingMembersPage() {
         setLoading(false);
       }
     };
+
     if (user?.user_id && site?.id) {
       load(user.user_id, site.id);
+      return;
     }
+
+    // Defensive fallback: user/site are hydrated asynchronously (bootstrap script or auth
+    // check). If they never resolve, don't spin forever - surface a visible error instead.
+    const timeoutId = setTimeout(() => {
+      setLoading(false);
+      setError(t('failedToLoadPendingMembers'));
+    }, 10000);
+    return () => clearTimeout(timeoutId);
   }, [user?.user_id, site?.id, t]);
 
   const handleAction = async (memberId: string, action: 'approve' | 'reject') => {

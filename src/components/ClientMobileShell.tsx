@@ -6,6 +6,7 @@ import LoginPage from '@/components/LoginPage';
 import PendingMemberContent from '@/components/PendingMemberContent';
 import NotMemberContent from '@/components/NotMemberContent';
 import EditUserDetails from '@/components/EditUserDetails';
+import NotificationPreferences from '@/components/NotificationPreferences';
 import BottomTabBar from '@/components/mobile/BottomTabBar';
 import styles from './ClientLayoutShell.module.css';
 import type { TFunction } from 'i18next';
@@ -60,6 +61,7 @@ export default function ClientMobileShell({
       </Modal>
       <Modal isOpen={isEditOpen} onClose={closeEdit}>
         <EditUserDetails standalone={false} />
+        <NotificationPreferences />
       </Modal>
     </div>
   );

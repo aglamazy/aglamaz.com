@@ -16,11 +16,12 @@ import { getPath } from '@/utils/urls';
 import styles from './page.module.css';
 import AddFab from '@/components/ui/AddFab';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import type { AnniversaryEvent } from '@/entities/Anniversary';
 import { useAddAction } from '@/hooks/useAddAction';
 import EventFormContent from '@/components/calendar/EventFormContent';
+import EventSearchBox from '@/components/calendar/EventSearchBox';
 
 export default function AnniversariesPage() {
   const [events, setEvents] = useState<AnniversaryEvent[]>([]);
@@ -45,13 +46,14 @@ export default function AnniversariesPage() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<AnniversaryEvent | null>(null);
   const [occurrences, setOccurrences] = useState<Array<{ id: string; date: any }>>([]);
-  const [monthOccs, setMonthOccs] = useState<Array<{ id: string; eventId: string; date: any; images?: string[] }>>([]);
+  const [monthOccs, setMonthOccs] = useState<Array<{ id: string; eventId: string; date: any; images?: string[]; eventName?: string }>>([]);
   const [occLoading, setOccLoading] = useState(false);
   const [occError, setOccError] = useState('');
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
   const [creatingBlessingPage, setCreatingBlessingPage] = useState(false);
   const [blessingPageError, setBlessingPageError] = useState('');
+  const [highlightedDay, setHighlightedDay] = useState<{ year: number; month: number; day: number } | null>(null);
   const user = useUserStore((s) => s.user);
   const checkAuth = useUserStore((s) => s.checkAuth);
   const member = useMemberStore((state) => state.member);
@@ -99,6 +101,35 @@ export default function AnniversariesPage() {
     sessionStorage.setItem(calendarMonthKey, key);
   }, [selectedDate]);
 
+  // Auto-clear the search-result highlight after a moment, so it reads as a
+  // pointer rather than a permanent marker.
+  useEffect(() => {
+    if (!highlightedDay) return;
+    const handle = setTimeout(() => setHighlightedDay(null), 2500);
+    return () => clearTimeout(handle);
+  }, [highlightedDay]);
+
+  const handleSearchSelect = (event: AnniversaryEvent) => {
+    const month = (event as any).originalMonth ?? event.month;
+    const day = (event as any).originalDay ?? event.day;
+    const storedYear = (event as any).originalYear ?? event.year;
+
+    // For a recurring annual event, the original entry year (e.g. the wedding
+    // year itself) isn't the useful jump target - land on the nearest real
+    // occurrence (this year, or next year if this year's date already passed).
+    let year = storedYear;
+    if (event.isAnnual) {
+      const today = new Date();
+      const thisYearOccurrence = new Date(today.getFullYear(), month, day);
+      year = thisYearOccurrence >= new Date(today.getFullYear(), today.getMonth(), today.getDate())
+        ? today.getFullYear()
+        : today.getFullYear() + 1;
+    }
+
+    setSelectedDate(new Date(year, month, 1));
+    setHighlightedDay({ year, month, day });
+  };
+
   const fetchEvents = async (y: number, m: number) => {
     setLoading(true);
     try {
@@ -119,7 +150,7 @@ export default function AnniversariesPage() {
     // also fetch month occurrences (events that happened this month)
     (async () => {
       try {
-        const res = await apiFetch<{ items: Array<{ id: string; eventId: string; date: any; images?: string[] }> }>(
+        const res = await apiFetch<{ items: Array<{ id: string; eventId: string; date: any; images?: string[]; eventName?: string }> }>(
           ApiRoute.SITE_CALENDAR_OCCURRENCES,
           { queryParams: { year: String(y), month: String(m) } }
         );
@@ -328,25 +359,28 @@ export default function AnniversariesPage() {
     setCreatingBlessingPage(true);
     setBlessingPageError('');
     try {
-      const currentYear = new Date().getFullYear();
-
       // Call API to create blessing page
-      const { blessingPage } = await apiFetch<{ blessingPage: { year: number; slug: string } }>(
+      const { blessingPage } = await apiFetch<{ blessingPage: { year?: number; slug: string } }>(
         ApiRoute.SITE_ANNIVERSARY_BLESSING_PAGES,
         {
           pathParams: { anniversaryId: selectedEvent.id },
           method: 'POST',
-          body: { year: currentYear },
+          body: selectedEvent.type === 'death' ? {} : { year: new Date().getFullYear() },
         }
       );
 
       // Update selected event to include the new blessing page
       setSelectedEvent({
         ...selectedEvent,
-        blessingPages: [
-          ...(selectedEvent.blessingPages || []),
-          { year: blessingPage.year, slug: blessingPage.slug }
-        ]
+        blessingPages: selectedEvent.type === 'death'
+          ? [
+              { year: blessingPage.year, slug: blessingPage.slug },
+              ...((selectedEvent.blessingPages || []).filter((bp: any) => bp.slug !== blessingPage.slug))
+            ]
+          : [
+              ...(selectedEvent.blessingPages || []),
+              { year: blessingPage.year, slug: blessingPage.slug }
+            ]
       } as any);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to create blessing page';
@@ -445,13 +479,18 @@ export default function AnniversariesPage() {
       cellDay === today.getDate() &&
       cellMonth === today.getMonth() &&
       cellYear === today.getFullYear();
+    const isSearchHighlighted =
+      !!highlightedDay &&
+      cellDay === highlightedDay.day &&
+      cellMonth === highlightedDay.month &&
+      cellYear === highlightedDay.year;
 
     dayCells.push(
       <div
         key={`${cellYear}-${cellMonth}-${cellDay}`}
         className={`border p-1 sm:p-2 h-24 sm:h-32 rounded-xl shadow-md transition-colors relative overflow-hidden ${
           isCurrentMonth ? 'hover:bg-emerald-50' : 'text-gray-400 bg-gray-50'
-        } ${isToday ? 'ring-2 ring-emerald-500' : ''}`}
+        } ${isToday ? 'ring-2 ring-emerald-500' : ''} ${isSearchHighlighted ? 'ring-4 ring-amber-400 animate-pulse' : ''}`}
         dir={i18n.dir()}
       >
         <div
@@ -470,7 +509,7 @@ export default function AnniversariesPage() {
           <div className={`mt-5 flex flex-col gap-1 ${isCurrentMonth ? '' : 'opacity-50'}`}>
             {dayOccs.map((occ) => {
               const ev = events.find((e) => e.id === occ.eventId);
-              const label = ev ? ev.name : 'Event';
+              const label = occ.eventName || ev?.name || 'Event';
               return (
                 <a
                   key={occ.id}
@@ -559,7 +598,7 @@ export default function AnniversariesPage() {
             if (hasUniqueOccurrence) {
               const occ = dayOccs[0];
               const ev = events.find((e) => e.id === occ.eventId);
-              const label = ev ? ev.name : 'Event';
+              const label = occ.eventName || ev?.name || 'Event';
               if (!ev) {
                 return (
                   <a
@@ -591,6 +630,14 @@ export default function AnniversariesPage() {
     setSelectedDate(new Date(year, month + 1, 1));
   };
 
+  const handlePrevYear = () => {
+    setSelectedDate(new Date(year - 1, month, 1));
+  };
+
+  const handleNextYear = () => {
+    setSelectedDate(new Date(year + 1, month, 1));
+  };
+
   const handleToday = () => {
     const now = new Date();
     setSelectedDate(new Date(now.getFullYear(), now.getMonth(), 1));
@@ -619,6 +666,14 @@ export default function AnniversariesPage() {
     <div className="container mx-auto px-2 py-2 sm:px-4 sm:py-4">
       <h1 className="text-2xl font-bold mb-2 sm:mb-4">{t('familyCalendar')}</h1>
       <div className="mb-3 sm:mb-4 flex items-center justify-center gap-2">
+        <EventSearchBox onSelect={handleSearchSelect} />
+        <Button
+          aria-label={t('calendarPrevYear') as string}
+          onClick={handlePrevYear}
+          className="px-3 py-2 rounded-full"
+        >
+          <ChevronsLeft className={styles.yearNavIcon} size={16} aria-hidden="true" />
+        </Button>
         <Button
           aria-label={t('calendarPrevMonth') as string}
           onClick={handlePrevMonth}
@@ -641,6 +696,13 @@ export default function AnniversariesPage() {
           className="px-3 py-2 rounded-full"
         >
           <span className={styles.monthNavArrow + ' ' + styles.monthNavNext} aria-hidden="true" />
+        </Button>
+        <Button
+          aria-label={t('calendarNextYear') as string}
+          onClick={handleNextYear}
+          className="px-3 py-2 rounded-full"
+        >
+          <ChevronsRight className={styles.yearNavIcon} size={16} aria-hidden="true" />
         </Button>
         <Button
           aria-label="Today"
@@ -693,6 +755,13 @@ export default function AnniversariesPage() {
             setImageSrc('');
             fetchEvents(selectedDate.getFullYear(), selectedDate.getMonth());
           }}
+          onViewSimilarEvent={(event) => {
+            setIsModalOpen(false);
+            setEditEvent(null);
+            setImageFile(null);
+            setImageSrc('');
+            handleSearchSelect(event);
+          }}
         />
       </Modal>
 
@@ -735,8 +804,11 @@ export default function AnniversariesPage() {
               </button>
               {(() => {
                 const currentYear = new Date().getFullYear();
-                // Check if blessing page exists for current year
-                const blessingPage = (selectedEvent as any).blessingPages?.find((bp: any) => bp.year === currentYear);
+                const blessingPages = (selectedEvent as any).blessingPages || [];
+                // Death events use one standing page; other events stay pinned to the selected year.
+                const blessingPage = selectedEvent.type === 'death'
+                  ? blessingPages[0]
+                  : blessingPages.find((bp: any) => bp.year === currentYear);
 
                 if (blessingPage) {
                   return (

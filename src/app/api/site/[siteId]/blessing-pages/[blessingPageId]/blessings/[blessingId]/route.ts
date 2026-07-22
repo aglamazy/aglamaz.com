@@ -26,10 +26,14 @@ const putHandler = async (request: Request, context: GuardContext & { params: Pr
     const user = context.user!;
     const member = context.member!;
     const body = await request.json();
-    const { content, taggedMemberIds } = body;
+    const { content, taggedMemberIds, visibleToPublic } = body;
 
     if (!content || !content.trim()) {
       return Response.json({ error: 'Content is required' }, { status: 400 });
+    }
+
+    if (visibleToPublic !== undefined && typeof visibleToPublic !== 'boolean') {
+      return Response.json({ error: 'visibleToPublic must be a boolean' }, { status: 400 });
     }
 
     // Verify blessing exists
@@ -53,7 +57,12 @@ const putHandler = async (request: Request, context: GuardContext & { params: Pr
       : undefined;
 
     // Update blessing
-    await blessingRepo.update(blessingId, { content, locale, taggedMemberIds: validTaggedMemberIds });
+    await blessingRepo.update(blessingId, {
+      content,
+      locale,
+      taggedMemberIds: validTaggedMemberIds,
+      visibleToPublic: typeof visibleToPublic === 'boolean' ? visibleToPublic : undefined,
+    });
 
     if (validTaggedMemberIds) {
       const previouslyTagged = new Set(existing.taggedMemberIds || []);

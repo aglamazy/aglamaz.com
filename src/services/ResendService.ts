@@ -1,11 +1,36 @@
 // Uses plain fetch — no Resend SDK dependency needed.
 // Sending is gated on RESEND_API_KEY; missing key → log + no-op, never throws.
 
-import { renderEmailHtml } from './emailTemplates';
+import { renderEmailHtml, escapeHtml } from './emailTemplates';
+import type { AnniversaryType } from '@/entities/Anniversary';
 
 export type ReminderTopic = 'birthday' | 'yahrzeit' | 'tag';
 
 export type TaggedContentType = 'blessing' | 'photo' | 'post';
+
+export interface InDayEventItem {
+  eventId: string;
+  type: AnniversaryType;
+  eventName: string;
+  imageUrl?: string;
+  /** Wedding events only - years since the marriage, for "N years of marriage" copy. */
+  yearsMarried?: number;
+  /** Public memorial page link, resolved by the caller (only set when a public page exists). Falls back to calendarUrl when absent. */
+  memorialUrl?: string;
+}
+
+export interface InDayReminderEmailParams {
+  firstName: string;
+  /** Today's occurrences for this member's family calendar - at least one. */
+  events: InDayEventItem[];
+  /** Link into the app calendar - used for the row links and the CTA button. */
+  calendarUrl: string;
+  /** Signed link for reminder preference management. */
+  manageLink: string;
+  lang?: string;
+  dir?: 'ltr' | 'rtl';
+  siteName?: string;
+}
 
 export interface TagNotificationEmailParams {
   firstName: string;
@@ -26,7 +51,7 @@ export interface ReminderEmailParams {
   eventName: string;
   /** Human-readable date string, e.g. "July 15" or "ט״ו תמוז" */
   occurrenceDate: string;
-  /** Placeholder link for reminder preference management (route wired by famcircle#11) */
+  /** Signed link for reminder preference management */
   manageLink: string;
   /** Optional direct link to the app calendar */
   calendarUrl?: string;
@@ -68,9 +93,9 @@ function getLocalizedStrings(
           manageFooter: `<a href="${manageLink}">נהל/י העדפות תזכורות</a>`,
         }
       : {
-          subject: `🕯️ תזכורת יארצייט — ${eventName}`,
+          subject: `🕯️ תזכורת יום פטירה — ${eventName}`,
           greeting: `שלום ${firstName},`,
-          body: `היום הוא יארצייט של ${eventName} (${occurrenceDate}). יהי זכרם ברוך.`,
+          body: `היום הוא יום הפטירה של ${eventName} (${occurrenceDate}). יהי זכרם ברוך.`,
           calendarButtonLabel: 'פתח/י את לוח השנה',
           manageFooter: `<a href="${manageLink}">נהל/י העדפות תזכורות</a>`,
         };
@@ -159,6 +184,120 @@ function getTagLocalizedStrings(
   };
 }
 
+interface InDayLocalizedStrings {
+  subjectSingle: (eventName: string) => string;
+  subjectMultiple: (count: number) => string;
+  greeting: string;
+  intro: string;
+  calendarButtonLabel: string;
+  manageFooter: string;
+}
+
+type InDayEventLineFn = (name: string) => string;
+
+const IN_DAY_EVENT_VERB: Record<Exclude<AnniversaryType, 'wedding'>, Record<string, InDayEventLineFn>> = {
+  birthday: {
+    en: (name) => `🎂 Today is ${name}'s birthday`,
+    he: (name) => `🎂 היום יום ההולדת של ${name}`,
+    tr: (name) => `🎂 Bugün ${name}'in doğum günü`,
+  },
+  death: {
+    en: (name) => `🕯️ Today marks the yahrzeit of ${name}`,
+    he: (name) => `🕯️ היום יום פטירה של ${name}`,
+    tr: (name) => `🕯️ Bugün ${name}'in yahrzeiti`,
+  },
+  other: {
+    en: (name) => `📌 Today: ${name}`,
+    he: (name) => `📌 היום: ${name}`,
+    tr: (name) => `📌 Bugün: ${name}`,
+  },
+};
+
+/** Hebrew has irregular year-count nouns (1 = "שנה אחת", 2 = "שנתיים", 3+ = "N שנים"). */
+function hebrewYearsPhrase(years: number): string {
+  if (years === 1) return 'שנה אחת';
+  if (years === 2) return 'שנתיים';
+  return `${years} שנים`;
+}
+
+/**
+ * Wedding events are a COUPLE's occasion - `name` already holds both partners (e.g.
+ * "Dan & Mira", the only field the data model has - see AnniversaryEvent.name). Deliberately
+ * does not reuse the individual-possessive "Today is X's ..." pattern the birthday/death
+ * branches use above; per family-digest-formats-spec.md's open question on wedding tone.
+ */
+const WEDDING_EVENT_LINE: Record<string, (name: string, years?: number) => string> = {
+  en: (name, years) =>
+    years && years > 0
+      ? `💍 ${name} are celebrating ${years} year${years === 1 ? '' : 's'} of marriage today`
+      : `💍 ${name} are celebrating their wedding anniversary today`,
+  he: (name, years) =>
+    years && years > 0
+      ? `💍 ${name} חוגגים היום ${hebrewYearsPhrase(years)} לנישואיהם`
+      : `💍 ${name} חוגגים היום את יום נישואיהם`,
+  tr: (name, years) =>
+    years && years > 0
+      ? `💍 ${name} bugün ${years}. evlilik yıldönümlerini kutluyor`
+      : `💍 ${name} bugün evlilik yıldönümlerini kutluyor`,
+};
+
+function getInDayEventLine(type: AnniversaryType, eventName: string, lang: string, yearsMarried?: number): string {
+  if (type === 'wedding') {
+    const fn = WEDDING_EVENT_LINE[lang] ?? WEDDING_EVENT_LINE.en;
+    return fn(eventName, yearsMarried);
+  }
+  const byLang = IN_DAY_EVENT_VERB[type] ?? IN_DAY_EVENT_VERB.other;
+  const fn = byLang[lang] ?? byLang.en;
+  return fn(eventName);
+}
+
+function getInDayLocalizedStrings(lang: string, manageLink: string): InDayLocalizedStrings {
+  if (lang === 'he') {
+    return {
+      subjectSingle: (eventName: string) => `היום: ${eventName}`,
+      subjectMultiple: (count: number) => `היום: ${count} אירועים`,
+      greeting: 'שלום',
+      intro: 'משהו קורה היום בלוח השנה המשפחתי שלך:',
+      calendarButtonLabel: 'פתח/י את לוח השנה',
+      manageFooter: `<a href="${manageLink}">נהל/י העדפות תזכורות</a>`,
+    };
+  }
+
+  if (lang === 'tr') {
+    return {
+      subjectSingle: (eventName: string) => `Bugün: ${eventName}`,
+      subjectMultiple: (count: number) => `Bugün: ${count} etkinlik`,
+      greeting: 'Merhaba',
+      intro: 'Aile takviminde bugün bir şeyler oluyor:',
+      calendarButtonLabel: 'Takvimi Aç',
+      manageFooter: `<a href="${manageLink}">Hatırlatıcı tercihlerini yönet</a>`,
+    };
+  }
+
+  return {
+    subjectSingle: (eventName: string) => `Today: ${eventName}`,
+    subjectMultiple: (count: number) => `Today: ${count} events`,
+    greeting: 'Hi',
+    intro: "Something's happening today on your family calendar:",
+    calendarButtonLabel: 'Open Calendar',
+    manageFooter: `<a href="${manageLink}">Manage reminder preferences</a>`,
+  };
+}
+
+/**
+ * One clickable event row - photo (when present) + name, both linking into the calendar.
+ * Per docs/family-digest-formats-spec.md §6: every row shows a photo, everything is clickable,
+ * no distinct "warning" styling for memorials (same weight as any other event).
+ */
+function renderInDayEventRow(event: InDayEventItem, lang: string, calendarUrl: string): string {
+  const label = getInDayEventLine(event.type, escapeHtml(event.eventName), lang, event.yearsMarried);
+  const photo = event.imageUrl
+    ? `<img src="${escapeHtml(event.imageUrl)}" alt="${escapeHtml(event.eventName)}" width="48" height="48" style="width:48px;height:48px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-inline-end:12px;" />`
+    : '';
+  const href = event.memorialUrl || calendarUrl;
+  return `<a href="${escapeHtml(href)}" style="display:flex;align-items:center;text-decoration:none;color:inherit;">${photo}<span>${label}</span></a>`;
+}
+
 export class ResendService {
   static isEnabled(): boolean {
     return !!process.env.RESEND_API_KEY;
@@ -196,6 +335,41 @@ export class ResendService {
     });
 
     return { subject: strings.subject, html };
+  }
+
+  /**
+   * Build the subject + rich HTML for the in-day reminder nudge (docs/family-digest-formats-spec.md
+   * §2/§6) - one short email covering ALL of today's occurrences for the member's family
+   * calendar (never one email per occurrence). Every event row shows a photo (when available)
+   * and is clickable, no per-topic visual distinction.
+   */
+  static buildInDayReminderEmailHtml(params: InDayReminderEmailParams): { subject: string; html: string } {
+    const lang = params.lang ?? 'en';
+    const dir = params.dir ?? (lang === 'he' ? 'rtl' : 'ltr');
+    const heading = params.siteName ? `🌳 ${params.siteName}` : undefined;
+
+    const strings = getInDayLocalizedStrings(lang, params.manageLink);
+    const subject =
+      params.events.length === 1
+        ? strings.subjectSingle(params.events[0].eventName)
+        : strings.subjectMultiple(params.events.length);
+
+    const rows = params.events
+      .map((event) => renderInDayEventRow(event, lang, params.calendarUrl))
+      .join('');
+
+    const html = renderEmailHtml({
+      subject,
+      lang,
+      dir,
+      heading,
+      greeting: `${strings.greeting} ${params.firstName},`,
+      paragraphs: [strings.intro, rows],
+      button: { label: strings.calendarButtonLabel, url: params.calendarUrl },
+      footerLines: [strings.manageFooter],
+    });
+
+    return { subject, html };
   }
 
   /**

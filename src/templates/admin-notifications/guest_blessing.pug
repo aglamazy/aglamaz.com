@@ -1,0 +1,8 @@
+h2 A visitor left a memory
+p #{authorName} posted a memory on your public memorial page:
+p #{content}
+if guestEmail
+  p Contact email left by visitor: #{guestEmail}
+p This memory is already visible on the public page. Remove it from the blessings list if needed.
+p
+  a(href=adminDashboard) Go to your admin dashboard

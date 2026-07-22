@@ -7,7 +7,12 @@ import { AnniversaryRepository } from '@/repositories/AnniversaryRepository';
 import { MemberRepository } from '@/repositories/MemberRepository';
 import { SiteRepository } from '@/repositories/SiteRepository';
 import { ReminderSendsRepository } from '@/repositories/ReminderSendsRepository';
+import { notificationPreferencesRepository } from '@/repositories/NotificationPreferencesRepository';
 import { ResendService } from '@/services/ResendService';
+import {
+  buildReminderPreferenceLink,
+  signReminderPreferenceToken,
+} from '@/services/ReminderPreferenceLinkService';
 import type { ISite } from '@/entities/Site';
 
 export const dynamic = 'force-dynamic';
@@ -156,17 +161,14 @@ export async function GET(request: NextRequest) {
       for (const member of members) {
         if (!member.email) continue;
 
-        // TODO (famcircle#11): load notification preferences for this member.
-        // When the notificationPreferences collection lands, check per-member opt-out:
-        // const prefs = await notificationPrefsRepo.getByMember(member.id, siteId);
-        // No prefs doc = subscribed to both (documented default).
-        // Expected shape: { birthOptOut: boolean; deathOptOut: boolean }
+        const prefs = await notificationPreferencesRepository.get(member.id, siteId);
 
         for (const reminder of dueReminders) {
           try {
-            // TODO (famcircle#11): apply opt-out before sending.
-            // if (reminder.topic === 'birthday' && prefs?.birthOptOut) continue;
-            // if (reminder.topic === 'yahrzeit' && prefs?.deathOptOut) continue;
+            // This lead-time cron is superseded by the magazine/in-day model
+            // (docs/family-digest-formats-spec.md §5) and not being extended further; the closest
+            // equivalent opt-out in the new model is the unified inDayRemindersEnabled toggle.
+            if (!prefs.inDayRemindersEnabled) { totalSkipped++; continue; }
 
             const alreadySent = await sendsRepo.hasSent(
               member.id,
@@ -191,8 +193,12 @@ export async function GET(request: NextRequest) {
               lang,
             );
 
-            // TODO (famcircle#11): replace placeholder with the real notification-preferences management URL
-            const manageLink = '#manage-reminders';
+            const manageToken = signReminderPreferenceToken({
+              memberId: member.id,
+              siteId,
+              topic: reminder.topic,
+            });
+            const manageLink = buildReminderPreferenceLink(request.nextUrl.origin, manageToken);
 
             const { subject, html } = ResendService.buildReminderEmailHtml({
               topic: reminder.topic,
