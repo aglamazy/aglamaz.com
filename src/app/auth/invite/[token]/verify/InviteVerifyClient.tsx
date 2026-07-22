@@ -31,6 +31,7 @@ export default function InviteVerifyClient({ token }: InviteVerifyClientProps) {
     email: string | null,
     firstName: string | null,
     needsCredentialSetup: boolean,
+    redirectPath: string | null,
   ) => {
     initFirebase();
     const firebaseAuth = auth();
@@ -53,7 +54,13 @@ export default function InviteVerifyClient({ token }: InviteVerifyClientProps) {
     }
 
     setStatus('success');
-    await router.replace(needsCredentialSetup ? '/auth/welcome/credentials' : '/app');
+    // Credential setup is a separate page in the flow - stash the destination in
+    // sessionStorage so CredentialSetupClient can pick it up at ITS OWN completion
+    // redirect, rather than threading a query param through an extra navigation.
+    if (redirectPath) {
+      sessionStorage.setItem('postInviteRedirect', redirectPath);
+    }
+    await router.replace(needsCredentialSetup ? '/auth/welcome/credentials' : (redirectPath || '/app'));
   }, [fetchMember, router, setUser]);
 
   useEffect(() => {
@@ -93,6 +100,7 @@ export default function InviteVerifyClient({ token }: InviteVerifyClientProps) {
           data.member?.email ?? null,
           data.member?.firstName ?? null,
           Boolean(data.needsCredentialSetup),
+          data.redirectPath ?? null,
         );
       } catch (err) {
         if (!active) return;

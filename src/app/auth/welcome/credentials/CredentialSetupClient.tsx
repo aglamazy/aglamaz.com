@@ -8,6 +8,13 @@ import { initFirebase, auth, googleProvider } from '@/firebase/client';
 import { linkWithPopup, updatePassword } from 'firebase/auth';
 import { useUserStore } from '@/store/UserStore';
 
+/** Consumes the destination stashed by InviteVerifyClient before landing here, if any - falls back to /app. */
+function consumePostInviteRedirect(): string {
+  const stashed = sessionStorage.getItem('postInviteRedirect');
+  if (stashed) sessionStorage.removeItem('postInviteRedirect');
+  return stashed || '/app';
+}
+
 export default function CredentialSetupClient() {
   const { t } = useTranslation();
   const router = useRouter();
@@ -28,7 +35,7 @@ export default function CredentialSetupClient() {
     }
 
     if (user.needsCredentialSetup === false) {
-      router.replace('/app');
+      router.replace(consumePostInviteRedirect());
     }
   }, [checkAuth, router, user]);
 
@@ -78,8 +85,9 @@ export default function CredentialSetupClient() {
 
       await checkAuth();
       setPasswordSuccess(t('credentialSetupPasswordSuccess'));
+      const destination = consumePostInviteRedirect();
       setTimeout(() => {
-        router.replace('/app');
+        router.replace(destination);
       }, 800);
     } catch (error) {
       console.error('[credentials][password] failed', error);
@@ -124,7 +132,7 @@ export default function CredentialSetupClient() {
       }
 
       await checkAuth();
-      router.replace('/app');
+      router.replace(consumePostInviteRedirect());
     } catch (error) {
       console.error('[credentials][google] failed', error);
       const message = error instanceof Error ? error.message : t('credentialSetupGoogleFailed');

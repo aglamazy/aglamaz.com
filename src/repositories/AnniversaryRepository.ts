@@ -25,6 +25,8 @@ export class AnniversaryRepository {
     imageUrl?: string;
     useHebrew?: boolean;
     locale: string;
+    honoreeMemberId?: string;
+    honoreeEmail?: string;
   }): Promise<AnniversaryEvent> {
     const db = this.getDb();
     const now = Timestamp.now();
@@ -57,6 +59,12 @@ export class AnniversaryRepository {
       },
       createdAt: now,
     };
+    // Mutually exclusive - a member link always wins over a raw email if both are somehow sent.
+    if (eventData.honoreeMemberId) {
+      base.honoreeMemberId = eventData.honoreeMemberId;
+    } else if (eventData.honoreeEmail) {
+      base.honoreeEmail = eventData.honoreeEmail;
+    }
     if (eventData.useHebrew) {
       base.useHebrew = true;
       base.hebrewDate = formatHebrewDisplay(eventData.date);
@@ -226,6 +234,9 @@ export class AnniversaryRepository {
     imageUrl?: string;
     useHebrew?: boolean;
     locale?: string;
+    /** undefined = leave untouched; null = clear; string = set. Setting one always clears the other (mutually exclusive). */
+    honoreeMemberId?: string | null;
+    honoreeEmail?: string | null;
   }): Promise<void> {
     const db = this.getDb();
     const existing = await this.getById(id);
@@ -305,6 +316,14 @@ export class AnniversaryRepository {
         data.hebrewOccurrences = occurrences;
       }
     }
+    if (updates.honoreeMemberId !== undefined) {
+      data.honoreeMemberId = updates.honoreeMemberId;
+      data.honoreeEmail = null;
+    } else if (updates.honoreeEmail !== undefined) {
+      data.honoreeEmail = updates.honoreeEmail;
+      data.honoreeMemberId = null;
+    }
+
     await db.collection(this.collection).doc(id).update(data);
   }
 

@@ -2,6 +2,7 @@ import { withMemberGuard } from '@/lib/withMemberGuard';
 import { withReadableGuard } from '@/lib/withReadableGuard';
 import { AnniversaryRepository } from '@/repositories/AnniversaryRepository';
 import { AnniversaryOccurrenceRepository } from '@/repositories/AnniversaryOccurrenceRepository';
+import { sendHonoreeInvite } from '@/services/HonoreeInviteService';
 import { GuardContext } from '@/app/api/types';
 
 export const dynamic = 'force-dynamic';
@@ -56,8 +57,9 @@ const postHandler = async (request: Request, context: GuardContext) => {
     }
 
     const user = context.user!;
+    const member = context.member!;
     const body = await request.json();
-    const { name, description, type, date, isAnnual, imageUrl, useHebrew } = body;
+    const { name, description, type, date, isAnnual, imageUrl, useHebrew, honoreeMemberId, honoreeEmail, sendInviteNow } = body;
     if (!name || !date || !type) {
       return Response.json({ error: 'Missing fields' }, { status: 400 });
     }
@@ -78,10 +80,28 @@ const postHandler = async (request: Request, context: GuardContext) => {
       imageUrl,
       useHebrew: Boolean(useHebrew),
       locale,
+      honoreeMemberId: honoreeMemberId || undefined,
+      honoreeEmail: honoreeMemberId ? undefined : honoreeEmail || undefined,
     });
 
     const occRepo = new AnniversaryOccurrenceRepository();
     const originalOccurrence = await occRepo.ensureOriginalOccurrence(event, user.userId);
+
+    // Best-effort - a failed invite send must not fail the event save itself.
+    if (!honoreeMemberId && honoreeEmail && sendInviteNow) {
+      try {
+        await sendHonoreeInvite({
+          siteId,
+          event,
+          honoreeEmail,
+          authorName: (member as any).firstName || (member as any).displayName || user.email || '',
+          authorId: user.userId,
+          authorEmail: (member as any).email || user.email,
+        });
+      } catch (inviteError) {
+        console.error('[anniversaries] failed to send honoree invite', inviteError);
+      }
+    }
 
     return Response.json({ event: { ...event, originalOccurrenceId: originalOccurrence.id } }, { status: 201 });
   } catch (error) {

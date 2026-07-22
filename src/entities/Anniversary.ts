@@ -40,4 +40,8 @@ export interface AnniversaryEvent extends LocalizableDocument {
     year?: number;
     slug: string;
   }>;
+  /** Links this event to an existing site Member - the honoree who blessings are for. Mutually exclusive with honoreeEmail. */
+  honoreeMemberId?: string;
+  /** Raw email for a honoree not yet on the site - used to invite them. Ignored once honoreeMemberId is set. */
+  honoreeEmail?: string;
 }

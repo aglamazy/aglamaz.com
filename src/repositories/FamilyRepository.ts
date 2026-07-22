@@ -64,6 +64,10 @@ export interface SiteInvite {
   usedAt?: Timestamp;
   usedBy?: string;
   usedByEmail?: string;
+  /** Who this invite was sent to, when created for a specific person (e.g. an event honoree) rather than a general shareable link. */
+  invitedEmail?: string;
+  /** App-relative path to land on right after accepting - e.g. the honoree's blessing page. */
+  redirectPath?: string;
 }
 
 export class FamilyRepository {
@@ -182,13 +186,20 @@ export class FamilyRepository {
   }
 
   // Invite Management
-  async createInvite(siteId: string, inviter?: { id?: string; email?: string; name?: string }): Promise<SiteInvite> {
+  async createInvite(
+    siteId: string,
+    inviter?: { id?: string; email?: string; name?: string },
+    options?: { invitedEmail?: string; redirectPath?: string; expiresInMs?: number },
+  ): Promise<SiteInvite> {
     try {
       const db = this.getDb();
       const { randomUUID } = require('crypto');
       const token = randomUUID();
       const now = Timestamp.now();
-      const expiresAt = Timestamp.fromDate(new Date(Date.now() + 24 * 60 * 60 * 1000));
+      // Default 24h suits the generic admin-shares-a-link-immediately flow. A
+      // person-addressed invite that sits in an inbox (e.g. an event-honoree invite)
+      // needs longer - callers pass expiresInMs to override.
+      const expiresAt = Timestamp.fromDate(new Date(Date.now() + (options?.expiresInMs ?? 24 * 60 * 60 * 1000)));
 
       const inviteData = {
         token,
@@ -200,6 +211,8 @@ export class FamilyRepository {
         createdAt: now,
         updatedAt: now,
         expiresAt,
+        invitedEmail: options?.invitedEmail || null,
+        redirectPath: options?.redirectPath || null,
       };
 
       const docRef = db.collection(this.invitesCollection).doc(token);

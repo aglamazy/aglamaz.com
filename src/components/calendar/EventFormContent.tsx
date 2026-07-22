@@ -19,6 +19,13 @@ interface EventFormContentProps {
   onViewSimilarEvent?: (event: AnniversaryEvent) => void;
 }
 
+interface MemberOption {
+  id: string;
+  displayName: string;
+}
+
+type HonoreeMode = 'none' | 'member' | 'email';
+
 function formatSimilarEventDate(event: AnniversaryEvent, locale: string): string {
   const year = (event as any).originalYear ?? event.year;
   const month = (event as any).originalMonth ?? event.month;
@@ -43,6 +50,11 @@ export default function EventFormContent({ editEvent, onSuccess, onViewSimilarEv
     imageUrl: '',
     useHebrew: false,
   });
+  const [honoreeMode, setHonoreeMode] = useState<HonoreeMode>('none');
+  const [honoreeMemberId, setHonoreeMemberId] = useState('');
+  const [honoreeEmail, setHonoreeEmail] = useState('');
+  const [sendInviteNow, setSendInviteNow] = useState(false);
+  const [members, setMembers] = useState<MemberOption[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -73,6 +85,19 @@ export default function EventFormContent({ editEvent, onSuccess, onViewSimilarEv
         imageUrl: '',
         useHebrew: Boolean((editEvent as any).useHebrew),
       });
+      if (editEvent.honoreeMemberId) {
+        setHonoreeMode('member');
+        setHonoreeMemberId(editEvent.honoreeMemberId);
+        setHonoreeEmail('');
+      } else if (editEvent.honoreeEmail) {
+        setHonoreeMode('email');
+        setHonoreeMemberId('');
+        setHonoreeEmail(editEvent.honoreeEmail);
+      } else {
+        setHonoreeMode('none');
+        setHonoreeMemberId('');
+        setHonoreeEmail('');
+      }
     } else {
       setForm({
         name: '',
@@ -84,7 +109,11 @@ export default function EventFormContent({ editEvent, onSuccess, onViewSimilarEv
         imageUrl: '',
         useHebrew: false,
       });
+      setHonoreeMode('none');
+      setHonoreeMemberId('');
+      setHonoreeEmail('');
     }
+    setSendInviteNow(false);
     setImageFile(null);
     setImageSrc('');
   }, [editEvent]);
@@ -116,6 +145,12 @@ export default function EventFormContent({ editEvent, onSuccess, onViewSimilarEv
       imgRef.current.style.setProperty('--offset-y', `${offsetY}px`);
     }
   }, [offsetY]);
+
+  useEffect(() => {
+    apiFetch<{ members: MemberOption[] }>(ApiRoute.SITE_MEMBERS_PUBLIC)
+      .then((data) => setMembers(data.members || []))
+      .catch((e) => console.error('[EventFormContent] failed to load members for honoree picker', e));
+  }, []);
 
   const onFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -172,7 +207,13 @@ export default function EventFormContent({ editEvent, onSuccess, onViewSimilarEv
         throw new Error('Site ID not found');
       }
 
-      const payload = { ...form, imageUrl };
+      const payload = {
+        ...form,
+        imageUrl,
+        honoreeMemberId: honoreeMode === 'member' ? honoreeMemberId : '',
+        honoreeEmail: honoreeMode === 'email' ? honoreeEmail.trim() : '',
+        sendInviteNow: honoreeMode === 'email' && !!honoreeEmail.trim() && sendInviteNow,
+      };
       if (!payload.type) {
         setError(t('pleaseFillAllFields'));
         setSaving(false);
@@ -270,6 +311,69 @@ export default function EventFormContent({ editEvent, onSuccess, onViewSimilarEv
           className="mx-auto"
         />
       </div>
+      {form.type !== 'death' && (
+        <div>
+          <label className="block mb-1 text-sm text-text">{t('honoreeLabel', { defaultValue: 'Who is this for?' })}</label>
+          <div className="flex gap-3 text-sm mb-2">
+            <button
+              type="button"
+              onClick={() => setHonoreeMode('member')}
+              className={`px-3 py-1 rounded-full border ${honoreeMode === 'member' ? 'bg-primary text-white border-primary' : 'border-gray-300 text-text'}`}
+            >
+              {t('honoreeExistingMember', { defaultValue: 'Existing member' })}
+            </button>
+            <button
+              type="button"
+              onClick={() => setHonoreeMode('email')}
+              className={`px-3 py-1 rounded-full border ${honoreeMode === 'email' ? 'bg-primary text-white border-primary' : 'border-gray-300 text-text'}`}
+            >
+              {t('honoreeNotYetOnSite', { defaultValue: "Not on FamCircle yet" })}
+            </button>
+            {honoreeMode !== 'none' && (
+              <button
+                type="button"
+                onClick={() => setHonoreeMode('none')}
+                className="px-3 py-1 rounded-full border border-gray-300 text-text"
+              >
+                {t('honoreeNone', { defaultValue: 'None' })}
+              </button>
+            )}
+          </div>
+          {honoreeMode === 'member' && (
+            <select
+              className="border rounded w-full px-3 py-2"
+              value={honoreeMemberId}
+              onChange={(e) => setHonoreeMemberId(e.target.value)}
+            >
+              <option value="">{t('honoreeSelectMember', { defaultValue: 'Select a member...' })}</option>
+              {members.map((m) => (
+                <option key={m.id} value={m.id}>{m.displayName}</option>
+              ))}
+            </select>
+          )}
+          {honoreeMode === 'email' && (
+            <div>
+              <input
+                type="email"
+                className="border rounded w-full px-3 py-2"
+                value={honoreeEmail}
+                onChange={(e) => setHonoreeEmail(e.target.value)}
+                placeholder={t('honoreeEmailPlaceholder', { defaultValue: "Their email address" }) as string}
+              />
+              {honoreeEmail.trim() && (
+                <label className="flex items-center gap-2 mt-2 text-sm text-text">
+                  <input
+                    type="checkbox"
+                    checked={sendInviteNow}
+                    onChange={(e) => setSendInviteNow(e.target.checked)}
+                  />
+                  {t('honoreeSendInviteNow', { defaultValue: 'Send them an invite now, to join and read their blessings' })}
+                </label>
+              )}
+            </div>
+          )}
+        </div>
+      )}
       {form.type === 'death' && (
         <div>
           <label className="block mb-1 text-sm text-text">

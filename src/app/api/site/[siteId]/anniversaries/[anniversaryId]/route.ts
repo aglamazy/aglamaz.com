@@ -2,6 +2,7 @@ import { withMemberGuard } from '@/lib/withMemberGuard';
 import { AnniversaryRepository } from '@/repositories/AnniversaryRepository';
 import { AnniversaryOccurrenceRepository } from '@/repositories/AnniversaryOccurrenceRepository';
 import { BlessingPageRepository } from '@/repositories/BlessingPageRepository';
+import { sendHonoreeInvite } from '@/services/HonoreeInviteService';
 import { GuardContext } from '@/app/api/types';
 
 export const dynamic = 'force-dynamic';
@@ -84,7 +85,7 @@ const putHandler = async (request: Request, context: GuardContext & { params: Pr
       return Response.json({ error: 'Forbidden' }, { status: 403 });
     }
     const body = await request.json();
-    const { name, description, type, date, isAnnual, imageUrl, useHebrew } = body;
+    const { name, description, type, date, isAnnual, imageUrl, useHebrew, honoreeMemberId, honoreeEmail, sendInviteNow } = body;
 
     // Get locale from header (injected by proxy from query param)
     const locale = request.headers.get('x-locale') || 'he';
@@ -98,8 +99,27 @@ const putHandler = async (request: Request, context: GuardContext & { params: Pr
       imageUrl,
       useHebrew,
       locale,
+      honoreeMemberId: honoreeMemberId !== undefined ? (honoreeMemberId || null) : undefined,
+      honoreeEmail: honoreeMemberId ? null : (honoreeEmail !== undefined ? (honoreeEmail || null) : undefined),
     });
     const updated = await repo.getById(anniversaryId);
+
+    // Best-effort - a failed invite send must not fail the event save itself.
+    if (updated && !honoreeMemberId && honoreeEmail && sendInviteNow) {
+      try {
+        await sendHonoreeInvite({
+          siteId,
+          event: updated,
+          honoreeEmail,
+          authorName: (member as any).firstName || (member as any).displayName || user.email || '',
+          authorId: user.userId,
+          authorEmail: (member as any).email || user.email,
+        });
+      } catch (inviteError) {
+        console.error('[anniversaries] failed to send honoree invite', inviteError);
+      }
+    }
+
     return Response.json({ event: updated });
   } catch (error) {
     console.error(error);
