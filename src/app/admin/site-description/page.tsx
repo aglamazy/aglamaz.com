@@ -213,6 +213,7 @@ export default function SiteDescriptionEditor() {
               value={aboutFamily}
               locale={currentLocale}
               onChange={setAboutFamily}
+              siteId={site?.id}
             />
           </div>
 

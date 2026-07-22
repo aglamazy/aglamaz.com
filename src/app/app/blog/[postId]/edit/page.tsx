@@ -15,6 +15,7 @@ import { localizeBlogPost } from '@/utils/blogLocales';
 import { DEFAULT_LOCALE } from '@/i18n';
 import { useUserStore } from '@/store/UserStore';
 import { useMemberStore } from '@/store/MemberStore';
+import { useSiteStore } from '@/store/SiteStore';
 
 // Edit honors the existing post's contentFormat. Authors can switch formats
 // here too, but as in the new-post page, switching does NOT auto-convert the
@@ -26,6 +27,7 @@ export default function EditPostPage() {
   const router = useRouter();
   const user = useUserStore((state) => state.user);
   const member = useMemberStore((state) => state.member);
+  const siteId = useSiteStore((state) => state.siteInfo?.id);
 
   const [post, setPost] = useState<IBlogPost | null>(null);
   const [draftTitle, setDraftTitle] = useState('');
@@ -206,6 +208,7 @@ export default function EditPostPage() {
               value={draftContent}
               locale={draftLocale.split('-')[0]}
               onChange={(html) => setDraftContent(html)}
+              siteId={siteId}
             />
           )}
           <label className="flex items-center gap-2 text-sage-700">

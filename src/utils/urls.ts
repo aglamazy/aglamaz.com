@@ -129,6 +129,7 @@ export const apiRoutePaths: Record<ApiRoute, string> = {
   [ApiRoute.SITE_MAGAZINE_TEMPLATE_SUGGEST]: '/api/site/{siteId}/magazine-template/suggest',
 
   // Pictures & Photos
+  [ApiRoute.SITE_CONTENT_IMAGES]: '/api/site/{siteId}/content-images',
   [ApiRoute.SITE_PICTURES]: '/api/site/{siteId}/pictures',
   [ApiRoute.SITE_PHOTOS]: '/api/site/{siteId}/photos',
   [ApiRoute.SITE_PHOTO_BY_ID]: '/api/site/{siteId}/photos/{photoId}',
