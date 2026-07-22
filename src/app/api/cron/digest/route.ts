@@ -16,7 +16,8 @@ import { DigestTemplateService, resolveDigestSiteName } from '@/services/DigestT
 import { ResendService } from '@/services/ResendService';
 import { TranslationService } from '@/services/TranslationService';
 import { getMostRecentFieldVersion, normalizeLang } from '@/services/LocalizationService';
-import { AppRoute, getPath } from '@/utils/urls';
+import { AppRoute } from '@/utils/urls';
+import { getUrl } from '@/utils/serverUrls';
 import type { ISite } from '@/entities/Site';
 import type { UnifiedMagazineCadence } from '@/repositories/NotificationPreferencesRepository';
 
@@ -125,8 +126,6 @@ export async function GET(request: NextRequest) {
   }
 
   const now = new Date();
-  const calendarUrl = new URL(getPath(AppRoute.APP_CALENDAR), request.nextUrl.origin).toString();
-  const galleryUrl = new URL(getPath(AppRoute.APP_PHOTOS), request.nextUrl.origin).toString();
 
   let sent = 0;
   let failed = 0;
@@ -149,6 +148,11 @@ export async function GET(request: NextRequest) {
         // Nobody on this site wants this cadence's send this run - skip compiling entirely.
         continue;
       }
+
+      // Per-site canonical domain, not the cron request's runtime host - a request against
+      // localhost or a Vercel preview deployment must never bake that host into a sent link.
+      const calendarUrl = await getUrl(AppRoute.APP_CALENDAR, siteId);
+      const galleryUrl = await getUrl(AppRoute.APP_PHOTOS, siteId);
 
       const siteDefaultLocale = resolveTargetLocale(site);
       if (!siteDefaultLocale) {

@@ -17,7 +17,8 @@ import {
   buildReminderPreferenceLink,
   signReminderPreferenceToken,
 } from '@/services/ReminderPreferenceLinkService';
-import { AppRoute, getPath } from '@/utils/urls';
+import { AppRoute } from '@/utils/urls';
+import { getBaseUrlForSite, getUrl } from '@/utils/serverUrls';
 import type { ISite } from '@/entities/Site';
 
 export const dynamic = 'force-dynamic';
@@ -48,7 +49,6 @@ export async function GET(request: NextRequest) {
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const calendarUrl = new URL(getPath(AppRoute.APP_CALENDAR), request.nextUrl.origin).toString();
   // Optional single-recipient scope for manual real-path verification (avoids emailing the whole site).
   const memberIdFilter = request.nextUrl.searchParams.get('memberId');
 
@@ -80,6 +80,11 @@ export async function GET(request: NextRequest) {
       }
       const prefs = await Promise.all(members.map((m) => notificationPreferencesRepository.get(m.id, siteId)));
 
+      // Per-site canonical domain, not the cron request's runtime host - a request against
+      // localhost or a Vercel preview deployment must never bake that host into a sent link.
+      const calendarUrl = await getUrl(AppRoute.APP_CALENDAR, siteId);
+      const siteBaseUrl = await getBaseUrlForSite(siteId);
+
       const plans = planInDaySends({
         events,
         today,
@@ -95,7 +100,7 @@ export async function GET(request: NextRequest) {
         })),
         manageLinkFor: (memberId) =>
           buildReminderPreferenceLink(
-            request.nextUrl.origin,
+            siteBaseUrl,
             signReminderPreferenceToken({ memberId, siteId, topic: 'birthday' }),
           ),
       });
