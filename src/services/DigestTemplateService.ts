@@ -107,6 +107,20 @@ const BIRTHDAY_DIGEST_LABEL: Record<string, (name: string) => string> = {
   tr: (name) => `${name} doğum günü`,
 };
 
+/** Death events aren't "blessing" occasions - the write-CTA reads as memorial/remembrance
+ * wording instead (Agla, 2026-07-22, pointing at a death-event digest row). */
+const BLESSING_CTA_LABEL: Record<string, string> = {
+  en: '🕯️ Write a memorial note',
+  he: '🕯️ כתבו דברי זכרון',
+  tr: '🕯️ Anma notu yazın',
+};
+
+const WRITE_BLESSING_CTA_LABEL: Record<string, string> = {
+  en: '✍️ Write a blessing',
+  he: '✍️ כתבו ברכה',
+  tr: '✍️ Bir dilek yazın',
+};
+
 /**
  * If the event name is already a full celebration title (e.g. "מסיבת לילה
  * אגלמז!"), it reads fine on its own - only a bare person's name needs
@@ -204,9 +218,11 @@ function renderEventArticle(entry: DigestEventWithPhotos, locale: string, calend
   // Only upcoming events invite writing a blessing (Agla, 2026-07-22) - a past event's
   // occasion has already happened. Same member-authed page the calendar already uses,
   // just a direct link into the write flow instead of into the calendar month view.
+  const ctaLabelMap = event.type === 'death' ? BLESSING_CTA_LABEL : WRITE_BLESSING_CTA_LABEL;
+  const blessingCtaLabel = ctaLabelMap[locale] ?? ctaLabelMap.en;
   const blessingLink =
     showBlessingLink && blessingPageSlug
-      ? `<div style="margin-top:10px;"><a href="${escapeHtml(new URL(calendarUrl).origin)}/app/blessing/${escapeHtml(blessingPageSlug)}" style="font-size:14px;font-weight:600;color:#2f6f4d;text-decoration:none;">✍️ כתבו ברכה</a></div>`
+      ? `<div style="margin-top:10px;"><a href="${escapeHtml(new URL(calendarUrl).origin)}/app/blessing/${escapeHtml(blessingPageSlug)}" style="font-size:14px;font-weight:600;color:#2f6f4d;text-decoration:none;">${escapeHtml(blessingCtaLabel)}</a></div>`
       : '';
 
   // Text (title/date/description) reads before the images, not after (Agla, 2026-07-21).

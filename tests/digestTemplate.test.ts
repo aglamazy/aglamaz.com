@@ -368,12 +368,55 @@ function testWriteBlessingLinkOnComingEventsOnly() {
   const moshIdx = html.indexOf('Grandpa Moshe');
   const moshBlock = html.slice(moshIdx, moshIdx + 600);
   assert.ok(moshBlock.includes('/app/blessing/e1-2026'), 'coming event must link to its blessing page');
-  assert.ok(moshBlock.includes('כתבו ברכה'), 'coming event must show the write-a-blessing CTA text');
+  assert.ok(moshBlock.includes('Write a blessing'), 'coming event must show the write-a-blessing CTA text');
 
   const sarahIdx = html.indexOf('Grandma Sarah');
   const sarahBlock = html.slice(sarahIdx, sarahIdx + 600);
   assert.ok(!sarahBlock.includes('/app/blessing/e2-standing'), 'past event must not show a write-a-blessing link');
   console.log('write-a-blessing link shows for coming events only: PASSED');
+}
+
+function testDeathEventCtaReadsAsMemorialNotBlessing() {
+  // A death/yahrzeit event isn't a "blessing" occasion - the coming-event CTA must read
+  // as memorial/remembrance wording instead (Agla, 2026-07-22, pointing at a death-event
+  // digest row showing "כתבו ברכה").
+  const payload: CadenceDigestPayload = {
+    ...FIXTURE,
+    comingEvents: [
+      {
+        event: {
+          id: 'e4',
+          siteId: 'site1',
+          ownerId: 'owner1',
+          name: 'Grandpa Yosef',
+          type: 'death',
+          date: null,
+          month: 8,
+          day: 29,
+          year: 2026,
+          isAnnual: true,
+          imageUrl: 'https://example.com/photos/yosef.jpg',
+          createdAt: null,
+        } as any,
+        photoUrls: ['https://example.com/photos/yosef.jpg'],
+        blessingPageSlug: 'e4-2026',
+      },
+    ],
+    pastEvents: [],
+  };
+  const { html } = DigestTemplateService.buildMonthlyDigestEmail(payload, {
+    locale: 'en',
+    siteName: 'The Aglamaz Family',
+    recipientName: 'Test Recipient',
+    calendarUrl: CALENDAR_URL,
+    galleryUrl: GALLERY_URL,
+  });
+  const yosefIdx = html.indexOf('Grandpa Yosef');
+  const yosefBlock = html.slice(yosefIdx, yosefIdx + 800);
+  assert.ok(yosefBlock.includes('/app/blessing/e4-2026'), 'coming death event must link to its blessing page');
+  assert.ok(yosefBlock.includes('memorial note'), 'coming death event must show memorial CTA wording');
+  assert.ok(!yosefBlock.includes('Write a blessing'), 'coming death event must not show blessing CTA wording');
+  console.log('death event coming-CTA reads as memorial, not blessing: PASSED');
 }
 
 function run() {
@@ -396,6 +439,7 @@ function run() {
   testAnnualEventShowsTargetYearNotOriginalEntryYear();
   testBirthdayEventNameAutoLabel();
   testWriteBlessingLinkOnComingEventsOnly();
+  testDeathEventCtaReadsAsMemorialNotBlessing();
 }
 
 run();

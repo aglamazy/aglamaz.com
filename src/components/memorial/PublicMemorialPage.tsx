@@ -19,6 +19,7 @@ interface Props {
 
 export default function PublicMemorialPage({ blessingPage, event, blessings: initialBlessings, readOnly = false }: Props) {
   const { t, i18n } = useTranslation();
+  const isMemorial = event.type === 'death';
   const [blessings, setBlessings] = useState(initialBlessings);
   const [formOpen, setFormOpen] = useState(false);
   const [guestName, setGuestName] = useState('');
@@ -103,21 +104,21 @@ export default function PublicMemorialPage({ blessingPage, event, blessings: ini
 
           <div className="mt-6 flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
-              {t('blessingsCount', { count: blessings.length })}
+              {t(isMemorial ? 'memoriesCount' : 'blessingsCount', { count: blessings.length })}
             </h2>
             {!readOnly && (
               <button
                 onClick={() => setFormOpen(true)}
                 className="px-4 py-2 bg-primary text-white rounded-lg hover:opacity-90 text-sm"
               >
-                {t('addYourBlessing')}
+                {t(isMemorial ? 'addYourMemory' : 'addYourBlessing')}
               </button>
             )}
           </div>
           <div className="mb-6">
             {blessings.length === 0 ? (
               <p className="text-gray-500 dark:text-gray-400 text-center py-8">
-                {t('noBlessingsYet')}
+                {t(isMemorial ? 'noMemoriesYet' : 'noBlessingsYet')}
               </p>
             ) : (
               <div className="space-y-4">
@@ -198,7 +199,7 @@ export default function PublicMemorialPage({ blessingPage, event, blessings: ini
               </div>
             ) : (
               <>
-                <h2 className="text-2xl font-bold mb-4">{t('addYourBlessing')}</h2>
+                <h2 className="text-2xl font-bold mb-4">{t(isMemorial ? 'addYourMemory' : 'addYourBlessing')}</h2>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">{t('nonMemberContributionHint')}</p>
 
                 <div className="mb-3">
@@ -235,7 +236,7 @@ export default function PublicMemorialPage({ blessingPage, event, blessings: ini
                   <textarea
                     value={guestContent}
                     onChange={(e) => setGuestContent(e.target.value)}
-                    placeholder={t('writeBlessingPlaceholder')}
+                    placeholder={t(isMemorial ? 'writeMemoryPlaceholder' : 'writeBlessingPlaceholder')}
                     rows={5}
                     maxLength={5000}
                     className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700"
@@ -254,7 +255,7 @@ export default function PublicMemorialPage({ blessingPage, event, blessings: ini
                     disabled={submitting || !guestName.trim() || !guestContent.trim()}
                     className="px-4 py-2 bg-primary text-white rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {submitting ? t('submitting') : t('postBlessing')}
+                    {submitting ? t('submitting') : t(isMemorial ? 'postMemory' : 'postBlessing')}
                   </button>
                 </div>
               </>
