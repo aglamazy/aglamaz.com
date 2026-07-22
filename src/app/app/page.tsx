@@ -18,6 +18,7 @@ import { useSiteStore } from '@/store/SiteStore';
 import { formatLocalizedDate } from '@/utils/dateFormat';
 import DashboardHome from '@/components/home/DashboardHome';
 import { getPlatformName } from '@/utils/platformName';
+import { turkishDativeForm } from '@/utils/turkishGrammar';
 import AvatarStack from '@/components/photos/AvatarStack';
 import LikersBottomSheet from '@/components/photos/LikersBottomSheet';
 import type { ImageLikeMeta } from '@/types/likes';
@@ -519,7 +520,9 @@ export default function PicturesFeedPage() {
 
   // Desktop welcome hero
   const siteDisplayName = site?.name?.trim() || getPlatformName(site);
-  const heroTitle = t('welcomeToSite', { name: siteDisplayName }) as string;
+  const heroTitle = t('welcomeToSite', {
+    name: i18n.language === 'tr' ? turkishDativeForm(siteDisplayName) : siteDisplayName,
+  }) as string;
   const aboutFamily = site?.aboutFamily;
 
   // Preload first image for faster LCP (skip videos)

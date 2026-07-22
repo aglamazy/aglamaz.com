@@ -22,6 +22,7 @@ import { useTranslation } from 'react-i18next';
 import { usePendingMemberModalStore } from '@/store/PendingMemberModalStore';
 import { apiFetch } from '@/utils/apiFetch';
 import { ApiRoute } from '@/utils/urls';
+import { turkishDativeForm } from '@/utils/turkishGrammar';
 
 interface LoginPageProps {
   redirectPath?: string;
@@ -228,7 +229,11 @@ export default function LoginPage({ redirectPath = '/app', onAuthenticated }: Lo
           <span className="text-4xl">🌳</span>
         </div>
         <h1 className="text-2xl font-bold text-gray-900 text-center">
-          {t('welcomeToSite', { name: siteDisplayName })}
+          {t('welcomeToSite', {
+            name: i18n.language === 'tr' && siteDisplayName
+              ? turkishDativeForm(siteDisplayName)
+              : siteDisplayName,
+          })}
         </h1>
         <p className="text-gray-500 mt-2 text-center">{t('signInToContinue')}</p>
       </div>
