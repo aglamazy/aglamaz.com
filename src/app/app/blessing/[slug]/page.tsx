@@ -131,6 +131,8 @@ export default function BlessingPage() {
     );
   }
 
+  const isMemorial = event.type === 'death';
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900" dir={i18n.dir()}>
       <div className="max-w-4xl mx-auto">
@@ -141,7 +143,7 @@ export default function BlessingPage() {
               {t('blessingPageTitle')} - {blessingPage.year}
             </p>
           )}
-          {isAdmin && (
+          {isAdmin ? (
             <div className="flex items-center gap-2 mb-4">
               <span className="text-sm text-gray-600 dark:text-gray-400">
                 {blessingPage.isPublic ? t('blessingPagePublic') : t('blessingPagePrivate')}
@@ -154,6 +156,13 @@ export default function BlessingPage() {
                 {blessingPage.isPublic ? t('makePrivate') : t('makePublic')}
               </button>
             </div>
+          ) : (
+            blessingPage.isPublic && (
+              <div className="flex items-center gap-1 mb-4 text-sm text-gray-500 dark:text-gray-400">
+                <span aria-hidden="true">ℹ️</span>
+                <span>{t('blessingPagePublic')}</span>
+              </div>
+            )
           )}
           {event.description && (
             <p className="text-gray-700 dark:text-gray-300 mb-4">{event.description}</p>
@@ -169,11 +178,11 @@ export default function BlessingPage() {
           {/* Blessings List */}
           <div className="mt-6">
             <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">
-              {t('blessingsCount', { count: blessings.length })}
+              {t(isMemorial ? 'memoriesCount' : 'blessingsCount', { count: blessings.length })}
             </h2>
             {blessings.length === 0 ? (
               <p className="text-gray-500 dark:text-gray-400 text-center py-8">
-                {t('noBlessingsYet')}
+                {t(isMemorial ? 'noMemoriesYet' : 'noBlessingsYet')}
               </p>
             ) : (
               <div className="space-y-4">
@@ -236,7 +245,7 @@ export default function BlessingPage() {
           setBlessingVisibleToPublic(false);
           setModalOpen(true);
         }}
-        ariaLabel={t('addYourBlessing')}
+        ariaLabel={t(isMemorial ? 'addYourMemory' : 'addYourBlessing')}
       />
 
       {/* Add/Edit Blessing Modal */}
@@ -263,7 +272,9 @@ export default function BlessingPage() {
               &times;
             </button>
             <h2 className="text-2xl font-bold mb-4">
-              {editingBlessing ? t('editBlessing') : t('addYourBlessing')}
+              {editingBlessing
+                ? t(isMemorial ? 'editMemory' : 'editBlessing')
+                : t(isMemorial ? 'addYourMemory' : 'addYourBlessing')}
             </h2>
             <div className="mb-4">
               <EditorRich
@@ -346,7 +357,11 @@ export default function BlessingPage() {
                 disabled={submitting || !blessingContent.trim()}
                 className="px-4 py-2 bg-primary text-white rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {submitting ? t('submitting') : (editingBlessing ? t('save') : t('postBlessing'))}
+                {submitting
+                  ? t('submitting')
+                  : editingBlessing
+                    ? t('save')
+                    : t(isMemorial ? 'postMemory' : 'postBlessing')}
               </button>
             </div>
           </div>

@@ -447,6 +447,7 @@
   "noBlessingsYet": "No blessings yet. Be the first to bless!",
   "noMemoriesYet": "No memories yet. Be the first to share one.",
   "editBlessing": "Edit Blessing",
+  "editMemory": "Edit Memory",
   "blessingVisibleToPublic": "Visible to non-members",
   "blessingVisibleToPublicHint": "If checked, this memory can be seen on the public memorial page, even by visitors without a family account.",
   "nonMemberContributionBadge": "Guest",

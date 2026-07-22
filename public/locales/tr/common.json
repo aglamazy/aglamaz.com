@@ -407,6 +407,7 @@
   "noBlessingsYet": "Henüz dilekçe yok. İlk dilekçeyi gönderen siz olun!",
   "noMemoriesYet": "Henüz anı yok. İlk anıyı siz paylaşın.",
   "editBlessing": "Dilekçeyi Düzenle",
+  "editMemory": "Anıyı Düzenle",
   "blessingVisibleToPublic": "Üye olmayanlara görünür",
   "blessingVisibleToPublicHint": "İşaretlenirse, bu anı, aile hesabı olmayan ziyaretçiler de dahil olmak üzere herkese açık anma sayfasında görülebilir.",
   "nonMemberContributionBadge": "Ziyaretçi",
