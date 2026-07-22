@@ -15,6 +15,8 @@ export interface InDayEventItem {
   imageUrl?: string;
   /** Wedding events only - years since the marriage, for "N years of marriage" copy. */
   yearsMarried?: number;
+  /** Public memorial page link, resolved by the caller (only set when a public page exists). Falls back to calendarUrl when absent. */
+  memorialUrl?: string;
 }
 
 export interface InDayReminderEmailParams {
@@ -292,7 +294,8 @@ function renderInDayEventRow(event: InDayEventItem, lang: string, calendarUrl: s
   const photo = event.imageUrl
     ? `<img src="${escapeHtml(event.imageUrl)}" alt="${escapeHtml(event.eventName)}" width="48" height="48" style="width:48px;height:48px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-inline-end:12px;" />`
     : '';
-  return `<a href="${escapeHtml(calendarUrl)}" style="display:flex;align-items:center;text-decoration:none;color:inherit;">${photo}<span>${label}</span></a>`;
+  const href = event.memorialUrl || calendarUrl;
+  return `<a href="${escapeHtml(href)}" style="display:flex;align-items:center;text-decoration:none;color:inherit;">${photo}<span>${label}</span></a>`;
 }
 
 export class ResendService {

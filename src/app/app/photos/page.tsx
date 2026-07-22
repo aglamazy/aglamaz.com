@@ -259,12 +259,14 @@ export default function PhotosPage() {
       const canEdit = canEditOccurrence(creatorId);
 
       eventImages.forEach((image, i) => {
+        const aspectRatio = image.width > 0 && image.height > 0 ? image.height / image.width : undefined;
         flat.push({
           key: `${occ.type}:${occ.id}:${i}`,
           src: (image['400x400'] as string) || image.original,
           lightboxSrc: (image['1200x1200'] as string) || image.original,
           title: i === 0 ? title : undefined,
           dir: textDirection,
+          aspectRatio,
           meta: { occId: occ.id, annId, idx: i, canEdit, type: occ.type, creatorId, groupTitle: title },
         });
       });
@@ -399,6 +401,7 @@ export default function PhotosPage() {
           onTitleClick={handleTitleClick}
           getLightboxLink={getLightboxLink}
           autoSlideshow={autoSlideshow}
+          useJsMasonry
         />
         {loadingMore && (
           <div className="p-4 text-center text-gray-500">

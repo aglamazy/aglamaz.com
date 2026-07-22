@@ -10,6 +10,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { AnniversaryRepository } from '@/repositories/AnniversaryRepository';
 import { MemberRepository } from '@/repositories/MemberRepository';
 import { SiteRepository } from '@/repositories/SiteRepository';
+import { BlessingPageRepository } from '@/repositories/BlessingPageRepository';
 import { notificationPreferencesRepository } from '@/repositories/NotificationPreferencesRepository';
 import { ResendService } from '@/services/ResendService';
 import { planInDaySends, filterTodaysOccurrences } from '@/services/InDayReminderService';
@@ -46,6 +47,7 @@ export async function GET(request: NextRequest) {
   const annivRepo = new AnniversaryRepository();
   const memberRepo = new MemberRepository();
   const siteRepo = new SiteRepository();
+  const blessingPageRepo = new BlessingPageRepository();
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -67,8 +69,9 @@ export async function GET(request: NextRequest) {
     try {
       await annivRepo.ensureHebrewHorizonForYear(siteId, today.getFullYear());
       const events = await annivRepo.getEventsForMonth(siteId, today.getMonth(), today.getFullYear());
+      const todaysEvents = filterTodaysOccurrences(events, today);
 
-      if (filterTodaysOccurrences(events, today).length === 0) {
+      if (todaysEvents.length === 0) {
         // Silent day for this site - skip member/prefs reads entirely.
         continue;
       }
@@ -84,6 +87,24 @@ export async function GET(request: NextRequest) {
       // localhost or a Vercel preview deployment must never bake that host into a sent link.
       const calendarUrl = await getUrl(AppRoute.APP_CALENDAR, siteId);
       const siteBaseUrl = await getBaseUrlForSite(siteId);
+
+      // Death events may already have a standing memorial page - link straight to it when
+      // it's public, instead of the generic calendar (famcircle#67). Single, non-year-pinned
+      // page per src/app/app/calendar/page.tsx's blessingPages[0] precedent for death events.
+      const memorialUrlByEventId: Record<string, string> = {};
+      for (const ev of todaysEvents) {
+        if (ev.type !== 'death') continue;
+        const slug = ev.blessingPages?.[0]?.slug;
+        if (!slug) continue;
+        try {
+          const page = await blessingPageRepo.getBySlug(slug);
+          if (page?.isPublic) {
+            memorialUrlByEventId[ev.id] = new URL(`/public/memorial/${slug}`, siteBaseUrl).toString();
+          }
+        } catch (err) {
+          console.error(`[cron/in-day-reminders] error resolving memorial page for event=${ev.id}:`, err);
+        }
+      }
 
       const plans = planInDaySends({
         events,
@@ -103,6 +124,7 @@ export async function GET(request: NextRequest) {
             siteBaseUrl,
             signReminderPreferenceToken({ memberId, siteId, topic: 'birthday' }),
           ),
+        memorialUrlByEventId,
       });
 
       for (const plan of plans) {

@@ -58,8 +58,10 @@ export function planInDaySends(params: {
   siteName: string;
   calendarUrl: string;
   manageLinkFor: (memberId: string) => string;
+  /** Public memorial page URL per event id, pre-resolved by the caller (isPublic lookup requires Firestore I/O, kept out of this pure function). */
+  memorialUrlByEventId?: Record<string, string>;
 }): InDayEmailPlan[] {
-  const { events, today, members, siteName, calendarUrl, manageLinkFor } = params;
+  const { events, today, members, siteName, calendarUrl, manageLinkFor, memorialUrlByEventId } = params;
   const todaysEvents = filterTodaysOccurrences(events, today);
   if (todaysEvents.length === 0) return [];
 
@@ -78,6 +80,7 @@ export function planInDaySends(params: {
         eventName: ev.name,
         imageUrl: ev.imageUrl,
         yearsMarried: ev.type === 'wedding' ? computeYearsMarried(ev, today) : undefined,
+        memorialUrl: memorialUrlByEventId?.[ev.id],
       })),
       calendarUrl,
       manageLink: manageLinkFor(member.memberId),

@@ -145,6 +145,55 @@ function testMemberWithoutEmailIsSkipped() {
   console.log('member without email is skipped passed');
 }
 
+// Matches only the clickable event row's anchor (style="display:flex...") - distinct from
+// the email's generic "Open Calendar" CTA button, which always points at calendarUrl.
+function extractRowHref(html: string): string | undefined {
+  const match = html.match(/<a href="([^"]*)" style="display:flex/);
+  return match?.[1];
+}
+
+function testDeathEventWithPublicMemorialUsesMemorialLink() {
+  const t = today();
+  const ev = eventOn({ day: t.getDate(), month: t.getMonth(), type: 'death', name: 'Grandma' });
+
+  const plans = planInDaySends({
+    ...baseParams([ev]),
+    members: [
+      { memberId: 'm1', email: 'm1@example.com', inDayRemindersEnabled: true, defaultLocale: 'en' },
+    ],
+    memorialUrlByEventId: { evt1: 'https://example.com/public/memorial/abc123' },
+  });
+
+  assert.equal(plans.length, 1);
+  assert.equal(
+    extractRowHref(plans[0].html),
+    'https://example.com/public/memorial/abc123',
+    'row should link to the public memorial page, not the generic calendar',
+  );
+  console.log('death event with public memorial uses memorial link passed');
+}
+
+function testDeathEventWithoutMemorialUsesCalendarLink() {
+  const t = today();
+  const ev = eventOn({ day: t.getDate(), month: t.getMonth(), type: 'death', name: 'Grandma' });
+
+  const plans = planInDaySends({
+    ...baseParams([ev]),
+    members: [
+      { memberId: 'm1', email: 'm1@example.com', inDayRemindersEnabled: true, defaultLocale: 'en' },
+    ],
+    // No memorialUrlByEventId entry - mirrors no blessing page, or a non-public one.
+  });
+
+  assert.equal(plans.length, 1);
+  assert.equal(
+    extractRowHref(plans[0].html),
+    'https://example.com/app/calendar',
+    'row should fall back to the generic calendar link when there is no public memorial page',
+  );
+  console.log('death event without public memorial uses calendar link passed');
+}
+
 testFilterTodaysOccurrencesMatchesByDay();
 testFilterTodaysOccurrencesCoversAllThreeTypes();
 testFilterTodaysOccurrencesIgnoresOtherType();
@@ -154,3 +203,5 @@ testMemberWithNoOccurrenceGetsZeroEmails();
 testMemberWithTogglOffGetsZeroEmailsRegardless();
 testMultipleOccurrencesSameDayStillOneEmail();
 testMemberWithoutEmailIsSkipped();
+testDeathEventWithPublicMemorialUsesMemorialLink();
+testDeathEventWithoutMemorialUsesCalendarLink();
