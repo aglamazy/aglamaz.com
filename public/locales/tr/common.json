@@ -153,7 +153,7 @@
   "honoreeNone": "Yok",
   "honoreeSelectMember": "Bir üye seçin...",
   "honoreeEmailPlaceholder": "E-posta adresi",
-  "honoreeSendInviteNow": "Şimdi davet gönder, katılıp kendisine yazılan mesajları okusun",
+  "honoreeSendLinkNow": "Şimdi bağlantı gönder, kendisine yazılan mesajları okusun",
   "burialDateHelp": "İsteğe bağlı: defin farklı bir tarihteyse.",
   "other": "Diğer",
   "deleteEventTitle": "Etkinliği sil?",

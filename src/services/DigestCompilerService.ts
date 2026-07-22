@@ -1,6 +1,7 @@
 import { AnniversaryRepository } from '@/repositories/AnniversaryRepository';
 import { AnniversaryOccurrenceRepository } from '@/repositories/AnniversaryOccurrenceRepository';
 import { GalleryPhotoRepository } from '@/repositories/GalleryPhotoRepository';
+import { BlessingPageRepository } from '@/repositories/BlessingPageRepository';
 import type { AnniversaryEvent } from '@/entities/Anniversary';
 import type { GalleryPhoto } from '@/repositories/GalleryPhotoRepository';
 
@@ -30,6 +31,8 @@ export interface CompileDigestOptions {
 export interface DigestEventWithPhotos {
   event: AnniversaryEvent;
   photoUrls: string[];
+  /** Slug of this event's (idempotently ensured) BlessingPage - lets the coming-events section link to "write a blessing" (Agla, 2026-07-22). */
+  blessingPageSlug: string;
 }
 
 export interface DateRange {
@@ -96,7 +99,8 @@ export class DigestCompilerService {
   constructor(
     private readonly anniversaryRepository: AnniversaryRepository = new AnniversaryRepository(),
     private readonly galleryPhotoRepository: GalleryPhotoRepository = new GalleryPhotoRepository(),
-    private readonly occurrenceRepository: AnniversaryOccurrenceRepository = new AnniversaryOccurrenceRepository()
+    private readonly occurrenceRepository: AnniversaryOccurrenceRepository = new AnniversaryOccurrenceRepository(),
+    private readonly blessingPageRepository: BlessingPageRepository = new BlessingPageRepository()
   ) {}
 
   async compileDigest(siteId: string, month: number, year: number, options?: CompileDigestOptions): Promise<DigestPayload> {
@@ -189,9 +193,16 @@ export class DigestCompilerService {
   private withPhotos(events: AnniversaryEvent[]): Promise<DigestEventWithPhotos[]> {
     return Promise.all(
       events.map(async (event) => {
-        const [linkedPhotos, occurrences] = await Promise.all([
+        const [linkedPhotos, occurrences, blessingPage] = await Promise.all([
           this.galleryPhotoRepository.listByAnniversary(event.id),
           this.occurrenceRepository.listByEvent(event.id),
+          this.blessingPageRepository.create({
+            eventId: event.id,
+            siteId: event.siteId,
+            year: event.type === 'death' ? undefined : event.year,
+            createdBy: event.ownerId,
+            eventType: event.type,
+          }),
         ]);
         const sameYear = (d: Date | null) => d !== null && d.getFullYear() === event.year;
         const linkedUrls = linkedPhotos
@@ -203,7 +214,7 @@ export class DigestCompilerService {
           .flatMap((occ) => occ.imagesWithDimensions?.map((img) => img.url).filter((u): u is string => !!u) ?? []);
         const allUrls = event.imageUrl ? [event.imageUrl, ...occurrenceUrls, ...linkedUrls] : [...occurrenceUrls, ...linkedUrls];
         const photoUrls = Array.from(new Set(allUrls));
-        return { event, photoUrls };
+        return { event, photoUrls, blessingPageSlug: blessingPage.slug };
       }),
     );
   }

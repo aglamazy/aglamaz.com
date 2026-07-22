@@ -1,38 +1,59 @@
 import type { AnniversaryEvent } from '@/entities/Anniversary';
-import { FamilyRepository } from '@/repositories/FamilyRepository';
+import { MemberRepository } from '@/repositories/MemberRepository';
 import { BlessingPageRepository } from '@/repositories/BlessingPageRepository';
+import { BlessingMagicLinkRepository } from '@/repositories/BlessingMagicLinkRepository';
 import { SiteRepository } from '@/repositories/SiteRepository';
-import { getUrl, AppRoute } from '@/utils/serverUrls';
+import { getBaseUrlForSite } from '@/utils/serverUrls';
 import { buildHonoreeInviteEmail } from './BlessingInviteTemplateService';
 import { resolveDigestSiteName } from './DigestTemplateService';
 import { ResendService } from './ResendService';
 
 const SOURCE_LOCALE = 'he';
-const INVITE_EXPIRES_MS = 7 * 24 * 60 * 60 * 1000; // 7 days - longer than the generic 24h invite link, since this sits in an inbox.
 
 /**
- * Sends a honoree an invite to join the site and read the blessings written for
- * them - only path for reaching a person who isn't a member yet (event.honoreeEmail
- * set, no honoreeMemberId). Ensures their blessing page exists first, so the invite's
- * redirectPath has somewhere real to land them once they accept.
+ * Sends the honoree a no-login, read-only, 48h magic link to their blessing
+ * page (Agla, 2026-07-22: "All links should be magic links to read only
+ * status, valid for 48h") - the SAME mechanism whether the honoree is an
+ * existing member (honoreeMemberId) or not (honoreeEmail raw). Ensures the
+ * blessing page exists first, so the link has somewhere real to land.
  */
-export async function sendHonoreeInvite(params: {
+export async function sendHonoreeBlessingLink(params: {
   siteId: string;
   event: AnniversaryEvent;
-  honoreeEmail: string;
+  honoreeMemberId?: string;
+  honoreeEmail?: string;
   authorName: string;
-  authorId?: string;
-  authorEmail?: string;
 }): Promise<void> {
-  const { siteId, event, honoreeEmail, authorName, authorId, authorEmail } = params;
+  const { siteId, event, honoreeMemberId, honoreeEmail, authorName } = params;
+
+  let targetEmail: string | undefined;
+  let honoreeName = event.name;
+  if (honoreeMemberId) {
+    const memberRepo = new MemberRepository();
+    const member = await memberRepo.getById(honoreeMemberId);
+    targetEmail = member?.email;
+    honoreeName = member?.firstName || member?.displayName || event.name;
+  } else {
+    targetEmail = honoreeEmail;
+  }
+  if (!targetEmail) {
+    throw new Error(`No resolvable email for event ${event.id} honoree (memberId=${honoreeMemberId}, email=${honoreeEmail})`);
+  }
 
   const blessingPageRepo = new BlessingPageRepository();
   const blessingPage = await blessingPageRepo.create({
     eventId: event.id,
     siteId,
     year: event.type === 'death' ? undefined : event.year,
-    createdBy: authorId || event.ownerId,
+    createdBy: honoreeMemberId || event.ownerId,
     eventType: event.type,
+  });
+
+  const magicLinkRepo = new BlessingMagicLinkRepository();
+  const link = await magicLinkRepo.create({
+    siteId,
+    blessingPageId: blessingPage.id,
+    honoreeLabel: event.name,
   });
 
   const siteRepo = new SiteRepository();
@@ -41,33 +62,20 @@ export async function sendHonoreeInvite(params: {
     throw new Error(`Site ${siteId} not found`);
   }
   const siteName = resolveDigestSiteName(site, SOURCE_LOCALE, siteId);
-
-  const familyRepository = new FamilyRepository();
-  const invite = await familyRepository.createInvite(
-    siteId,
-    { id: authorId, email: authorEmail, name: authorName },
-    {
-      invitedEmail: honoreeEmail,
-      // Manually built, matching TagNotificationService's existing precedent for this
-      // same page - no AppRoute entry exists for /app/blessing/{slug} in the registry.
-      redirectPath: `/app/blessing/${blessingPage.slug}`,
-      expiresInMs: INVITE_EXPIRES_MS,
-    },
-  );
-
-  const inviteUrl = await getUrl(AppRoute.AUTH_INVITE, siteId, { token: invite.token });
+  const baseUrl = await getBaseUrlForSite(siteId);
+  const blessingLinkUrl = `${baseUrl}/public/blessing-view/${link.token}`;
 
   const { subject, html } = buildHonoreeInviteEmail({
     locale: SOURCE_LOCALE,
     siteName,
-    honoreeName: event.name,
+    honoreeName,
     authorName,
     eventType: event.type,
-    inviteUrl,
+    blessingLinkUrl,
   });
 
   await ResendService.sendTransactionalEmail({
-    to: honoreeEmail,
+    to: targetEmail,
     subject,
     html,
     lang: SOURCE_LOCALE,

@@ -45,6 +45,7 @@ const FIXTURE: CadenceDigestPayload = {
       } as any,
       // DigestCompilerService always folds event.imageUrl into photoUrls - simulate that here.
       photoUrls: ['https://example.com/photos/moshe.jpg'],
+      blessingPageSlug: 'e1-2026',
     },
     {
       event: {
@@ -62,6 +63,7 @@ const FIXTURE: CadenceDigestPayload = {
         createdAt: null,
       } as any,
       photoUrls: ['https://example.com/photos/dan-mira.jpg'],
+      blessingPageSlug: 'e3-2026',
     },
   ],
   pastEvents: [
@@ -82,6 +84,7 @@ const FIXTURE: CadenceDigestPayload = {
         createdAt: null,
       } as any,
       photoUrls: ['https://example.com/photos/sarah-visit.jpg'],
+      blessingPageSlug: 'e2-standing',
     },
   ],
   photos: [
@@ -268,7 +271,8 @@ function testHeadingHierarchy() {
   // hierarchy, not styled divs (Agla, 2026-07-21).
   const html = buildFixtureHtml();
   assert.ok(/<h2[^>]*>מה היה ב/.test(html), 'section card title must be a real h2');
-  assert.ok(/<h3[^>]*>Grandpa Moshe<\/h3>/.test(html), 'individual event title must be a real h3');
+  // Grandpa Moshe is a bare-name birthday event, so it gets the auto birthday label (see testBareNameBirthdayGetsAutoLabel).
+  assert.ok(/<h3[^>]*>Grandpa Moshe's birthday<\/h3>/.test(html), 'individual event title must be a real h3');
   console.log('section titles are h2, event titles are h3: PASSED');
 }
 
@@ -298,6 +302,80 @@ function testAnnualEventShowsTargetYearNotOriginalEntryYear() {
   console.log('annual event dates show the remapped target year: PASSED');
 }
 
+function testBirthdayEventNameAutoLabel() {
+  // A bare-name birthday event ("אורן אגלמז") should get "birthday" auto-added,
+  // since the name alone doesn't convey the occasion - but an event whose name
+  // already reads as a celebration title ("מסיבת לילה אגלמז!") is fine as-is
+  // (Agla, 2026-07-22, with two real screenshots: bare name needed the label,
+  // "מסיבת לילה אגלמז!" did not).
+  const bareNameEvent: CadenceDigestPayload = {
+    ...FIXTURE,
+    comingEvents: [
+      {
+        event: { ...FIXTURE.comingEvents[0].event, id: 'bare', name: 'אורן אגלמז', month: 6, day: 11 } as any,
+        photoUrls: [],
+        blessingPageSlug: 'bare-2026',
+      },
+    ],
+    pastEvents: [],
+  };
+  const partyNameEvent: CadenceDigestPayload = {
+    ...FIXTURE,
+    comingEvents: [
+      {
+        event: { ...FIXTURE.comingEvents[0].event, id: 'party', name: 'מסיבת לילה אגלמז!', month: 6, day: 18 } as any,
+        photoUrls: [],
+        blessingPageSlug: 'party-2026',
+      },
+    ],
+    pastEvents: [],
+  };
+
+  const bareHtml = DigestTemplateService.buildMonthlyDigestEmail(bareNameEvent, {
+    locale: 'he',
+    siteName: 'אתר המשפחה',
+    recipientName: 'Test',
+    calendarUrl: CALENDAR_URL,
+    galleryUrl: GALLERY_URL,
+  }).html;
+  const partyHtml = DigestTemplateService.buildMonthlyDigestEmail(partyNameEvent, {
+    locale: 'he',
+    siteName: 'אתר המשפחה',
+    recipientName: 'Test',
+    calendarUrl: CALENDAR_URL,
+    galleryUrl: GALLERY_URL,
+  }).html;
+
+  assert.ok(bareHtml.includes('יום ההולדת של אורן אגלמז'), 'bare-name birthday event must get the auto birthday label');
+  assert.ok(!partyHtml.includes('יום ההולדת של'), 'a name that already reads as a celebration title must not get double-labeled');
+  assert.ok(partyHtml.includes('מסיבת לילה אגלמז!'), 'celebration-title event name must render unchanged');
+  console.log('bare-name birthday events get an auto label, celebration-title names do not: PASSED');
+}
+
+function testWriteBlessingLinkOnComingEventsOnly() {
+  // Coming events invite writing a blessing; past events (already happened) do not
+  // (Agla, 2026-07-22: "the invite to write blessing on site is missing").
+  // Recipient name deliberately distinct from any event name - see
+  // testComingSectionSplitsByMonth for why (the greeting would otherwise collide
+  // with the first occurrence lookup below).
+  const { html } = DigestTemplateService.buildMonthlyDigestEmail(FIXTURE, {
+    locale: 'en',
+    siteName: 'The Aglamaz Family',
+    recipientName: 'Test Recipient',
+    calendarUrl: CALENDAR_URL,
+    galleryUrl: GALLERY_URL,
+  });
+  const moshIdx = html.indexOf('Grandpa Moshe');
+  const moshBlock = html.slice(moshIdx, moshIdx + 600);
+  assert.ok(moshBlock.includes('/app/blessing/e1-2026'), 'coming event must link to its blessing page');
+  assert.ok(moshBlock.includes('כתבו ברכה'), 'coming event must show the write-a-blessing CTA text');
+
+  const sarahIdx = html.indexOf('Grandma Sarah');
+  const sarahBlock = html.slice(sarahIdx, sarahIdx + 600);
+  assert.ok(!sarahBlock.includes('/app/blessing/e2-standing'), 'past event must not show a write-a-blessing link');
+  console.log('write-a-blessing link shows for coming events only: PASSED');
+}
+
 function run() {
   testEventRowsHaveRealImgTagsWhenImageUrlPresent();
   testMissingImageUrlFallsBackGracefully();
@@ -316,6 +394,8 @@ function run() {
   testNoRedundantIntroLine();
   testGeneralPhotosUseCollageNotThumbnailRow();
   testAnnualEventShowsTargetYearNotOriginalEntryYear();
+  testBirthdayEventNameAutoLabel();
+  testWriteBlessingLinkOnComingEventsOnly();
 }
 
 run();

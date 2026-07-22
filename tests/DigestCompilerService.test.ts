@@ -99,8 +99,9 @@ async function testWeeklyDigestUsesRollingWindowNotCalendarMonth() {
   };
   const galleryPhotoRepository: any = { listBySite: async () => [], listByAnniversary: async () => [] };
   const occurrenceRepository: any = { listByEvent: async () => [] };
+  const blessingPageRepository: any = { create: async ({ eventId }: any) => ({ slug: `${eventId}-mock` }) };
 
-  const service = new DigestCompilerService(anniversaryRepository, galleryPhotoRepository, occurrenceRepository);
+  const service = new DigestCompilerService(anniversaryRepository, galleryPhotoRepository, occurrenceRepository, blessingPageRepository);
   const digest = await service.compileWeeklyDigest('site1', referenceDate);
 
   const pastIds = digest.pastEvents.map((e: any) => e.event.id);
@@ -157,7 +158,8 @@ async function testCollagePhotosAreYearFilteredWithMainImageFallback() {
     ],
   };
 
-  const service = new DigestCompilerService(anniversaryRepository, galleryPhotoRepository, occurrenceRepository);
+  const blessingPageRepository: any = { create: async ({ eventId }: any) => ({ slug: `${eventId}-mock` }) };
+  const service = new DigestCompilerService(anniversaryRepository, galleryPhotoRepository, occurrenceRepository, blessingPageRepository);
   const digest = await service.compileMonthlyDigest('site1', referenceDate);
 
   const entry = digest.comingEvents.find((e: any) => e.event.id === 'wedding-1');
@@ -197,7 +199,8 @@ async function testCollageIncludesMatchingYearOccurrencePhotos() {
     ],
   };
 
-  const service = new DigestCompilerService(anniversaryRepository, galleryPhotoRepository, occurrenceRepository);
+  const blessingPageRepository: any = { create: async ({ eventId }: any) => ({ slug: `${eventId}-mock` }) };
+  const service = new DigestCompilerService(anniversaryRepository, galleryPhotoRepository, occurrenceRepository, blessingPageRepository);
   const digest = await service.compileMonthlyDigest('site1', referenceDate);
 
   const entry = digest.comingEvents.find((e: any) => e.event.id === 'party-1');

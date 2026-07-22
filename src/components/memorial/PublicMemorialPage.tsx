@@ -13,9 +13,11 @@ interface Props {
   blessingPage: BlessingPage;
   event: AnniversaryEvent;
   blessings: Blessing[];
+  /** Hides the write-a-blessing form entirely - used for the honoree's own magic-link view (Agla, 2026-07-22: "read only status"). */
+  readOnly?: boolean;
 }
 
-export default function PublicMemorialPage({ blessingPage, event, blessings: initialBlessings }: Props) {
+export default function PublicMemorialPage({ blessingPage, event, blessings: initialBlessings, readOnly = false }: Props) {
   const { t, i18n } = useTranslation();
   const [blessings, setBlessings] = useState(initialBlessings);
   const [formOpen, setFormOpen] = useState(false);
@@ -103,12 +105,14 @@ export default function PublicMemorialPage({ blessingPage, event, blessings: ini
             <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
               {t('blessingsCount', { count: blessings.length })}
             </h2>
-            <button
-              onClick={() => setFormOpen(true)}
-              className="px-4 py-2 bg-primary text-white rounded-lg hover:opacity-90 text-sm"
-            >
-              {t('addYourBlessing')}
-            </button>
+            {!readOnly && (
+              <button
+                onClick={() => setFormOpen(true)}
+                className="px-4 py-2 bg-primary text-white rounded-lg hover:opacity-90 text-sm"
+              >
+                {t('addYourBlessing')}
+              </button>
+            )}
           </div>
           <div className="mb-6">
             {blessings.length === 0 ? (
@@ -148,7 +152,7 @@ export default function PublicMemorialPage({ blessingPage, event, blessings: ini
         </div>
       </div>
 
-      {formOpen && (
+      {!readOnly && formOpen && (
         <div
           className="fixed inset-0 flex items-center justify-center bg-black/40 z-50"
           onClick={() => {

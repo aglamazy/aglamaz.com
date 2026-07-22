@@ -1,14 +1,11 @@
 // TEMPORARY - for composing the honoree-invite email template live against real site
 // data (Agla, 2026-07-22). Remove once the format is settled. Renders the exact HTML
-// BlessingInviteTemplateService produces - real template code, placeholder invite URL
-// (the invite-link backend extension isn't wired yet - this route is for reviewing the
-// email content/design first, per Agla's request).
+// BlessingInviteTemplateService produces - real template code, placeholder magic-link
+// URL (this route previews the email content/design only, not a real send).
 import { withMemberGuard } from '@/lib/withMemberGuard';
 import { buildHonoreeInviteEmail } from '@/services/BlessingInviteTemplateService';
 import { resolveDigestSiteName } from '@/services/DigestTemplateService';
 import { SiteRepository } from '@/repositories/SiteRepository';
-import { getPath } from '@/utils/urls';
-import { AppRoute } from '@/entities/Routes';
 import { GuardContext } from '@/app/api/types';
 import type { AnniversaryType } from '@/entities/Anniversary';
 
@@ -34,7 +31,7 @@ const getHandler = async (request: Request, context: GuardContext) => {
   const siteName = resolveDigestSiteName(site, LOCALE, siteId);
   const member = context.member as { firstName?: string; displayName?: string; email?: string };
   const authorName = member.firstName || member.displayName || member.email || 'משפחה';
-  const inviteUrl = new URL(getPath(AppRoute.AUTH_INVITE, { token: 'PREVIEW-TOKEN' }), url.origin).toString();
+  const blessingLinkUrl = new URL('/public/blessing-view/PREVIEW-TOKEN', url.origin).toString();
 
   const { html } = buildHonoreeInviteEmail({
     locale: LOCALE,
@@ -42,7 +39,7 @@ const getHandler = async (request: Request, context: GuardContext) => {
     honoreeName,
     authorName,
     eventType,
-    inviteUrl,
+    blessingLinkUrl,
   });
 
   return new Response(html, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });

@@ -2,7 +2,7 @@ import { withMemberGuard } from '@/lib/withMemberGuard';
 import { AnniversaryRepository } from '@/repositories/AnniversaryRepository';
 import { AnniversaryOccurrenceRepository } from '@/repositories/AnniversaryOccurrenceRepository';
 import { BlessingPageRepository } from '@/repositories/BlessingPageRepository';
-import { sendHonoreeInvite } from '@/services/HonoreeInviteService';
+import { sendHonoreeBlessingLink } from '@/services/HonoreeInviteService';
 import { GuardContext } from '@/app/api/types';
 
 export const dynamic = 'force-dynamic';
@@ -104,19 +104,18 @@ const putHandler = async (request: Request, context: GuardContext & { params: Pr
     });
     const updated = await repo.getById(anniversaryId);
 
-    // Best-effort - a failed invite send must not fail the event save itself.
-    if (updated && !honoreeMemberId && honoreeEmail && sendInviteNow) {
+    // Best-effort - a failed link send must not fail the event save itself.
+    if (updated && (honoreeMemberId || honoreeEmail) && sendInviteNow) {
       try {
-        await sendHonoreeInvite({
+        await sendHonoreeBlessingLink({
           siteId,
           event: updated,
-          honoreeEmail,
+          honoreeMemberId: honoreeMemberId || undefined,
+          honoreeEmail: honoreeMemberId ? undefined : honoreeEmail,
           authorName: (member as any).firstName || (member as any).displayName || user.email || '',
-          authorId: user.userId,
-          authorEmail: (member as any).email || user.email,
         });
       } catch (inviteError) {
-        console.error('[anniversaries] failed to send honoree invite', inviteError);
+        console.error('[anniversaries] failed to send honoree blessing link', inviteError);
       }
     }
 

@@ -10,13 +10,13 @@ export interface HonoreeInviteEmailContent {
 export interface BuildHonoreeInviteEmailOptions {
   locale: string;
   siteName: string;
-  /** The event's honoree - who this invite is addressed to (not yet a member). */
+  /** The event's honoree - who this email is addressed to. */
   honoreeName: string;
-  /** Who wrote the event/entered this email - the invite is framed as coming from them. */
+  /** Who wrote the event/entered this email - the message is framed as coming from them. */
   authorName: string;
   eventType: AnniversaryType;
-  /** Where accepting the invite takes them - redirects to their blessing page after signup. */
-  inviteUrl: string;
+  /** No-login, read-only, 48h-expiring magic link to the honoree's blessing page (Agla, 2026-07-22) - not an account-creating invite. */
+  blessingLinkUrl: string;
 }
 
 const OCCASION_LABEL: Record<AnniversaryType, Record<string, string>> = {
@@ -33,14 +33,15 @@ function occasionLabel(eventType: AnniversaryType, locale: string): string {
 }
 
 export function buildHonoreeInviteEmail(options: BuildHonoreeInviteEmailOptions): HonoreeInviteEmailContent {
-  const { locale, siteName, honoreeName, authorName, eventType, inviteUrl } = options;
+  const { locale, siteName, honoreeName, authorName, eventType, blessingLinkUrl } = options;
   const occasion = occasionLabel(eventType, locale);
   const occasionSuffix = occasion ? ` ${occasion}` : '';
 
   const subject = `✨ המשפחה כתבה לך ברכות${occasionSuffix} ב${siteName}`;
   const greeting = `שלום <bdi>${escapeHtml(honoreeName)}</bdi>,`;
   const bodyParagraph = `<bdi>${escapeHtml(authorName)}</bdi> ובני המשפחה כתבו לך ברכות${occasionSuffix} ב${escapeHtml(siteName)} - אתר המשפחה הפרטי שלכם.`;
-  const inviteParagraph = 'הצטרפו כדי לקרוא את הברכות שכתבו לכם, ולהשאיר תגובה משלכם.';
+  // Read-only magic link, not an account invite (Agla, 2026-07-22) - no "join"/"reply" language.
+  const linkParagraph = 'לחצו כדי לקרוא את הברכות שכתבו לכם. הקישור בתוקף ל-48 שעות.';
 
   const html = renderEmailHtml({
     subject,
@@ -49,16 +50,16 @@ export function buildHonoreeInviteEmail(options: BuildHonoreeInviteEmailOptions)
     heading: `🌳 ${siteName}`,
     preheader: subject,
     greeting,
-    paragraphs: [bodyParagraph, inviteParagraph],
-    button: { label: 'קרא/י את הברכות שלך', url: inviteUrl },
-    footerLines: ['הוזמנת על ידי בן/בת משפחה שרוצים לשתף איתך רגע חם.'],
+    paragraphs: [bodyParagraph, linkParagraph],
+    button: { label: 'קרא/י את הברכות שלך', url: blessingLinkUrl },
+    footerLines: ['נשלח אליך על ידי בן/בת משפחה שרוצים לשתף איתך רגע חם.'],
   });
 
   const text = [
     `שלום ${honoreeName},`,
     `${authorName} ובני המשפחה כתבו לך ברכות${occasionSuffix} ב${siteName} - אתר המשפחה הפרטי שלכם.`,
-    inviteParagraph,
-    inviteUrl,
+    linkParagraph,
+    blessingLinkUrl,
   ].join('\n\n');
 
   return { subject, html, text };

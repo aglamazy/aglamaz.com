@@ -101,10 +101,31 @@ const WEDDING_DIGEST_LABEL: Record<string, (name: string) => string> = {
   tr: (name) => `${name} evlilik yıldönümü`,
 };
 
+const BIRTHDAY_DIGEST_LABEL: Record<string, (name: string) => string> = {
+  en: (name) => `${name}'s birthday`,
+  he: (name) => `יום ההולדת של ${name}`,
+  tr: (name) => `${name} doğum günü`,
+};
+
+/**
+ * If the event name is already a full celebration title (e.g. "מסיבת לילה
+ * אגלמז!"), it reads fine on its own - only a bare person's name needs
+ * "birthday" prepended (Agla, 2026-07-22: an event just named "אורן אגלמז"
+ * should auto-add the label, "מסיבת לילה אגלמז!" is fine as-is). Heuristic:
+ * skip if the name already contains a celebration/birthday keyword.
+ */
+const CELEBRATION_KEYWORDS = /מסיב|חגיג|יום.?הולדת|party|celebration|birthday/i;
+
 function formatEventName(name: string, type: AnniversaryType, locale: string): string {
-  if (type !== 'wedding') return name;
-  const fn = WEDDING_DIGEST_LABEL[locale] ?? WEDDING_DIGEST_LABEL.en;
-  return fn(name);
+  if (type === 'wedding') {
+    const fn = WEDDING_DIGEST_LABEL[locale] ?? WEDDING_DIGEST_LABEL.en;
+    return fn(name);
+  }
+  if (type === 'birthday' && !CELEBRATION_KEYWORDS.test(name)) {
+    const fn = BIRTHDAY_DIGEST_LABEL[locale] ?? BIRTHDAY_DIGEST_LABEL.en;
+    return fn(name);
+  }
+  return name;
 }
 
 function formatEventLine(event: AnniversaryEvent, locale: string): string {
@@ -162,8 +183,8 @@ function renderGlobalCollage(photos: GalleryPhoto[], galleryUrl: string): string
  * every event, past or coming. Title/date link into the calendar; the collage/hero links
  * into the gallery separately (an <a> can't nest inside another <a>).
  */
-function renderEventArticle(entry: DigestEventWithPhotos, locale: string, calendarUrl: string): string {
-  const { event, photoUrls } = entry;
+function renderEventArticle(entry: DigestEventWithPhotos, locale: string, calendarUrl: string, showBlessingLink: boolean): string {
+  const { event, photoUrls, blessingPageSlug } = entry;
   const name = formatEventName(escapeHtml(event.name), event.type, locale);
   const dateLabel = escapeHtml(formatEventDate(event, locale));
 
@@ -180,8 +201,16 @@ function renderEventArticle(entry: DigestEventWithPhotos, locale: string, calend
     ? `<p style="margin:12px 0 0;color:#3c4a3f;">${escapeHtml(event.description.trim())}</p>`
     : '';
 
+  // Only upcoming events invite writing a blessing (Agla, 2026-07-22) - a past event's
+  // occasion has already happened. Same member-authed page the calendar already uses,
+  // just a direct link into the write flow instead of into the calendar month view.
+  const blessingLink =
+    showBlessingLink && blessingPageSlug
+      ? `<div style="margin-top:10px;"><a href="${escapeHtml(new URL(calendarUrl).origin)}/app/blessing/${escapeHtml(blessingPageSlug)}" style="font-size:14px;font-weight:600;color:#2f6f4d;text-decoration:none;">✍️ כתבו ברכה</a></div>`
+      : '';
+
   // Text (title/date/description) reads before the images, not after (Agla, 2026-07-21).
-  return `<div style="padding:18px 0;border-bottom:1px solid #e3ede6;"><a href="${escapeHtml(calendarUrl)}" style="text-decoration:none;color:inherit;"><h3 style="font-weight:700;font-size:16px;margin:0;">${name}</h3><div style="font-size:13px;color:#6d7f74;margin-top:2px;">${dateLabel}</div></a>${description}${visual}</div>`;
+  return `<div style="padding:18px 0;border-bottom:1px solid #e3ede6;"><a href="${escapeHtml(calendarUrl)}" style="text-decoration:none;color:inherit;"><h3 style="font-weight:700;font-size:16px;margin:0;">${name}</h3><div style="font-size:13px;color:#6d7f74;margin-top:2px;">${dateLabel}</div></a>${description}${visual}${blessingLink}</div>`;
 }
 
 /** A visually separate card for one section ("what was" vs "what's coming") - a shared background tint isn't enough to read as two distinct blocks. */
@@ -242,12 +271,12 @@ function buildCadenceDigestEmail(
   const comingLabel = formatRangeLabel(digest.comingRange.startDate, digest.comingRange.endDate, options.locale);
   const comingGroups = groupEventsByMonth(digest.comingEvents);
 
-  const renderArticles = (entries: DigestEventWithPhotos[]) =>
-    entries.map((entry) => renderEventArticle(entry, options.locale, options.calendarUrl)).join('');
+  const renderArticles = (entries: DigestEventWithPhotos[], showBlessingLink: boolean) =>
+    entries.map((entry) => renderEventArticle(entry, options.locale, options.calendarUrl, showBlessingLink)).join('');
 
-  const pastArticles = renderArticles(digest.pastEvents);
+  const pastArticles = renderArticles(digest.pastEvents, false);
   const comingInner = comingGroups
-    .map((group) => renderSubHeading(`אירועים ב${formatMonthNameOnly(group.month, options.locale)}`) + renderArticles(group.entries))
+    .map((group) => renderSubHeading(`אירועים ב${formatMonthNameOnly(group.month, options.locale)}`) + renderArticles(group.entries, true))
     .join('');
   const photoCollage = renderGlobalCollage(digest.photos, options.galleryUrl);
 

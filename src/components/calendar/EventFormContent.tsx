@@ -212,7 +212,9 @@ export default function EventFormContent({ editEvent, onSuccess, onViewSimilarEv
         imageUrl,
         honoreeMemberId: honoreeMode === 'member' ? honoreeMemberId : '',
         honoreeEmail: honoreeMode === 'email' ? honoreeEmail.trim() : '',
-        sendInviteNow: honoreeMode === 'email' && !!honoreeEmail.trim() && sendInviteNow,
+        sendInviteNow:
+          ((honoreeMode === 'email' && !!honoreeEmail.trim()) || (honoreeMode === 'member' && !!honoreeMemberId)) &&
+          sendInviteNow,
       };
       if (!payload.type) {
         setError(t('pleaseFillAllFields'));
@@ -317,14 +319,14 @@ export default function EventFormContent({ editEvent, onSuccess, onViewSimilarEv
           <div className="flex gap-3 text-sm mb-2">
             <button
               type="button"
-              onClick={() => setHonoreeMode('member')}
+              onClick={() => { setHonoreeMode('member'); setSendInviteNow(false); }}
               className={`px-3 py-1 rounded-full border ${honoreeMode === 'member' ? 'bg-primary text-white border-primary' : 'border-gray-300 text-text'}`}
             >
               {t('honoreeExistingMember', { defaultValue: 'Existing member' })}
             </button>
             <button
               type="button"
-              onClick={() => setHonoreeMode('email')}
+              onClick={() => { setHonoreeMode('email'); setSendInviteNow(false); }}
               className={`px-3 py-1 rounded-full border ${honoreeMode === 'email' ? 'bg-primary text-white border-primary' : 'border-gray-300 text-text'}`}
             >
               {t('honoreeNotYetOnSite', { defaultValue: "Not on FamCircle yet" })}
@@ -332,7 +334,7 @@ export default function EventFormContent({ editEvent, onSuccess, onViewSimilarEv
             {honoreeMode !== 'none' && (
               <button
                 type="button"
-                onClick={() => setHonoreeMode('none')}
+                onClick={() => { setHonoreeMode('none'); setSendInviteNow(false); }}
                 className="px-3 py-1 rounded-full border border-gray-300 text-text"
               >
                 {t('honoreeNone', { defaultValue: 'None' })}
@@ -340,16 +342,28 @@ export default function EventFormContent({ editEvent, onSuccess, onViewSimilarEv
             )}
           </div>
           {honoreeMode === 'member' && (
-            <select
-              className="border rounded w-full px-3 py-2"
-              value={honoreeMemberId}
-              onChange={(e) => setHonoreeMemberId(e.target.value)}
-            >
-              <option value="">{t('honoreeSelectMember', { defaultValue: 'Select a member...' })}</option>
-              {members.map((m) => (
-                <option key={m.id} value={m.id}>{m.displayName}</option>
-              ))}
-            </select>
+            <div>
+              <select
+                className="border rounded w-full px-3 py-2"
+                value={honoreeMemberId}
+                onChange={(e) => setHonoreeMemberId(e.target.value)}
+              >
+                <option value="">{t('honoreeSelectMember', { defaultValue: 'Select a member...' })}</option>
+                {members.map((m) => (
+                  <option key={m.id} value={m.id}>{m.displayName}</option>
+                ))}
+              </select>
+              {honoreeMemberId && (
+                <label className="flex items-center gap-2 mt-2 text-sm text-text">
+                  <input
+                    type="checkbox"
+                    checked={sendInviteNow}
+                    onChange={(e) => setSendInviteNow(e.target.checked)}
+                  />
+                  {t('honoreeSendLinkNow', { defaultValue: 'Send them a link now, to read their blessings' })}
+                </label>
+              )}
+            </div>
           )}
           {honoreeMode === 'email' && (
             <div>
@@ -367,7 +381,7 @@ export default function EventFormContent({ editEvent, onSuccess, onViewSimilarEv
                     checked={sendInviteNow}
                     onChange={(e) => setSendInviteNow(e.target.checked)}
                   />
-                  {t('honoreeSendInviteNow', { defaultValue: 'Send them an invite now, to join and read their blessings' })}
+                  {t('honoreeSendLinkNow', { defaultValue: 'Send them a link now, to read their blessings' })}
                 </label>
               )}
             </div>
