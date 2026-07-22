@@ -7,6 +7,7 @@ import type { ISite } from '@/entities/Site';
 import { getServerT } from '@/utils/serverTranslations';
 import { cleanJsonLd, stripScriptTags } from '@/utils/jsonld';
 import { getPlatformName } from '@/utils/platformName';
+import { turkishDativeForm } from '@/utils/turkishGrammar';
 import {
   getLocalizedDocument,
   normalizeLang,
@@ -113,7 +114,9 @@ export default async function LandingPage({ siteInfo, siteDescription, platformD
         .filter((value): value is string => typeof value === 'string' && /^https?:\/\//.test(value))
     : [];
 
-  const heroTitle = t('welcomeToSite', { name: siteName }) as string;
+  const heroTitle = t('welcomeToSite', {
+    name: normalizedLang === 'tr' && siteName ? turkishDativeForm(siteName) : siteName,
+  }) as string;
 
   // ISite already has flattened aboutFamily for convenient access (localized by SiteRepository)
   const aboutFamily = siteInfo?.aboutFamily;
