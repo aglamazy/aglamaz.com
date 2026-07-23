@@ -257,6 +257,29 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
+          "fieldPath": "deletedAt",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "siteId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "date",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "__name__",
+          "order": "ASCENDING"
+        }
+      ],
+      "density": "SPARSE_ALL"
+    },
+    {
+      "collectionGroup": "galleryPhotos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
           "fieldPath": "anniversaryId",
           "order": "ASCENDING"
         },

@@ -11,6 +11,42 @@
   .imagesGrid { columns: 4; }
 }
 
+.sectionedFeed {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.sectionHeading {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #1f2937; /* gray-800 */
+  padding: 0 0.25rem;
+}
+
+.sectionHeadingButton {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: inherit;
+  width: fit-content;
+}
+
+.sectionHeadingButton:hover {
+  text-decoration: underline;
+}
+
+.sectionHeadingButton:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
 .thumbWrap {
   position: relative;
   break-inside: avoid;
@@ -262,6 +298,40 @@
 
 .mobileLikeBadgeLiked {
   background: rgba(220, 38, 38, 0.85);
+}
+
+.mobileDeleteBadge {
+  position: absolute;
+  bottom: 1rem;
+  left: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 9999px;
+  background: rgba(0,0,0,0.6);
+  color: #fff;
+  font-size: 1rem;
+  border: none;
+  cursor: pointer;
+}
+
+.mobileDetachBadge {
+  position: absolute;
+  bottom: 1rem;
+  left: 4.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 9999px;
+  background: rgba(0,0,0,0.6);
+  color: #fff;
+  font-size: 1rem;
+  border: none;
+  cursor: pointer;
 }
 
 .mobileHint {
@@ -874,6 +944,50 @@
 }
 
 .slideshowShareBtn:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.slideshowDeleteBtn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  font-size: 0.85rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #f9fafb;
+  background: rgba(220, 38, 38, 0.35);
+  backdrop-filter: blur(8px);
+  transition: background 0.15s;
+  margin-inline-start: 0.25rem;
+}
+
+.slideshowDeleteBtn:hover {
+  background: rgba(220, 38, 38, 0.55);
+}
+
+.slideshowDetachBtn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  font-size: 0.85rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #f9fafb;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(8px);
+  transition: background 0.15s;
+  margin-inline-start: 0.25rem;
+}
+
+.slideshowDetachBtn:hover {
   background: rgba(255, 255, 255, 0.25);
 }
 

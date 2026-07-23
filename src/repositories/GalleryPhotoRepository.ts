@@ -83,7 +83,7 @@ export class GalleryPhotoRepository {
     return data;
   }
 
-  async listBySite(siteId: string, locale?: string, options?: { limit?: number; offset?: number }): Promise<GalleryPhoto[]> {
+  async listBySite(siteId: string, locale?: string, options?: { limit?: number; offset?: number; before?: Date }): Promise<GalleryPhoto[]> {
     const db = this.getDb();
     let query = db
       .collection(this.collection)
@@ -91,7 +91,13 @@ export class GalleryPhotoRepository {
       .where('deletedAt', '==', null)
       .orderBy('date', 'desc');
 
-    // Apply pagination if provided
+    // Cursor-based pagination (preferred — see route.ts): fetches only the
+    // page actually needed, unlike offset which re-scans every prior page on
+    // every request (famcircle#79 follow-up — old content took forever to
+    // reach via infinite scroll).
+    if (options?.before) {
+      query = query.where('date', '<', Timestamp.fromDate(options.before));
+    }
     if (options?.limit) {
       query = query.limit(options.limit);
     }

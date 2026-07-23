@@ -34,6 +34,15 @@ interface ImageGridProps {
   getMeta: (item: GridItem) => LikeMeta;
   onToggle: (item: GridItem) => Promise<void> | void;
   onTitleClick?: (item: GridItem) => void;
+  // Removes just this one image/video from its post (not the whole post) —
+  // for admins pruning irrelevant items while reviewing (famcircle#79).
+  // Gated the same as onTitleClick: only shown when item.meta.canEdit is true.
+  onDeleteItem?: (item: GridItem) => void;
+  // Splits this one image/video out into its own new post, same date — for
+  // unrelated moments that got bundled into one post (e.g. two different
+  // things shared the same WhatsApp day). Shown only when item.meta.canEdit
+  // is true AND item.meta.groupSize > 1 (nothing to detach from a solo post).
+  onDetachItem?: (item: GridItem) => void;
   getLightboxLink?: (item: GridItem) => string | undefined;
   autoSlideshow?: boolean;
   // Opt-in row-major (Pinterest-style) JS masonry instead of the default
@@ -46,7 +55,7 @@ interface ImageGridProps {
   useJsMasonry?: boolean;
 }
 
-export default function ImageGrid({ items, getMeta, onToggle, onTitleClick, getLightboxLink, autoSlideshow, useJsMasonry }: ImageGridProps) {
+export default function ImageGrid({ items, getMeta, onToggle, onTitleClick, onDeleteItem, onDetachItem, getLightboxLink, autoSlideshow, useJsMasonry }: ImageGridProps) {
   const { t, i18n } = useTranslation();
   const [isMobile, setIsMobile] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -117,31 +126,97 @@ export default function ImageGrid({ items, getMeta, onToggle, onTitleClick, getL
     return () => observer.disconnect();
   }, [useJsMasonry, isMobile]);
 
-  // Row-major (Pinterest-style) masonry: place each item, in existing DOM
-  // order (newest-first per GalleryPhotoRepository), into whichever column
-  // currently has the least accumulated height. This keeps reading order
-  // (and therefore chronological order) tracking visual position, unlike
-  // CSS column-count which balances height column-by-column first.
-  const masonryLayout = useMemo(() => {
+  // Row-major (Pinterest-style) masonry, HYBRID between per-post sections and
+  // a shared pool (famcircle#79 follow-up — a lone photo boxed under its own
+  // heading "looks sad" / wastes space). Posts with MORE THAN SECTION_MIN_ITEMS
+  // images/videos get their own section (heading + own sub-grid, so a
+  // photo-heavy event's images always read as one group, not scattered
+  // across columns). Smaller posts (the common case — one or two photos) fall
+  // back into a shared pool packed together via the same column-fill masonry,
+  // each still carrying its own small title badge on its first tile (as
+  // before famcircle#79), interleaved in the pool in their original order.
+  const SECTION_MIN_ITEMS = 3;
+  type SectionPosition = { top: number; left: number; width: number };
+  type LayoutBlock =
+    | { kind: 'pool'; items: GridItem[]; indices: number[]; positions: SectionPosition[]; containerHeight: number }
+    | {
+        kind: 'section';
+        key: string;
+        title?: string;
+        canEdit: boolean;
+        items: GridItem[];
+        indices: number[];
+        positions: SectionPosition[];
+        containerHeight: number;
+      };
+
+  const layoutBlocks = useMemo((): LayoutBlock[] | null => {
     if (!useJsMasonry || isMobile || gridWidth <= 0 || gridColumnCount <= 0) return null;
     const gap = 8; // matches .imagesGrid's column-gap: 0.5rem
     const cols = gridColumnCount;
     const columnWidth = (gridWidth - gap * (cols - 1)) / cols;
     if (columnWidth <= 0) return null;
-    const columnHeights = new Array(cols).fill(0);
-    const positions = items.map((item) => {
-      const ratio = item.aspectRatio && item.aspectRatio > 0 ? item.aspectRatio : 1;
-      const height = columnWidth * ratio;
-      let col = 0;
-      for (let c = 1; c < cols; c++) {
-        if (columnHeights[c] < columnHeights[col]) col = c;
+
+    const pack = (groupItems: GridItem[]) => {
+      const columnHeights = new Array(cols).fill(0);
+      const positions = groupItems.map((item) => {
+        const ratio = item.aspectRatio && item.aspectRatio > 0 ? item.aspectRatio : 1;
+        const height = columnWidth * ratio;
+        let col = 0;
+        for (let c = 1; c < cols; c++) {
+          if (columnHeights[c] < columnHeights[col]) col = c;
+        }
+        const top = columnHeights[col];
+        columnHeights[col] = top + height + gap;
+        return { top, left: col * (columnWidth + gap), width: columnWidth };
+      });
+      const tallest = Math.max(...columnHeights, 0);
+      return { positions, containerHeight: tallest > 0 ? tallest - gap : 0 };
+    };
+
+    const blocks: LayoutBlock[] = [];
+    let poolItems: GridItem[] = [];
+    let poolIndices: number[] = [];
+    const flushPool = () => {
+      if (poolItems.length === 0) return;
+      const { positions, containerHeight } = pack(poolItems);
+      blocks.push({ kind: 'pool', items: poolItems, indices: poolIndices, positions, containerHeight });
+      poolItems = [];
+      poolIndices = [];
+    };
+
+    let i = 0;
+    while (i < items.length) {
+      const meta = items[i].meta as { occId?: string; canEdit?: boolean; groupTitle?: string } | undefined;
+      const occId = meta?.occId ?? `__solo${i}`;
+      const groupItems: GridItem[] = [];
+      const groupIndices: number[] = [];
+      while (i < items.length && ((items[i].meta as { occId?: string } | undefined)?.occId ?? `__solo${i}`) === occId) {
+        groupItems.push(items[i]);
+        groupIndices.push(i);
+        i++;
       }
-      const top = columnHeights[col];
-      columnHeights[col] = top + height + gap;
-      return { top, left: col * (columnWidth + gap), width: columnWidth };
-    });
-    const tallest = Math.max(...columnHeights);
-    return { positions, containerHeight: tallest > 0 ? tallest - gap : 0 };
+
+      if (groupItems.length > SECTION_MIN_ITEMS) {
+        flushPool();
+        const { positions, containerHeight } = pack(groupItems);
+        blocks.push({
+          kind: 'section',
+          key: occId,
+          title: meta?.groupTitle,
+          canEdit: Boolean(meta?.canEdit),
+          items: groupItems,
+          indices: groupIndices,
+          positions,
+          containerHeight,
+        });
+      } else {
+        poolItems.push(...groupItems);
+        poolIndices.push(...groupIndices);
+      }
+    }
+    flushPool();
+    return blocks;
   }, [useJsMasonry, isMobile, items, gridColumnCount, gridWidth]);
 
   useEffect(() => {
@@ -512,6 +587,29 @@ export default function ImageGrid({ items, getMeta, onToggle, onTitleClick, getL
                   <span>{currentMeta.count}</span>
                 </button>
               )}
+              {onDetachItem && (() => {
+                const m = currentItem.meta as { canEdit?: boolean; groupSize?: number } | undefined;
+                return m?.canEdit && (m.groupSize ?? 0) > 1;
+              })() && (
+                <button
+                  type="button"
+                  className={styles.mobileDetachBadge}
+                  onClick={(e) => { e.stopPropagation(); onDetachItem(currentItem); }}
+                  aria-label={t('detachPhoto') as string}
+                >
+                  <span aria-hidden="true">✂️</span>
+                </button>
+              )}
+              {onDeleteItem && (currentItem.meta as { canEdit?: boolean } | undefined)?.canEdit && (
+                <button
+                  type="button"
+                  className={styles.mobileDeleteBadge}
+                  onClick={(e) => { e.stopPropagation(); onDeleteItem(currentItem); }}
+                  aria-label={t('delete') as string}
+                >
+                  <span aria-hidden="true">🗑</span>
+                </button>
+              )}
             </div>
             {showGestureHint && (
               <div className={styles.mobileHint}>
@@ -526,95 +624,141 @@ export default function ImageGrid({ items, getMeta, onToggle, onTitleClick, getL
     );
   }
 
-  return (
-    <>
-      <div
-        className={styles.imagesGrid}
-        ref={gridContainerRef}
-        style={masonryLayout ? { position: 'relative', height: masonryLayout.containerHeight } : undefined}
-      >
-        {items.map((it, i) => {
-          const meta = getMeta(it);
+  // Shared tile renderer for the sectioned/pooled (JS masonry) and flat
+  // (CSS column-count fallback) layouts. `pos` positions the tile absolutely
+  // within whichever container it's rendered into; omit it for CSS masonry,
+  // which lays tiles out via normal flow instead. `showBadge` controls the
+  // per-tile title overlay: sections have their own heading instead, but
+  // pooled small posts (and the flat CSS-masonry fallback) still need it —
+  // it's the only thing distinguishing one pooled post's photo(s) from its
+  // neighbor's when they're packed into the same shared canvas.
+  const renderTile = (it: GridItem, i: number, pos?: SectionPosition, showBadge = true) => {
+    const meta = getMeta(it);
+    const thumbWrapStyle = pos
+      ? { position: 'absolute' as const, top: pos.top, insetInlineStart: pos.left, width: pos.width, marginBottom: 0 }
+      : undefined;
+    return (
+      <div key={it.key} className={styles.thumbWrap} style={thumbWrapStyle}>
+        {it.mediaType === 'video' ? (
+          <div
+            style={{ position: 'relative', cursor: 'pointer' }}
+            onClick={() => { setLightboxIndex(i); setLightboxOpen(true); }}
+          >
+            <video
+              src={it.src}
+              muted
+              preload="metadata"
+              playsInline
+              className={styles.thumb}
+            />
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+              <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span style={{ color: '#fff', fontSize: 24, marginLeft: 3 }}>▶</span>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <img
+            src={it.src}
+            alt=""
+            className={styles.thumb}
+            onClick={() => { setLightboxIndex(i); setLightboxOpen(true); }}
+          />
+        )}
+        {showBadge && it.title && (() => {
           const metaInfo = it.meta as { canEdit?: boolean } | undefined;
           const clickable = Boolean(onTitleClick && metaInfo?.canEdit);
           const titleDir = (it as GridItem).dir as ('ltr' | 'rtl' | 'auto') | undefined;
-          const pos = masonryLayout?.positions[i];
-          const thumbWrapStyle = pos
-            ? { position: 'absolute' as const, top: pos.top, insetInlineStart: pos.left, width: pos.width, marginBottom: 0 }
-            : undefined;
-          return (
-            <div key={it.key} className={styles.thumbWrap} style={thumbWrapStyle}>
-              {it.mediaType === 'video' ? (
-                <div
-                  style={{ position: 'relative', cursor: 'pointer' }}
-                  onClick={() => { setLightboxIndex(i); setLightboxOpen(true); }}
-                >
-                  <video
-                    src={it.src}
-                    muted
-                    preload="metadata"
-                    playsInline
-                    className={styles.thumb}
-                  />
-                  <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
-                    <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <span style={{ color: '#fff', fontSize: 24, marginLeft: 3 }}>▶</span>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <img
-                  src={it.src}
-                  alt=""
-                  className={styles.thumb}
-                  onClick={() => { setLightboxIndex(i); setLightboxOpen(true); }}
-                />
-              )}
-              {it.title && (
-                clickable ? (
-                  <button
-                    type="button"
-                    className={styles.titleBadge + ' ' + styles.titleBadgeButton}
-                    title={it.title}
-                    onClick={(e) => { e.stopPropagation(); onTitleClick?.(it); }}
-                    dir={titleDir}
-                  >
-                    {it.title}
-                  </button>
-                ) : (
-                  <div className={styles.titleBadge} title={it.title} dir={titleDir}>{it.title}</div>
-                )
-              )}
-              <div className={styles.likeContainer}>
-                <button
-                  type="button"
-                  aria-label={meta.likedByMe ? (t('unlike') as string) : (t('like') as string)}
-                  className={styles.likeBtn + (meta.likedByMe ? (' ' + styles.likeBtnLiked) : '')}
-                  onClick={(e) => { e.stopPropagation(); onToggle(it); }}
-                >
-                  <span>❤</span>
-                </button>
-                {meta.count > 0 && !isMobile && (
-                  <button
-                    type="button"
-                    className={styles.likeCount}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setLikersPopover({ item: it, anchorEl: e.currentTarget });
-                    }}
-                    aria-label={t('showLikers') as string}
-                  >
-                    {meta.count}
-                  </button>
-                )}
-                {(meta.count > 0 && isMobile) && (
-                  <span className={styles.likeCountText}>{meta.count}</span>
-                )}
-              </div>
-            </div>
+          return clickable ? (
+            <button
+              type="button"
+              className={styles.titleBadge + ' ' + styles.titleBadgeButton}
+              title={it.title}
+              onClick={(e) => { e.stopPropagation(); onTitleClick?.(it); }}
+              dir={titleDir}
+            >
+              {it.title}
+            </button>
+          ) : (
+            <div className={styles.titleBadge} title={it.title} dir={titleDir}>{it.title}</div>
           );
-        })}
+        })()}
+        <div className={styles.likeContainer}>
+          <button
+            type="button"
+            aria-label={meta.likedByMe ? (t('unlike') as string) : (t('like') as string)}
+            className={styles.likeBtn + (meta.likedByMe ? (' ' + styles.likeBtnLiked) : '')}
+            onClick={(e) => { e.stopPropagation(); onToggle(it); }}
+          >
+            <span>❤</span>
+          </button>
+          {meta.count > 0 && !isMobile && (
+            <button
+              type="button"
+              className={styles.likeCount}
+              onClick={(e) => {
+                e.stopPropagation();
+                setLikersPopover({ item: it, anchorEl: e.currentTarget });
+              }}
+              aria-label={t('showLikers') as string}
+            >
+              {meta.count}
+            </button>
+          )}
+          {(meta.count > 0 && isMobile) && (
+            <span className={styles.likeCountText}>{meta.count}</span>
+          )}
+        </div>
       </div>
+    );
+  };
+
+  return (
+    <>
+      {layoutBlocks ? (
+        <div className={styles.sectionedFeed} ref={gridContainerRef}>
+          {layoutBlocks.map((block, blockIdx) => {
+            if (block.kind === 'pool') {
+              return (
+                <div
+                  key={`pool-${blockIdx}`}
+                  className={styles.imagesGrid}
+                  style={{ position: 'relative', height: block.containerHeight }}
+                >
+                  {block.items.map((it, j) => renderTile(it, block.indices[j], block.positions[j], true))}
+                </div>
+              );
+            }
+            const sectionDir = block.items[0]?.dir as ('ltr' | 'rtl' | 'auto') | undefined;
+            const clickable = Boolean(onTitleClick && block.canEdit);
+            return (
+              <div key={block.key} className={styles.section}>
+                {block.title && (
+                  clickable ? (
+                    <button
+                      type="button"
+                      className={styles.sectionHeading + ' ' + styles.sectionHeadingButton}
+                      onClick={() => onTitleClick?.(block.items[0])}
+                      dir={sectionDir}
+                    >
+                      {block.title}
+                    </button>
+                  ) : (
+                    <div className={styles.sectionHeading} dir={sectionDir}>{block.title}</div>
+                  )
+                )}
+                <div className={styles.imagesGrid} style={{ position: 'relative', height: block.containerHeight }}>
+                  {block.items.map((it, j) => renderTile(it, block.indices[j], block.positions[j], false))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div className={styles.imagesGrid} ref={gridContainerRef}>
+          {items.map((it, i) => renderTile(it, i))}
+        </div>
+      )}
 
       {lightboxOpen && items.length > 0 && (() => {
         const lbItem = items[lightboxIndex];
@@ -710,6 +854,28 @@ export default function ImageGrid({ items, getMeta, onToggle, onTitleClick, getL
                 aria-label="Speed"
               />
               <span className={styles.slideshowSliderLabel}>{slideshowSeconds}s</span>
+              {onDetachItem && (() => {
+                const m = lbItem.meta as { canEdit?: boolean; groupSize?: number } | undefined;
+                return m?.canEdit && (m.groupSize ?? 0) > 1;
+              })() && (
+                <button
+                  className={styles.slideshowDetachBtn}
+                  onClick={() => onDetachItem(lbItem)}
+                  aria-label={t('detachPhoto') as string}
+                  title={t('detachPhoto') as string}
+                >
+                  ✂️
+                </button>
+              )}
+              {onDeleteItem && (lbItem.meta as { canEdit?: boolean } | undefined)?.canEdit && (
+                <button
+                  className={styles.slideshowDeleteBtn}
+                  onClick={() => onDeleteItem(lbItem)}
+                  aria-label={t('delete') as string}
+                >
+                  🗑
+                </button>
+              )}
               <button
                 className={styles.slideshowShareBtn}
                 onClick={() => {

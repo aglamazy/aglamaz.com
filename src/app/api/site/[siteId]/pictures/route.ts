@@ -27,29 +27,42 @@ const getHandler = async (req: Request, context: GuardContext) => {
     const locale = url.searchParams.get('locale') || 'he';
     const limit = parseInt(url.searchParams.get('limit') || '0', 10) || undefined;
     const offset = parseInt(url.searchParams.get('offset') || '0', 10) || undefined;
+    const beforeParam = url.searchParams.get('before');
+    const before = beforeParam ? new Date(beforeParam) : undefined;
     const sizesParam = url.searchParams.get('sizes');
     const sizes = sizesParam ? sizesParam.split(',') : [];
 
-    // Fetch both sources — over-fetch from each so we can paginate the merged result
+    // Fetch both sources. Preferred path: `before` (a date cursor — the date
+    // of the last item already shown, or a jump-to-date target) fetches only
+    // `limit` items from EACH collection strictly older than the cursor, so
+    // every page costs O(limit) regardless of how deep into the feed it is.
+    // `offset` is kept only for legacy/back-compat callers: it re-fetches
+    // everything up to that point on every request, which is why paging deep
+    // into old content used to get progressively slower (famcircle#79
+    // follow-up — reaching 2018 content took dozens of round trips).
     const occRepo = new AnniversaryOccurrenceRepository();
     const galleryRepo = new GalleryPhotoRepository();
-    const fetchLimit = limit ? (offset ?? 0) + limit : undefined;
+    const fetchLimit = before ? limit : (limit ? (offset ?? 0) + limit : undefined);
     const [occurrences, galleryPhotos] = await Promise.all([
-      occRepo.listBySite(siteId, locale, { limit: fetchLimit }),
-      galleryRepo.listBySite(siteId, locale, { limit: fetchLimit }),
+      occRepo.listBySite(siteId, locale, { limit: fetchLimit, before }),
+      galleryRepo.listBySite(siteId, locale, { limit: fetchLimit, before }),
     ]);
 
     // Add type field to distinguish between them
     const occurrenceItems = occurrences.map((item: any) => ({ ...item, type: 'occurrence' }));
     const galleryItems = galleryPhotos.map((item: any) => ({ ...item, type: 'gallery' }));
 
-    // Merge, sort, then apply offset+limit to the combined result
+    // Merge, sort, then apply offset+limit to the combined result. With a
+    // `before` cursor, offset is meaningless (each collection already only
+    // returned items older than the cursor) — just take the first `limit`.
     const allItems = [...occurrenceItems, ...galleryItems].sort((a, b) => {
       const aDate = a.date?.toDate ? a.date.toDate() : new Date(a.date);
       const bDate = b.date?.toDate ? b.date.toDate() : new Date(b.date);
       return bDate.getTime() - aDate.getTime();
     });
-    const items = allItems.slice(offset ?? 0, limit ? (offset ?? 0) + limit : undefined);
+    const items = before
+      ? allItems.slice(0, limit)
+      : allItems.slice(offset ?? 0, limit ? (offset ?? 0) + limit : undefined);
     // Attach minimal event summaries (name) with localization
     const annRepo = new AnniversaryRepository();
     const familyRepo = new FamilyRepository();
