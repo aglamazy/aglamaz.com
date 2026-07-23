@@ -131,6 +131,9 @@ export enum ApiRoute {
   // Contact
   SITE_CONTACT = 'SITE_CONTACT',
 
+  // Growth (public marketing-page email capture, distinct from Member data)
+  SITE_GROWTH_SIGNUP = 'SITE_GROWTH_SIGNUP',
+
   // Token-gated reminder preferences link
   REMINDER_PREFERENCES = 'REMINDER_PREFERENCES',
 
