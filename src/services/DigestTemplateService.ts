@@ -194,13 +194,27 @@ function renderGlobalCollage(photos: GalleryPhoto[], galleryUrl: string): string
  * (GalleryPhoto.anniversaryId) when there is one, falling back to the event's single
  * cover image, falling back to a type icon - never both, per Agla's 2026-07-21 request
  * (showing the cover image AND a separate photo row was redundant). Same treatment for
- * every event, past or coming. Title/date link into the calendar; the collage/hero links
- * into the gallery separately (an <a> can't nest inside another <a>).
+ * every event, past or coming. Title/date link into the calendar - except a past-section
+ * death event with an existing PUBLIC blessing page, which links straight to its standing
+ * memorial page instead (famcircle#81, same resolution pattern as
+ * src/app/api/cron/in-day-reminders/route.ts's memorialUrlByEventId: isPublic-gated, falls
+ * back to the calendar link rather than ever leaking a private page). The collage/hero
+ * links into the gallery separately (an <a> can't nest inside another <a>).
  */
-function renderEventArticle(entry: DigestEventWithPhotos, locale: string, calendarUrl: string, showBlessingLink: boolean): string {
-  const { event, photoUrls, blessingPageSlug } = entry;
+function renderEventArticle(
+  entry: DigestEventWithPhotos,
+  locale: string,
+  calendarUrl: string,
+  showBlessingLink: boolean,
+  isPastSection: boolean,
+): string {
+  const { event, photoUrls, blessingPageSlug, blessingPageIsPublic } = entry;
   const name = formatEventName(escapeHtml(event.name), event.type, locale);
   const dateLabel = escapeHtml(formatEventDate(event, locale));
+  const titleUrl =
+    isPastSection && event.type === 'death' && blessingPageIsPublic && blessingPageSlug
+      ? `${new URL(calendarUrl).origin}/public/memorial/${blessingPageSlug}`
+      : calendarUrl;
 
   // photoUrls always includes event.imageUrl when present (DigestCompilerService folds
   // it in), so the only remaining fallback is the type icon for an event with no
@@ -226,7 +240,7 @@ function renderEventArticle(entry: DigestEventWithPhotos, locale: string, calend
       : '';
 
   // Text (title/date/description) reads before the images, not after (Agla, 2026-07-21).
-  return `<div style="padding:18px 0;border-bottom:1px solid #e3ede6;"><a href="${escapeHtml(calendarUrl)}" style="text-decoration:none;color:inherit;"><h3 style="font-weight:700;font-size:16px;margin:0;">${name}</h3><div style="font-size:13px;color:#6d7f74;margin-top:2px;">${dateLabel}</div></a>${description}${visual}${blessingLink}</div>`;
+  return `<div style="padding:18px 0;border-bottom:1px solid #e3ede6;"><a href="${escapeHtml(titleUrl)}" style="text-decoration:none;color:inherit;"><h3 style="font-weight:700;font-size:16px;margin:0;">${name}</h3><div style="font-size:13px;color:#6d7f74;margin-top:2px;">${dateLabel}</div></a>${description}${visual}${blessingLink}</div>`;
 }
 
 /** A visually separate card for one section ("what was" vs "what's coming") - a shared background tint isn't enough to read as two distinct blocks. */
@@ -287,12 +301,16 @@ function buildCadenceDigestEmail(
   const comingLabel = formatRangeLabel(digest.comingRange.startDate, digest.comingRange.endDate, options.locale);
   const comingGroups = groupEventsByMonth(digest.comingEvents);
 
-  const renderArticles = (entries: DigestEventWithPhotos[], showBlessingLink: boolean) =>
-    entries.map((entry) => renderEventArticle(entry, options.locale, options.calendarUrl, showBlessingLink)).join('');
+  const renderArticles = (entries: DigestEventWithPhotos[], showBlessingLink: boolean, isPastSection: boolean) =>
+    entries.map((entry) => renderEventArticle(entry, options.locale, options.calendarUrl, showBlessingLink, isPastSection)).join('');
 
-  const pastArticles = renderArticles(digest.pastEvents, false);
+  const pastArticles = renderArticles(digest.pastEvents, false, true);
   const comingInner = comingGroups
-    .map((group) => renderSubHeading(`אירועים ב${formatMonthNameOnly(group.month, options.locale)}`) + renderArticles(group.entries, true))
+    .map(
+      (group) =>
+        renderSubHeading(`אירועים ב${formatMonthNameOnly(group.month, options.locale)}`) +
+        renderArticles(group.entries, true, false),
+    )
     .join('');
   const photoCollage = renderGlobalCollage(digest.photos, options.galleryUrl);
 

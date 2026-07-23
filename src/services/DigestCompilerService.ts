@@ -33,6 +33,8 @@ export interface DigestEventWithPhotos {
   photoUrls: string[];
   /** Slug of this event's (idempotently ensured) BlessingPage - lets the coming-events section link to "write a blessing" (Agla, 2026-07-22). */
   blessingPageSlug: string;
+  /** Whether that BlessingPage is public - gates the past-section death-event link to /public/memorial/{slug} (famcircle#81); never link a private page. */
+  blessingPageIsPublic: boolean;
 }
 
 export interface DateRange {
@@ -214,7 +216,7 @@ export class DigestCompilerService {
           .flatMap((occ) => occ.imagesWithDimensions?.map((img) => img.url).filter((u): u is string => !!u) ?? []);
         const allUrls = event.imageUrl ? [event.imageUrl, ...occurrenceUrls, ...linkedUrls] : [...occurrenceUrls, ...linkedUrls];
         const photoUrls = Array.from(new Set(allUrls));
-        return { event, photoUrls, blessingPageSlug: blessingPage.slug };
+        return { event, photoUrls, blessingPageSlug: blessingPage.slug, blessingPageIsPublic: !!blessingPage.isPublic };
       }),
     );
   }

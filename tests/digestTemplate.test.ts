@@ -46,6 +46,7 @@ const FIXTURE: CadenceDigestPayload = {
       // DigestCompilerService always folds event.imageUrl into photoUrls - simulate that here.
       photoUrls: ['https://example.com/photos/moshe.jpg'],
       blessingPageSlug: 'e1-2026',
+      blessingPageIsPublic: false,
     },
     {
       event: {
@@ -64,6 +65,7 @@ const FIXTURE: CadenceDigestPayload = {
       } as any,
       photoUrls: ['https://example.com/photos/dan-mira.jpg'],
       blessingPageSlug: 'e3-2026',
+      blessingPageIsPublic: false,
     },
   ],
   pastEvents: [
@@ -85,6 +87,9 @@ const FIXTURE: CadenceDigestPayload = {
       } as any,
       photoUrls: ['https://example.com/photos/sarah-visit.jpg'],
       blessingPageSlug: 'e2-standing',
+      // No public memorial page for this fixture's baseline scenario - past events must
+      // still link to the calendar rather than a broken/private memorial link (famcircle#81).
+      blessingPageIsPublic: false,
     },
   ],
   photos: [
@@ -315,6 +320,7 @@ function testBirthdayEventNameAutoLabel() {
         event: { ...FIXTURE.comingEvents[0].event, id: 'bare', name: 'אורן אגלמז', month: 6, day: 11 } as any,
         photoUrls: [],
         blessingPageSlug: 'bare-2026',
+        blessingPageIsPublic: false,
       },
     ],
     pastEvents: [],
@@ -326,6 +332,7 @@ function testBirthdayEventNameAutoLabel() {
         event: { ...FIXTURE.comingEvents[0].event, id: 'party', name: 'מסיבת לילה אגלמז!', month: 6, day: 18 } as any,
         photoUrls: [],
         blessingPageSlug: 'party-2026',
+        blessingPageIsPublic: false,
       },
     ],
     pastEvents: [],
@@ -400,6 +407,7 @@ function testDeathEventCtaReadsAsMemorialNotBlessing() {
         } as any,
         photoUrls: ['https://example.com/photos/yosef.jpg'],
         blessingPageSlug: 'e4-2026',
+        blessingPageIsPublic: false,
       },
     ],
     pastEvents: [],
@@ -417,6 +425,50 @@ function testDeathEventCtaReadsAsMemorialNotBlessing() {
   assert.ok(yosefBlock.includes('memorial note'), 'coming death event must show memorial CTA wording');
   assert.ok(!yosefBlock.includes('Write a blessing'), 'coming death event must not show blessing CTA wording');
   console.log('death event coming-CTA reads as memorial, not blessing: PASSED');
+}
+
+function testPastDeathEventWithPublicBlessingPageLinksToMemorial() {
+  // famcircle#81: a past-section death event with an existing PUBLIC blessing page
+  // must link straight to /public/memorial/{slug} instead of the generic calendar link.
+  const payload: CadenceDigestPayload = {
+    ...FIXTURE,
+    comingEvents: [],
+    pastEvents: [
+      {
+        ...FIXTURE.pastEvents[0],
+        blessingPageSlug: 'e2-standing',
+        blessingPageIsPublic: true,
+      },
+    ],
+  };
+  const { html } = DigestTemplateService.buildMonthlyDigestEmail(payload, {
+    locale: 'en',
+    siteName: 'The Aglamaz Family',
+    recipientName: 'Test Recipient',
+    calendarUrl: CALENDAR_URL,
+    galleryUrl: GALLERY_URL,
+  });
+  const sarahIdx = html.indexOf('Grandma Sarah');
+  const sarahBlock = html.slice(Math.max(0, sarahIdx - 200), sarahIdx);
+  assert.ok(
+    sarahBlock.includes('<a href="https://example.com/public/memorial/e2-standing"'),
+    'past death event with a public blessing page must link to its memorial page',
+  );
+  console.log('past death event with a public blessing page links to /public/memorial/{slug}: PASSED');
+}
+
+function testPastDeathEventWithoutPublicBlessingPageFallsBackToCalendar() {
+  // Same event, but the blessing page is NOT public (or doesn't exist) - must fall back
+  // to the calendar link, never a broken or private link (famcircle#81 landmine).
+  const html = buildFixtureHtml();
+  const sarahIdx = html.indexOf('Grandma Sarah');
+  const sarahBlock = html.slice(Math.max(0, sarahIdx - 200), sarahIdx);
+  assert.ok(
+    sarahBlock.includes(`<a href="${CALENDAR_URL}"`),
+    'past death event without a public blessing page must fall back to the calendar link',
+  );
+  assert.ok(!sarahBlock.includes('/public/memorial/'), 'must never link to a memorial page that is not public');
+  console.log('past death event without a public blessing page falls back to the calendar link: PASSED');
 }
 
 function run() {
@@ -440,6 +492,8 @@ function run() {
   testBirthdayEventNameAutoLabel();
   testWriteBlessingLinkOnComingEventsOnly();
   testDeathEventCtaReadsAsMemorialNotBlessing();
+  testPastDeathEventWithPublicBlessingPageLinksToMemorial();
+  testPastDeathEventWithoutPublicBlessingPageFallsBackToCalendar();
 }
 
 run();
