@@ -26,6 +26,18 @@ export async function sendHonoreeBlessingLink(params: {
 }): Promise<void> {
   const { siteId, event, honoreeMemberId, honoreeEmail, authorName } = params;
 
+  // The invite email is framed as "the family wrote blessings FOR YOU" (birthday/wedding
+  // wording) — that framing breaks for a death/memorial event, whose honoree is the
+  // deceased and can't be the email's recipient. The event form already hides the
+  // honoree-picker UI for type='death' (EventFormContent.tsx), but that's client-side
+  // only — guard here too so no caller (present or future) can trigger this send path
+  // for a memorial event (Agla, 2026-07-23).
+  if (event.type === 'death') {
+    throw new Error(
+      `sendHonoreeBlessingLink refused: event ${event.id} is type='death' — use the public memorial page (isPublic toggle), not the honoree invite.`,
+    );
+  }
+
   let targetEmail: string | undefined;
   let honoreeName = event.name;
   if (honoreeMemberId) {
@@ -44,7 +56,7 @@ export async function sendHonoreeBlessingLink(params: {
   const blessingPage = await blessingPageRepo.create({
     eventId: event.id,
     siteId,
-    year: event.type === 'death' ? undefined : event.year,
+    year: event.year,
     createdBy: honoreeMemberId || event.ownerId,
     eventType: event.type,
   });
