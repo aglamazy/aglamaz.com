@@ -1,6 +1,7 @@
 import { withMemberGuard } from '@/lib/withMemberGuard';
 import { BlessingPageRepository } from '@/repositories/BlessingPageRepository';
 import { BlessingRepository } from '@/repositories/BlessingRepository';
+import { AnniversaryRepository } from '@/repositories/AnniversaryRepository';
 import { MemberRepository } from '@/repositories/MemberRepository';
 import { GuardContext } from '@/app/api/types';
 import { TagNotificationService } from '@/services/TagNotificationService';
@@ -74,6 +75,7 @@ const putHandler = async (request: Request, context: GuardContext & { params: Pr
         const editor = await memberRepo.getById(user.userId);
         const taggedByName = editor?.displayName || user.email || 'Someone';
         const appUrl = (process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/+$/, '');
+        const event = blessingPage ? await new AnniversaryRepository().getById(blessingPage.eventId) : null;
         await TagNotificationService.notifyTaggedMembers({
           siteId,
           taggedMemberIds: newlyTagged,
@@ -81,6 +83,7 @@ const putHandler = async (request: Request, context: GuardContext & { params: Pr
           taggedByName,
           contentType: 'blessing',
           contentLink: `${appUrl}/app/blessing/${blessingPage?.slug ?? ''}`,
+          imageUrl: event?.imageUrl,
         }).catch((err) => console.error('[blessings] tag notification failed:', err));
       }
     }

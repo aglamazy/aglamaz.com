@@ -13,6 +13,8 @@ export interface NotifyTaggedMembersParams {
   taggedByName: string;
   contentType: TaggedContentType;
   contentLink: string;
+  /** Representative photo for the tagged content, resolved by the caller per contentType - omitted when none exists. */
+  imageUrl?: string;
 }
 
 export class TagNotificationService {
@@ -31,7 +33,7 @@ export class TagNotificationService {
 
   /** Sends a "you were tagged" email to each member, skipping the tagger and members without an email. */
   static async notifyTaggedMembers(params: NotifyTaggedMembersParams): Promise<void> {
-    const { siteId, siteName, taggedMemberIds, taggedByMemberId, taggedByName, contentType, contentLink } = params;
+    const { siteId, siteName, taggedMemberIds, taggedByMemberId, taggedByName, contentType, contentLink, imageUrl } = params;
     if (!taggedMemberIds.length) return;
 
     const memberRepo = new MemberRepository();
@@ -51,6 +53,7 @@ export class TagNotificationService {
           taggedByName,
           contentType,
           contentLink,
+          imageUrl,
           lang,
           dir,
           siteName,

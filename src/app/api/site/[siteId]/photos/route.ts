@@ -109,6 +109,7 @@ const postHandler = async (request: Request, context: GuardContext) => {
         taggedByName,
         contentType: 'photo',
         contentLink: `${appUrl}/app/photos`,
+        imageUrl: photo.imagesWithDimensions[0]?.url,
       }).catch((err) => console.error('[photos] tag notification failed:', err));
     }
 
