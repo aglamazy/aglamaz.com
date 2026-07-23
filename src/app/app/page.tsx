@@ -418,12 +418,10 @@ export default function PicturesFeedPage() {
   };
 
   const handleGalleryPhotoUpdated = (updated: GalleryPhotoForEdit) => {
-    if (updated.images.length === 0) {
-      // Photo was deleted - remove from items
+    if (updated.deleted) {
       setItems((prev) => prev.filter((item) => item.id !== updated.id));
     } else {
-      // Photo was updated
-      setItems((prev) => prev.map((item) => (item.id === updated.id ? { ...item, ...updated } : item)));
+      setItems((prev) => prev.map((item) => (item.id === updated.id ? { ...item, date: updated.date, description: updated.description } : item)));
     }
   };
 

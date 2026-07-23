@@ -74,14 +74,17 @@ export class AnniversaryOccurrenceRepository {
     return qs.docs.map((d) => this.normalizeImportSources({ id: d.id, ...d.data() }) as AnniversaryOccurrence);
   }
 
-  async listBySite(siteId: string, locale?: string, options?: { limit?: number; offset?: number }): Promise<AnniversaryOccurrence[]> {
+  async listBySite(siteId: string, locale?: string, options?: { limit?: number; offset?: number; before?: Date }): Promise<AnniversaryOccurrence[]> {
     const db = this.getDb();
     let query = db
       .collection(this.collection)
       .where('siteId', '==', siteId)
       .orderBy('date', 'desc');
 
-    // Apply pagination if provided
+    // Cursor-based pagination (preferred — see pictures/route.ts).
+    if (options?.before) {
+      query = query.where('date', '<', Timestamp.fromDate(options.before));
+    }
     if (options?.limit) {
       query = query.limit(options.limit);
     }

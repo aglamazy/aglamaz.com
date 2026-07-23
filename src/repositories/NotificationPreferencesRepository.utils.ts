@@ -19,7 +19,7 @@ export interface NotificationPreferences {
 }
 
 export const DEFAULT_PREFERENCES = {
-  magazineCadence: 'monthly' as MagazineCadence,
+  magazineCadence: 'weekly' as MagazineCadence,
   inDayRemindersEnabled: true,
 } as const;
 
