@@ -3,6 +3,7 @@ import { BookOpen as BookOpenIcon, Images, Link as LinkIcon, MessageCircle, Cale
 import ArrowCTA from '@/components/ArrowCTA';
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
+import GrowthSignupForm from './GrowthSignupForm';
 import type { ISite } from '@/entities/Site';
 import { getServerT } from '@/utils/serverTranslations';
 import { cleanJsonLd, stripScriptTags } from '@/utils/jsonld';
@@ -276,7 +277,15 @@ export default async function LandingPage({ siteInfo, siteDescription, platformD
           ))}
         </div>
 
-        {/* TODO: Add "Get Started" CTA button here */}
+        {/* Growth email capture — only on the public marketing/demo tenant,
+            not on individual family sites' public pages (those visitors are
+            there for someone else's family content, not to subscribe to
+            FamCircle-the-product). */}
+        {siteInfo?.isDemo === true && (
+          <div className="mt-4 pt-10 border-t border-sage-100">
+            <GrowthSignupForm />
+          </div>
+        )}
       </section>
 
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: structuredData }} />

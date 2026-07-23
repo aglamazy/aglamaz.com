@@ -192,6 +192,9 @@ export const apiRoutePaths: Record<ApiRoute, string> = {
   // Contact
   [ApiRoute.SITE_CONTACT]: '/api/site/{siteId}/contact',
 
+  // Growth (public marketing-page email capture, distinct from Member data)
+  [ApiRoute.SITE_GROWTH_SIGNUP]: '/api/site/{siteId}/growth-signup',
+
   // Token-gated reminder preferences
   [ApiRoute.REMINDER_PREFERENCES]: '/api/notifications/preferences',
 
