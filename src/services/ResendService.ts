@@ -39,6 +39,8 @@ export interface TagNotificationEmailParams {
   contentType: TaggedContentType;
   /** Direct link to the tagged content */
   contentLink: string;
+  /** Representative photo for the tagged content (the photo itself, the honoree/event photo, or the post's first image) - omitted when none is resolvable. */
+  imageUrl?: string;
   lang?: string;
   dir?: 'ltr' | 'rtl';
   siteName?: string;
@@ -285,17 +287,27 @@ function getInDayLocalizedStrings(lang: string, manageLink: string): InDayLocali
 }
 
 /**
+ * One clickable row - photo (when present) + inner HTML, both linking to `href`. Shared by
+ * the in-day reminder's event rows and the tag notification: embedding a thumbnail does not
+ * reduce click-through, it gives recognition/context that makes the click more likely.
+ * Falls back to text-only (no <img>) when no photo is resolvable.
+ */
+function renderClickableThumbnailRow(href: string, imageUrl: string | undefined, altText: string, innerHtml: string): string {
+  const photo = imageUrl
+    ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(altText)}" width="48" height="48" style="width:48px;height:48px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-inline-end:12px;" />`
+    : '';
+  return `<a href="${escapeHtml(href)}" style="display:flex;align-items:center;text-decoration:none;color:inherit;">${photo}<span>${innerHtml}</span></a>`;
+}
+
+/**
  * One clickable event row - photo (when present) + name, both linking into the calendar.
  * Per docs/family-digest-formats-spec.md §6: every row shows a photo, everything is clickable,
  * no distinct "warning" styling for memorials (same weight as any other event).
  */
 function renderInDayEventRow(event: InDayEventItem, lang: string, calendarUrl: string): string {
   const label = getInDayEventLine(event.type, escapeHtml(event.eventName), lang, event.yearsMarried);
-  const photo = event.imageUrl
-    ? `<img src="${escapeHtml(event.imageUrl)}" alt="${escapeHtml(event.eventName)}" width="48" height="48" style="width:48px;height:48px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-inline-end:12px;" />`
-    : '';
   const href = event.memorialUrl || calendarUrl;
-  return `<a href="${escapeHtml(href)}" style="display:flex;align-items:center;text-decoration:none;color:inherit;">${photo}<span>${label}</span></a>`;
+  return renderClickableThumbnailRow(href, event.imageUrl, event.eventName, label);
 }
 
 export class ResendService {
@@ -382,6 +394,7 @@ export class ResendService {
     const heading = params.siteName ? `🌳 ${params.siteName}` : undefined;
 
     const strings = getTagLocalizedStrings(params.contentType, params.firstName, params.taggedByName, lang);
+    const row = renderClickableThumbnailRow(params.contentLink, params.imageUrl, params.taggedByName, strings.body);
 
     const html = renderEmailHtml({
       subject: strings.subject,
@@ -389,7 +402,7 @@ export class ResendService {
       dir,
       heading,
       greeting: strings.greeting,
-      paragraphs: [strings.body],
+      paragraphs: [row],
       button: { label: strings.buttonLabel, url: params.contentLink },
     });
 

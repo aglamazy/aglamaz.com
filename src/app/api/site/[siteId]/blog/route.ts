@@ -6,6 +6,7 @@ import { TranslationService } from '@/services/TranslationService';
 import { normalizeLang } from '@/services/LocalizationService';
 import type { IBlogPost, LocalizedBlogPost } from '@/entities/BlogPost';
 import { localizeBlogPost } from '@/utils/blogLocales';
+import { extractFirstImageUrl } from '@/utils/extractFirstImageUrl';
 import { TagNotificationService } from '@/services/TagNotificationService';
 
 const DEFAULT_LANG = (process.env.NEXT_DEFAULT_LANG || 'en').toLowerCase();
@@ -199,6 +200,7 @@ const postHandler = async (request: Request, context: GuardContext & { params: P
         taggedByName,
         contentType: 'post',
         contentLink: `${appUrl}/app/blog`,
+        imageUrl: extractFirstImageUrl(content),
       }).catch((err) => console.error('[blog] tag notification failed:', err));
     }
 
@@ -292,6 +294,9 @@ const putHandler = async (request: Request, context: GuardContext & { params: Pr
       await repo.update(id, updates);
     }
 
+    const updated = await repo.getById(id);
+    const localized = updated ? localize(updated, normalizedLocale) : null;
+
     if (newlyTaggedMemberIds.length) {
       const memberRepo = new MemberRepository();
       const editor = await memberRepo.getById(user.userId);
@@ -304,11 +309,10 @@ const putHandler = async (request: Request, context: GuardContext & { params: Pr
         taggedByName,
         contentType: 'post',
         contentLink: `${appUrl}/app/blog`,
+        imageUrl: extractFirstImageUrl(localized?.localized.content),
       }).catch((err) => console.error('[blog] tag notification failed:', err));
     }
 
-    const updated = await repo.getById(id);
-    const localized = updated ? localize(updated, normalizedLocale) : null;
     return Response.json({ post: updated, localized: localized?.localized });
   } catch (error) {
     console.error(error);
