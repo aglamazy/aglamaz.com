@@ -95,7 +95,7 @@ export default function MagazineTemplateEditor() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
-            <span>{t('editMagazineTemplate') || 'Edit Monthly Magazine Template'}</span>
+            <span>{t('editMagazineTemplate') || 'Preview and Send Monthly Magazine'}</span>
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -107,7 +107,7 @@ export default function MagazineTemplateEditor() {
 
           <p className="text-sm text-sage-600">
             {t('magazineTemplateDescription') ||
-              'This HTML template controls how the monthly family magazine digest looks. Use the AI suggester for a starting draft, then edit as needed.'}
+              "Preview today's magazine, send yourself a preview, or publish it now when you're ready."}
           </p>
 
           <div>

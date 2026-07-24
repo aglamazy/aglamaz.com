@@ -121,7 +121,7 @@ export default function AdminDashboard() {
     {
       icon: BookOpen,
       title: t('magazineTemplate') || 'Magazine Template',
-      description: t('manageMagazineTemplate') || 'Edit the HTML template for the monthly family magazine',
+      description: t('manageMagazineTemplate') || 'Preview and send the monthly family magazine',
       href: '/admin/magazine-template',
       gradient: 'from-rose-500 to-rose-600',
     },
