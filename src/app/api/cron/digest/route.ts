@@ -2,15 +2,19 @@
 // directly (per-member, via Resend) - not a single site-wide Listmonk campaign.
 // Per docs/family-digest-formats-spec.md §1: cadence is a per-member choice
 // ('weekly' | 'monthly' | 'none'), resolved at send time, from ONE shared route.
-// Two cron schedules point at this same route (see vercel.json):
-//   - "0 6 1 * *"                    -> monthly cadence (default, no query param)
-//   - "0 6 * * 1?cadence=weekly"     -> weekly cadence (rolling window)
+// Two cron schedules point at this same route (see vercel.json), each firing 3x on its
+// day (Agla, 2026-07-24 - the "3 of 11" incident: any single run can be interrupted by a
+// deploy cutover, timeout, or partial failure; DigestSendRepository's per-period dedup
+// means a rerun only fills the gap, never double-sends):
+//   - "0 0,6,12 1 * *"       -> monthly cadence (default, no query param)
+//   - "0 6,10,14 * * 5"      -> weekly cadence (rolling window)
 // Auth: Vercel Cron sends Authorization: Bearer {CRON_SECRET}; same secret used for manual curl tests.
 
 import { NextRequest, NextResponse } from 'next/server';
 import { SiteRepository } from '@/repositories/SiteRepository';
 import { MemberRepository } from '@/repositories/MemberRepository';
 import { notificationPreferencesRepository } from '@/repositories/NotificationPreferencesRepository';
+import { digestSendRepository, periodKeyFor } from '@/repositories/DigestSendRepository';
 import { DigestCompilerService } from '@/services/DigestCompilerService';
 import { DigestTemplateService, resolveDigestSiteName } from '@/services/DigestTemplateService';
 import { ResendService } from '@/services/ResendService';
@@ -144,8 +148,16 @@ export async function GET(request: NextRequest) {
         recipients = recipients.filter((member) => member.id === memberIdFilter);
       }
 
+      // Idempotency (Agla, 2026-07-24 - the "3 of 11" incident): this cron is scheduled to
+      // fire multiple times per period specifically so an interrupted run (deploy cutover,
+      // timeout, partial failure) gets picked up by the next fire - already-sent members are
+      // filtered out here, so re-running is always safe and never double-sends.
+      const period = periodKeyFor(cadence, now);
+      recipients = await digestSendRepository.filterUnsent(siteId, cadence, period, recipients);
+
       if (recipients.length === 0) {
-        // Nobody on this site wants this cadence's send this run - skip compiling entirely.
+        // Nobody left to send to this run (either no one wants this cadence, or everyone
+        // who does already got it this period) - skip compiling entirely.
         continue;
       }
 
@@ -174,9 +186,12 @@ export async function GET(request: NextRequest) {
 
       // Built per-member (not once per site): the greeting names the actual recipient,
       // and each member may read in a different locale (mirrors InDayReminderService's
-      // existing per-member personalization).
-      for (const member of recipients) {
-        try {
+      // existing per-member personalization). Parallel, not sequential (Agla, 2026-07-24):
+      // a serial loop over many recipients widens the window a deploy cutover or timeout
+      // can cut it off in - Promise.allSettled sends everyone concurrently so the whole
+      // batch finishes in roughly one send's time, not N.
+      const results = await Promise.allSettled(
+        recipients.map(async (member) => {
           const recipientLocale = normalizeLang(member.defaultLocale) ?? siteDefaultLocale;
           const recipientName = member.firstName || member.displayName || member.email;
           const template =
@@ -210,10 +225,16 @@ export async function GET(request: NextRequest) {
             html: localized.html,
             lang: recipientLocale,
           });
+          await digestSendRepository.markSent(siteId, member.id, cadence, period);
+        }),
+      );
+      for (let i = 0; i < results.length; i++) {
+        const result = results[i];
+        if (result.status === 'fulfilled') {
           sent++;
-        } catch (memberErr) {
+        } else {
           failed++;
-          console.error(`[cron/digest] error sending to member=${member.id} site=${siteId}:`, memberErr);
+          console.error(`[cron/digest] error sending to member=${recipients[i].id} site=${siteId}:`, result.reason);
         }
       }
 
