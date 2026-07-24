@@ -46,6 +46,7 @@ export const routePaths: Record<AppRoute, string> = {
   [AppRoute.ADMIN_PENDING_MEMBERS]: '/admin/pending-members',
   [AppRoute.ADMIN_ANNIVERSARIES]: '/admin/anniversaries',
   [AppRoute.ADMIN_MAGAZINE_TEMPLATE]: '/admin/magazine-template',
+  [AppRoute.ADMIN_LOGIN_AUDIT]: '/admin/login-audit',
 };
 
 
@@ -185,6 +186,7 @@ export const apiRoutePaths: Record<ApiRoute, string> = {
   [ApiRoute.SITE_ADMIN_CACHE_REVALIDATE]: '/api/site/{siteId}/admin/cache/revalidate',
   [ApiRoute.SITE_ADMIN_USER_HARD_DELETE]: '/api/site/{siteId}/admin/users/{userId}/hard-delete',
   [ApiRoute.SITE_ADMIN_OWNER]: '/api/site/{siteId}/admin/owner',
+  [ApiRoute.SITE_LOGIN_AUDIT]: '/api/site/{siteId}/login-audit',
 
   // Dropbox
   [ApiRoute.SITE_DROPBOX_BROWSE]: '/api/site/{siteId}/dropbox/browse',

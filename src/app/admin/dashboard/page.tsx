@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { FileText, Users, MessageCircle, RefreshCw, BookOpen } from 'lucide-react';
+import { FileText, Users, MessageCircle, RefreshCw, BookOpen, ShieldCheck } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useTranslation } from 'react-i18next';
@@ -67,6 +67,13 @@ export default function AdminDashboard() {
       description: t('manageMagazineTemplate') || 'Edit the HTML template for the monthly family magazine',
       href: '/admin/magazine-template',
       gradient: 'from-rose-500 to-rose-600',
+    },
+    {
+      icon: ShieldCheck,
+      title: t('loginAudit') || 'Login Audit',
+      description: t('viewLoginAudit') || 'See who signed in, and when',
+      href: '/admin/login-audit',
+      gradient: 'from-slate-500 to-slate-600',
     },
   ];
 

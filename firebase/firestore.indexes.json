@@ -1,6 +1,21 @@
 {
   "indexes": [
     {
+      "collectionGroup": "loginAudits",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "siteId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ],
+      "density": "SPARSE_ALL"
+    },
+    {
       "collectionGroup": "anniversaries",
       "queryScope": "COLLECTION",
       "fields": [

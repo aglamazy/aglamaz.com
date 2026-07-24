@@ -3,6 +3,7 @@ import { initAdmin, adminAuth } from '@/firebase/admin';
 import { FamilyRepository } from '@/repositories/FamilyRepository';
 import { sentMessageRepository } from '@/repositories/SentMessageRepository';
 import { adminNotificationService } from '@/services/AdminNotificationService';
+import { loginAuditRepository } from '@/repositories/LoginAuditRepository';
 import { signAccessToken, signRefreshToken } from '@/auth/service';
 import { setAuthCookies } from '@/auth/cookies';
 
@@ -31,6 +32,18 @@ export async function POST(req: NextRequest) {
 
     const res = NextResponse.json({ token: access });
     setAuthCookies(res, access, refresh);
+
+    // Side-effect: who+when audit trail (Agla, 2026-07-24). Must not block login.
+    if (appClaims.siteId) {
+      loginAuditRepository
+        .record({
+          siteId: appClaims.siteId,
+          memberId: decoded.uid,
+          email: appClaims.email,
+          provider: (decoded as any).firebase?.sign_in_provider || 'unknown',
+        })
+        .catch((e) => console.error('login audit record failed', e));
+    }
 
     // Side-effect: if a signup request exists for this user/site, ping admin at most once per 24h
     // This must not block login; errors are logged only.
