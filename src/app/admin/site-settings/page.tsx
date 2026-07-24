@@ -1,7 +1,7 @@
 'use client';
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Settings, Save, Mail } from 'lucide-react';
+import { Settings, Save } from 'lucide-react';
 import { useSiteStore } from '@/store/SiteStore';
 import type { ISite } from '@/entities/Site';
 import { apiFetch } from '@/utils/apiFetch';
@@ -19,9 +19,6 @@ export default function SiteSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
-  const [previewSending, setPreviewSending] = useState(false);
-  const [previewResult, setPreviewResult] = useState('');
-  const [previewError, setPreviewError] = useState('');
 
   useEffect(() => {
     if (!site?.id) return;
@@ -67,25 +64,6 @@ export default function SiteSettingsPage() {
       setError(t('failedToSaveSettings'));
     } finally {
       setSaving(false);
-    }
-  };
-
-  const handleSendPreview = async () => {
-    if (!site?.id) return;
-    setPreviewSending(true);
-    setPreviewError('');
-    setPreviewResult('');
-    try {
-      const result = await apiFetch<{ sentTo: string }>(ApiRoute.SITE_DIGEST_PREVIEW_SEND, {
-        method: 'POST',
-      });
-      setPreviewResult(t('digestPreviewSent', { email: result.sentTo }) || `Preview sent to ${result.sentTo}`);
-      setTimeout(() => setPreviewResult(''), 6000);
-    } catch (err) {
-      console.error('Failed to send digest preview', err);
-      setPreviewError(t('digestPreviewFailed') || 'Failed to send preview');
-    } finally {
-      setPreviewSending(false);
     }
   };
 
@@ -184,32 +162,6 @@ export default function SiteSettingsPage() {
               {error && (
                 <p className="text-red-600 text-sm">{error}</p>
               )}
-            </div>
-
-            <div className="mt-8 pt-6 border-t border-sage-200">
-              <label className="block mb-2 text-lg font-semibold text-sage-700">
-                {t('digestPreview') || 'Preview the family magazine'}
-              </label>
-              <p className="text-sm text-sage-600 mb-3">
-                {t('digestPreviewDescription') || "Emails you a preview of who would receive the digest and in which language, plus a content sample - doesn't send to anyone else and doesn't count as a real send."}
-              </p>
-              <div className="flex items-center gap-4">
-                <Button
-                  onClick={handleSendPreview}
-                  disabled={previewSending}
-                  variant="outline"
-                  className="flex items-center gap-2"
-                >
-                  <Mail size={16} />
-                  {previewSending ? (t('sending') || 'Sending...') : (t('sendDigestPreview') || 'Send me a preview')}
-                </Button>
-                {previewResult && (
-                  <p className="text-green-600 text-sm">{previewResult}</p>
-                )}
-                {previewError && (
-                  <p className="text-red-600 text-sm">{previewError}</p>
-                )}
-              </div>
             </div>
           </CardContent>
         </Card>

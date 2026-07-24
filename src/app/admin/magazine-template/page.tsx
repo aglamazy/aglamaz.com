@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { apiFetch } from '@/utils/apiFetch';
 import { ApiRoute } from '@/entities/Routes';
-import { Loader2, Save, Check, Sparkles } from 'lucide-react';
+import { Loader2, Save, Check, Sparkles, Mail } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useSiteStore } from '@/store/SiteStore';
 
@@ -29,6 +29,9 @@ export default function MagazineTemplateEditor() {
   const [saved, setSaved] = useState(false);
   const [suggesting, setSuggesting] = useState(false);
   const [error, setError] = useState('');
+  const [previewSending, setPreviewSending] = useState(false);
+  const [previewResult, setPreviewResult] = useState('');
+  const [previewError, setPreviewError] = useState('');
 
   useEffect(() => {
     if (site?.id) {
@@ -64,6 +67,25 @@ export default function MagazineTemplateEditor() {
       setError((err as Error).message);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSendPreview = async () => {
+    if (!site?.id) return;
+    setPreviewSending(true);
+    setPreviewError('');
+    setPreviewResult('');
+    try {
+      const result = await apiFetch<{ sentTo: string }>(ApiRoute.SITE_DIGEST_PREVIEW_SEND, {
+        method: 'POST',
+      });
+      setPreviewResult(t('digestPreviewSent', { email: result.sentTo }) || `Preview sent to ${result.sentTo}`);
+      setTimeout(() => setPreviewResult(''), 6000);
+    } catch (err) {
+      console.error('Failed to send digest preview', err);
+      setPreviewError(t('digestPreviewFailed') || 'Failed to send preview');
+    } finally {
+      setPreviewSending(false);
     }
   };
 
@@ -145,6 +167,32 @@ export default function MagazineTemplateEditor() {
               {!saving && !saved && <Save className="w-4 h-4" />}
               {saved ? (t('saved') || 'Saved!') : (t('save') || 'Save')}
             </Button>
+          </div>
+
+          <div className="pt-6 border-t border-sage-200">
+            <label className="block mb-2 text-lg font-semibold text-sage-700">
+              {t('digestPreview') || 'Preview the family magazine'}
+            </label>
+            <p className="text-sm text-sage-600 mb-3">
+              {t('digestPreviewDescription') || "Emails you a preview of who would receive the digest and in which language, plus a content sample - doesn't send to anyone else and doesn't count as a real send."}
+            </p>
+            <div className="flex items-center gap-4">
+              <Button
+                onClick={handleSendPreview}
+                disabled={previewSending}
+                variant="outline"
+                className="flex items-center gap-2"
+              >
+                <Mail className="w-4 h-4" />
+                {previewSending ? (t('sending') || 'Sending...') : (t('sendDigestPreview') || 'Send me a preview')}
+              </Button>
+              {previewResult && (
+                <p className="text-green-600 text-sm">{previewResult}</p>
+              )}
+              {previewError && (
+                <p className="text-red-600 text-sm">{previewError}</p>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>
