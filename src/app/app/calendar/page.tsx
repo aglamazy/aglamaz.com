@@ -518,6 +518,7 @@ export default function AnniversariesPage() {
                 ? (ev as unknown as { images?: string[] }).images
                 : [];
               const imageUrl = imageOverride || ev.imageUrl || fallbackImages[0];
+              const isDeathEvent = ev.type === 'death';
               return (
                 <div
                   key={key}
@@ -537,15 +538,27 @@ export default function AnniversariesPage() {
                   imageUrl ? 'p-0 bg-transparent' : 'bg-blue-100 text-blue-800 px-2 py-1 rounded-full'
                 } ${isCurrentMonth ? '' : 'opacity-50'}`}
                 >
-                {imageUrl ? (
-                  <img
-                    src={imageUrl}
-                    alt=""
-                    className="w-full h-16 sm:h-20 object-cover rounded"
-                  />
-                ) : (
-                  <span className={styles.nameMobile}>{truncateResponsive(ev.name, 6, 16)}</span>
-                )}
+                <div
+                  className={`${styles.eventCardImageWrapper} ${imageUrl ? '' : styles.eventCardImageWrapperPlain}`}
+                >
+                  {isDeathEvent && (
+                    <span
+                      className={styles.deathBadge}
+                      role="img"
+                      aria-label={t('death') as string}
+                      title={t('death') as string}
+                    />
+                  )}
+                  {imageUrl ? (
+                    <img
+                      src={imageUrl}
+                      alt=""
+                      className="w-full h-16 sm:h-20 object-cover rounded"
+                    />
+                  ) : (
+                    <span className={styles.nameMobile}>{truncateResponsive(ev.name, 6, 16)}</span>
+                  )}
+                </div>
               </div>
             );
             };
