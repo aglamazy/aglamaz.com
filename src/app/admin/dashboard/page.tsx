@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { FileText, Users, MessageCircle, RefreshCw, BookOpen } from 'lucide-react';
+import { FileText, Users, MessageCircle, RefreshCw } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useTranslation } from 'react-i18next';
@@ -117,13 +117,6 @@ export default function AdminDashboard() {
       href: '/admin/contact-messages',
       gradient: 'from-purple-500 to-purple-600',
       count: dashboardCounts?.contactMessages ?? null,
-    },
-    {
-      icon: BookOpen,
-      title: t('magazineTemplate') || 'Magazine Template',
-      description: t('manageMagazineTemplate') || 'Edit the HTML template for the monthly family magazine',
-      href: '/admin/magazine-template',
-      gradient: 'from-rose-500 to-rose-600',
     },
   ];
 
