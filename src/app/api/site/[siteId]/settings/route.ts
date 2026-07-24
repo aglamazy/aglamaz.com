@@ -16,10 +16,13 @@ const putHandler = async (request: Request, context: GuardContext & { params: { 
   try {
     const { siteId } = await resolveParams(context);
     const body = await request.json();
-    const { aboutFamily, sourceLang } = body;
+    const { aboutFamily, sourceLang, defaultLocale } = body;
 
     if (typeof aboutFamily !== 'string') {
       return Response.json({ error: 'Invalid aboutFamily' }, { status: 400 });
+    }
+    if (defaultLocale !== undefined && !SUPPORTED_LOCALES.includes(defaultLocale)) {
+      return Response.json({ error: 'Invalid defaultLocale' }, { status: 400 });
     }
 
     const repository = new SiteRepository();
@@ -32,6 +35,9 @@ const putHandler = async (request: Request, context: GuardContext & { params: { 
         sourceLang: lang,
         supportedLocales: SUPPORTED_LOCALES,
       });
+      if (defaultLocale !== undefined) {
+        await repository.updateDefaultLocale(siteId, defaultLocale);
+      }
     } catch (error) {
       if (error instanceof SiteNotFoundError) {
         return Response.json({ error: 'Site not found' }, { status: 404 });

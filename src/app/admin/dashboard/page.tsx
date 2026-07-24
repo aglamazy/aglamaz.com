@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { FileText, Users, MessageCircle, RefreshCw, BookOpen, ShieldCheck } from 'lucide-react';
+import { FileText, Users, MessageCircle, RefreshCw, BookOpen, ShieldCheck, Settings } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useTranslation } from 'react-i18next';
@@ -74,6 +74,13 @@ export default function AdminDashboard() {
       description: t('viewLoginAudit') || 'See who signed in, and when',
       href: '/admin/login-audit',
       gradient: 'from-slate-500 to-slate-600',
+    },
+    {
+      icon: Settings,
+      title: t('siteSettings') || 'Site Settings',
+      description: t('defaultLocaleHint') || 'About text, source language, and default language',
+      href: '/admin/site-settings',
+      gradient: 'from-teal-500 to-teal-600',
     },
   ];
 

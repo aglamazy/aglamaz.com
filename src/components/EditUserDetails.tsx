@@ -34,8 +34,12 @@ export default function EditUserDetails({ standalone = false, returnTo }: { stan
   const [avatarInitials, setAvatarInitials] = useState<string>('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [removeExisting, setRemoveExisting] = useState(false);
-  const [defaultLocale, setDefaultLocale] = useState<string>('en');
   const { t, i18n } = useTranslation();
+  // No hardcoded language guess (Agla, 2026-07-24 - the "Arabic digest" incident): the site's
+  // own configured defaultLocale (src/app/admin/site-settings) is the only real signal here.
+  // i18n.language (the language this modal is currently being viewed in) is the last resort -
+  // a deliberate signal from the page context, not an arbitrary constant.
+  const [defaultLocale, setDefaultLocale] = useState<string>(siteInfo?.defaultLocale || i18n.language);
 
   const MAX_AVATAR_SIZE = 4 * 1024 * 1024; // 4MB
   const ACCEPTED_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp']);
@@ -86,7 +90,7 @@ export default function EditUserDetails({ standalone = false, returnTo }: { stan
         const displayName = payload.displayName || payload.firstName || fallbackName;
         setName(displayName || '');
         setEmail(payload.email || fallbackEmail || '');
-        setDefaultLocale(payload.defaultLocale || 'en');
+        setDefaultLocale(payload.defaultLocale || siteInfo?.defaultLocale || i18n.language);
         setMember(payload);
         setSelectedFile(null);
         setRemoveExisting(false);
@@ -97,7 +101,7 @@ export default function EditUserDetails({ standalone = false, returnTo }: { stan
         console.error('[edit-user] failed to load member profile', err);
         setName(member?.displayName || member?.firstName || fallbackName);
         setEmail(member?.email || fallbackEmail);
-        setDefaultLocale(member?.defaultLocale || 'en');
+        setDefaultLocale(member?.defaultLocale || siteInfo?.defaultLocale || i18n.language);
         setError(t('failedToLoadMemberProfile', { defaultValue: 'Failed to load profile details' }));
         updateAvatarPreview(member);
       })
