@@ -450,5 +450,14 @@
   "growthLoopCtaTitle": "Your memory has been shared",
   "growthLoopCtaBody": "Create your own FamCircle for your family — a private space to collect stories, photos, and milestones together.",
   "growthLoopCtaButton": "Create Your Own FamCircle",
-  "growthLoopCtaDismiss": "Maybe later"
+  "growthLoopCtaDismiss": "Maybe later",
+  "aboutFamCircleTitle": "About FamCircle",
+  "aboutFamCircleIntro": "FamCircle is a private, invite-only space where families keep their story together — photos, a blog, a shared calendar, and the small moments that matter.",
+  "aboutFamCirclePrivacyNote": "Every family gets its own private site. Nothing here is public unless your family chooses to share it.",
+  "createYourOwnSiteCtaTitle": "Want a private site like this one for your own family?",
+  "createYourOwnSiteCtaButton": "Create Your Own Family Site",
+  "createYourOwnSitePageTitle": "Create Your Own Family Site",
+  "createYourOwnSiteIntro": "Every FamCircle is built for one family — private photos, a shared calendar, a family blog, and more, all in one place just for you.",
+  "createYourOwnSiteInterimNote": "We're setting up self-service sign-up. In the meantime, reach out and we'll get your family site started.",
+  "poweredByFamCircleBlurb": "This family blog is powered by FamCircle."
 }

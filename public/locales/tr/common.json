@@ -402,5 +402,14 @@
   "growthLoopCtaTitle": "Anınız paylaşıldı",
   "growthLoopCtaBody": "Aileniz için kendi FamCircle'ınızı oluşturun — hikayelerinizi, fotoğraflarınızı ve önemli anlarınızı bir arada tutmak için özel bir alan.",
   "growthLoopCtaButton": "Kendi FamCircle'ınızı Oluşturun",
-  "growthLoopCtaDismiss": "Belki daha sonra"
+  "growthLoopCtaDismiss": "Belki daha sonra",
+  "aboutFamCircleTitle": "FamCircle Hakkında",
+  "aboutFamCircleIntro": "FamCircle, ailelerin hikayelerini bir arada tuttuğu özel, yalnızca davetle katılınan bir alandır — fotoğraflar, bir blog, ortak bir takvim ve önemli olan küçük anlar.",
+  "aboutFamCirclePrivacyNote": "Her ailenin kendine ait özel bir sitesi vardır. Aileniz paylaşmayı seçmediği sürece burada hiçbir şey herkese açık değildir.",
+  "createYourOwnSiteCtaTitle": "Kendi aileniz için böyle özel bir site mi istiyorsunuz?",
+  "createYourOwnSiteCtaButton": "Kendi Aile Sitenizi Oluşturun",
+  "createYourOwnSitePageTitle": "Kendi Aile Sitenizi Oluşturun",
+  "createYourOwnSiteIntro": "Her FamCircle tek bir aile için oluşturulur — özel fotoğraflar, ortak bir takvim, bir aile bloğu ve daha fazlası, hepsi sizin için tek bir yerde.",
+  "createYourOwnSiteInterimNote": "Kendi kendine kayıt özelliğini hazırlıyoruz. Bu arada bize ulaşın, aile sitenizi kurmaya başlayalım.",
+  "poweredByFamCircleBlurb": "Bu aile bloğu FamCircle tarafından desteklenmektedir."
 }
