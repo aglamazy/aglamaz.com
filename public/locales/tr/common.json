@@ -46,7 +46,7 @@
   "digestPreviewSent": "Önizleme {{email}} adresine gönderildi",
   "digestPreviewFailed": "Önizleme gönderilemedi",
   "publishNow": "Şimdi yayınla",
-  "publishNowDescription": "Gerçek dergiyi gerçek aile üyelerine şu anda gönderir - bu döneme zaten gönderilmiş olanları yok sayar (düzeltilmiş bir baskıyı yeniden göndermek için kullanın) ve zamanlanmış görevin onlara tekrar göndermemesi için herkesi gönderildi olarak işaretler.",
+  "publishNowDescription": "Gerçek dergiyi gerçek aile üyelerine şu anda gönderir - bu döneme zaten gönderilmiş olanları yok sayar, düzeltilmiş bir baskıyı yeniden göndermek için kullanın.",
   "publishNowConfirm": "Bu işlem gerçek dergiyi gerçek aile üyelerine şu anda gönderir ve bu döneme zaten gönderilmiş olanları yok sayar. Devam edilsin mi?",
   "publishNowResult": "{{sent}}/{{recipients}} gönderildi ({{cadence}}), {{failed}} başarısız",
   "publishNowFailed": "Gönderim başarısız oldu",

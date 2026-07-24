@@ -82,7 +82,7 @@
   "digestPreviewSent": "Preview sent to {{email}}",
   "digestPreviewFailed": "Failed to send preview",
   "publishNow": "Publish now",
-  "publishNowDescription": "Sends the real magazine to real family members right now - ignores anyone already sent to this period (use to re-send a corrected edition), and marks everyone sent afterward so the scheduled cron doesn't send it to them again.",
+  "publishNowDescription": "Sends the real magazine to real family members right now - ignores anyone already sent to this period, so use this to re-send a corrected edition.",
   "publishNowConfirm": "This sends the real magazine to real family members right now, ignoring anyone already sent to this period. Continue?",
   "publishNowResult": "Sent {{sent}}/{{recipients}} ({{cadence}}), {{failed}} failed",
   "publishNowFailed": "Failed to send",

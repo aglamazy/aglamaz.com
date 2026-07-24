@@ -275,7 +275,7 @@ export default function MagazineTemplateEditor() {
             </label>
             <p className="text-sm text-sage-600 mb-3">
               {t('publishNowDescription') ||
-                "Sends the real magazine to real family members right now - ignores anyone already sent to this period (use to re-send a corrected edition), and marks everyone sent afterward so the scheduled cron doesn't send it to them again."}
+                "Sends the real magazine to real family members right now - ignores anyone already sent to this period, so use this to re-send a corrected edition."}
             </p>
             <div className="flex items-center gap-4">
               <Button
