@@ -26,11 +26,32 @@ export default function AdminDashboard() {
   const [adminEmailSaved, setAdminEmailSaved] = useState(false);
   const [hydrated, setHydrated] = useState(false);
   const missingAdminEmail = hydrated && !siteInfo?.ownerUid;
+  const [siteMembersCount, setSiteMembersCount] = useState<number | null>(null);
+  const [pendingMembersCount, setPendingMembersCount] = useState<number | null>(null);
+  const [contactMessagesCount, setContactMessagesCount] = useState<number | null>(null);
 
   useEffect(() => {
     useSiteStore.getState().hydrateFromWindow();
     setHydrated(true);
   }, []);
+
+  useEffect(() => {
+    if (!siteInfo?.id) return;
+
+    apiFetch<{ count: number }>(ApiRoute.SITE_MEMBERS_COUNT)
+      .then((res) => setSiteMembersCount(res.count))
+      .catch((error) => console.error('Failed to fetch site members count:', error));
+
+    apiFetch<{ data: unknown[] }>(ApiRoute.SITE_PENDING_MEMBERS)
+      .then((res) => setPendingMembersCount(res.data.length))
+      .catch((error) => console.error('Failed to fetch pending members count:', error));
+
+    apiFetch<{ messages: unknown[] }>(ApiRoute.ADMIN_CONTACT_MESSAGES, {
+      queryParams: { siteId: siteInfo.id },
+    })
+      .then((res) => setContactMessagesCount(res.messages.length))
+      .catch((error) => console.error('Failed to fetch contact messages count:', error));
+  }, [siteInfo?.id]);
 
   const adminFeatures = [
     {
@@ -39,6 +60,7 @@ export default function AdminDashboard() {
       description: t('manageSiteDescription') || 'Edit the site description and welcome message',
       href: '/admin/site-description',
       gradient: 'from-blue-500 to-blue-600',
+      count: null as number | null,
     },
     {
       icon: Users,
@@ -46,6 +68,7 @@ export default function AdminDashboard() {
       description: t('managePendingMembers') || 'Review and approve pending member requests',
       href: '/admin/pending-members',
       gradient: 'from-amber-500 to-amber-600',
+      count: pendingMembersCount,
     },
     {
       icon: Users,
@@ -53,6 +76,7 @@ export default function AdminDashboard() {
       description: t('manageSiteMembers') || 'View and manage all site members',
       href: '/admin/site-members',
       gradient: 'from-green-500 to-green-600',
+      count: siteMembersCount,
     },
     {
       icon: MessageCircle,
@@ -60,6 +84,7 @@ export default function AdminDashboard() {
       description: t('manageContactMessages') || 'View and respond to contact form messages',
       href: '/admin/contact-messages',
       gradient: 'from-purple-500 to-purple-600',
+      count: contactMessagesCount,
     },
     {
       icon: BookOpen,
@@ -67,6 +92,7 @@ export default function AdminDashboard() {
       description: t('manageMagazineTemplate') || 'Edit the HTML template for the monthly family magazine',
       href: '/admin/magazine-template',
       gradient: 'from-rose-500 to-rose-600',
+      count: null as number | null,
     },
   ];
 
@@ -181,15 +207,22 @@ export default function AdminDashboard() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Admin Features Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {adminFeatures.map(({ icon: Icon, title, description, href, gradient }) => (
+          {adminFeatures.map(({ icon: Icon, title, description, href, gradient, count }) => (
             <Card
               key={href}
               className="h-full border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 bg-white/80 backdrop-blur-sm cursor-pointer"
               onClick={() => router.push(href)}
             >
               <CardContent className="p-8 h-full flex flex-col">
-                <div className={`w-16 h-16 bg-gradient-to-r ${gradient} rounded-2xl flex items-center justify-center mb-6`}>
-                  <Icon className="w-8 h-8 text-white" />
+                <div className="flex items-start justify-between mb-6">
+                  <div className={`w-16 h-16 bg-gradient-to-r ${gradient} rounded-2xl flex items-center justify-center`}>
+                    <Icon className="w-8 h-8 text-white" />
+                  </div>
+                  {count !== null && (
+                    <span className="min-w-[2rem] h-8 px-2 rounded-full bg-sage-100 text-sage-700 text-sm font-semibold flex items-center justify-center">
+                      {count}
+                    </span>
+                  )}
                 </div>
                 <h3 className="text-xl font-bold text-charcoal mb-3">{title}</h3>
                 <p className="text-sage-600 mb-6 leading-relaxed">{description}</p>
