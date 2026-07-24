@@ -23,6 +23,8 @@ await newSiteRef.set({
   ownerUid: "user-firebase-uid", // The UID of the family admin/owner
   createdAt: admin.firestore.FieldValue.serverTimestamp(),
   updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  calendarSystems: ["gregorian", "jewish"],
+  defaultCalendarSystem: "gregorian",
 
   // Optional fields:
   translations: {}, // Will be populated by the frontend
@@ -130,6 +132,7 @@ Here's a complete example function for the FamilyCore backoffice:
 interface CreateSiteInput {
   familyName: string;
   ownerUid: string;
+  country?: string; // Optional ISO country code, used to seed calendar defaults
   domains?: string[]; // Optional: e.g., ["levi.famcircle.org", "levifamily.com"]
   primaryDomain?: string; // Optional: which domain is primary
   sourceLang?: string; // Optional: default "he"
@@ -144,7 +147,11 @@ interface CreateSiteResult {
 async function createNewSite(
   input: CreateSiteInput
 ): Promise<CreateSiteResult> {
-  const { familyName, ownerUid, domains = [], primaryDomain, sourceLang = 'he' } = input;
+  const { familyName, ownerUid, country, domains = [], primaryDomain, sourceLang = 'he' } = input;
+  const calendarSystems = country === 'IL'
+    ? ['gregorian', 'jewish']
+    : ['gregorian'];
+  const defaultCalendarSystem = calendarSystems[0];
 
   // Step 1: Create site document with auto-generated ID
   const sitesCollection = db.collection('sites');
@@ -155,6 +162,8 @@ async function createNewSite(
     name: familyName,
     ownerUid: ownerUid,
     sourceLang: sourceLang,
+    calendarSystems: calendarSystems,
+    defaultCalendarSystem: defaultCalendarSystem,
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     translations: {},

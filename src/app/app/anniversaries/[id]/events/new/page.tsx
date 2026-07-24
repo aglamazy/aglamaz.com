@@ -34,14 +34,14 @@ export default function NewOccurrencePage() {
     (async () => {
       if (!siteId || !eventId) return;
       try {
-        const res = await apiFetch<{ event: { month?: number; day?: number; useHebrew?: boolean; hebrewOccurrences?: Array<{ year: number; month: number; day: number }> } }>(
+        const res = await apiFetch<{ event: { month?: number; day?: number; useHebrew?: boolean; calendarSystem?: string; hebrewOccurrences?: Array<{ year: number; month: number; day: number }> } }>(
           ApiRoute.SITE_ANNIVERSARY_BY_ID,
           { pathParams: { anniversaryId: eventId } }
         );
         const now = new Date();
         let m = (res.event?.month ?? now.getMonth());
         let d = (res.event?.day ?? now.getDate());
-        if (res.event?.useHebrew && Array.isArray(res.event?.hebrewOccurrences)) {
+        if ((res.event?.useHebrew || res.event?.calendarSystem === 'jewish') && Array.isArray(res.event?.hebrewOccurrences)) {
           const occ = res.event.hebrewOccurrences.find((o: any) => o.year === now.getFullYear());
           if (occ) { m = occ.month; d = occ.day; }
         }

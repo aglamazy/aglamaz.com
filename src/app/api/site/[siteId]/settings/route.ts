@@ -2,6 +2,7 @@ import { withAdminGuard } from '@/lib/withAdminGuard';
 import { GuardContext } from '@/app/api/types';
 import { SiteRepository, SiteNotFoundError } from '@/repositories/SiteRepository';
 import nextI18NextConfig from '../../../../../../next-i18next.config.js';
+import { isCalendarSystem, normalizeCalendarSystems, type CalendarSystem } from '@/utils/calendarSystems';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,20 +17,52 @@ const putHandler = async (request: Request, context: GuardContext & { params: { 
   try {
     const { siteId } = await resolveParams(context);
     const body = await request.json();
-    const { aboutFamily, sourceLang } = body;
+    const { aboutFamily, sourceLang, calendarSystems, defaultCalendarSystem } = body;
 
     if (typeof aboutFamily !== 'string') {
       return Response.json({ error: 'Invalid aboutFamily' }, { status: 400 });
     }
+    if (typeof sourceLang !== 'string' || !sourceLang.trim()) {
+      return Response.json({ error: 'Invalid sourceLang' }, { status: 400 });
+    }
 
     const repository = new SiteRepository();
-    const lang = sourceLang || 'he';
+    if (calendarSystems !== undefined || defaultCalendarSystem !== undefined) {
+      if (!Array.isArray(calendarSystems) || !isCalendarSystem(defaultCalendarSystem)) {
+        return Response.json({ error: 'Invalid calendar system settings' }, { status: 400 });
+      }
+      const normalizedCalendarSystems = normalizeCalendarSystems(calendarSystems) as CalendarSystem[];
+      if (normalizedCalendarSystems.length === 0) {
+        return Response.json({ error: 'Invalid calendar system settings' }, { status: 400 });
+      }
+      if (!normalizedCalendarSystems.includes(defaultCalendarSystem)) {
+        return Response.json({ error: 'Invalid calendar system settings' }, { status: 400 });
+      }
+
+      try {
+        await repository.updateAbout({
+          siteId,
+          aboutFamily,
+          sourceLang: sourceLang.trim(),
+          supportedLocales: SUPPORTED_LOCALES,
+          calendarSystems: normalizedCalendarSystems,
+          defaultCalendarSystem,
+        });
+      } catch (error) {
+        if (error instanceof SiteNotFoundError) {
+          return Response.json({ error: 'Site not found' }, { status: 404 });
+        }
+        throw error;
+      }
+
+      return Response.json({ ok: true });
+    }
 
     try {
       await repository.updateAbout({
         siteId,
         aboutFamily,
-        sourceLang: lang,
+        sourceLang: sourceLang.trim(),
         supportedLocales: SUPPORTED_LOCALES,
       });
     } catch (error) {

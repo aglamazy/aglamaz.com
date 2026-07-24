@@ -1,3 +1,5 @@
+import type { CalendarSystem } from '@/utils/calendarSystems';
+
 export interface FieldMeta {
   source: 'manual' | 'gpt' | 'other';
   updatedAt: any;
@@ -38,6 +40,8 @@ export interface ISite {
   name?: string;
   aboutFamily?: string;
   platformName?: string;
+  calendarSystems?: CalendarSystem[];
+  defaultCalendarSystem?: CalendarSystem;
 
   // Storage structure (for accessing other locales and metadata)
   locales?: Record<string, SiteLocaleContent>;

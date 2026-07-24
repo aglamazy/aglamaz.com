@@ -11,6 +11,7 @@ import ImageUploadArea from '@/components/ui/ImageUploadArea';
 import DateInput from '@/components/ui/DateInput';
 import { useSiteStore } from '@/store/SiteStore';
 import TouchSelect from '@/components/ui/TouchSelect';
+import type { CalendarSystem } from '@/utils/calendarSystems';
 
 interface EventFormContentProps {
   editEvent?: AnniversaryEvent | null;
@@ -26,6 +27,12 @@ interface MemberOption {
 
 type HonoreeMode = 'none' | 'member' | 'email';
 
+const CALENDAR_SYSTEM_LABEL_KEYS: Record<CalendarSystem, string> = {
+  gregorian: 'gregorianCalendarSystem',
+  jewish: 'jewishCalendarSystem',
+  muslim: 'muslimCalendarSystem',
+};
+
 function formatSimilarEventDate(event: AnniversaryEvent, locale: string): string {
   const year = (event as any).originalYear ?? event.year;
   const month = (event as any).originalMonth ?? event.month;
@@ -39,6 +46,7 @@ function formatSimilarEventDate(event: AnniversaryEvent, locale: string): string
 export default function EventFormContent({ editEvent, onSuccess, onViewSimilarEvent }: EventFormContentProps) {
   const { t, i18n } = useTranslation();
   const site = useSiteStore((state) => state.siteInfo);
+  const configuredCalendarSystems = Array.isArray(site?.calendarSystems) ? site.calendarSystems : [];
   const [similarEvent, setSimilarEvent] = useState<AnniversaryEvent | null>(null);
   const [form, setForm] = useState({
     name: '',
@@ -48,7 +56,7 @@ export default function EventFormContent({ editEvent, onSuccess, onViewSimilarEv
     type: 'other' as AnniversaryType | '',
     isAnnual: true,
     imageUrl: '',
-    useHebrew: false,
+    calendarSystem: '' as CalendarSystem | '',
   });
   const [honoreeMode, setHonoreeMode] = useState<HonoreeMode>('none');
   const [honoreeMemberId, setHonoreeMemberId] = useState('');
@@ -75,6 +83,11 @@ export default function EventFormContent({ editEvent, onSuccess, onViewSimilarEv
       const year = (editEvent as any).originalYear ?? editEvent.year;
       const month = (editEvent as any).originalMonth ?? editEvent.month;
       const day = (editEvent as any).originalDay ?? editEvent.day;
+      const currentCalendarSystem =
+        ((editEvent as any).calendarSystem as CalendarSystem | undefined) ||
+        (Boolean((editEvent as any).useHebrew) ? 'jewish' : undefined) ||
+        site?.defaultCalendarSystem ||
+        '';
       setForm({
         name: editEvent.name,
         description: editEvent.description || '',
@@ -83,7 +96,7 @@ export default function EventFormContent({ editEvent, onSuccess, onViewSimilarEv
         type: editEvent.type as AnniversaryType,
         isAnnual: editEvent.isAnnual,
         imageUrl: '',
-        useHebrew: Boolean((editEvent as any).useHebrew),
+        calendarSystem: currentCalendarSystem as CalendarSystem | '',
       });
       if (editEvent.honoreeMemberId) {
         setHonoreeMode('member');
@@ -107,7 +120,7 @@ export default function EventFormContent({ editEvent, onSuccess, onViewSimilarEv
         type: 'other' as AnniversaryType | '',
         isAnnual: true,
         imageUrl: '',
-        useHebrew: false,
+        calendarSystem: (site?.defaultCalendarSystem as CalendarSystem) || '',
       });
       setHonoreeMode('none');
       setHonoreeMemberId('');
@@ -116,7 +129,7 @@ export default function EventFormContent({ editEvent, onSuccess, onViewSimilarEv
     setSendInviteNow(false);
     setImageFile(null);
     setImageSrc('');
-  }, [editEvent]);
+  }, [editEvent, site?.calendarSystems, site?.defaultCalendarSystem]);
 
   // Soft duplicate-name guard: warns, doesn't block - two people can share a name
   // legitimately. Excludes the event currently being edited from its own match.
@@ -221,6 +234,16 @@ export default function EventFormContent({ editEvent, onSuccess, onViewSimilarEv
         setSaving(false);
         return;
       }
+      if (!payload.calendarSystem) {
+        setError(t('calendarSystemRequired'));
+        setSaving(false);
+        return;
+      }
+      if (!calendarSystemOptions.includes(payload.calendarSystem as CalendarSystem)) {
+        setError(t('calendarSystemRequired'));
+        setSaving(false);
+        return;
+      }
       if (editEvent) {
         await apiFetch<void>(ApiRoute.SITE_ANNIVERSARY_BY_ID, {
           pathParams: { anniversaryId: editEvent.id },
@@ -254,6 +277,13 @@ export default function EventFormContent({ editEvent, onSuccess, onViewSimilarEv
     { value: 'death', label: `🕯️ ${t('death')}` },
     { value: 'other', label: `⭐ ${t('other', { defaultValue: 'Other' })}` },
   ];
+
+  const calendarSystemOptions = Array.from(
+    new Set([
+      ...configuredCalendarSystems,
+      ...(form.calendarSystem ? [form.calendarSystem] : []),
+    ]),
+  ) as CalendarSystem[];
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 max-w-md">
@@ -456,17 +486,26 @@ export default function EventFormContent({ editEvent, onSuccess, onViewSimilarEv
           </div>
         )}
       </div>
-      <div className="flex items-center">
-        <input
-          id="useHebrew"
-          type="checkbox"
-          checked={form.useHebrew}
-          onChange={(e) => setForm({ ...form, useHebrew: e.target.checked })}
-          className="mr-2"
-        />
-        <label htmlFor="useHebrew" className="text-text">{t('hebrewCalendar') as string}</label>
+      <div>
+        <label className="block mb-1 text-sm text-text">{t('calendarSystem')}</label>
+        <select
+          className="border rounded w-full px-3 py-2"
+          value={form.calendarSystem}
+          onChange={(e) => setForm({ ...form, calendarSystem: e.target.value as CalendarSystem | '' })}
+          disabled={calendarSystemOptions.length === 0}
+        >
+          <option value="">{t('chooseCalendarSystem')}</option>
+          {calendarSystemOptions.map((system) => (
+            <option key={system} value={system}>
+              {t(CALENDAR_SYSTEM_LABEL_KEYS[system])}
+            </option>
+          ))}
+        </select>
+        <p className="text-xs text-sage-600 mt-1">
+          {t('calendarSystemHint')}
+        </p>
       </div>
-      {form.useHebrew && form.date && (
+      {form.calendarSystem === 'jewish' && form.date && (
         <div className="text-sm text-sage-700">
           {t('hebrewDate') as string}: {new Intl.DateTimeFormat('he-u-ca-hebrew', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(form.date))}
         </div>
