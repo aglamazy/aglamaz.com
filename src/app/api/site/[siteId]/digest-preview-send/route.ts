@@ -64,10 +64,17 @@ const postHandler = async (_request: Request, context: GuardContext) => {
   }
 
   const digestCompiler = new DigestCompilerService();
-  const { cadence, fireDate } = nextCadenceToFire(new Date());
+  const now = new Date();
+  const { cadence, fireDate } = nextCadenceToFire(now);
   let section: string;
 
   try {
+    // Compile against fireDate, not `now` - this is a dress rehearsal of the send that will
+    // actually go out at fireDate (Agla 2026-07-24: edit -> re-fire preview -> next-day-send
+    // must all show the same content). The compiler's pastRange is always
+    // [referenceDate-7, referenceDate] for weekly / [start of referenceDate's month - 1, +1]
+    // for monthly - that formula is correct; referenceDate itself has to be the real send
+    // moment for the preview to mean anything as a rehearsal.
     const period = periodKeyFor(cadence, fireDate);
     const { site, recipients } = await resolveDigestRecipients(siteId, cadence, period, { onlyUnsent: false });
 
@@ -102,7 +109,8 @@ const postHandler = async (_request: Request, context: GuardContext) => {
         : template.html;
 
     section = `
-        <h2 style="margin-top:32px">${cadence === 'weekly' ? 'Weekly' : 'Monthly'} digest - period ${escapeHtml(period)} (next send: ${fireDate.toISOString()})</h2>
+        <h2 style="margin-top:32px">${cadence === 'weekly' ? 'Weekly' : 'Monthly'} digest - period ${escapeHtml(period)}</h2>
+        <p>Rehearsing the real send scheduled for <strong>${fireDate.toISOString()}</strong> - edit anything that looks wrong, then re-send this preview to check the fix before it goes out.</p>
         <p><strong>${recipients.length}</strong> would receive this:</p>
         <table style="border-collapse:collapse;font-size:14px">
           <thead><tr><th style="text-align:start;padding:4px 12px 4px 0">Email</th><th style="text-align:start;padding:4px 12px 4px 0">Locale</th><th style="text-align:start;padding:4px 0">Source</th></tr></thead>
