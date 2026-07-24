@@ -12,6 +12,12 @@ import { useState } from 'react';
 import { useEffect } from 'react';
 import { useSiteStore } from '@/store/SiteStore';
 
+interface DashboardCounts {
+  siteMembers: number;
+  pendingMembers: number;
+  contactMessages: number;
+}
+
 export default function AdminDashboard() {
   const router = useRouter();
   const { t, i18n } = useTranslation();
@@ -25,12 +31,60 @@ export default function AdminDashboard() {
   const [adminEmailError, setAdminEmailError] = useState('');
   const [adminEmailSaved, setAdminEmailSaved] = useState(false);
   const [hydrated, setHydrated] = useState(false);
+  const [dashboardCounts, setDashboardCounts] = useState<DashboardCounts | null>(null);
   const missingAdminEmail = hydrated && !siteInfo?.ownerUid;
 
   useEffect(() => {
     useSiteStore.getState().hydrateFromWindow();
     setHydrated(true);
   }, []);
+
+  useEffect(() => {
+    if (!siteInfo?.id) {
+      setDashboardCounts(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadDashboardCounts = async (): Promise<boolean> => {
+      try {
+        const [memberCount, pendingCount, contactCount] = await Promise.all([
+          apiFetch<{ count: number }>(ApiRoute.SITE_MEMBERS_COUNT, {
+            pathParams: { siteId: siteInfo.id },
+          }),
+          apiFetch<{ count: number }>(ApiRoute.SITE_PENDING_MEMBERS_COUNT, {
+            pathParams: { siteId: siteInfo.id },
+          }),
+          apiFetch<{ count: number }>(ApiRoute.ADMIN_CONTACT_MESSAGES_COUNT, {
+            queryParams: { siteId: siteInfo.id },
+          }),
+        ]);
+
+        if (!cancelled) {
+          setDashboardCounts({
+            siteMembers: memberCount.count,
+            pendingMembers: pendingCount.count,
+            contactMessages: contactCount.count,
+          });
+        }
+
+        return true;
+      } catch (error) {
+        console.error('[admin] failed to load dashboard counts', error);
+        if (!cancelled) {
+          setDashboardCounts(null);
+        }
+        return false;
+      }
+    };
+
+    void loadDashboardCounts();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [siteInfo?.id]);
 
   const adminFeatures = [
     {
@@ -46,6 +100,7 @@ export default function AdminDashboard() {
       description: t('managePendingMembers') || 'Review and approve pending member requests',
       href: '/admin/pending-members',
       gradient: 'from-amber-500 to-amber-600',
+      count: dashboardCounts?.pendingMembers ?? null,
     },
     {
       icon: Users,
@@ -53,6 +108,7 @@ export default function AdminDashboard() {
       description: t('manageSiteMembers') || 'View and manage all site members',
       href: '/admin/site-members',
       gradient: 'from-green-500 to-green-600',
+      count: dashboardCounts?.siteMembers ?? null,
     },
     {
       icon: MessageCircle,
@@ -60,6 +116,7 @@ export default function AdminDashboard() {
       description: t('manageContactMessages') || 'View and respond to contact form messages',
       href: '/admin/contact-messages',
       gradient: 'from-purple-500 to-purple-600',
+      count: dashboardCounts?.contactMessages ?? null,
     },
     {
       icon: BookOpen,
@@ -181,15 +238,22 @@ export default function AdminDashboard() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Admin Features Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {adminFeatures.map(({ icon: Icon, title, description, href, gradient }) => (
+          {adminFeatures.map(({ icon: Icon, title, description, href, gradient, count = null }) => (
             <Card
               key={href}
               className="h-full border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 bg-white/80 backdrop-blur-sm cursor-pointer"
               onClick={() => router.push(href)}
             >
               <CardContent className="p-8 h-full flex flex-col">
-                <div className={`w-16 h-16 bg-gradient-to-r ${gradient} rounded-2xl flex items-center justify-center mb-6`}>
-                  <Icon className="w-8 h-8 text-white" />
+                <div className="mb-6 flex items-start justify-between gap-4">
+                  <div className={`w-16 h-16 bg-gradient-to-r ${gradient} rounded-2xl flex items-center justify-center`}>
+                    <Icon className="w-8 h-8 text-white" />
+                  </div>
+                  {count !== null && (
+                    <span className="shrink-0 inline-flex min-w-[2.5rem] items-center justify-center rounded-full border border-sage-200 bg-white px-3 py-1 text-sm font-semibold text-charcoal shadow-sm tabular-nums">
+                      {count.toLocaleString()}
+                    </span>
+                  )}
                 </div>
                 <h3 className="text-xl font-bold text-charcoal mb-3">{title}</h3>
                 <p className="text-sage-600 mb-6 leading-relaxed">{description}</p>

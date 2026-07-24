@@ -131,12 +131,40 @@ export class FamilyRepository {
     }
   }
 
+  async countSiteMembers(siteId: string): Promise<number> {
+    try {
+      const db = this.getDb();
+      const querySnapshot = await db.collection('members')
+        .where('siteId', '==', siteId)
+        .where('role', 'in', ['admin', 'member'])
+        .get();
+      return querySnapshot.size;
+    } catch (error) {
+      console.error('Error counting site members:', error);
+      throw new Error('Failed to count site members');
+    }
+  }
+
   async getPendingMembers(siteId: string, opts?: MemberQueryOptions): Promise<FamilyMember[]> {
     try {
       return await this.members.listPendingMembers(siteId, opts);
     } catch (error) {
       console.error('Error getting pending members:', error);
       throw new Error('Failed to get pending members');
+    }
+  }
+
+  async countPendingMembers(siteId: string): Promise<number> {
+    try {
+      const db = this.getDb();
+      const querySnapshot = await db.collection(this.signupRequestsCollection)
+        .where('siteId', '==', siteId)
+        .where('status', 'in', ['pending', 'pending_verification'])
+        .get();
+      return querySnapshot.size;
+    } catch (error) {
+      console.error('Error counting pending members:', error);
+      throw new Error('Failed to count pending members');
     }
   }
 
