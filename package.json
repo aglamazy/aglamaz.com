@@ -19,6 +19,7 @@
     "test:links:verbose": "tsx tests/link-checker.ts --verbose",
     "prepare": "husky",
     "migrate:anniversaries:deletedAt": "npx tsx scripts/migrations/20250404-anniversaries-add-deletedAt.ts",
+    "migrate:sites:calendarSystems": "npx tsx scripts/migrations/20260724-sites-calendar-systems.ts",
     "firestore:pull": "firebase firestore:indexes > firebase/firestore.indexes.json",
     "firestore:push": "firebase deploy --only firestore:indexes"
   },

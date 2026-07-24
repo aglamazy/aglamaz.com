@@ -11,15 +11,23 @@ import ImageUploadArea from '@/components/ui/ImageUploadArea';
 import DateInput from '@/components/ui/DateInput';
 import { useSiteStore } from '@/store/SiteStore';
 import TouchSelect from '@/components/ui/TouchSelect';
+import type { CalendarSystem } from '@/entities/Site';
 
 interface EventFormContentProps {
   editEvent?: AnniversaryEvent | null;
   onSuccess: () => void;
 }
 
+const CALENDAR_SYSTEM_LABEL_KEYS: Record<CalendarSystem, string> = {
+  gregorian: 'calendarSystemGregorian',
+  jewish: 'calendarSystemJewish',
+  muslim: 'calendarSystemMuslim',
+};
+
 export default function EventFormContent({ editEvent, onSuccess }: EventFormContentProps) {
   const { t, i18n } = useTranslation();
   const site = useSiteStore((state) => state.siteInfo);
+  const siteCalendarSystems = site?.calendarSystems || [];
   const [form, setForm] = useState({
     name: '',
     description: '',
@@ -28,7 +36,7 @@ export default function EventFormContent({ editEvent, onSuccess }: EventFormCont
     type: 'other' as AnniversaryType | '',
     isAnnual: true,
     imageUrl: '',
-    useHebrew: false,
+    calendarSystem: '' as CalendarSystem | '',
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -50,6 +58,11 @@ export default function EventFormContent({ editEvent, onSuccess }: EventFormCont
       const year = (editEvent as any).originalYear ?? editEvent.year;
       const month = (editEvent as any).originalMonth ?? editEvent.month;
       const day = (editEvent as any).originalDay ?? editEvent.day;
+      const editCalendarSystem: CalendarSystem | '' = (editEvent as any).useHebrew
+        ? 'jewish'
+        : (site?.defaultCalendarSystem && siteCalendarSystems.includes(site.defaultCalendarSystem)
+          ? site.defaultCalendarSystem
+          : '');
       setForm({
         name: editEvent.name,
         description: editEvent.description || '',
@@ -58,9 +71,13 @@ export default function EventFormContent({ editEvent, onSuccess }: EventFormCont
         type: editEvent.type as AnniversaryType,
         isAnnual: editEvent.isAnnual,
         imageUrl: '',
-        useHebrew: Boolean((editEvent as any).useHebrew),
+        calendarSystem: editCalendarSystem,
       });
     } else {
+      const defaultCalendarSystem: CalendarSystem | '' =
+        site?.defaultCalendarSystem && siteCalendarSystems.includes(site.defaultCalendarSystem)
+          ? site.defaultCalendarSystem
+          : '';
       setForm({
         name: '',
         description: '',
@@ -69,12 +86,12 @@ export default function EventFormContent({ editEvent, onSuccess }: EventFormCont
         type: 'other' as AnniversaryType | '',
         isAnnual: true,
         imageUrl: '',
-        useHebrew: false,
+        calendarSystem: defaultCalendarSystem,
       });
     }
     setImageFile(null);
     setImageSrc('');
-  }, [editEvent]);
+  }, [editEvent, site?.defaultCalendarSystem]);
 
   useEffect(() => {
     if (imgRef.current) {
@@ -137,7 +154,8 @@ export default function EventFormContent({ editEvent, onSuccess }: EventFormCont
         throw new Error('Site ID not found');
       }
 
-      const payload = { ...form, imageUrl };
+      const { calendarSystem, ...formRest } = form;
+      const payload = { ...formRest, imageUrl, useHebrew: calendarSystem === 'jewish' };
       if (!payload.type) {
         setError(t('pleaseFillAllFields'));
         setSaving(false);
@@ -283,17 +301,26 @@ export default function EventFormContent({ editEvent, onSuccess }: EventFormCont
           </div>
         )}
       </div>
-      <div className="flex items-center">
-        <input
-          id="useHebrew"
-          type="checkbox"
-          checked={form.useHebrew}
-          onChange={(e) => setForm({ ...form, useHebrew: e.target.checked })}
-          className="mr-2"
-        />
-        <label htmlFor="useHebrew" className="text-text">{t('hebrewCalendar') as string}</label>
-      </div>
-      {form.useHebrew && form.date && (
+      {siteCalendarSystems.length > 0 && (
+        <div>
+          <label htmlFor="calendarSystem" className="block mb-1 text-sm text-text">
+            {t('calendarSystem') as string}
+          </label>
+          <select
+            id="calendarSystem"
+            className="border rounded w-full px-3 py-2"
+            value={form.calendarSystem}
+            onChange={(e) => setForm({ ...form, calendarSystem: e.target.value as CalendarSystem })}
+          >
+            {siteCalendarSystems.map((system) => (
+              <option key={system} value={system}>
+                {t(CALENDAR_SYSTEM_LABEL_KEYS[system]) as string}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+      {form.calendarSystem === 'jewish' && form.date && (
         <div className="text-sm text-sage-700">
           {t('hebrewDate') as string}: {new Intl.DateTimeFormat('he-u-ca-hebrew', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(form.date))}
         </div>

@@ -109,7 +109,7 @@
 ### ISite
 **File:** `/src/entities/Site.ts`
 **Description:** Family site with multi-locale content
-**Key Properties:** id, ownerUid, createdAt, updatedAt, name, aboutFamily, platformName, locales
+**Key Properties:** id, ownerUid, createdAt, updatedAt, name, aboutFamily, platformName, locales, calendarSystems, defaultCalendarSystem
 
 ### SiteLocaleContent
 **File:** `/src/entities/Site.ts`
