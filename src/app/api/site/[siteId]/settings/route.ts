@@ -1,6 +1,7 @@
 import { withAdminGuard } from '@/lib/withAdminGuard';
 import { GuardContext } from '@/app/api/types';
-import { SiteRepository, SiteNotFoundError } from '@/repositories/SiteRepository';
+import { SiteRepository, SiteNotFoundError, InvalidCalendarSystemsError } from '@/repositories/SiteRepository';
+import type { CalendarSystem } from '@/entities/Site';
 import nextI18NextConfig from '../../../../../../next-i18next.config.js';
 
 export const dynamic = 'force-dynamic';
@@ -16,7 +17,7 @@ const putHandler = async (request: Request, context: GuardContext & { params: { 
   try {
     const { siteId } = await resolveParams(context);
     const body = await request.json();
-    const { aboutFamily, sourceLang } = body;
+    const { aboutFamily, sourceLang, calendarSystems, defaultCalendarSystem } = body;
 
     if (typeof aboutFamily !== 'string') {
       return Response.json({ error: 'Invalid aboutFamily' }, { status: 400 });
@@ -32,9 +33,27 @@ const putHandler = async (request: Request, context: GuardContext & { params: { 
         sourceLang: lang,
         supportedLocales: SUPPORTED_LOCALES,
       });
+
+      if (calendarSystems !== undefined || defaultCalendarSystem !== undefined) {
+        if (
+          !Array.isArray(calendarSystems) ||
+          !calendarSystems.every((c) => typeof c === 'string') ||
+          typeof defaultCalendarSystem !== 'string'
+        ) {
+          return Response.json({ error: 'Invalid calendar system config' }, { status: 400 });
+        }
+        await repository.updateCalendarSystems({
+          siteId,
+          calendarSystems: calendarSystems as CalendarSystem[],
+          defaultCalendarSystem: defaultCalendarSystem as CalendarSystem,
+        });
+      }
     } catch (error) {
       if (error instanceof SiteNotFoundError) {
         return Response.json({ error: 'Site not found' }, { status: 404 });
+      }
+      if (error instanceof InvalidCalendarSystemsError) {
+        return Response.json({ error: error.message }, { status: 400 });
       }
       throw error;
     }

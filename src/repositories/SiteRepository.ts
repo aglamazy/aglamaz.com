@@ -4,7 +4,8 @@ import nextI18NextConfig from '../../next-i18next.config.js';
 import { initAdmin } from '@/firebase/admin';
 import { TranslationService } from '@/services/TranslationService';
 import { saveLocalizedContent } from '@/services/LocalizationService';
-import type { ISite } from '@/entities/Site';
+import type { ISite, CalendarSystem } from '@/entities/Site';
+import { CALENDAR_SYSTEMS } from '@/entities/Site';
 
 const SUPPORTED_LOCALES: string[] = Array.isArray(nextI18NextConfig?.i18n?.locales)
   ? nextI18NextConfig.i18n.locales
@@ -21,6 +22,13 @@ export class SiteNotFoundError extends Error {
   constructor(public readonly siteId: string) {
     super(`Site ${siteId} not found`);
     this.name = 'SiteNotFoundError';
+  }
+}
+
+export class InvalidCalendarSystemsError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'InvalidCalendarSystemsError';
   }
 }
 
@@ -232,6 +240,8 @@ export class SiteRepository {
     aboutFamily: string;
     sourceLang: string;
     aboutTranslations: Record<string, string>;
+    calendarSystems?: CalendarSystem[];
+    defaultCalendarSystem?: CalendarSystem;
   }> {
     const site = await this.fetchSite(siteId);
     if (!site) {
@@ -255,7 +265,42 @@ export class SiteRepository {
       aboutFamily: mostRecent?.value || '',
       sourceLang,
       aboutTranslations,
+      calendarSystems: site.calendarSystems,
+      defaultCalendarSystem: site.defaultCalendarSystem,
     };
+  }
+
+  async updateCalendarSystems(params: {
+    siteId: string;
+    calendarSystems: CalendarSystem[];
+    defaultCalendarSystem: CalendarSystem;
+  }): Promise<void> {
+    const { siteId, calendarSystems, defaultCalendarSystem } = params;
+
+    if (!calendarSystems.length) {
+      throw new InvalidCalendarSystemsError('calendarSystems must have at least one entry');
+    }
+    const invalid = calendarSystems.filter((c) => !CALENDAR_SYSTEMS.includes(c));
+    if (invalid.length) {
+      throw new InvalidCalendarSystemsError(`Unknown calendar system(s): ${invalid.join(', ')}`);
+    }
+    if (!calendarSystems.includes(defaultCalendarSystem)) {
+      throw new InvalidCalendarSystemsError('defaultCalendarSystem must be one of calendarSystems');
+    }
+
+    const docRef = this.siteDocRef(siteId);
+    const snap = await docRef.get();
+    if (!snap.exists) {
+      throw new SiteNotFoundError(siteId);
+    }
+
+    await docRef.update({
+      calendarSystems,
+      defaultCalendarSystem,
+      updatedAt: Timestamp.now(),
+    });
+
+    await this.revalidateSite(siteId);
   }
 
   async getIdByDomain(domain: string, opts?: GetOptions): Promise<string | null> {
@@ -357,6 +402,8 @@ export class SiteRepository {
       updatedAt: plain.updatedAt,
       isDemo: plain.isDemo === true ? true : undefined,
       locales: (plain.locales as ISite['locales']) || {},
+      calendarSystems: plain.calendarSystems as ISite['calendarSystems'],
+      defaultCalendarSystem: plain.defaultCalendarSystem as ISite['defaultCalendarSystem'],
     } as ISite;
   }
 

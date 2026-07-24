@@ -29,6 +29,11 @@ await newSiteRef.set({
   aboutFamily: "", // Optional family description
   sourceLang: "he", // Default source language
   aboutTranslations: {}, // Will be populated by the frontend
+
+  // Required: which calendar system(s) the event-creation form offers, and
+  // which one is pre-selected. See "Calendar System Config" below.
+  calendarSystems: ["gregorian", "jewish"],
+  defaultCalendarSystem: "gregorian",
 });
 ```
 
@@ -122,6 +127,35 @@ await fetch('https://famcircle.org/api/cache/revalidate', {
 
 ---
 
+## Calendar System Config
+
+Every site document must set `calendarSystems: string[]` and `defaultCalendarSystem: string`
+at creation time - the FamCircle app has no in-app site-creation flow (site docs are only ever
+created by this backoffice), so this is the only place these fields get populated. There is no
+silent fallback in the FamCircle app: a site missing these fields will not offer a calendar
+picker on its event-creation form (it behaves as Gregorian-only) and its site-settings admin
+page will require the fields to be filled in before any other settings can be saved. Values
+are one or more of `"gregorian" | "jewish" | "muslim"` (extensible later, e.g. `"christian"`).
+
+Use this heuristic when creating a site (mirrors `src/utils/calendarSystems.ts` in the FamCircle
+repo - keep the two in sync if you change one):
+
+```typescript
+function inferDefaultCalendarSystems(countryCode?: string) {
+  if (countryCode?.trim().toUpperCase() === 'IL') {
+    return { calendarSystems: ['gregorian', 'jewish'], defaultCalendarSystem: 'gregorian' };
+  }
+  return { calendarSystems: ['gregorian'], defaultCalendarSystem: 'gregorian' };
+}
+```
+
+This is a v1 heuristic, not a hardcoded country table - use judgment for cases it doesn't cover
+(e.g. a more insular/Haredi-leaning family might reasonably start `['jewish']` with `jewish` as
+default). Whatever is chosen at creation time, the family's own site admin can change it
+afterward in site settings.
+
+---
+
 ## Complete Example
 
 Here's a complete example function for the FamilyCore backoffice:
@@ -133,6 +167,7 @@ interface CreateSiteInput {
   domains?: string[]; // Optional: e.g., ["levi.famcircle.org", "levifamily.com"]
   primaryDomain?: string; // Optional: which domain is primary
   sourceLang?: string; // Optional: default "he"
+  countryCode?: string; // Optional: ISO 3166-1 alpha-2, used to infer calendarSystems
 }
 
 interface CreateSiteResult {
@@ -144,7 +179,8 @@ interface CreateSiteResult {
 async function createNewSite(
   input: CreateSiteInput
 ): Promise<CreateSiteResult> {
-  const { familyName, ownerUid, domains = [], primaryDomain, sourceLang = 'he' } = input;
+  const { familyName, ownerUid, domains = [], primaryDomain, sourceLang = 'he', countryCode } = input;
+  const { calendarSystems, defaultCalendarSystem } = inferDefaultCalendarSystems(countryCode);
 
   // Step 1: Create site document with auto-generated ID
   const sitesCollection = db.collection('sites');
@@ -160,6 +196,8 @@ async function createNewSite(
     translations: {},
     aboutFamily: '',
     aboutTranslations: {},
+    calendarSystems,
+    defaultCalendarSystem,
   });
 
   console.log(`✅ Created site document: sites/${siteId}`);

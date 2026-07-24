@@ -7,6 +7,10 @@ export interface FieldMeta {
 export const SITE_TRANSLATABLE_FIELDS = ['name', 'aboutFamily', 'platformName'] as const;
 export type SiteTranslatableField = typeof SITE_TRANSLATABLE_FIELDS[number];
 
+// Calendar systems a site can display events in. Extensible later (e.g. 'christian').
+export const CALENDAR_SYSTEMS = ['gregorian', 'jewish', 'muslim'] as const;
+export type CalendarSystem = typeof CALENDAR_SYSTEMS[number];
+
 export interface SiteLocaleContent {
   // Site name
   name?: string;
@@ -41,4 +45,11 @@ export interface ISite {
 
   // Storage structure (for accessing other locales and metadata)
   locales?: Record<string, SiteLocaleContent>;
+
+  // Calendar systems available on this site's event-creation form, and which
+  // one is pre-selected. Unset means the site hasn't been configured yet
+  // (older sites, or a backoffice creation flow that hasn't set it) - callers
+  // must handle that explicitly rather than assuming a default.
+  calendarSystems?: CalendarSystem[];
+  defaultCalendarSystem?: CalendarSystem;
 }
