@@ -9,23 +9,19 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { SiteRepository } from '@/repositories/SiteRepository';
-import { MemberRepository } from '@/repositories/MemberRepository';
-import { notificationPreferencesRepository } from '@/repositories/NotificationPreferencesRepository';
 import { DigestCompilerService } from '@/services/DigestCompilerService';
-import { DigestTemplateService, resolveDigestSiteName } from '@/services/DigestTemplateService';
+import { DigestTemplateService } from '@/services/DigestTemplateService';
 import { ResendService } from '@/services/ResendService';
 import { TranslationService } from '@/services/TranslationService';
-import { getMostRecentFieldVersion, normalizeLang } from '@/services/LocalizationService';
-import { AppRoute } from '@/utils/urls';
-import { getUrl } from '@/utils/serverUrls';
-import type { ISite } from '@/entities/Site';
-import type { UnifiedMagazineCadence } from '@/repositories/NotificationPreferencesRepository';
+import {
+  resolveDigestSendPlan,
+  DIGEST_SOURCE_LOCALE as SOURCE_LOCALE,
+  type SendableDigestCadence,
+} from '@/services/DigestRecipientResolver';
 
 export const dynamic = 'force-dynamic';
 
-const SOURCE_LOCALE = 'he';
-
-type SendableCadence = Exclude<UnifiedMagazineCadence, 'none'>;
+type SendableCadence = SendableDigestCadence;
 
 function resolveCadence(request: NextRequest): SendableCadence {
   return request.nextUrl.searchParams.get('cadence') === 'weekly' ? 'weekly' : 'monthly';
@@ -34,23 +30,6 @@ function resolveCadence(request: NextRequest): SendableCadence {
 /** Optional single-recipient scope for manual real-path verification (avoids emailing the whole site). */
 function resolveMemberIdFilter(request: NextRequest): string | null {
   return request.nextUrl.searchParams.get('memberId');
-}
-
-function resolveTargetLocale(site: ISite): string | null {
-  const candidates = [
-    getMostRecentFieldVersion(site, 'name')?.locale,
-    getMostRecentFieldVersion(site, 'aboutFamily')?.locale,
-    ...Object.keys(site.locales || {}),
-  ];
-
-  for (const candidate of candidates) {
-    const normalized = normalizeLang(candidate);
-    if (normalized) {
-      return normalized;
-    }
-  }
-
-  return null;
 }
 
 function getHtmlLang(locale: string): string {
@@ -112,7 +91,6 @@ export async function GET(request: NextRequest) {
   }
 
   const siteRepo = new SiteRepository();
-  const memberRepo = new MemberRepository();
   const digestCompiler = new DigestCompilerService();
   const cadence = resolveCadence(request);
   const memberIdFilter = resolveMemberIdFilter(request);
@@ -132,39 +110,13 @@ export async function GET(request: NextRequest) {
 
   for (const siteId of siteIds) {
     try {
-      const site = await siteRepo.get(siteId);
-      if (!site) {
-        throw new Error(`Site ${siteId} not found`);
-      }
-
-      const members = await memberRepo.listActiveMembers(siteId);
-      const prefs = await Promise.all(members.map((m) => notificationPreferencesRepository.get(m.id, siteId)));
-      let recipients = members.filter((member, i) => prefs[i].magazineCadence === cadence && !!member.email);
-      if (memberIdFilter) {
-        recipients = recipients.filter((member) => member.id === memberIdFilter);
-      }
-
-      if (recipients.length === 0) {
+      const plan = await resolveDigestSendPlan(siteId, cadence, { memberIdFilter });
+      if (!plan) {
         // Nobody on this site wants this cadence's send this run - skip compiling entirely.
         continue;
       }
+      const { siteName, siteDefaultLocale, calendarUrl, galleryUrl, recipients } = plan;
 
-      // Per-site canonical domain, not the cron request's runtime host - a request against
-      // localhost or a Vercel preview deployment must never bake that host into a sent link.
-      const calendarUrl = await getUrl(AppRoute.APP_CALENDAR, siteId);
-      const galleryUrl = await getUrl(AppRoute.APP_PHOTOS, siteId);
-
-      const siteDefaultLocale = resolveTargetLocale(site);
-      if (!siteDefaultLocale) {
-        throw new Error(`Unable to resolve digest locale for site ${siteId}`);
-      }
-
-      // Always resolve the name in SOURCE_LOCALE, matching the rest of the digest body
-      // (which is compiled+rendered in SOURCE_LOCALE below) - siteDefaultLocale is a loose
-      // "whatever locale this site has any data in" guess (any stray locales.* key can hijack
-      // it) and using it here produced a mixed-language digest when the site had an
-      // unexpected locale key present (Agla, 2026-07-21: "mixed Arabic Hebrew").
-      const siteName = resolveDigestSiteName(site, SOURCE_LOCALE, siteId);
       // Only the range computation differs between cadences - see CadenceDigestPayload's
       // doc comment (Agla, 2026-07-21 DRY correction).
       const digest =
@@ -175,9 +127,8 @@ export async function GET(request: NextRequest) {
       // Built per-member (not once per site): the greeting names the actual recipient,
       // and each member may read in a different locale (mirrors InDayReminderService's
       // existing per-member personalization).
-      for (const member of recipients) {
+      for (const { member, locale: recipientLocale } of recipients) {
         try {
-          const recipientLocale = normalizeLang(member.defaultLocale) ?? siteDefaultLocale;
           const recipientName = member.firstName || member.displayName || member.email;
           const template =
             cadence === 'weekly'
