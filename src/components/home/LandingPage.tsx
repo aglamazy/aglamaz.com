@@ -13,12 +13,9 @@ import {
   normalizeLang,
   type LocalizableDocument,
 } from '@/services/LocalizationService';
+import { toRichTextDoc, type LocalizedRichText } from '@/utils/richText';
 
-interface PlatformDescription {
-  content: string;
-  title: string;
-  translations: Record<string, { title: string; content: string }>;
-}
+type PlatformDescription = LocalizedRichText;
 
 interface TranslationEntry {
   translatedAt: any;
@@ -42,38 +39,6 @@ function resolveIsoDate(value: unknown): string | undefined {
 function resolveLogo(baseUrl: string | null) {
   if (!baseUrl) return undefined;
   return `${baseUrl}/favicon.svg`;
-}
-
-type RichTextFields = { title: string; content: string };
-type RichTextDoc = { locales: Record<string, RichTextFields> } & RichTextFields;
-
-function toRichTextDoc(
-  input: PlatformDescription | null | undefined,
-  sourceLang: string
-): RichTextDoc | null {
-  if (!input) return null;
-
-  const locales: Record<string, RichTextFields> = {};
-
-  // Add source content
-  locales[sourceLang] = {
-    title: input.title ?? '',
-    content: input.content ?? '',
-  };
-
-  // Add translations
-  for (const [locale, value] of Object.entries(input.translations ?? {})) {
-    locales[locale] = {
-      title: value?.title ?? '',
-      content: value?.content ?? '',
-    };
-  }
-
-  return {
-    title: input.title ?? '',
-    content: input.content ?? '',
-    locales,
-  };
 }
 
 export default async function LandingPage({ siteInfo, siteDescription, platformDescription, lang, baseUrl }: LandingPageProps) {
@@ -279,7 +244,20 @@ export default async function LandingPage({ siteInfo, siteDescription, platformD
           ))}
         </div>
 
-        {/* TODO: Add "Get Started" CTA button here */}
+        <div className="text-center mt-10 border-t border-sage-100 pt-10">
+          <h2 className="text-2xl font-bold text-charcoal mb-5">{t('createYourOwnSiteCtaTitle') as string}</h2>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+            <Link href={`/${lang}/create-your-own`}>
+              <Button className="group">
+                {t('createYourOwnSiteCtaButton') as string}
+                <ArrowCTA isRTL={isRTL} />
+              </Button>
+            </Link>
+            <Link href={`/${lang}/about`} className="text-sage-600 underline hover:no-underline">
+              {t('aboutFamCircleTitle') as string}
+            </Link>
+          </div>
+        </div>
       </section>
 
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: structuredData }} />

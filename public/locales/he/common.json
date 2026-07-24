@@ -449,5 +449,14 @@
   "growthLoopCtaTitle": "הזיכרון שלך שותף",
   "growthLoopCtaBody": "צרו את ה-FamCircle שלכם למשפחה — מרחב פרטי לשמירת סיפורים, תמונות ואבני דרך יחד.",
   "growthLoopCtaButton": "צרו את ה-FamCircle שלכם",
-  "growthLoopCtaDismiss": "אולי מאוחר יותר"
+  "growthLoopCtaDismiss": "אולי מאוחר יותר",
+  "aboutFamCircleTitle": "אודות FamCircle",
+  "aboutFamCircleIntro": "FamCircle הוא מרחב פרטי, המיועד למוזמנים בלבד, שבו משפחות שומרות את הסיפור המשותף שלהן — תמונות, בלוג, לוח שנה משותף והרגעים הקטנים שחשובים.",
+  "aboutFamCirclePrivacyNote": "לכל משפחה יש אתר פרטי משלה. שום דבר כאן אינו ציבורי אלא אם המשפחה שלכם בוחרת לשתף אותו.",
+  "createYourOwnSiteCtaTitle": "רוצים אתר פרטי כמו זה למשפחה שלכם?",
+  "createYourOwnSiteCtaButton": "צרו את אתר המשפחה שלכם",
+  "createYourOwnSitePageTitle": "צרו את אתר המשפחה שלכם",
+  "createYourOwnSiteIntro": "כל FamCircle נבנה עבור משפחה אחת — תמונות פרטיות, לוח שנה משותף, בלוג משפחתי ועוד, הכל במקום אחד רק בשבילכם.",
+  "createYourOwnSiteInterimNote": "אנחנו מכינים הרשמה עצמאית. בינתיים, צרו קשר ונתחיל להקים את אתר המשפחה שלכם.",
+  "poweredByFamCircleBlurb": "הבלוג המשפחתי הזה מופעל על ידי FamCircle."
 }

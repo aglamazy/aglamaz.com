@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import type { IBlogPost } from '@/entities/BlogPost';
 import { BlogRepository } from '@/repositories/BlogRepository';
@@ -149,6 +150,17 @@ export default async function FamilyBlogPage({ params }: FamilyBlogPageProps) {
       {/* For users with blogs: FAB to add post. For others: CTA to start a blog */}
       <AddPostFab />
       <BlogCTA />
+      <div className="rounded-lg border border-sage-200 bg-white/80 p-3 text-sm text-sage-700 flex flex-wrap items-center gap-x-4 gap-y-2 justify-between">
+        <span>{t('poweredByFamCircleBlurb') as string}</span>
+        <div className="flex items-center gap-4">
+          <Link href={`/${locale}/about`} className="underline hover:no-underline">
+            {t('aboutFamCircleTitle') as string}
+          </Link>
+          <Link href={`/${locale}/create-your-own`} className="underline hover:no-underline font-semibold">
+            {t('createYourOwnSiteCtaButton') as string}
+          </Link>
+        </div>
+      </div>
       {enriched.map(({ post, localized, name, handle, avatar, tint }) => (
         <Card key={post.id} className="border-0 shadow-lg bg-white/90">
           <CardHeader>
