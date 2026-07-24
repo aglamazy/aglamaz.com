@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from "react";
 import Navigation from "@/components/Navigation";
 import { useTranslation } from 'react-i18next';
 import { LogOut, Users, MessageCircle, Home as HomeIcon, BookOpen, User, LayoutDashboard, Images, Calendar } from 'lucide-react';
-import { useRouter, usePathname, useSearchParams } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { IUser } from "@/entities/User";
 import { IMember } from "@/entities/Member";
 import { ISite } from "@/entities/Site";
@@ -12,8 +12,8 @@ import { useLoginModalStore } from '@/store/LoginModalStore';
 import { useEditUserModalStore } from '@/store/EditUserModalStore';
 import { getPlatformName } from '@/utils/platformName';
 import MemberAvatar from '@/components/MemberAvatar';
-import { DEFAULT_LOCALE, SUPPORTED_LOCALES } from '@/i18n';
 import { LANGUAGES } from '@/constants/languages';
+import { useLocaleSwitcher } from '@/hooks/useLocaleSwitcher';
 
 interface HeaderProps {
   user?: IUser;
@@ -30,7 +30,6 @@ export default function Header({ user, member, onLogout, siteInfo }: HeaderProps
   const userMenuRef = useRef(null);
   const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const openLogin = useLoginModalStore((s) => s.open);
   const openEdit = useEditUserModalStore((s) => s.open);
   const siteDisplayName = siteInfo?.name?.trim();
@@ -50,47 +49,10 @@ export default function Header({ user, member, onLogout, siteInfo }: HeaderProps
     };
   }, [isUserMenuOpen]);
 
-  const normalizedLocale = (i18n.language || '').split('-')[0];
-  const currentLocale = SUPPORTED_LOCALES.includes(normalizedLocale) ? normalizedLocale : DEFAULT_LOCALE;
+  const { currentLocale, changeLocale } = useLocaleSwitcher();
 
   const handleLangChange = (lang: string) => {
-    const targetLocale = SUPPORTED_LOCALES.includes(lang) ? lang : DEFAULT_LOCALE;
-    if (i18n.language !== targetLocale) {
-      i18n.changeLanguage(targetLocale);
-    }
-
-    try {
-      const currentPath = pathname || '/';
-      const isPrivateRoute = currentPath.startsWith('/app') || currentPath.startsWith('/admin');
-      if (isPrivateRoute) {
-        const params = new URLSearchParams(searchParams?.toString());
-        params.set('locale', targetLocale);
-        const queryString = params.toString();
-        const nextUrl = queryString ? `${currentPath}?${queryString}` : currentPath;
-        router.replace(nextUrl, { scroll: false });
-        router.refresh();
-      } else {
-        const segments = currentPath.split('/').filter(Boolean);
-        let nextPath = currentPath;
-
-        if (segments.length > 0 && SUPPORTED_LOCALES.includes(segments[0])) {
-          const rest = segments.slice(1).join('/');
-          nextPath = `/${targetLocale}${rest ? `/${rest}` : ''}`;
-        } else if (segments.length === 0) {
-          nextPath = `/${targetLocale}`;
-        }
-
-        if (nextPath !== currentPath) {
-          router.replace(nextPath, { scroll: false });
-        } else {
-          router.replace(currentPath, { scroll: false });
-        }
-        router.refresh();
-      }
-    } catch (error) {
-      console.error('[Header] failed to update locale path', error);
-    }
-
+    changeLocale(lang);
     setIsLangMenuOpen(false);
   };
 
