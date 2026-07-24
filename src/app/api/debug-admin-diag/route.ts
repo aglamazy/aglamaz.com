@@ -9,6 +9,12 @@ import { getAuth } from 'firebase-admin/auth';
 
 export const dynamic = 'force-dynamic';
 
+function mask(value: string, headLen = 16, tailLen = 16): string {
+  if (!value) return '(empty)';
+  if (value.length <= headLen + tailLen) return `${value.slice(0, 4)}....${value.slice(-4)} (len=${value.length})`;
+  return `${value.slice(0, headLen)}....${value.slice(-tailLen)} (len=${value.length})`;
+}
+
 export async function GET() {
   const projectIdEnv = process.env.FIREBASE_PROJECT_ID || '';
   const clientEmailEnv = process.env.FIREBASE_CLIENT_EMAIL || '';
@@ -28,12 +34,16 @@ export async function GET() {
 
   return NextResponse.json({
     env: {
-      FIREBASE_PROJECT_ID: { len: projectIdEnv.length, prefix: projectIdEnv.slice(0, 4), suffix: projectIdEnv.slice(-4) },
-      FIREBASE_CLIENT_EMAIL: { len: clientEmailEnv.length, prefix: clientEmailEnv.slice(0, 6), suffix: clientEmailEnv.slice(-12) },
-      FIREBASE_PRIVATE_KEY: { len: privateKeyEnv.length, hasLiteralBackslashN: privateKeyEnv.includes('\\n'), hasRealNewline: privateKeyEnv.includes('\n'), prefix: privateKeyEnv.slice(0, 30) },
+      FIREBASE_PROJECT_ID: mask(projectIdEnv),
+      FIREBASE_CLIENT_EMAIL: mask(clientEmailEnv),
+      FIREBASE_PRIVATE_KEY: {
+        masked: mask(privateKeyEnv, 20, 10),
+        hasLiteralBackslashN: privateKeyEnv.includes('\\n'),
+        hasRealNewline: privateKeyEnv.includes('\n'),
+      },
     },
     appsRegisteredCount: getApps().length,
-    appOptionsProjectId,
+    appOptionsProjectId: mask(String(appOptionsProjectId), 20, 10),
     initError,
   });
 }
