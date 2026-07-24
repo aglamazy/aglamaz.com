@@ -63,3 +63,36 @@
 :global([dir='rtl']) .yearNavIcon {
   transform: scaleX(-1);
 }
+
+/* Memorial (death event) badge — a small, muted marker rather than a
+   loud alert, in keeping with the sensitivity of the content. */
+.eventCardImageWrapper {
+  position: relative;
+  width: 100%;
+}
+
+.eventCardImageWrapperPlain {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem 0;
+  min-height: 2.25rem;
+}
+
+.deathBadge {
+  position: absolute;
+  top: -4px;
+  left: -4px;
+  width: 18px;
+  height: 18px;
+  border-radius: 9999px;
+  background: #2C3E36; /* charcoal (text) */
+  border: 2px solid #FEFCF8; /* cream ring for contrast against photos */
+  box-shadow: 0 1px 3px rgba(44, 62, 54, 0.35);
+  z-index: 1;
+}
+
+:global([dir='rtl']) .deathBadge {
+  left: auto;
+  right: -4px;
+}
