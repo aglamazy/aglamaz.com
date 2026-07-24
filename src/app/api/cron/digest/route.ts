@@ -2,12 +2,14 @@
 // directly (per-member, via Resend) - not a single site-wide Listmonk campaign.
 // Per docs/family-digest-formats-spec.md §1: cadence is a per-member choice
 // ('weekly' | 'monthly' | 'none'), resolved at send time, from ONE shared route.
-// Two cron schedules point at this same route (see vercel.json), each firing 3x on its
-// day (Agla, 2026-07-24 - the "3 of 11" incident: any single run can be interrupted by a
-// deploy cutover, timeout, or partial failure; DigestSendRepository's per-period dedup
-// means a rerun only fills the gap, never double-sends):
-//   - "0 0,6,12 1 * *"       -> monthly cadence (default, no query param)
-//   - "0 6,10,14 * * 5"      -> weekly cadence (rolling window)
+// Four cron entries point at this same route (see vercel.json) - a burst of 7 fires every
+// 10 minutes for an hour after the base time, not spread across the day (Agla, 2026-07-24
+// - the "3 of 11" incident: any single run can be interrupted by a deploy cutover, timeout,
+// or partial failure; DigestSendRepository's per-period dedup makes this cheap - each
+// later fire is a near-no-op for whoever already got it, "broadcast" only reaches
+// whoever's still missing, so tight retries converge to 100% within the hour):
+//   - "0,10,20,30,40,50 0 1 * *" + "0 1 1 * *"   -> monthly (default, no query param): 00:00-01:00 UTC on the 1st
+//   - "0,10,20,30,40,50 6 * * 5" + "0 7 * * 5"   -> weekly (rolling window): 06:00-07:00 UTC Friday
 // Auth: Vercel Cron sends Authorization: Bearer {CRON_SECRET}; same secret used for manual curl tests.
 
 import { NextRequest, NextResponse } from 'next/server';
