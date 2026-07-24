@@ -1,4 +1,4 @@
-import { getFirestore, Timestamp } from 'firebase-admin/firestore';
+import { getFirestore, Timestamp, Query, DocumentData } from 'firebase-admin/firestore';
 import { initAdmin } from '../firebase/admin';
 
 export interface ContactMessage {
@@ -34,7 +34,7 @@ export class ContactRepository {
 
   async countMessages(siteId?: string): Promise<number> {
     const db = this.getDb();
-    let query = db.collection(this.collection);
+    let query: Query<DocumentData> = db.collection(this.collection);
     if (siteId) {
       query = query.where('siteId', '==', siteId);
     }

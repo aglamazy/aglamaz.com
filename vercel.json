@@ -21,10 +21,6 @@
       "schedule": "0 7 * * 5"
     },
     {
-      "path": "/api/cron/digest-preview",
-      "schedule": "0 0 * * *"
-    },
-    {
       "path": "/api/cron/in-day-reminders",
       "schedule": "10 6 * * *"
     }
