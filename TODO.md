@@ -134,3 +134,21 @@ When users are hard-deleted, orphaned references remain (likes, createdBy, autho
 `AppRoute.ADMIN_ANNIVERSARIES` → `/admin/anniversaries` is defined but no page exists. Never used anywhere.
 
 - [ ] Either create the admin anniversaries page or remove the route enum + path
+
+---
+
+## 13. Admin Page Shells Render for Non-Admin Members (layout-level guard missing)
+
+**Confirmed by code trace (famcircle#85):** `src/app/admin/layout.tsx` resolves `siteId`/locale/`siteInfo` for rendering context but never checks `member.role`. Traced every layer between a request and an admin page mounting — none of them gate on role:
+
+- No `middleware.ts` exists anywhere in the repo — no edge-level route protection for `/admin/*`.
+- `src/app/admin/layout.tsx` — no role check, no `redirect()`/`notFound()`.
+- `ClientLayoutShell` (client wrapper rendered inside the layout) — checks auth login state and membership status (pending/not-applied modals), but never `member.role`.
+- Individual admin pages (`site-members`, `dashboard`, `site-settings`, etc.) — no role check, no redirect.
+
+Net effect: any logged-in member (role `'member'`) who navigates directly to e.g. `/admin/site-members` gets the full page shell — nav chrome, filters, an admin-only role-edit `<select>` per row, and the "Invite Members" card with a working "Generate" button. Only the underlying API calls (`SITE_MEMBERS`, `SITE_INVITES`, etc., all wrapped in `withAdminGuard`) 403 — so no admin *data* leaks, but the page structure, labels, and privileged controls do, and a member could try clicking "Generate invite link" (it will just 403).
+
+No other layout in the codebase (`auth/layout.tsx`, `app/layout.tsx`, `review/layout.tsx`) does a role-gated redirect either, so there's no existing pattern to copy — this needs a fresh one.
+
+- [ ] Add a server-side check in `src/app/admin/layout.tsx`: if `!member || member.role !== 'admin'`, redirect (e.g. to `/`, matching `landingPage` from `src/app/settings.ts`) before rendering `children`
+- [ ] Decide on UX for the redirect (silent redirect vs. a toast/message explaining why)
