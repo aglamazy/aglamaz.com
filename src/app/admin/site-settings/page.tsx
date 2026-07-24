@@ -14,6 +14,7 @@ export default function SiteSettingsPage() {
   const site = useSiteStore((state) => state.siteInfo) as ISite | null;
   const [aboutFamily, setAboutFamily] = useState('');
   const [sourceLang, setSourceLang] = useState('he');
+  const [defaultLocale, setDefaultLocale] = useState('he');
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -28,10 +29,12 @@ export default function SiteSettingsPage() {
         const data = await apiFetch<{
           aboutFamily: string;
           sourceLang: string;
+          defaultLocale: string | null;
           aboutTranslations: Record<string, string>;
         }>(ApiRoute.SITE_SETTINGS);
         setAboutFamily(data.aboutFamily || '');
         setSourceLang(data.sourceLang || 'he');
+        setDefaultLocale(data.defaultLocale || 'he');
       } catch (err) {
         console.error('Failed to load site settings', err);
         setError(t('failedToLoadSettings'));
@@ -52,7 +55,7 @@ export default function SiteSettingsPage() {
     try {
       await apiFetch(ApiRoute.SITE_SETTINGS, {
         method: 'PUT',
-        body: { aboutFamily, sourceLang },
+        body: { aboutFamily, sourceLang, defaultLocale },
       });
       setSuccessMessage(t('settingsSavedSuccessfully'));
       setTimeout(() => setSuccessMessage(''), 3000);
@@ -122,6 +125,24 @@ export default function SiteSettingsPage() {
               </select>
               <p className="text-xs text-sage-500 mt-1">
                 {t('sourceLanguageHint')}
+              </p>
+            </div>
+
+            <div className="mb-6">
+              <label className="block mb-2 text-sm font-medium text-sage-700">
+                {t('defaultLocale')}
+              </label>
+              <select
+                value={defaultLocale}
+                onChange={(e) => setDefaultLocale(e.target.value)}
+                className="w-full sm:w-auto p-2 border border-sage-200 rounded-md focus:outline-none focus:ring-2 focus:ring-sage-500 focus:border-transparent"
+              >
+                <option value="he">{t('hebrew')}</option>
+                <option value="en">{t('english')}</option>
+                <option value="tr">{t('turkish')}</option>
+              </select>
+              <p className="text-xs text-sage-500 mt-1">
+                {t('defaultLocaleHint')}
               </p>
             </div>
 

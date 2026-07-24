@@ -4,8 +4,6 @@
 import { renderEmailHtml, escapeHtml } from './emailTemplates';
 import type { AnniversaryType } from '@/entities/Anniversary';
 
-export type ReminderTopic = 'birthday' | 'yahrzeit' | 'tag';
-
 export type TaggedContentType = 'blessing' | 'photo' | 'post';
 
 export interface InDayEventItem {
@@ -46,22 +44,6 @@ export interface TagNotificationEmailParams {
   siteName?: string;
 }
 
-export interface ReminderEmailParams {
-  topic: ReminderTopic;
-  firstName: string;
-  /** Name of the person whose birthday/yahrzeit it is */
-  eventName: string;
-  /** Human-readable date string, e.g. "July 15" or "ט״ו תמוז" */
-  occurrenceDate: string;
-  /** Signed link for reminder preference management */
-  manageLink: string;
-  /** Optional direct link to the app calendar */
-  calendarUrl?: string;
-  lang?: string;
-  dir?: 'ltr' | 'rtl';
-  siteName?: string;
-}
-
 export interface TransactionalEmailParams {
   to: string;
   subject: string;
@@ -69,75 +51,6 @@ export interface TransactionalEmailParams {
   lang?: string;
 }
 
-interface LocalizedStrings {
-  subject: string;
-  greeting: string;
-  body: string;
-  calendarButtonLabel: string;
-  manageFooter: string;
-}
-
-function getLocalizedStrings(
-  topic: ReminderTopic,
-  firstName: string,
-  eventName: string,
-  occurrenceDate: string,
-  lang: string,
-  manageLink: string,
-): LocalizedStrings {
-  if (lang === 'he') {
-    return topic === 'birthday'
-      ? {
-          subject: `🎂 תזכורת יום הולדת — ${eventName}`,
-          greeting: `שלום ${firstName},`,
-          body: `היום הוא יום ההולדת של ${eventName} (${occurrenceDate}). אל תשכח/י לאחל מזל טוב!`,
-          calendarButtonLabel: 'פתח/י את לוח השנה',
-          manageFooter: `<a href="${manageLink}">נהל/י העדפות תזכורות</a>`,
-        }
-      : {
-          subject: `🕯️ תזכורת יום פטירה — ${eventName}`,
-          greeting: `שלום ${firstName},`,
-          body: `היום הוא יום הפטירה של ${eventName} (${occurrenceDate}). יהי זכרם ברוך.`,
-          calendarButtonLabel: 'פתח/י את לוח השנה',
-          manageFooter: `<a href="${manageLink}">נהל/י העדפות תזכורות</a>`,
-        };
-  }
-
-  if (lang === 'tr') {
-    return topic === 'birthday'
-      ? {
-          subject: `🎂 Doğum günü hatırlatıcısı — ${eventName}`,
-          greeting: `Merhaba ${firstName},`,
-          body: `Bugün ${eventName}'in doğum günü (${occurrenceDate}). Tebrik etmeyi unutmayın!`,
-          calendarButtonLabel: 'Takvimi Aç',
-          manageFooter: `<a href="${manageLink}">Hatırlatıcı tercihlerini yönet</a>`,
-        }
-      : {
-          subject: `🕯️ Yahrzeit hatırlatıcısı — ${eventName}`,
-          greeting: `Merhaba ${firstName},`,
-          body: `Bugün ${eventName}'in yahrzeiti (${occurrenceDate}). Anıları daima yaşayacak.`,
-          calendarButtonLabel: 'Takvimi Aç',
-          manageFooter: `<a href="${manageLink}">Hatırlatıcı tercihlerini yönet</a>`,
-        };
-  }
-
-  // Default: English
-  return topic === 'birthday'
-    ? {
-        subject: `🎂 Birthday reminder — ${eventName}`,
-        greeting: `Hi ${firstName},`,
-        body: `Today is ${eventName}'s birthday (${occurrenceDate}). Don't forget to reach out and wish them well!`,
-        calendarButtonLabel: 'Open Calendar',
-        manageFooter: `<a href="${manageLink}">Manage reminder preferences</a>`,
-      }
-    : {
-        subject: `🕯️ Yahrzeit reminder — ${eventName}`,
-        greeting: `Hi ${firstName},`,
-        body: `Today marks the yahrzeit of ${eventName} (${occurrenceDate}). May their memory be a blessing.`,
-        calendarButtonLabel: 'Open Calendar',
-        manageFooter: `<a href="${manageLink}">Manage reminder preferences</a>`,
-      };
-}
 
 interface TagLocalizedStrings {
   subject: string;
@@ -316,40 +229,6 @@ export class ResendService {
   }
 
   /**
-   * Build the subject + rich HTML for a birthday or yahrzeit reminder email.
-   * Uses the shared renderEmailHtml wrapper which handles RTL/LTR layout automatically.
-   */
-  static buildReminderEmailHtml(params: ReminderEmailParams): { subject: string; html: string } {
-    const lang = params.lang ?? 'en';
-    const dir = params.dir ?? (lang === 'he' ? 'rtl' : 'ltr');
-    const heading = params.siteName ? `🌳 ${params.siteName}` : undefined;
-
-    const strings = getLocalizedStrings(
-      params.topic,
-      params.firstName,
-      params.eventName,
-      params.occurrenceDate,
-      lang,
-      params.manageLink,
-    );
-
-    const html = renderEmailHtml({
-      subject: strings.subject,
-      lang,
-      dir,
-      heading,
-      greeting: strings.greeting,
-      paragraphs: [strings.body],
-      button: params.calendarUrl
-        ? { label: strings.calendarButtonLabel, url: params.calendarUrl }
-        : undefined,
-      footerLines: [strings.manageFooter],
-    });
-
-    return { subject: strings.subject, html };
-  }
-
-  /**
    * Build the subject + rich HTML for the in-day reminder nudge (docs/family-digest-formats-spec.md
    * §2/§6) - one short email covering ALL of today's occurrences for the member's family
    * calendar (never one email per occurrence). Every event row shows a photo (when available)
@@ -386,7 +265,7 @@ export class ResendService {
 
   /**
    * Build the subject + rich HTML for a "you were tagged" notification email.
-   * Event-triggered (not date-computed) — mirrors buildReminderEmailHtml's shape/wrapper reuse.
+   * Event-triggered (not date-computed) — mirrors buildInDayReminderEmailHtml's shape/wrapper reuse.
    */
   static buildTagNotificationEmailHtml(params: TagNotificationEmailParams): { subject: string; html: string } {
     const lang = params.lang ?? 'en';

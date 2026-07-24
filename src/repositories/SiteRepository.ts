@@ -231,6 +231,7 @@ export class SiteRepository {
   async getSettings(siteId: string): Promise<{
     aboutFamily: string;
     sourceLang: string;
+    defaultLocale: string | null;
     aboutTranslations: Record<string, string>;
   }> {
     const site = await this.fetchSite(siteId);
@@ -246,16 +247,40 @@ export class SiteRepository {
       }
     }
 
-    // Find which locale has the most recent aboutFamily (as pseudo "source")
+    // Show the site's real content (its own defaultLocale), not a "most recently edited"
+    // guess (Agla, 2026-07-24 - the "Arabic digest" incident, now caught a third call site:
+    // this admin page was loading a stray locales.ar entry into the editor instead of the
+    // real Hebrew text). Only fall back to the old heuristic when a site genuinely has no
+    // defaultLocale configured yet.
     const { getMostRecentFieldVersion } = await import('@/services/LocalizationService');
-    const mostRecent = getMostRecentFieldVersion(site, 'aboutFamily');
-    const sourceLang = mostRecent?.locale || 'he';
+    let sourceLang: string;
+    let aboutFamilyValue: string;
+    if (site.defaultLocale) {
+      sourceLang = site.defaultLocale;
+      aboutFamilyValue = site.locales?.[site.defaultLocale]?.aboutFamily || '';
+    } else {
+      const mostRecent = getMostRecentFieldVersion(site, 'aboutFamily');
+      sourceLang = mostRecent?.locale || 'he';
+      aboutFamilyValue = mostRecent?.value || '';
+    }
 
     return {
-      aboutFamily: mostRecent?.value || '',
+      aboutFamily: aboutFamilyValue,
       sourceLang,
+      defaultLocale: site.defaultLocale || null,
       aboutTranslations,
     };
+  }
+
+  /**
+   * The site's configured primary language (ISite.defaultLocale doc comment) - explicit,
+   * admin-set, used as the fallback whenever a MEMBER has no language preference of their
+   * own. Deliberately separate from updateAbout/sourceLang, which is about the aboutFamily
+   * translation pipeline, not this.
+   */
+  async updateDefaultLocale(siteId: string, defaultLocale: string): Promise<void> {
+    await this.siteDocRef(siteId).update({ defaultLocale, updatedAt: Timestamp.now() });
+    await this.revalidateSite(siteId);
   }
 
   async getIdByDomain(domain: string, opts?: GetOptions): Promise<string | null> {
@@ -356,6 +381,7 @@ export class SiteRepository {
       createdAt: plain.createdAt,
       updatedAt: plain.updatedAt,
       isDemo: plain.isDemo === true ? true : undefined,
+      defaultLocale: (plain.defaultLocale as string) || undefined,
       locales: (plain.locales as ISite['locales']) || {},
     } as ISite;
   }

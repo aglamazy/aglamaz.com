@@ -12,7 +12,14 @@ export interface GalleryPhotoForEdit {
   id: string;
   date: any;
   description?: string;
-  images: string[];
+  // Set only by the delete path — callers must check this explicitly rather
+  // than inferring "was deleted" from an empty images array. This modal never
+  // had the post's real image list to begin with (initialPhoto is built from
+  // the feed's Occurrence type, which has no `images` field), so that
+  // inference was always wrong: saving a title/date edit reported
+  // images: [] too, which the feed read as "emptied out" and removed the
+  // post from view even though nothing was deleted (famcircle#79 follow-up).
+  deleted?: boolean;
 }
 
 interface GalleryPhotoEditModalProps {
@@ -81,7 +88,6 @@ export default function GalleryPhotoEditModal({
         id: photoId,
         date: new Date(date),
         description: description.trim(),
-        images: initialPhoto?.images || [],
       });
 
       onClose();
@@ -112,7 +118,7 @@ export default function GalleryPhotoEditModal({
         id: photoId,
         date: initialPhoto?.date,
         description: '',
-        images: [],
+        deleted: true,
       });
 
       setShowDeleteConfirm(false);

@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react';
-import { Analytics } from '@vercel/analytics/react';
 import PublicLayoutShell from '@/components/PublicLayoutShell';
 import I18nProvider from '@/components/I18nProvider';
 import I18nGate from '@/components/I18nGate';
@@ -49,7 +48,6 @@ export default async function PublicLayout({ children, params }: LocaleLayoutPro
         <PublicLayoutShell siteInfo={siteInfo} locale={locale} resolvedLocale={resolvedLocale}>
           {children}
         </PublicLayoutShell>
-        <Analytics />
       </I18nGate>
     </I18nProvider>
   );

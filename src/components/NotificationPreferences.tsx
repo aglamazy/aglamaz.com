@@ -4,18 +4,17 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { apiFetch } from '@/utils/apiFetch';
 import { ApiRoute } from '@/entities/Routes';
+import type { UnifiedMagazineCadence } from '@/repositories/NotificationPreferencesRepository.utils';
+import { DEFAULT_PREFERENCES as SHARED_DEFAULT_PREFERENCES } from '@/repositories/NotificationPreferencesRepository.utils';
 
-type MagazineCadence = 'weekly' | 'monthly' | 'none';
+type MagazineCadence = UnifiedMagazineCadence;
 
 interface PreferencesPayload {
   magazineCadence: MagazineCadence;
   inDayRemindersEnabled: boolean;
 }
 
-const DEFAULT_PREFERENCES: PreferencesPayload = {
-  magazineCadence: 'monthly',
-  inDayRemindersEnabled: true,
-};
+const DEFAULT_PREFERENCES: PreferencesPayload = SHARED_DEFAULT_PREFERENCES;
 
 function normalizePreferences(payload: Partial<PreferencesPayload>): PreferencesPayload {
   return {

@@ -91,10 +91,17 @@ export default function PhotosPage() {
     }
   }, [editTarget, items, canEditOccurrence]);
 
-  const offsetRef = useRef(0);
+  // Date cursor for pagination (the date of the last-loaded item, or a
+  // jump-to-date target) — see SITE_PICTURES's `before` param. Replaced the
+  // old numeric offset: offset re-fetched every prior page on every request,
+  // which made reaching old content (e.g. a 2018 photo) take dozens of
+  // progressively-slower round trips (famcircle#79 follow-up). A date cursor
+  // costs the same O(limit) at any depth, and doubles as the jump-to-date
+  // mechanism — jumping just sets this to the target date instead of 0.
+  const cursorRef = useRef<Date | undefined>(undefined);
   const loadingRef = useRef(false);
 
-  const loadFeed = useCallback(async (pageNum = 0, limit = ITEMS_PER_PAGE): Promise<boolean> => {
+  const loadFeed = useCallback(async (pageNum = 0, limit = ITEMS_PER_PAGE, jumpCursor?: Date): Promise<boolean> => {
     if (!mountedRef.current) return false;
     if (loadingRef.current) return false;
     loadingRef.current = true;
@@ -102,7 +109,7 @@ export default function PhotosPage() {
     const isInitialLoad = pageNum === 0;
     if (isInitialLoad) {
       setLoading(true);
-      offsetRef.current = 0;
+      cursorRef.current = jumpCursor;
     } else {
       setLoadingMore(true);
     }
@@ -116,14 +123,18 @@ export default function PhotosPage() {
         queryParams: {
           locale: i18n.language,
           limit: String(limit),
-          offset: String(offsetRef.current),
           sizes: '400x400,1200x1200',
+          ...(cursorRef.current ? { before: cursorRef.current.toISOString() } : {}),
         },
       });
       if (!mountedRef.current) return false;
       const list: Occurrence[] = Array.isArray(data.items) ? data.items : [];
 
-      offsetRef.current += list.length;
+      if (list.length > 0) {
+        const lastDate = list[list.length - 1].date as any;
+        const sec = lastDate?._seconds ?? lastDate?.seconds;
+        cursorRef.current = typeof sec === 'number' ? new Date(sec * 1000) : new Date(lastDate);
+      }
       setHasMore(list.length === limit);
 
       if (isInitialLoad) {
@@ -218,6 +229,23 @@ export default function PhotosPage() {
     }
   }, [loadFeed, loadingMore, hasMore, page]);
 
+  // Jump-to-month: reloads the feed starting from the first day AFTER the
+  // selected month, so `before` includes the whole month picked.
+  const [jumpMonth, setJumpMonth] = useState('');
+  const handleJumpToMonth = useCallback((value: string) => {
+    setJumpMonth(value);
+    if (!value) {
+      setPage(0);
+      void loadFeed(0);
+      return;
+    }
+    const [y, m] = value.split('-').map(Number);
+    if (!y || !m) return;
+    const cursor = new Date(Date.UTC(y, m, 1, 0, 0, 0)); // first moment of the NEXT month
+    setPage(0);
+    void loadFeed(0, ITEMS_PER_PAGE, cursor);
+  }, [loadFeed]);
+
   // Infinite scroll detection
   useEffect(() => {
     const handleScroll = () => {
@@ -257,6 +285,8 @@ export default function PhotosPage() {
         throw new Error(`[PhotosPage] missing creatorId for ${occ.type || 'item'} ${occ.id}`);
       }
       const canEdit = canEditOccurrence(creatorId);
+      const occVideos = occ.videos || [];
+      const groupSize = eventImages.length + occVideos.length;
 
       eventImages.forEach((image, i) => {
         const aspectRatio = image.width > 0 && image.height > 0 ? image.height / image.width : undefined;
@@ -267,12 +297,11 @@ export default function PhotosPage() {
           title: i === 0 ? title : undefined,
           dir: textDirection,
           aspectRatio,
-          meta: { occId: occ.id, annId, idx: i, canEdit, type: occ.type, creatorId, groupTitle: title },
+          meta: { occId: occ.id, annId, idx: i, canEdit, type: occ.type, creatorId, groupTitle: title, groupSize },
         });
       });
 
       // Add video items
-      const occVideos = occ.videos || [];
       occVideos.forEach((videoUrl, vi) => {
         flat.push({
           key: `${occ.type}:${occ.id}:v${vi}`,
@@ -280,7 +309,7 @@ export default function PhotosPage() {
           title: eventImages.length === 0 && vi === 0 ? title : undefined,
           dir: textDirection,
           mediaType: 'video',
-          meta: { occId: occ.id, annId, idx: eventImages.length + vi, canEdit, type: occ.type, creatorId, groupTitle: title },
+          meta: { occId: occ.id, annId, idx: eventImages.length + vi, canEdit, type: occ.type, creatorId, groupTitle: title, groupSize },
         });
       });
     }
@@ -319,15 +348,138 @@ export default function PhotosPage() {
     }
   }, []);
 
+  // Removes just this one image/video from its gallery post, without touching
+  // the rest of that day's photos (famcircle#79 — pruning bulk-imported junk
+  // shouldn't force an all-or-nothing choice per post). Gallery posts only —
+  // anniversary-event photos still go through OccurrenceEditModal as a whole.
+  const handleDeleteItem = useCallback(async (item: GridItem) => {
+    const m = item.meta as { occId: string; idx: number; canEdit?: boolean; type?: 'occurrence' | 'gallery' };
+    if (!m.canEdit) return;
+    if (m.type !== 'gallery') {
+      console.error('[PhotosPage] per-item delete is only supported for gallery posts, got', m.type);
+      return;
+    }
+    if (!window.confirm(t('confirmDeletePhoto') || 'Are you sure you want to delete this photo?')) return;
+
+    const occ = items.find((o) => o.id === m.occId);
+    if (!occ) return;
+    const images = occ.imagesResized || [];
+    const videosList = occ.videos || [];
+
+    const remainingImages = m.idx < images.length
+      ? images.filter((_, i) => i !== m.idx)
+      : images;
+    const remainingVideos = m.idx >= images.length
+      ? videosList.filter((_, vi) => images.length + vi !== m.idx)
+      : videosList;
+
+    try {
+      const res = await apiFetch<{ success: boolean; deleted?: boolean }>(ApiRoute.SITE_PHOTO_BY_ID, {
+        method: 'PUT',
+        pathParams: { photoId: m.occId },
+        body: {
+          locale: i18n.language,
+          imagesWithDimensions: remainingImages.map((img) => ({ url: img.original, width: img.width, height: img.height })),
+          videos: remainingVideos,
+        },
+      });
+
+      if (res.deleted || (remainingImages.length === 0 && remainingVideos.length === 0)) {
+        setItems((prev) => prev.filter((o) => o.id !== m.occId));
+      } else {
+        setItems((prev) => prev.map((o) => (o.id === m.occId ? { ...o, imagesResized: remainingImages, videos: remainingVideos } : o)));
+      }
+    } catch (e) {
+      console.error('[photos] delete item failed', e);
+    }
+  }, [items, i18n.language, t]);
+
+  // Splits one image/video out of a multi-item gallery post into its own new
+  // post, same date. For cases like a WhatsApp-day import where two unrelated
+  // moments got bundled together just because they were shared the same day —
+  // "delete" would lose the photo; this keeps it, just un-bundled.
+  const handleDetachItem = useCallback(async (item: GridItem) => {
+    const m = item.meta as { occId: string; idx: number; canEdit?: boolean; type?: 'occurrence' | 'gallery'; groupSize?: number };
+    if (!m.canEdit) return;
+    if (m.type !== 'gallery') {
+      console.error('[PhotosPage] detach is only supported for gallery posts, got', m.type);
+      return;
+    }
+    if (!m.groupSize || m.groupSize <= 1) return;
+    if (!window.confirm(t('confirmDetachPhoto') || 'Move this photo into its own separate post?')) return;
+
+    const occ = items.find((o) => o.id === m.occId);
+    if (!occ) return;
+    const images = occ.imagesResized || [];
+    const videosList = occ.videos || [];
+    const isImage = m.idx < images.length;
+    const detachedImage = isImage ? images[m.idx] : undefined;
+    const detachedVideoUrl = isImage ? undefined : videosList[m.idx - images.length];
+
+    const remainingImages = isImage ? images.filter((_, i) => i !== m.idx) : images;
+    const remainingVideos = isImage ? videosList : videosList.filter((_, vi) => images.length + vi !== m.idx);
+
+    const d = occ.date as any;
+    const sec = d?._seconds ?? d?.seconds;
+    const dateIso = (typeof sec === 'number' ? new Date(sec * 1000) : new Date(d)).toISOString();
+
+    try {
+      const createRes = await apiFetch<{ photo: { id: string; date: any } }>(ApiRoute.SITE_PHOTOS, {
+        method: 'POST',
+        body: {
+          date: dateIso,
+          images: detachedImage ? [detachedImage.original] : [],
+          videos: detachedVideoUrl ? [detachedVideoUrl] : [],
+          description: '',
+          taggedMemberIds: [],
+          locale: i18n.language,
+        },
+      });
+
+      const removeRes = await apiFetch<{ success: boolean; deleted?: boolean }>(ApiRoute.SITE_PHOTO_BY_ID, {
+        method: 'PUT',
+        pathParams: { photoId: m.occId },
+        body: {
+          locale: i18n.language,
+          imagesWithDimensions: remainingImages.map((img) => ({ url: img.original, width: img.width, height: img.height })),
+          videos: remainingVideos,
+        },
+      });
+
+      const newOccurrence: Occurrence = {
+        id: createRes.photo.id,
+        type: 'gallery',
+        date: createRes.photo.date,
+        createdBy: currentUserId,
+        description: '',
+        imagesResized: detachedImage
+          ? [{ original: detachedImage.original, '400x400': detachedImage.original, '1200x1200': detachedImage.original, width: detachedImage.width, height: detachedImage.height }]
+          : [],
+        videos: detachedVideoUrl ? [detachedVideoUrl] : undefined,
+      };
+
+      setItems((prev) => {
+        const withoutDetached = removeRes.deleted || (remainingImages.length === 0 && remainingVideos.length === 0)
+          ? prev.filter((o) => o.id !== m.occId)
+          : prev.map((o) => (o.id === m.occId ? { ...o, imagesResized: remainingImages, videos: remainingVideos } : o));
+        const insertAt = withoutDetached.findIndex((o) => o.id === m.occId);
+        const at = insertAt === -1 ? 0 : insertAt;
+        return [...withoutDetached.slice(0, at), newOccurrence, ...withoutDetached.slice(at)];
+      });
+    } catch (e) {
+      console.error('[photos] detach item failed', e);
+    }
+  }, [items, i18n.language, t, currentUserId]);
+
   const handleOccurrenceUpdated = (updated: OccurrenceForEdit) => {
     setItems((prev) => prev.map((occ) => (occ.id === updated.id ? { ...occ, ...updated } : occ)));
   };
 
   const handleGalleryPhotoUpdated = (updated: GalleryPhotoForEdit) => {
-    if (updated.images.length === 0) {
+    if (updated.deleted) {
       setItems((prev) => prev.filter((item) => item.id !== updated.id));
     } else {
-      setItems((prev) => prev.map((item) => (item.id === updated.id ? { ...item, ...updated } : item)));
+      setItems((prev) => prev.map((item) => (item.id === updated.id ? { ...item, date: updated.date, description: updated.description } : item)));
     }
   };
 
@@ -367,38 +519,86 @@ export default function PhotosPage() {
     }
   }
 
-  if (loading) return <div className="p-4"><I18nText k="loading" /></div>;
-  if (error) return <div className="p-4"><I18nText k="somethingWentWrong" /></div>;
+  const jumpControl = (
+    <div className="flex items-center gap-2 mb-4 max-w-6xl mx-auto px-4 pt-4">
+      <label className="text-sm text-sage-600" htmlFor="photos-jump-month">
+        {t('jumpToMonth') || 'Jump to'}
+      </label>
+      <input
+        id="photos-jump-month"
+        type="month"
+        value={jumpMonth}
+        onChange={(e) => handleJumpToMonth(e.target.value)}
+        className="border border-gray-300 rounded-lg px-2 py-1 text-sm"
+      />
+      {jumpMonth && (
+        <button
+          type="button"
+          onClick={() => handleJumpToMonth('')}
+          className="text-sm text-sage-600 hover:underline"
+        >
+          {t('showAllPhotos') || 'Show all'}
+        </button>
+      )}
+    </div>
+  );
+
+  if (loading) return (
+    <>
+      {jumpControl}
+      <div className="p-4"><I18nText k="loading" /></div>
+    </>
+  );
+  if (error) return (
+    <>
+      {jumpControl}
+      <div className="p-4"><I18nText k="somethingWentWrong" /></div>
+    </>
+  );
 
   if (!loading && items.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] p-8 text-center">
-        <div className="max-w-md space-y-4">
-          <p className="text-lg text-sage-600 font-medium">
-            {t('noPicturesYet')}
-          </p>
-          <p className="text-sage-500">
-            {t('wouldYouLikeToPostFirst')}
-          </p>
-          <button
-            onClick={() => router.push('/app/photo/new')}
-            className="mt-6 px-6 py-3 bg-sage-600 text-white rounded-lg hover:bg-sage-700 transition-colors"
-          >
-            {t('uploadPhoto')}
-          </button>
+      <>
+        {jumpControl}
+        <div className="flex flex-col items-center justify-center min-h-[60vh] p-8 text-center">
+          <div className="max-w-md space-y-4">
+            {jumpMonth ? (
+              <p className="text-lg text-sage-600 font-medium">
+                {t('noPicturesInMonth') || 'No photos in this month.'}
+              </p>
+            ) : (
+              <>
+                <p className="text-lg text-sage-600 font-medium">
+                  {t('noPicturesYet')}
+                </p>
+                <p className="text-sage-500">
+                  {t('wouldYouLikeToPostFirst')}
+                </p>
+              </>
+            )}
+            <button
+              onClick={() => router.push('/app/photo/new')}
+              className="mt-6 px-6 py-3 bg-sage-600 text-white rounded-lg hover:bg-sage-700 transition-colors"
+            >
+              {t('uploadPhoto')}
+            </button>
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 
   return (
     <>
+      {jumpControl}
       <div className="p-4 max-w-6xl mx-auto">
         <ImageGrid
           items={gridItems}
           getMeta={getGridMeta}
           onToggle={handleGridToggle}
           onTitleClick={handleTitleClick}
+          onDeleteItem={handleDeleteItem}
+          onDetachItem={handleDetachItem}
           getLightboxLink={getLightboxLink}
           autoSlideshow={autoSlideshow}
           useJsMasonry

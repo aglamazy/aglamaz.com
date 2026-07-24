@@ -250,6 +250,7 @@ export default function NewPostPage() {
                     value={content}
                     locale={(i18n.language || 'en').split('-')[0]}
                     onChange={setContent}
+                    siteId={site?.id}
                   />
                 </div>
               </>

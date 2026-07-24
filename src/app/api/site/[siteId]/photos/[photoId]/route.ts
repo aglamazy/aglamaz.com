@@ -3,6 +3,7 @@ import { GalleryPhotoRepository } from '@/repositories/GalleryPhotoRepository';
 import { MemberRepository } from '@/repositories/MemberRepository';
 import { GuardContext } from '@/app/api/types';
 import { TagNotificationService } from '@/services/TagNotificationService';
+import { isImageWithDimension } from '@/entities/ImageWithDimension';
 
 export const dynamic = 'force-dynamic';
 
@@ -77,10 +78,25 @@ const putHandler = async (request: Request, context: GuardContext & { params: Pr
     const member = context.member!;
     const user = context.user!;
     const body = await request.json();
-    const { date, description, taggedMemberIds, locale } = body;
+    const { date, description, taggedMemberIds, locale, imagesWithDimensions, videos } = body;
 
     if (!locale || typeof locale !== 'string') {
       return Response.json({ error: 'locale is required' }, { status: 400 });
+    }
+
+    // Optional: caller sends the full post-edit arrays (e.g. after removing one
+    // image while reviewing) — validate shape before writing.
+    const hasImagesUpdate = imagesWithDimensions !== undefined;
+    const hasVideosUpdate = videos !== undefined;
+    if (hasImagesUpdate) {
+      if (!Array.isArray(imagesWithDimensions) || !imagesWithDimensions.every(isImageWithDimension)) {
+        return Response.json({ error: 'Invalid imagesWithDimensions' }, { status: 400 });
+      }
+    }
+    if (hasVideosUpdate) {
+      if (!Array.isArray(videos) || !videos.every((v: unknown) => typeof v === 'string' && v.startsWith('https://'))) {
+        return Response.json({ error: 'Invalid videos' }, { status: 400 });
+      }
     }
 
     const repo = new GalleryPhotoRepository();
@@ -113,11 +129,27 @@ const putHandler = async (request: Request, context: GuardContext & { params: Pr
       ? await TagNotificationService.filterSiteMemberIds(taggedMemberIds, siteId)
       : undefined;
 
+    // Removing the last image/video from a post leaves nothing to show —
+    // soft-delete the whole doc instead of writing an empty gallery item
+    // (mirrors GalleryPhotoRepository.create's "at least one image or video" rule).
+    const resultingImages = hasImagesUpdate ? imagesWithDimensions : photo.imagesWithDimensions;
+    const resultingVideos = hasVideosUpdate ? videos : photo.videos;
+    const willBeEmpty = (hasImagesUpdate || hasVideosUpdate)
+      && (resultingImages?.length ?? 0) === 0
+      && (resultingVideos?.length ?? 0) === 0;
+
+    if (willBeEmpty) {
+      await repo.delete(photoId);
+      return Response.json({ success: true, deleted: true });
+    }
+
     // Update photo using repository (handles localization)
     await repo.update(photoId, {
       date: date !== undefined ? new Date(date) : undefined,
       description: description !== undefined ? description?.trim() || '' : undefined,
       taggedMemberIds: validTaggedMemberIds,
+      imagesWithDimensions: hasImagesUpdate ? imagesWithDimensions : undefined,
+      videos: hasVideosUpdate ? videos : undefined,
       locale,
     });
 
