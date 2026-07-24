@@ -57,6 +57,12 @@ const postHandler = async (_request: Request, context: GuardContext) => {
             .join('')
         : '<tr><td colspan="3" style="padding:4px 0;color:#888">No one wants this cadence right now.</td></tr>';
 
+      // Email clients (Gmail included) strip <iframe> from HTML mail outright, so the
+      // magazine content silently vanished when embedded that way - splice in the actual
+      // rendered <body> content instead of iframing the full standalone document.
+      const bodyMatch = template.html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+      const contentHtml = bodyMatch ? bodyMatch[1] : template.html;
+
       sections.push(`
         <h2 style="margin-top:32px">${cadence === 'weekly' ? 'Weekly' : 'Monthly'} digest - period ${escapeHtml(period)}</h2>
         <p><strong>${recipients.length}</strong> would receive this if sent now:</p>
@@ -66,7 +72,7 @@ const postHandler = async (_request: Request, context: GuardContext) => {
         </table>
         <p style="margin-top:16px"><strong>Content preview</strong> (rendered in ${SOURCE_LOCALE} - real per-recipient sends translate this into each recipient's locale above):</p>
         <div style="border:1px solid #ddd;border-radius:8px;overflow:hidden">
-          <iframe srcdoc="${escapeHtml(template.html)}" style="width:100%;height:600px;border:0"></iframe>
+          ${contentHtml}
         </div>
       `);
     }
@@ -83,7 +89,7 @@ const postHandler = async (_request: Request, context: GuardContext) => {
     lang: 'en',
     dir: 'ltr',
     heading: '🔍 Digest preview',
-    greeting: 'Preview requested from /admin/site-settings',
+    greeting: 'Preview requested from /admin/magazine-template',
     paragraphs: [sections.join('')],
     footerLines: ['This is a preview only - no one else was emailed, and nothing was marked as sent.'],
   });
