@@ -59,9 +59,15 @@ const postHandler = async (_request: Request, context: GuardContext) => {
 
       // Email clients (Gmail included) strip <iframe> from HTML mail outright, so the
       // magazine content silently vanished when embedded that way - splice in the actual
-      // rendered <body> content instead of iframing the full standalone document.
-      const bodyMatch = template.html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
-      const contentHtml = bodyMatch ? bodyMatch[1] : template.html;
+      // rendered content instead of iframing the full standalone document. Grabbing the
+      // whole <body> also duplicated the digest's own header banner/card frame/footer
+      // inside this preview's frame ("double email" look) - take just the .content region.
+      const contentStart = template.html.indexOf('<div class="content"');
+      const footerStart = contentStart >= 0 ? template.html.indexOf('<div class="footer"', contentStart) : -1;
+      const contentHtml =
+        contentStart >= 0 && footerStart > contentStart
+          ? template.html.slice(contentStart, footerStart)
+          : template.html;
 
       sections.push(`
         <h2 style="margin-top:32px">${cadence === 'weekly' ? 'Weekly' : 'Monthly'} digest - period ${escapeHtml(period)}</h2>
