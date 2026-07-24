@@ -1,4 +1,5 @@
 import './globals.css';
+import { Analytics } from '@vercel/analytics/react';
 import { fetchSiteInfo } from '../firebase/admin';
 import { resolveSiteId } from '../utils/resolveSiteId';
 import { getPlatformName } from '../utils/platformName';
@@ -65,6 +66,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       </head>
       <body>
         {children}
+        <Analytics />
       </body>
     </html>
   );
