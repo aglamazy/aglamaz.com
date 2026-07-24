@@ -76,7 +76,8 @@ const postHandler = async (_request: Request, context: GuardContext) => {
           <thead><tr><th style="text-align:start;padding:4px 12px 4px 0">Email</th><th style="text-align:start;padding:4px 12px 4px 0">Locale</th><th style="text-align:start;padding:4px 0">Source</th></tr></thead>
           <tbody>${recipientRows}</tbody>
         </table>
-        <p style="margin-top:16px"><strong>Content preview</strong> (rendered in ${SOURCE_LOCALE} - real per-recipient sends translate this into each recipient's locale above):</p>
+        <p style="margin-top:16px"><strong>Content preview</strong> (rendered in ${SOURCE_LOCALE} - real per-recipient sends translate this into each recipient's locale above).
+        ${cadence === 'monthly' ? ' Monthly\'s coming-events window is wider than weekly\'s, so some events shown here also appeared under Weekly above - each real recipient only ever gets one cadence, never both.' : ''}</p>
         <div style="border:1px solid #ddd;border-radius:8px;overflow:hidden">
           ${contentHtml}
         </div>
