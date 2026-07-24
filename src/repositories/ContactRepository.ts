@@ -31,6 +31,16 @@ export class ContactRepository {
     const snap = await db.collection(this.collection).orderBy('createdAt', 'desc').get();
     return snap.docs.map(doc => ({ id: doc.id, ...(doc.data() as Omit<ContactMessage, 'id'>) })) as ContactMessage[];
   }
+
+  async countMessages(siteId?: string): Promise<number> {
+    const db = this.getDb();
+    let query = db.collection(this.collection);
+    if (siteId) {
+      query = query.where('siteId', '==', siteId);
+    }
+    const snap = await query.get();
+    return snap.size;
+  }
 }
 
 export const contactRepository = new ContactRepository();

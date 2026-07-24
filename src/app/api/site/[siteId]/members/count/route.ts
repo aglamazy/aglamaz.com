@@ -10,8 +10,7 @@ const handler = async (_req: Request, context: GuardContext) => {
     const { siteId } = params ?? {};
     if (!siteId) return Response.json({ error: 'Missing siteId' }, { status: 400 });
     const repo = new FamilyRepository();
-    const members = await repo.getSiteMembers(siteId);
-    const count = members.length;
+    const count = await repo.countSiteMembers(siteId);
     return Response.json({ count });
   } catch (e) {
     console.error('members count error', e);
