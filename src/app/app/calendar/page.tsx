@@ -580,7 +580,9 @@ export default function AnniversariesPage() {
                   <img
                     src={imageUrl}
                     alt=""
-                    className="w-full h-16 sm:h-20 object-cover rounded"
+                    className={styles.eventThumbnail}
+                    loading="lazy"
+                    decoding="async"
                   />
                 ) : (
                   <span className={styles.nameMobile}>{truncateResponsive(ev.name, 6, 16)}</span>
