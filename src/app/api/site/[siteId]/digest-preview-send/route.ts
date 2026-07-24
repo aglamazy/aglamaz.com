@@ -6,7 +6,8 @@
 import { withAdminGuard } from '@/lib/withAdminGuard';
 import { GuardContext } from '@/app/api/types';
 import { resolveDigestRecipients, SiteDefaultLocaleMissingError } from '@/services/DigestSendPlanService';
-import { periodKeyFor, type DigestCadence } from '@/repositories/DigestSendRepository';
+import { periodKeyFor } from '@/repositories/DigestSendRepository';
+import { nextCadenceToFire } from '@/services/DigestScheduleService';
 import { DigestCompilerService } from '@/services/DigestCompilerService';
 import { DigestTemplateService, resolveDigestSiteName } from '@/services/DigestTemplateService';
 import { ResendService } from '@/services/ResendService';
@@ -18,41 +19,7 @@ export const dynamic = 'force-dynamic';
 
 const SOURCE_LOCALE = 'he';
 
-/** Next Friday 06:00 UTC - matches vercel.json's weekly burst window start. */
-function nextWeeklyFireDate(now: Date): Date {
-  const daysUntilFriday = (5 - now.getUTCDay() + 7) % 7;
-  const burstStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + daysUntilFriday, 6, 0, 0));
-  if (daysUntilFriday === 0 && now.getTime() >= burstStart.getTime()) {
-    burstStart.setUTCDate(burstStart.getUTCDate() + 7);
-  }
-  return burstStart;
-}
-
-/** Next 1st-of-month 00:00 UTC - matches vercel.json's monthly burst window start. */
-function nextMonthlyFireDate(now: Date): Date {
-  const burstStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0));
-  if (now.getTime() >= burstStart.getTime()) {
-    burstStart.setUTCMonth(burstStart.getUTCMonth() + 1);
-  }
-  return burstStart;
-}
-
-/**
- * Which cadence is actually next to fire - not "both, always" (that's what caused the
- * "duplicate" confusion Agla flagged: monthly's window contains weekly's, so showing both
- * unconditionally just repeats the same near-term events twice in one preview). Whichever
- * burst is chronologically closer is "the right one" - Thursday -> weekly (fires Friday),
- * day before the 1st -> monthly (fires the 1st), and this generalizes cleanly to any day.
- */
-function nextCadenceToFire(now: Date): { cadence: DigestCadence; fireDate: Date } {
-  const weeklyFire = nextWeeklyFireDate(now);
-  const monthlyFire = nextMonthlyFireDate(now);
-  return weeklyFire.getTime() <= monthlyFire.getTime()
-    ? { cadence: 'weekly', fireDate: weeklyFire }
-    : { cadence: 'monthly', fireDate: monthlyFire };
-}
-
-const postHandler = async (_request: Request, context: GuardContext) => {
+const postHandler = async (request: Request, context: GuardContext) => {
   const params = await context.params;
   const siteId = params?.siteId as string;
   if (!siteId || context.member?.siteId !== siteId) {
@@ -63,19 +30,22 @@ const postHandler = async (_request: Request, context: GuardContext) => {
     return Response.json({ error: 'Admin has no email on file' }, { status: 400 });
   }
 
+  // Two distinct questions an admin can ask, so two distinct anchors (Agla 2026-07-24):
+  // 'scheduled' (default) = "what will actually be sent at the next real fire" - a dress
+  // rehearsal, must use the future fireDate so edit -> re-fire -> next-day-send all agree.
+  // 'now' = "what would go out if I sent this cadence right this second" - useful when
+  // today's own scheduled window already passed but this period is still unsent (or you
+  // just want to sanity-check current content without waiting for the schedule).
+  const asOf = new URL(request.url).searchParams.get('asOf') === 'now' ? 'now' : 'scheduled';
+
   const digestCompiler = new DigestCompilerService();
   const now = new Date();
   const { cadence, fireDate } = nextCadenceToFire(now);
+  const referenceDate = asOf === 'now' ? now : fireDate;
   let section: string;
 
   try {
-    // Compile against fireDate, not `now` - this is a dress rehearsal of the send that will
-    // actually go out at fireDate (Agla 2026-07-24: edit -> re-fire preview -> next-day-send
-    // must all show the same content). The compiler's pastRange is always
-    // [referenceDate-7, referenceDate] for weekly / [start of referenceDate's month - 1, +1]
-    // for monthly - that formula is correct; referenceDate itself has to be the real send
-    // moment for the preview to mean anything as a rehearsal.
-    const period = periodKeyFor(cadence, fireDate);
+    const period = periodKeyFor(cadence, referenceDate);
     const { site, recipients } = await resolveDigestRecipients(siteId, cadence, period, { onlyUnsent: false });
 
     const calendarUrl = await getUrl(AppRoute.APP_CALENDAR, siteId);
@@ -83,8 +53,8 @@ const postHandler = async (_request: Request, context: GuardContext) => {
     const siteName = resolveDigestSiteName(site, SOURCE_LOCALE, siteId);
     const digest =
       cadence === 'monthly'
-        ? await digestCompiler.compileMonthlyDigest(siteId, fireDate, { locale: SOURCE_LOCALE })
-        : await digestCompiler.compileWeeklyDigest(siteId, fireDate, { locale: SOURCE_LOCALE });
+        ? await digestCompiler.compileMonthlyDigest(siteId, referenceDate, { locale: SOURCE_LOCALE })
+        : await digestCompiler.compileWeeklyDigest(siteId, referenceDate, { locale: SOURCE_LOCALE });
     const template =
       cadence === 'weekly'
         ? DigestTemplateService.buildWeeklyDigestEmail(digest, { locale: SOURCE_LOCALE, siteName, recipientName: '(recipient name)', calendarUrl, galleryUrl })
@@ -108,9 +78,14 @@ const postHandler = async (_request: Request, context: GuardContext) => {
         ? template.html.slice(contentStart, footerStart)
         : template.html;
 
+    const contextLine =
+      asOf === 'now'
+        ? `Showing what would be sent <strong>right now</strong> (${now.toISOString()}) if this cadence were triggered this instant - not the scheduled rehearsal.`
+        : `Rehearsing the real send scheduled for <strong>${fireDate.toISOString()}</strong> - edit anything that looks wrong, then re-send this preview to check the fix before it goes out.`;
+
     section = `
         <h2 style="margin-top:32px">${cadence === 'weekly' ? 'Weekly' : 'Monthly'} digest - period ${escapeHtml(period)}</h2>
-        <p>Rehearsing the real send scheduled for <strong>${fireDate.toISOString()}</strong> - edit anything that looks wrong, then re-send this preview to check the fix before it goes out.</p>
+        <p>${contextLine}</p>
         <p><strong>${recipients.length}</strong> would receive this:</p>
         <table style="border-collapse:collapse;font-size:14px">
           <thead><tr><th style="text-align:start;padding:4px 12px 4px 0">Email</th><th style="text-align:start;padding:4px 12px 4px 0">Locale</th><th style="text-align:start;padding:4px 0">Source</th></tr></thead>
@@ -129,6 +104,8 @@ const postHandler = async (_request: Request, context: GuardContext) => {
     return Response.json({ error: 'Failed to build preview' }, { status: 500 });
   }
 
+  const subject = asOf === 'now' ? "🔍 FamCircle digest preview - today's magazine" : '🔍 FamCircle digest preview';
+
   const html = renderEmailHtml({
     subject: 'Digest preview - who would get it, and in which language',
     lang: 'en',
@@ -141,7 +118,7 @@ const postHandler = async (_request: Request, context: GuardContext) => {
 
   await ResendService.sendTransactionalEmail({
     to: adminEmail,
-    subject: '🔍 FamCircle digest preview',
+    subject,
     html,
     lang: 'en',
   });

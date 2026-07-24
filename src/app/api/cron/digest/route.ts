@@ -14,19 +14,12 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { SiteRepository } from '@/repositories/SiteRepository';
-import { digestSendRepository, periodKeyFor } from '@/repositories/DigestSendRepository';
+import { periodKeyFor } from '@/repositories/DigestSendRepository';
 import { resolveDigestRecipients } from '@/services/DigestSendPlanService';
-import { DigestCompilerService } from '@/services/DigestCompilerService';
-import { DigestTemplateService, resolveDigestSiteName } from '@/services/DigestTemplateService';
-import { ResendService } from '@/services/ResendService';
-import { TranslationService } from '@/services/TranslationService';
-import { AppRoute } from '@/utils/urls';
-import { getUrl } from '@/utils/serverUrls';
+import { executeDigestSend } from '@/services/DigestSendExecutionService';
 import type { UnifiedMagazineCadence } from '@/repositories/NotificationPreferencesRepository';
 
 export const dynamic = 'force-dynamic';
-
-const SOURCE_LOCALE = 'he';
 
 type SendableCadence = Exclude<UnifiedMagazineCadence, 'none'>;
 
@@ -37,53 +30,6 @@ function resolveCadence(request: NextRequest): SendableCadence {
 /** Optional single-recipient scope for manual real-path verification (avoids emailing the whole site). */
 function resolveMemberIdFilter(request: NextRequest): string | null {
   return request.nextUrl.searchParams.get('memberId');
-}
-
-function getHtmlLang(locale: string): string {
-  return locale === 'he' ? 'he' : locale === 'tr' ? 'tr' : 'en';
-}
-
-function getHtmlDir(locale: string): 'ltr' | 'rtl' {
-  return locale === 'he' ? 'rtl' : 'ltr';
-}
-
-function rewriteHtmlRootAttributes(html: string, locale: string): string {
-  return html.replace(/<html[^>]*>/i, `<html lang="${getHtmlLang(locale)}" dir="${getHtmlDir(locale)}">`);
-}
-
-async function maybeTranslateDigest(params: {
-  subject: string;
-  html: string;
-  text: string;
-  from: string;
-  to: string;
-}): Promise<{ subject: string; html: string; text: string }> {
-  const { subject, html, text, from, to } = params;
-  if (from === to) {
-    return { subject, html, text };
-  }
-
-  if (!TranslationService.isEnabled()) {
-    throw new Error(`Translation service disabled, cannot translate digest from ${from} to ${to}`);
-  }
-
-  const translated = await TranslationService.translateHtml({
-    title: subject,
-    content: html,
-    from,
-    to,
-  });
-  const translatedText = await TranslationService.translateText({
-    text,
-    from,
-    to,
-  });
-
-  return {
-    subject: translated.title,
-    html: rewriteHtmlRootAttributes(translated.content, to),
-    text: translatedText ?? text,
-  };
 }
 
 export async function GET(request: NextRequest) {
@@ -98,7 +44,6 @@ export async function GET(request: NextRequest) {
   }
 
   const siteRepo = new SiteRepository();
-  const digestCompiler = new DigestCompilerService();
   const cadence = resolveCadence(request);
   const memberIdFilter = resolveMemberIdFilter(request);
 
@@ -135,72 +80,11 @@ export async function GET(request: NextRequest) {
         continue;
       }
 
-      // Per-site canonical domain, not the cron request's runtime host - a request against
-      // localhost or a Vercel preview deployment must never bake that host into a sent link.
-      const calendarUrl = await getUrl(AppRoute.APP_CALENDAR, siteId);
-      const galleryUrl = await getUrl(AppRoute.APP_PHOTOS, siteId);
-
-      // Always resolve the name in SOURCE_LOCALE, matching the rest of the digest body
-      // (which is compiled+rendered in SOURCE_LOCALE below).
-      const siteName = resolveDigestSiteName(site, SOURCE_LOCALE, siteId);
-      // Only the range computation differs between cadences - see CadenceDigestPayload's
-      // doc comment (Agla, 2026-07-21 DRY correction).
-      const digest =
-        cadence === 'monthly'
-          ? await digestCompiler.compileMonthlyDigest(siteId, now, { locale: SOURCE_LOCALE })
-          : await digestCompiler.compileWeeklyDigest(siteId, now, { locale: SOURCE_LOCALE });
-
-      // Built per-member (not once per site): the greeting names the actual recipient,
-      // and each member may read in a different locale (mirrors InDayReminderService's
-      // existing per-member personalization). Parallel, not sequential (Agla, 2026-07-24):
-      // a serial loop over many recipients widens the window a deploy cutover or timeout
-      // can cut it off in - Promise.allSettled sends everyone concurrently so the whole
-      // batch finishes in roughly one send's time, not N.
-      const results = await Promise.allSettled(
-        recipients.map(async ({ member, locale: recipientLocale }) => {
-          const recipientName = member.firstName || member.displayName || member.email;
-          const template =
-            cadence === 'weekly'
-              ? DigestTemplateService.buildWeeklyDigestEmail(digest, {
-                  locale: SOURCE_LOCALE,
-                  siteName,
-                  recipientName,
-                  calendarUrl,
-                  galleryUrl,
-                })
-              : DigestTemplateService.buildMonthlyDigestEmail(digest, {
-                  locale: SOURCE_LOCALE,
-                  siteName,
-                  recipientName,
-                  calendarUrl,
-                  galleryUrl,
-                });
-
-          const localized = await maybeTranslateDigest({
-            subject: template.subject,
-            html: template.html,
-            text: template.text,
-            from: SOURCE_LOCALE,
-            to: recipientLocale,
-          });
-
-          await ResendService.sendTransactionalEmail({
-            to: member.email,
-            subject: localized.subject,
-            html: localized.html,
-            lang: recipientLocale,
-          });
-          await digestSendRepository.markSent(siteId, member.id, cadence, period);
-        }),
-      );
-      for (let i = 0; i < results.length; i++) {
-        const result = results[i];
-        if (result.status === 'fulfilled') {
-          sent++;
-        } else {
-          failed++;
-          console.error(`[cron/digest] error sending to member=${recipients[i].member.id} site=${siteId}:`, result.reason);
-        }
+      const result = await executeDigestSend(siteId, cadence, period, now, site, recipients);
+      sent += result.sent;
+      failed += result.failed;
+      for (const { memberId, error } of result.errors) {
+        console.error(`[cron/digest] error sending to member=${memberId} site=${siteId}:`, error);
       }
 
       console.log(
