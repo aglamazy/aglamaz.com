@@ -44,6 +44,11 @@ export interface ISite {
   // real Hebrew content).
   defaultLocale?: string;
 
+  // Per-site consent for the AI blog-autogen cron (BlogAutogenService) — defaults to
+  // undefined/false (off) so a site is never auto-drafted without an explicit opt-in.
+  // No admin UI wires this yet (fast-follow); set directly via SiteRepository until then.
+  blogAutogenEnabled?: boolean;
+
   // Flattened fields from current locale (for convenience)
   name?: string;
   aboutFamily?: string;

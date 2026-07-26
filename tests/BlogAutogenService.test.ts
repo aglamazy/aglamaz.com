@@ -26,6 +26,7 @@ async function testGeneratesDraftAndRequestsReview() {
       id: siteId,
       name: 'The Cohen Family',
       defaultLocale: 'en',
+      blogAutogenEnabled: true,
     }),
   };
 
@@ -175,7 +176,9 @@ async function testSkipsWhenAlreadyGeneratedThisPeriod() {
 async function testSkipsWhenNoActivity() {
   const { BlogAutogenService } = await import('../src/services/BlogAutogenService');
 
-  const siteRepository: any = { get: async () => ({ id: 'site1', defaultLocale: 'en' }) };
+  const siteRepository: any = {
+    get: async () => ({ id: 'site1', defaultLocale: 'en', blogAutogenEnabled: true }),
+  };
   const digestCompilerService: any = {
     compileMonthlyDigest: async () => ({ pastEvents: [], comingEvents: [], photos: [] }),
   };
@@ -199,10 +202,36 @@ async function testSkipsWhenNoActivity() {
   console.log('BlogAutogenService no-activity skip test passed');
 }
 
+async function testSkipsWhenNotOptedIn() {
+  const { BlogAutogenService } = await import('../src/services/BlogAutogenService');
+
+  // No blogAutogenEnabled field at all - the real-world default for every existing site.
+  const siteRepository: any = { get: async () => ({ id: 'site1', defaultLocale: 'en' }) };
+  const blogAutogenRepository: any = { alreadyGenerated: async () => false };
+  const blogRepository: any = {
+    create: async () => {
+      throw new Error('should not create a post for a site that has not opted in');
+    },
+  };
+
+  const service = new BlogAutogenService(
+    siteRepository,
+    {} as any,
+    blogRepository,
+    {} as any,
+    blogAutogenRepository,
+  );
+
+  const result = await service.generateForSite('site1', new Date('2026-07-10'));
+  assert.equal(result.outcome, 'skipped_not_opted_in');
+  console.log('BlogAutogenService not-opted-in skip test passed');
+}
+
 async function run() {
   await testGeneratesDraftAndRequestsReview();
   await testSkipsWhenAlreadyGeneratedThisPeriod();
   await testSkipsWhenNoActivity();
+  await testSkipsWhenNotOptedIn();
 }
 
 run();

@@ -27,6 +27,7 @@ import { renderEmailHtml } from '@/services/emailTemplates';
 export type BlogAutogenOutcome =
   | 'created'
   | 'skipped_disabled'
+  | 'skipped_not_opted_in'
   | 'skipped_duplicate'
   | 'skipped_no_locale'
   | 'skipped_no_activity'
@@ -76,6 +77,11 @@ export class BlogAutogenService {
     const site = await this.siteRepository.get(siteId);
     if (!site) {
       throw new Error(`Site ${siteId} not found`);
+    }
+    if (!site.blogAutogenEnabled) {
+      // Per-site consent gate (famcircle#103) - a family must explicitly opt in before
+      // any AI-drafted content is created for them. Defaults to off/undefined.
+      return { siteId, periodKey, outcome: 'skipped_not_opted_in' };
     }
     if (!site.defaultLocale) {
       // Same gap resolveDigestRecipients guards against (SiteDefaultLocaleMissingError) -
