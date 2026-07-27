@@ -1,6 +1,6 @@
 {
   "name": "aglamaz-app",
-  "version": "26.7.78",
+  "version": "26.7.82",
   "private": true,
   "scripts": {
     "dev": "next dev -p 3000",
