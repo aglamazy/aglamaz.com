@@ -57,7 +57,7 @@ const postHandler = async (request: Request, context: GuardContext) => {
     lang: 'en',
     dir: 'ltr',
     heading: '🔍 Digest preview',
-    greeting: 'Preview requested from /admin/magazine-template',
+    greeting: 'Preview requested from /admin/digest-send',
     paragraphs: [section],
     footerLines: ['This is a preview only - no one else was emailed, and nothing was marked as sent.'],
   });

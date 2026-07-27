@@ -1,6 +1,6 @@
 {
   "name": "aglamaz-app",
-  "version": "26.7.72",
+  "version": "26.7.75",
   "private": true,
   "scripts": {
     "dev": "next dev -p 3000",
@@ -27,6 +27,7 @@
   "dependencies": {
     "@tinymce/tinymce-react": "^6.3.0",
     "@vercel/analytics": "^2.0.1",
+    "agents-whatsapp": "git+https://github.com/aglamazy/agents-whatsapp.git#v26.7.7",
     "blueimp-md5": "^2.19.0",
     "date-fns": "^4.1.0",
     "dompurify": "^3.3.0",
