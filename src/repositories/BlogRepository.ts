@@ -230,19 +230,26 @@ export class BlogRepository {
     const timestamp = Timestamp.now();
     const localeUpdate = this.makeLocaleUpdate(locale, payload, timestamp);
     if (Object.keys(localeUpdate).length === 0) return;
-    await ref.set({ ...localeUpdate, updatedAt: timestamp }, { merge: true });
+    // NOTE: must be .update(), not .set(..., {merge:true}) - makeLocaleUpdate's
+    // keys are dotted field-path strings (e.g. 'locales.he.title'). Firestore's
+    // .set() with merge treats string object keys LITERALLY (dots included),
+    // writing a garbage top-level field literally named "locales.he.title"
+    // instead of nesting it - only .update() (or FieldPath key objects)
+    // interprets dotted strings as paths. This was famcircle#105: translated
+    // content silently landed in dead sibling fields the read path never
+    // checks, so every Hebrew view re-triggered translation (155 wasted
+    // OpenAI calls on one post before this was caught).
+    await ref.update({ ...localeUpdate, updatedAt: timestamp });
   }
 
   async markTranslationRequested(id: string, lang: string): Promise<void> {
     const db = this.getDb();
     const ref = db.collection(this.collection).doc(id);
-    await ref.set(
-      {
-        [`translationMeta.requested.${lang}`]: Timestamp.now(),
-        'translationMeta.attempts': FieldValue.increment(1),
-      },
-      { merge: true },
-    );
+    // See the .update() note in upsertLocale above - same dotted-key bug.
+    await ref.update({
+      [`translationMeta.requested.${lang}`]: Timestamp.now(),
+      'translationMeta.attempts': FieldValue.increment(1),
+    });
   }
 
   async addTranslation(
