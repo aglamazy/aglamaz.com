@@ -25,6 +25,10 @@
       "schedule": "10 6 * * *"
     },
     {
+      "path": "/api/cron/blog-autogen",
+      "schedule": "0 4 2 * *"
+    },
+    {
       "path": "/api/cron/digest-preview",
       "schedule": "0 6 * * *"
     }
