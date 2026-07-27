@@ -5,19 +5,12 @@
 // (DigestSendRepository is untouched here), so it can be re-run any number of times.
 import { withAdminGuard } from '@/lib/withAdminGuard';
 import { GuardContext } from '@/app/api/types';
-import { resolveDigestRecipients, SiteDefaultLocaleMissingError } from '@/services/DigestSendPlanService';
-import { periodKeyFor } from '@/repositories/DigestSendRepository';
 import { nextCadenceToFire } from '@/services/DigestScheduleService';
-import { DigestCompilerService } from '@/services/DigestCompilerService';
-import { DigestTemplateService, resolveDigestSiteName } from '@/services/DigestTemplateService';
+import { buildDigestPreviewSection, SiteDefaultLocaleMissingError } from '@/services/DigestPreviewRenderer';
 import { ResendService } from '@/services/ResendService';
-import { renderEmailHtml, escapeHtml } from '@/services/emailTemplates';
-import { AppRoute } from '@/utils/urls';
-import { getUrl } from '@/utils/serverUrls';
+import { renderEmailHtml } from '@/services/emailTemplates';
 
 export const dynamic = 'force-dynamic';
-
-const SOURCE_LOCALE = 'he';
 
 const postHandler = async (request: Request, context: GuardContext) => {
   const params = await context.params;
@@ -38,64 +31,17 @@ const postHandler = async (request: Request, context: GuardContext) => {
   // just want to sanity-check current content without waiting for the schedule).
   const asOf = new URL(request.url).searchParams.get('asOf') === 'now' ? 'now' : 'scheduled';
 
-  const digestCompiler = new DigestCompilerService();
   const now = new Date();
   const { cadence, fireDate } = nextCadenceToFire(now);
   const referenceDate = asOf === 'now' ? now : fireDate;
   let section: string;
 
   try {
-    const period = periodKeyFor(cadence, referenceDate);
-    const { site, recipients } = await resolveDigestRecipients(siteId, cadence, period, { onlyUnsent: false });
-
-    const calendarUrl = await getUrl(AppRoute.APP_CALENDAR, siteId);
-    const galleryUrl = await getUrl(AppRoute.APP_PHOTOS, siteId);
-    const siteName = resolveDigestSiteName(site, SOURCE_LOCALE, siteId);
-    const digest =
-      cadence === 'monthly'
-        ? await digestCompiler.compileMonthlyDigest(siteId, referenceDate, { locale: SOURCE_LOCALE })
-        : await digestCompiler.compileWeeklyDigest(siteId, referenceDate, { locale: SOURCE_LOCALE });
-    const template =
-      cadence === 'weekly'
-        ? DigestTemplateService.buildWeeklyDigestEmail(digest, { locale: SOURCE_LOCALE, siteName, recipientName: '(recipient name)', calendarUrl, galleryUrl })
-        : DigestTemplateService.buildMonthlyDigestEmail(digest, { locale: SOURCE_LOCALE, siteName, recipientName: '(recipient name)', calendarUrl, galleryUrl });
-
-    const recipientRows = recipients.length
-      ? recipients
-          .map((r) => `<tr><td style="padding:4px 12px 4px 0">${escapeHtml(r.member.email || '')}</td><td style="padding:4px 12px 4px 0">${escapeHtml(r.locale)}</td><td style="padding:4px 0;color:#888">${r.localeSource === 'member' ? 'member preference' : 'site default'}</td></tr>`)
-          .join('')
-      : '<tr><td colspan="3" style="padding:4px 0;color:#888">No one wants this cadence right now.</td></tr>';
-
-    // Email clients (Gmail included) strip <iframe> from HTML mail outright, so the
-    // magazine content silently vanished when embedded that way - splice in the actual
-    // rendered content instead of iframing the full standalone document. Grabbing the
-    // whole <body> also duplicated the digest's own header banner/card frame/footer
-    // inside this preview's frame ("double email" look) - take just the .content region.
-    const contentStart = template.html.indexOf('<div class="content"');
-    const footerStart = contentStart >= 0 ? template.html.indexOf('<div class="footer"', contentStart) : -1;
-    const contentHtml =
-      contentStart >= 0 && footerStart > contentStart
-        ? template.html.slice(contentStart, footerStart)
-        : template.html;
-
     const contextLine =
       asOf === 'now'
         ? `Showing what would be sent <strong>right now</strong> (${now.toISOString()}) if this cadence were triggered this instant - not the scheduled rehearsal.`
         : `Rehearsing the real send scheduled for <strong>${fireDate.toISOString()}</strong> - edit anything that looks wrong, then re-send this preview to check the fix before it goes out.`;
-
-    section = `
-        <h2 style="margin-top:32px">${cadence === 'weekly' ? 'Weekly' : 'Monthly'} digest - period ${escapeHtml(period)}</h2>
-        <p>${contextLine}</p>
-        <p><strong>${recipients.length}</strong> would receive this:</p>
-        <table style="border-collapse:collapse;font-size:14px">
-          <thead><tr><th style="text-align:start;padding:4px 12px 4px 0">Email</th><th style="text-align:start;padding:4px 12px 4px 0">Locale</th><th style="text-align:start;padding:4px 0">Source</th></tr></thead>
-          <tbody>${recipientRows}</tbody>
-        </table>
-        <p style="margin-top:16px"><strong>Content preview</strong> (rendered in ${SOURCE_LOCALE} - real per-recipient sends translate this into each recipient's locale above):</p>
-        <div style="border:1px solid #ddd;border-radius:8px;overflow:hidden">
-          ${contentHtml}
-        </div>
-      `;
+    ({ section } = await buildDigestPreviewSection(siteId, cadence, referenceDate, contextLine));
   } catch (error) {
     if (error instanceof SiteDefaultLocaleMissingError) {
       return Response.json({ error: error.message }, { status: 400 });
