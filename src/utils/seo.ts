@@ -44,7 +44,7 @@ function pathSuffix(path = ''): string {
  * Strips tags, decodes the handful of common entities, collapses whitespace and
  * caps the length so it renders well in search results and social cards.
  */
-const META_DESCRIPTION_MAX = 200;
+const META_DESCRIPTION_MAX = 160;
 export function toPlainDescription(raw?: string): string | undefined {
   if (!raw) return undefined;
   const text = raw
