@@ -78,13 +78,27 @@ Traps that have actually broken builds/data in this repo — read before baking 
   drafts/in-review posts leak into public feeds.
 - **i18n**: a missing key falls back to the inline `defaultValue` in code (English)
   regardless of active locale - this silently breaks Hebrew's RTL layout (English text
-  forced right-to-left). New user-facing strings need entries in ALL THREE locale files
-  (`public/locales/{en,he,tr}/common.json`), not just one.
+  forced right-to-left). New user-facing strings need entries in ALL FOUR locale files
+  (`public/locales/{en,he,tr,ar}/common.json`) - `ar` is easy to miss since it's not
+  mentioned elsewhere in this doc, but `next-i18next.config.js` has it in
+  `SUPPORTED_LOCALES` and it's just as live as the other three.
 - **Dev-server Fast Refresh mid-test**: editing source files while a browser session has
   an in-progress form open can reset that form's React state via HMR remount, and a
   stale-closure submit handler can silently no-op (no network request, no visible error
   change). If a form submit looks like it did nothing, hard-reload before concluding it's
   a real bug.
+- **Firestore `.set(obj, {merge: true})` does NOT nest dotted-string keys** - only
+  `.update(obj)` does. `{'locales.he.title': x}` passed to `.set(..., {merge:true})`
+  creates a garbage top-level field literally NAMED `"locales.he.title"` (dot and all),
+  not a nested `locales.he.title` path - Firestore only treats dots as path separators
+  for `.update()` (or `FieldPath` key objects). This bit `BlogRepository.upsertLocale`/
+  `markTranslationRequested` for real (famcircle#105): translated content silently
+  landed in dead sibling fields nothing ever read, so every Hebrew view re-triggered
+  translation - one post reached 155 wasted OpenAI calls before it was caught. Any
+  helper building `{'a.b.c': value}`-shaped objects (`makeLocaleUpdate`-style) MUST go
+  through `.update()`, never `.set(..., {merge:true})`. The shared `LocalizationService`
+  (`saveLocalizedContent`/`buildLocalizedUpdate`) already gets this right - prefer
+  reusing it over hand-rolling another dotted-key writer.
 
 ## TypeScript Interfaces Reference
 
