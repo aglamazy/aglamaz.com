@@ -32,11 +32,11 @@ export async function POST(
   }
 
   const { decision, feedback } = body;
-  if (decision !== 'approved' && decision !== 'changes_requested') {
-    return Response.json({ error: 'decision must be "approved" or "changes_requested"' }, { status: 400 });
+  if (decision !== 'approved' && decision !== 'changes_requested' && decision !== 'denied') {
+    return Response.json({ error: 'decision must be "approved", "changes_requested", or "denied"' }, { status: 400 });
   }
-  if (decision === 'changes_requested' && !feedback?.trim()) {
-    return Response.json({ error: 'feedback is required when requesting changes' }, { status: 400 });
+  if ((decision === 'changes_requested' || decision === 'denied') && !feedback?.trim()) {
+    return Response.json({ error: 'feedback is required when requesting changes or denying' }, { status: 400 });
   }
 
   // Read post before deciding so we have siteId / authorId for the notification email
@@ -64,16 +64,24 @@ export async function POST(
       const subject =
         decision === 'approved'
           ? 'Your blog post has been published!'
-          : 'Review feedback on your blog post';
+          : decision === 'denied'
+            ? 'Your blog post was not approved'
+            : 'Review feedback on your blog post';
 
       const paragraphs =
         decision === 'approved'
           ? ['Your blog post has been reviewed and approved — it is now published.']
-          : [
-              `Your reviewer has requested some changes:`,
-              `<em>${feedback}</em>`,
-              `<a href="${editLink}">Click here to edit your post</a>`,
-            ];
+          : decision === 'denied'
+            ? [
+                `Your reviewer decided not to publish this one - the whole angle didn't land, not just a detail:`,
+                `<em>${feedback}</em>`,
+                `<a href="${editLink}">Click here to edit your post</a>`,
+              ]
+            : [
+                `Your reviewer has requested some changes:`,
+                `<em>${feedback}</em>`,
+                `<a href="${editLink}">Click here to edit your post</a>`,
+              ];
 
       const html = renderEmailHtml({
         subject,

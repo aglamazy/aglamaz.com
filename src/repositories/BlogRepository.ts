@@ -356,6 +356,7 @@ export class BlogRepository {
       reviewFeedback: FieldValue.delete(),
       reviewDecision: FieldValue.delete(),
       reviewDecidedAt: FieldValue.delete(),
+      shofarNotifiedAt: FieldValue.delete(),
       updatedAt: now,
     });
     return token;
@@ -385,7 +386,10 @@ export class BlogRepository {
    * Records the reviewer's decision:
    * - 'approved' → sets status='published' (isPublic is NOT touched — isPublic stays
    *   the author's own orthogonal audience choice, locked decision famcircle#15)
-   * - 'changes_requested' → stores feedback/decision/decidedAt; status flips to 'draft'
+   * - 'changes_requested' | 'denied' → stores feedback/decision/decidedAt; status flips
+   *   back to 'draft' either way (neither auto-resubmits) - the distinct reviewDecision
+   *   value is what carries the semantic difference (targeted fix vs structural reject)
+   *   to whoever reads it downstream, not a different post status.
    * The review token is single-use: cleared here so the link can't be replayed.
    * Returns the updated post, or null if the token is missing/expired.
    */

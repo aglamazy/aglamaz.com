@@ -56,7 +56,12 @@ export type BlogPostContentFormat = 'md' | 'html';
 // exported from BlogRepository rather than comparing status inline.
 export type BlogPostStatus = 'draft' | 'in_review' | 'published';
 
-export type BlogPostReviewDecision = 'approved' | 'changes_requested';
+// 'changes_requested' = targeted correction ("this specific thing was off, adjust").
+// 'denied' = structural rejection ("this whole angle/topic didn't land") - both are
+// terminal for THIS draft (flip back to 'draft', not resubmitted automatically), but
+// carry different weight for whoever reads the feedback downstream (Agla/Shofar
+// 2026-07-27) - never collapse them into one "not approved" bucket.
+export type BlogPostReviewDecision = 'approved' | 'changes_requested' | 'denied';
 
 export interface IBlogPost {
   id: string;
@@ -79,6 +84,10 @@ export interface IBlogPost {
   reviewFeedback?: string;
   reviewDecision?: BlogPostReviewDecision;
   reviewDecidedAt?: any;
+  // Set once the FamCircle session's periodic relay has pushed this decision's feedback to
+  // Shofar's inbox (2026-07-27) - dedup marker, same pattern as DigestSendRepository's
+  // per-period markers, so a re-run of the relay never double-notifies.
+  shofarNotifiedAt?: any;
   likeCount?: number;
   shareCount?: number;
   taggedMemberIds?: string[]; // Member IDs tagged in this post
