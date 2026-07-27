@@ -292,6 +292,23 @@ export class BlogRepository {
     return snap.docs.map((doc) => this.mapDoc(doc)).filter(isPublished);
   }
 
+  /**
+   * Posts currently awaiting a review decision on this site - the opposite filter of
+   * getBySite (which excludes anything not published). Powers the "drafts waiting for
+   * review" list (Agla/Shofar 2026-07-27) - without this, in_review posts (one per site
+   * per period from blog-autogen, no dedup across periods) had no way to be seen except
+   * via the individual per-draft email link, so a slow review week meant several piled up
+   * invisibly.
+   */
+  async getInReviewBySite(siteId: string): Promise<IBlogPost[]> {
+    const snap = await this.getBaseQuery()
+      .where('siteId', '==', siteId)
+      .where('status', '==', 'in_review')
+      .orderBy('createdAt', 'desc')
+      .get();
+    return snap.docs.map((doc) => this.mapDoc(doc));
+  }
+
   async getPublicBySite(siteId: string, limit = 20): Promise<IBlogPost[]> {
     const snap = await this.getBaseQuery()
       .where('siteId', '==', siteId)
@@ -356,6 +373,7 @@ export class BlogRepository {
       reviewFeedback: FieldValue.delete(),
       reviewDecision: FieldValue.delete(),
       reviewDecidedAt: FieldValue.delete(),
+      shofarNotifiedAt: FieldValue.delete(),
       updatedAt: now,
     });
     return token;
@@ -385,7 +403,10 @@ export class BlogRepository {
    * Records the reviewer's decision:
    * - 'approved' → sets status='published' (isPublic is NOT touched — isPublic stays
    *   the author's own orthogonal audience choice, locked decision famcircle#15)
-   * - 'changes_requested' → stores feedback/decision/decidedAt; status flips to 'draft'
+   * - 'changes_requested' | 'denied' → stores feedback/decision/decidedAt; status flips
+   *   back to 'draft' either way (neither auto-resubmits) - the distinct reviewDecision
+   *   value is what carries the semantic difference (targeted fix vs structural reject)
+   *   to whoever reads it downstream, not a different post status.
    * The review token is single-use: cleared here so the link can't be replayed.
    * Returns the updated post, or null if the token is missing/expired.
    */

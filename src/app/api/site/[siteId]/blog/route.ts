@@ -132,6 +132,18 @@ const getHandler = async (request: Request, context: GuardContext & { params: Pr
       const localized = localize(post, lang);
       return Response.json({ post, localized: localized.localized, lang });
     }
+    const status = url.searchParams.get('status');
+    if (status === 'in_review') {
+      // Admin-only: pending drafts are review-gate content, not general blog reading
+      // (Agla/Shofar 2026-07-27 - the "drafts waiting for review" list).
+      if (context.member?.role !== 'admin') {
+        return Response.json({ error: 'Forbidden' }, { status: 403 });
+      }
+      const pending = await repo.getInReviewBySite(siteId);
+      const localizedPending = pending.map((post) => localize(post, lang));
+      return Response.json({ posts: localizedPending, lang });
+    }
+
     const authorId = url.searchParams.get('authorId');
     const posts = authorId ? await repo.getByAuthor(authorId) : await repo.getBySite(siteId);
     const localizedPosts: LocalizedBlogPost[] = [];

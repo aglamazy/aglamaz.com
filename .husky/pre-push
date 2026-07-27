@@ -1,7 +1,11 @@
 #!/bin/sh
-BRANCH=$(git rev-parse --abbrev-ref HEAD)
-if [ "$BRANCH" = "dev" ]; then
-  node scripts/increment-version.js
-  git add package.json
-  git commit --amend --no-verify --no-edit
-fi
+# Version bumping is handled by the pre-commit hook (Ant-owned
+# scripts/bump-version.cjs), which re-stages package.json/lockfile into the
+# SAME commit before it's finalized. This hook used to also bump+amend HEAD
+# here, but git's push transport resolves the ref to send BEFORE this hook
+# runs, so the amend produced a commit that never actually got pushed -
+# every push on dev silently forked local from origin by one commit
+# (famcircle infra finding, 2026-07-27). Removed rather than "fixed", since
+# the pre-commit bump already covers this and a second bump here was always
+# redundant.
+exit 0

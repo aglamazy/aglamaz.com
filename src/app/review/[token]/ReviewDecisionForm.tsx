@@ -8,7 +8,7 @@ interface Props {
 }
 
 export default function ReviewDecisionForm({ token }: Props) {
-  const [decision, setDecision] = useState<'approved' | 'changes_requested' | null>(null);
+  const [decision, setDecision] = useState<'approved' | 'changes_requested' | 'denied' | null>(null);
   const [feedback, setFeedback] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
@@ -16,8 +16,8 @@ export default function ReviewDecisionForm({ token }: Props) {
 
   const handleSubmit = async () => {
     if (!decision) return;
-    if (decision === 'changes_requested' && !feedback.trim()) {
-      setError('Please provide feedback when requesting changes.');
+    if ((decision === 'changes_requested' || decision === 'denied') && !feedback.trim()) {
+      setError(decision === 'denied' ? 'Please say why - it helps improve future drafts.' : 'Please provide feedback when requesting changes.');
       return;
     }
     setSubmitting(true);
@@ -32,7 +32,7 @@ export default function ReviewDecisionForm({ token }: Props) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           decision,
-          feedback: decision === 'changes_requested' ? feedback : undefined,
+          feedback: decision === 'changes_requested' || decision === 'denied' ? feedback : undefined,
         }),
       });
       if (!res.ok) {
@@ -54,7 +54,9 @@ export default function ReviewDecisionForm({ token }: Props) {
         <p className="text-lg font-semibold text-green-800">
           {decision === 'approved'
             ? 'Post approved and published!'
-            : 'Feedback sent to the author.'}
+            : decision === 'denied'
+              ? 'Marked as not approved - feedback recorded.'
+              : 'Feedback sent to the author.'}
         </p>
       </div>
     );
@@ -69,20 +71,36 @@ export default function ReviewDecisionForm({ token }: Props) {
           onClick={() => { setDecision('approved'); setError(''); }}
           disabled={submitting}
         >
-          Approve &amp; Publish
+          Publish
         </Button>
         <Button
           variant={decision === 'changes_requested' ? 'primary' : 'outline'}
           onClick={() => { setDecision('changes_requested'); setError(''); }}
           disabled={submitting}
         >
-          Request Changes
+          Fix
+        </Button>
+        <Button
+          variant={decision === 'denied' ? 'primary' : 'outline'}
+          onClick={() => { setDecision('denied'); setError(''); }}
+          disabled={submitting}
+        >
+          Deny
         </Button>
       </div>
       {decision === 'changes_requested' && (
         <textarea
           className="h-32 w-full rounded-md border border-gray-200 px-3 py-2 text-sm"
-          placeholder="Your feedback for the author..."
+          placeholder="What specifically needs fixing..."
+          value={feedback}
+          onChange={(e) => setFeedback(e.target.value)}
+          disabled={submitting}
+        />
+      )}
+      {decision === 'denied' && (
+        <textarea
+          className="h-32 w-full rounded-md border border-gray-200 px-3 py-2 text-sm"
+          placeholder="Why this angle/topic didn't work..."
           value={feedback}
           onChange={(e) => setFeedback(e.target.value)}
           disabled={submitting}

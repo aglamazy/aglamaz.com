@@ -45,7 +45,6 @@ export const routePaths: Record<AppRoute, string> = {
   [AppRoute.ADMIN_SITE_MEMBERS]: '/admin/site-members',
   [AppRoute.ADMIN_PENDING_MEMBERS]: '/admin/pending-members',
   [AppRoute.ADMIN_ANNIVERSARIES]: '/admin/anniversaries',
-  [AppRoute.ADMIN_MAGAZINE_TEMPLATE]: '/admin/magazine-template',
   [AppRoute.ADMIN_LOGIN_AUDIT]: '/admin/login-audit',
 };
 
@@ -127,8 +126,6 @@ export const apiRoutePaths: Record<ApiRoute, string> = {
   [ApiRoute.SITE_INFO]: '/api/site/{siteId}',
   [ApiRoute.SITE_DESCRIPTION]: '/api/site/{siteId}/description',
   [ApiRoute.SITE_SETTINGS]: '/api/site/{siteId}/settings',
-  [ApiRoute.SITE_MAGAZINE_TEMPLATE]: '/api/site/{siteId}/magazine-template',
-  [ApiRoute.SITE_MAGAZINE_TEMPLATE_SUGGEST]: '/api/site/{siteId}/magazine-template/suggest',
 
   // Pictures & Photos
   [ApiRoute.SITE_CONTENT_IMAGES]: '/api/site/{siteId}/content-images',
@@ -175,6 +172,7 @@ export const apiRoutePaths: Record<ApiRoute, string> = {
   [ApiRoute.SITE_BLOG_TRANSLATE]: '/api/site/{siteId}/blog/translate',
   [ApiRoute.SITE_BLOG_LIKE]: '/api/site/{siteId}/blog/{postId}/like',
   [ApiRoute.SITE_BLOG_SHARE]: '/api/site/{siteId}/blog/{postId}/share',
+  [ApiRoute.SITE_BLOG_REQUEST_REVIEW]: '/api/site/{siteId}/blog/{postId}/request-review',
 
   // Blessing Pages
   [ApiRoute.SITE_BLESSING_PAGES_BY_SLUG]: '/api/site/{siteId}/blessing-pages/by-slug/{slug}',

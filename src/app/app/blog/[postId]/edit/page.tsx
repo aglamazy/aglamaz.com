@@ -40,6 +40,8 @@ export default function EditPostPage() {
   const [deleting, setDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const [submittedReview, setSubmittedReview] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -117,6 +119,25 @@ export default function EditPostPage() {
       setError(t('failedToSaveBlogPost') as string);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSubmitForReview = async () => {
+    if (!post) return;
+    setSubmittingReview(true);
+    setError(null);
+    try {
+      await apiFetch(ApiRoute.SITE_BLOG_REQUEST_REVIEW, {
+        method: 'POST',
+        pathParams: { postId: post.id },
+      });
+      setSubmittedReview(true);
+      setPost({ ...post, status: 'in_review' });
+    } catch (err) {
+      console.error('[blog-edit] failed to submit for review', err);
+      setError(t('failedToSubmitForReview', { defaultValue: 'Failed to submit for review' }) as string);
+    } finally {
+      setSubmittingReview(false);
     }
   };
 
@@ -228,9 +249,25 @@ export default function EditPostPage() {
             >
               {t('delete')}
             </Button>
-            <Button type="submit" disabled={saving || deleting}>
-              {saving ? (t('saving') as string) : (t('save') as string)}
-            </Button>
+            <div className="flex gap-3">
+              {post.status === 'draft' && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleSubmitForReview}
+                  disabled={saving || deleting || submittingReview || submittedReview}
+                >
+                  {submittedReview
+                    ? (t('submittedForReview', { defaultValue: 'Submitted for review' }) as string)
+                    : submittingReview
+                      ? (t('loading') as string)
+                      : (t('submitForReview', { defaultValue: 'Submit for review' }) as string)}
+                </Button>
+              )}
+              <Button type="submit" disabled={saving || deleting}>
+                {saving ? (t('saving') as string) : (t('save') as string)}
+              </Button>
+            </div>
           </div>
         </form>
 

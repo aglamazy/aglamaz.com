@@ -27,6 +27,9 @@ export default function BlogPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [hydrated, setHydrated] = useState(false);
+  const [pendingPosts, setPendingPosts] = useState<LocalizedBlogPost[]>([]);
+  const [showPending, setShowPending] = useState(false);
+  const [requestingReviewId, setRequestingReviewId] = useState<string | null>(null);
 
   // Register add action - navigate to new blog post
   useAddAction(() => router.push('/app/blog/new'));
@@ -56,6 +59,37 @@ export default function BlogPage() {
     fetchPosts();
   }, [i18n.language, siteInfo?.id]);
 
+  // Drafts waiting for review (Agla/Shofar 2026-07-27): admin-only - the individual
+  // per-draft email link is the only other way to reach these, and it expires in 24h,
+  // so a slow review week means posts pile up with no other way to find them again.
+  useEffect(() => {
+    if (!siteInfo?.id || !isAdmin) return;
+    apiFetch<{ posts: LocalizedBlogPost[] }>(ApiRoute.SITE_BLOG, {
+      queryParams: { lang: i18n.language, status: 'in_review' },
+    })
+      .then((data) => setPendingPosts(data.posts || []))
+      .catch((e) => console.error('Failed to load pending review posts', e));
+  }, [i18n.language, siteInfo?.id, isAdmin]);
+
+  const handleReview = async (postId: string) => {
+    if (!siteInfo?.id) return;
+    setRequestingReviewId(postId);
+    try {
+      // Regenerate the token rather than relying on whatever's on the post already - the
+      // one from the original email may have expired (24h TTL) by the time an admin
+      // catches up via this list, which is exactly the slow-review scenario this exists for.
+      const { reviewUrl } = await apiFetch<{ token: string; reviewUrl: string }>(ApiRoute.SITE_BLOG_REQUEST_REVIEW, {
+        method: 'POST',
+        pathParams: { postId },
+      });
+      window.location.href = reviewUrl;
+    } catch (e) {
+      console.error('Failed to request review', e);
+    } finally {
+      setRequestingReviewId(null);
+    }
+  };
+
   useEffect(() => {
     setHydrated(true);
   }, []);
@@ -75,6 +109,43 @@ export default function BlogPage() {
       <header className={styles.header}>
         <h1 className={styles.headerTitle}>{headerTitle}</h1>
       </header>
+      {isAdmin && pendingPosts.length > 0 && (
+        <div className={styles.list} style={{ marginBottom: '1rem' }}>
+          <Button
+            variant={showPending ? 'primary' : 'outline'}
+            onClick={() => setShowPending((prev) => !prev)}
+          >
+            {t('draftsWaitingForReview', { defaultValue: 'Drafts waiting for review' })} ({pendingPosts.length})
+          </Button>
+          {showPending && (
+            <div className={styles.list} style={{ marginTop: '0.75rem' }}>
+              {pendingPosts.map((entry) => (
+                <Card
+                  key={entry.post.id}
+                  className={`${styles.card} rounded-none md:rounded-2xl overflow-hidden shadow-lg md:shadow-md border-none md:border-b mx-4 my-2 md:mx-0 md:my-0`}
+                >
+                  <CardHeader className={`${styles.cardHeader} p-4 md:p-3 md:bg-transparent`}>
+                    <CardTitle className={styles.cardTitle}>{entry.localized.title}</CardTitle>
+                  </CardHeader>
+                  <CardContent className={`${styles.cardContent} p-0 md:p-3 md:pb-4`}>
+                    <div className={styles.cardActions}>
+                      <Button
+                        className={styles.editButton}
+                        disabled={requestingReviewId === entry.post.id}
+                        onClick={() => handleReview(entry.post.id)}
+                      >
+                        {requestingReviewId === entry.post.id
+                          ? (t('loading') as string)
+                          : (t('review', { defaultValue: 'Review' }) as string)}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
       {loading ? <div className={styles.status}>{t('loading') as string}</div> : null}
       {error ? <div className={`${styles.status} ${styles.statusError}`}>{loadError}</div> : null}
       <div className={styles.list}>

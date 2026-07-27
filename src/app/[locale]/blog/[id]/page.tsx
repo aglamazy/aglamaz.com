@@ -1,7 +1,9 @@
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import type { IBlogPost } from '@/entities/BlogPost';
+import type { IMember } from '@/entities/Member';
 import { BlogRepository } from '@/repositories/BlogRepository';
 import { FamilyRepository } from '@/repositories/FamilyRepository';
+import { computeMemberAvatar } from '@/store/MemberStore';
 import { cookies, headers } from 'next/headers';
 import TranslationTrigger from '@/components/blog/TranslationTrigger';
 import I18nText from '@/components/I18nText';
@@ -156,6 +158,15 @@ export default async function AuthorBlogPage({ params }: { params: Promise<Autho
   const authorEmail = (member as any)?.email || '';
   const hash = crypto.createHash('md5').update(authorEmail.trim().toLowerCase()).digest('hex');
   const authorAvatar = `https://www.gravatar.com/avatar/${hash}?s=48&d=identicon`;
+  const authorBio = (member as any)?.blogBio || '';
+  // Visible header avatar prefers a real uploaded photo (member.avatarUrl) over
+  // the gravatar-hash fallback used above for JSON-LD - computeMemberAvatar is
+  // the same helper the rest of the app uses for member avatars.
+  const headerAvatar = computeMemberAvatar(member as unknown as IMember, {
+    fallbackEmail: authorEmail,
+    fallbackName: authorName,
+    size: 96,
+  });
 
   const author: AuthorInfo = {
     name: authorName,
@@ -197,11 +208,24 @@ export default async function AuthorBlogPage({ params }: { params: Promise<Autho
     <div className="space-y-4 p-4">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: structuredData }} />
       <TranslationTrigger posts={clientPosts} lang={locale} />
+      <div className="flex items-center gap-4">
+        {headerAvatar.type === 'initials' ? (
+          <div className="h-16 w-16 shrink-0 rounded-full bg-sage-200 flex items-center justify-center text-lg font-semibold text-sage-700">
+            {headerAvatar.initials}
+          </div>
+        ) : (
+          <img src={headerAvatar.url} alt="" className="h-16 w-16 shrink-0 rounded-full object-cover" />
+        )}
+        <div>
+          <h1 className="text-2xl font-semibold text-charcoal m-0">{authorName}</h1>
+          {authorBio && <p className="text-sm text-gray-600 mt-1">{authorBio}</p>}
+        </div>
+      </div>
       {localizedPosts.map(({ post, localized }) => (
         <Card key={post.id}>
           <CardHeader>
             <div className="flex items-start justify-between gap-3">
-              <h1 className="text-2xl font-semibold text-charcoal m-0">{localized.title}</h1>
+              <h2 className="text-2xl font-semibold text-charcoal m-0">{localized.title}</h2>
               <AuthorPostActions postId={post.id} authorId={post.authorId} />
             </div>
             {post.createdAt && <div className="text-xs text-gray-500">{formatLocalizedDate(post.createdAt, dateLocale)}</div>}
