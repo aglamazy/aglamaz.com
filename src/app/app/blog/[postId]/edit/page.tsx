@@ -36,6 +36,7 @@ export default function EditPostPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [requestingReview, setRequestingReview] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -138,6 +139,24 @@ export default function EditPostPage() {
     }
   };
 
+  const handleRequestReview = async () => {
+    if (!post) return;
+    setRequestingReview(true);
+    setError(null);
+    try {
+      const response = await apiFetch<{ token: string; reviewUrl: string }>(ApiRoute.SITE_BLOG_REQUEST_REVIEW, {
+        method: 'POST',
+        pathParams: { postId: post.id },
+      });
+      window.location.assign(response.reviewUrl);
+    } catch (err) {
+      console.error('[blog-edit] failed to request review', err);
+      setError(t('failedToRequestReview') as string);
+    } finally {
+      setRequestingReview(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="p-4 text-center text-sage-600">{t('loading') as string}</div>
@@ -156,6 +175,11 @@ export default function EditPostPage() {
         <CardTitle>{t('editPost')}</CardTitle>
       </CardHeader>
       <CardContent>
+        {post.status === 'in_review' && (
+          <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            {t('reviewRequested')}
+          </div>
+        )}
         <form onSubmit={handleSubmit} className="space-y-4">
           <input
             value={draftTitle}
@@ -217,15 +241,25 @@ export default function EditPostPage() {
             <span>{t('public')}</span>
           </label>
           <div className="flex gap-3 justify-between">
-            <Button
-              type="button"
-              variant="destructive"
-              onClick={() => setShowDeleteConfirm(true)}
-              disabled={saving || deleting}
-            >
-              {t('delete')}
-            </Button>
-            <Button type="submit" disabled={saving || deleting}>
+            <div className="flex gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleRequestReview}
+                disabled={saving || deleting || requestingReview}
+              >
+                {requestingReview ? (t('requestingReview') as string) : (t('requestReview') as string)}
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={() => setShowDeleteConfirm(true)}
+                disabled={saving || deleting || requestingReview}
+              >
+                {t('delete')}
+              </Button>
+            </div>
+            <Button type="submit" disabled={saving || deleting || requestingReview}>
               {saving ? (t('saving') as string) : (t('save') as string)}
             </Button>
           </div>

@@ -171,6 +171,7 @@ export const apiRoutePaths: Record<ApiRoute, string> = {
   [ApiRoute.SITE_BLOG_ENABLE]: '/api/site/{siteId}/blog/enable',
   [ApiRoute.SITE_BLOG_SLUG_CHECK]: '/api/site/{siteId}/blog/check-handle',
   [ApiRoute.SITE_BLOG_TRANSLATE]: '/api/site/{siteId}/blog/translate',
+  [ApiRoute.SITE_BLOG_REQUEST_REVIEW]: '/api/site/{siteId}/blog/{postId}/request-review',
   [ApiRoute.SITE_BLOG_LIKE]: '/api/site/{siteId}/blog/{postId}/like',
   [ApiRoute.SITE_BLOG_SHARE]: '/api/site/{siteId}/blog/{postId}/share',
 
