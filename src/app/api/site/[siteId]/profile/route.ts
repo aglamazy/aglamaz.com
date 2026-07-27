@@ -68,6 +68,14 @@ const putHandler = async (request: Request, context: GuardContext & { params: Pr
       }
     }
 
+    if (typeof body.blogBio === 'string') {
+      const blogBio = body.blogBio.trim();
+      if (blogBio.length > 280) {
+        return Response.json({ error: 'Bio must be 280 characters or fewer' }, { status: 400 });
+      }
+      updates.blogBio = blogBio;
+    }
+
     if (Object.keys(updates).length === 0) {
       return Response.json({ error: 'No updates provided' }, { status: 400 });
     }

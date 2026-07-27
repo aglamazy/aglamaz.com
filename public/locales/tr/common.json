@@ -403,6 +403,8 @@
   "blogSlugLabel": "Blog kısa adı",
   "blogSlugNotSet": "Ayarlanmadı",
   "blogSlugLocked": "Kısa ad oluşturulduktan sonra değiştirilemez.",
+  "blogBioLabel": "Genel blog biyografisi",
+  "blogBioPlaceholder": "Genel blogunuzun üstünde gösterilecek kısa bir satır…",
   "blogStatusEnabled": "Blogunuz etkin.",
   "blogStatusDisabled": "Blogunuz şu anda devre dışı.",
   "disableBlog": "Blogu devre dışı bırak",

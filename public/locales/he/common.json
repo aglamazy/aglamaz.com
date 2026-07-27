@@ -402,6 +402,8 @@
   "blogSlugLabel": "כתובת בלוג",
   "blogSlugNotSet": "לא הוגדר",
   "blogSlugLocked": "הכתובת קבועה לאחר יצירתה.",
+  "blogBioLabel": "תיאור ציבורי לבלוג",
+  "blogBioPlaceholder": "שורה קצרה שתוצג בראש הבלוג הציבורי שלך…",
   "blogStatusEnabled": "הבלוג שלך פעיל.",
   "blogStatusDisabled": "הבלוג שלך מושבת כרגע.",
   "disableBlog": "השבת בלוג",
