@@ -19,6 +19,10 @@ export default function BlogSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [requested, setRequested] = useState(false);
+  const [bio, setBio] = useState('');
+  const [bioSaving, setBioSaving] = useState(false);
+  const [bioSaved, setBioSaved] = useState(false);
+  const [bioTouched, setBioTouched] = useState(false);
 
   useEffect(() => {
     if (!requested && user?.user_id && site?.id) {
@@ -26,6 +30,33 @@ export default function BlogSettingsPage() {
       fetchMember(user.user_id, site.id);
     }
   }, [fetchMember, requested, site?.id, user?.user_id]);
+
+  useEffect(() => {
+    if (!bioTouched) {
+      setBio(member?.blogBio || '');
+    }
+  }, [member?.blogBio, bioTouched]);
+
+  const saveBio = useCallback(async () => {
+    if (!user?.user_id || !site?.id) return;
+    setBioSaving(true);
+    setError(null);
+    try {
+      await apiFetch(ApiRoute.SITE_PROFILE, {
+        method: 'PUT',
+        body: { blogBio: bio },
+      });
+      await fetchMember(user.user_id, site.id);
+      setBioTouched(false);
+      setBioSaved(true);
+      setTimeout(() => setBioSaved(false), 3000);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to update blog settings';
+      setError(message);
+    } finally {
+      setBioSaving(false);
+    }
+  }, [bio, fetchMember, site?.id, user?.user_id]);
 
   const toggleBlog = useCallback(async (enabled: boolean) => {
     if (!user?.user_id || !site?.id) return;
@@ -88,6 +119,34 @@ export default function BlogSettingsPage() {
                 {t('enableBlogFromCTA', { defaultValue: 'Enable your blog from the blog page.' })}
               </span>
             )}
+          </div>
+        </div>
+        <div className="space-y-2">
+          <label htmlFor="blog-bio" className="text-sm text-gray-600">
+            {t('blogBioLabel', { defaultValue: 'Public blog bio' })}
+          </label>
+          <textarea
+            id="blog-bio"
+            value={bio}
+            onChange={(event) => {
+              setBio(event.target.value);
+              setBioTouched(true);
+            }}
+            maxLength={280}
+            rows={3}
+            className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+            placeholder={t('blogBioPlaceholder', { defaultValue: 'A short line shown at the top of your public blog…' }) as string}
+          />
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={saveBio}
+              disabled={bioSaving || !bioTouched}
+              className="rounded border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+            >
+              {bioSaving ? t('saving') : bioSaved ? t('saved', { defaultValue: 'Saved!' }) : t('save')}
+            </button>
+            <span className="text-xs text-gray-500">{bio.length}/280</span>
           </div>
         </div>
       </CardContent>

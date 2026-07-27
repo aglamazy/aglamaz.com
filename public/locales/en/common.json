@@ -408,6 +408,8 @@
   "blogSlugLabel": "Blog slug",
   "blogSlugNotSet": "Not set",
   "blogSlugLocked": "Your slug is permanent once created.",
+  "blogBioLabel": "Public blog bio",
+  "blogBioPlaceholder": "A short line shown at the top of your public blog…",
   "blogStatusEnabled": "Your blog is enabled.",
   "blogStatusDisabled": "Your blog is currently disabled.",
   "disableBlog": "Disable blog",

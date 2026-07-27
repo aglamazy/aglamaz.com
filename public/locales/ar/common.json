@@ -311,6 +311,8 @@
   "blogSlugLabel": "رابط المدونة",
   "blogSlugNotSet": "غير مُعيَّن",
   "blogSlugLocked": "الرابط دائم بمجرد إنشائه.",
+  "blogBioLabel": "نبذة عامة للمدونة",
+  "blogBioPlaceholder": "سطر قصير يظهر أعلى مدونتك العامة…",
   "blogStatusEnabled": "مدونتك مفعّلة.",
   "blogStatusDisabled": "مدونتك معطّلة حالياً.",
   "disableBlog": "تعطيل المدونة",
