@@ -180,6 +180,8 @@
   "familyBlog": "Aile Blogu",
   "familyBlogHeader": "{{site}} Aile Blogu",
   "failedToLoadBlogPosts": "Blog gönderileri yüklenemedi",
+  "draftsWaitingForReview": "İncelemeyi bekleyen taslaklar",
+  "review": "İncele",
   "pickDateLabel": "Tarih seç",
   "burialDate": "Defin tarihi",
   "honoreeLabel": "Bu kimin için?",

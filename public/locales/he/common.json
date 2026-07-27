@@ -180,6 +180,8 @@
   "familyBlog": "בלוג המשפחה",
   "familyBlogHeader": "הבלוג המשפחתי של {{site}}",
   "failedToLoadBlogPosts": "לא הצלחנו לטעון את הפוסטים בבלוג",
+  "draftsWaitingForReview": "טיוטות הממתינות לאישור",
+  "review": "לבדיקה",
   "pickDateLabel": "בחר תאריך",
   "burialDate": "תאריך קבורה",
   "honoreeLabel": "עבור מי זה?",

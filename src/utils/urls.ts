@@ -175,6 +175,7 @@ export const apiRoutePaths: Record<ApiRoute, string> = {
   [ApiRoute.SITE_BLOG_TRANSLATE]: '/api/site/{siteId}/blog/translate',
   [ApiRoute.SITE_BLOG_LIKE]: '/api/site/{siteId}/blog/{postId}/like',
   [ApiRoute.SITE_BLOG_SHARE]: '/api/site/{siteId}/blog/{postId}/share',
+  [ApiRoute.SITE_BLOG_REQUEST_REVIEW]: '/api/site/{siteId}/blog/{postId}/request-review',
 
   // Blessing Pages
   [ApiRoute.SITE_BLESSING_PAGES_BY_SLUG]: '/api/site/{siteId}/blessing-pages/by-slug/{slug}',

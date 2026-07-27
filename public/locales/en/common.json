@@ -184,6 +184,8 @@
   "familyBlog": "Family Blog",
   "familyBlogHeader": "{{site}} Family Blog",
   "failedToLoadBlogPosts": "Failed to load blog posts",
+  "draftsWaitingForReview": "Drafts waiting for review",
+  "review": "Review",
   "pickDateLabel": "Pick a date",
   "burialDate": "Burial date",
   "honoreeLabel": "Who is this for?",

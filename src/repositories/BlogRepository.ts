@@ -292,6 +292,23 @@ export class BlogRepository {
     return snap.docs.map((doc) => this.mapDoc(doc)).filter(isPublished);
   }
 
+  /**
+   * Posts currently awaiting a review decision on this site - the opposite filter of
+   * getBySite (which excludes anything not published). Powers the "drafts waiting for
+   * review" list (Agla/Shofar 2026-07-27) - without this, in_review posts (one per site
+   * per period from blog-autogen, no dedup across periods) had no way to be seen except
+   * via the individual per-draft email link, so a slow review week meant several piled up
+   * invisibly.
+   */
+  async getInReviewBySite(siteId: string): Promise<IBlogPost[]> {
+    const snap = await this.getBaseQuery()
+      .where('siteId', '==', siteId)
+      .where('status', '==', 'in_review')
+      .orderBy('createdAt', 'desc')
+      .get();
+    return snap.docs.map((doc) => this.mapDoc(doc));
+  }
+
   async getPublicBySite(siteId: string, limit = 20): Promise<IBlogPost[]> {
     const snap = await this.getBaseQuery()
       .where('siteId', '==', siteId)
