@@ -382,6 +382,7 @@ export class SiteRepository {
       updatedAt: plain.updatedAt,
       isDemo: plain.isDemo === true ? true : undefined,
       defaultLocale: (plain.defaultLocale as string) || undefined,
+      blogAutogenEnabled: plain.blogAutogenEnabled === true ? true : undefined,
       locales: (plain.locales as ISite['locales']) || {},
     } as ISite;
   }
