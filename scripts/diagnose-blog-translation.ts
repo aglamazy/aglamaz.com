@@ -27,6 +27,18 @@ async function main() {
     return;
   }
 
+  if (process.argv[2] === '--gptcalls') {
+    const n = parseInt(process.argv[3] || '20', 10);
+    const snap = await db.collection('gptCalls').orderBy('timestamp', 'desc').limit(n).get();
+    console.log(`Last ${snap.size} gptCalls entries:\n`);
+    for (const doc of snap.docs) {
+      const d = doc.data();
+      const ts = d.timestamp?.toDate?.() ?? d.timestamp;
+      console.log(`- ${ts}  success=${d.success}  ${d.sourceLocale}->${d.targetLocale}  error=${d.error ?? '(none)'}`);
+    }
+    return;
+  }
+
   if (process.argv[2] === '--test-set-merge') {
     // Empirically checks whether ref.set({'a.b': 1}, {merge:true}) with a
     // dotted STRING key nests (Firestore field-path semantics) or writes a

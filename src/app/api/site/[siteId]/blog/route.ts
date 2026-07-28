@@ -1,3 +1,4 @@
+import { after } from 'next/server';
 import { withMemberGuard } from '@/lib/withMemberGuard';
 import { BlogRepository } from '@/repositories/BlogRepository';
 import { MemberRepository } from '@/repositories/MemberRepository';
@@ -71,7 +72,15 @@ async function maybeEnqueueTranslation(post: IBlogPost, lang: string | undefined
 
   if (!TranslationService.isEnabled()) return;
 
-  (async () => {
+  // NOTE: must be scheduled via next/server's after(), not a bare unawaited
+  // IIFE. Vercel serverless functions can freeze the execution context
+  // immediately once the HTTP response is sent - a fire-and-forget promise
+  // races that freeze and can be silently killed mid-flight before ever
+  // calling addTranslation(), with no error logged anywhere (famcircle#105
+  // follow-up: markTranslationRequested's attempts counter kept incrementing
+  // on every pageview with zero corresponding OpenAI calls ever completing).
+  // after() tells the runtime to keep the function alive until this resolves.
+  after(async () => {
     try {
       console.log('[translate] start', { postId: post.id, to: normalized });
       const res = await TranslationService.translateHtml({
@@ -89,7 +98,7 @@ async function maybeEnqueueTranslation(post: IBlogPost, lang: string | undefined
     } catch (error) {
       console.error(`Background translation failed for post ${post.id} to ${normalized}:`, error);
     }
-  })();
+  });
 }
 
 function localize(post: IBlogPost, locale: string | undefined): LocalizedBlogPost {
