@@ -4,9 +4,28 @@ import { NextRequest, NextResponse } from 'next/server';
 import { SUPPORTED_LOCALES as CONFIG_LOCALES } from '@/constants/i18n';
 import { findBestSupportedLocale, parseAcceptLanguage } from '@/utils/locale';
 import { AppRoute, getPath } from '@/utils/urls';
+import nextI18NextConfig from '../next-i18next.config.js';
 
 const SUPPORTED_LOCALES = CONFIG_LOCALES.map((locale) => locale as string);
-const FALLBACK_LOCALE = SUPPORTED_LOCALES[0] || 'en';
+// Was hardcoded to SUPPORTED_LOCALES[0] ('en'), which silently disagreed with
+// the app's real configured default (next-i18next.config.js: 'he') - only
+// mattered for the rare case of a missing Accept-Language header, but still
+// a real inconsistency. Now wired to the same source of truth.
+const FALLBACK_LOCALE =
+  (typeof nextI18NextConfig?.i18n?.defaultLocale === 'string' ? nextI18NextConfig.i18n.defaultLocale : undefined)
+  ?? SUPPORTED_LOCALES[0]
+  ?? 'en';
+
+// Search-engine crawlers don't have a real language "preference" the way a
+// browser does, but the / -> /{locale} redirect below content-negotiates via
+// Accept-Language for real users. Left unguarded, that means Googlebot (whose
+// Accept-Language varies between crawl configs/sessions) can land on a
+// DIFFERENT locale on different crawls of the same bare URL - search engines
+// see that as an inconsistent redirect target, which is exactly what famcircle#115's
+// GSC report flagged ("Duplicate, Google chose different canonical than
+// user" on /en, "Page with redirect" on /). Bots always get FALLBACK_LOCALE
+// instead, so every crawl of a bare public path lands on the same target.
+const CRAWLER_UA_RE = /bot|crawl|spider|slurp|facebookexternalhit|embedly|quora link preview|showyoubot|outbrain|pinterest|vkshare|w3c_validator/i;
 
 // Helper to add locale header to response
 function addLocaleHeader(response: NextResponse, request: NextRequest): NextResponse {
@@ -78,6 +97,10 @@ function isLocalizedPublic(path: string) {
 }
 
 function resolvePreferredLocale(request: NextRequest) {
+  const userAgent = request.headers.get('user-agent') || '';
+  if (CRAWLER_UA_RE.test(userAgent)) {
+    return FALLBACK_LOCALE;
+  }
   const acceptLanguage = request.headers.get('accept-language');
   const preferences = parseAcceptLanguage(acceptLanguage);
   return findBestSupportedLocale(preferences, SUPPORTED_LOCALES) ?? FALLBACK_LOCALE;
