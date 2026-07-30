@@ -4,6 +4,14 @@
 import { MemberRepository } from '@/repositories/MemberRepository';
 import { ResendService, TaggedContentType } from '@/services/ResendService';
 
+function safeOriginOf(url: string): string | null {
+  try {
+    return new URL(url).origin;
+  } catch {
+    return null;
+  }
+}
+
 export interface NotifyTaggedMembersParams {
   siteId: string;
   siteName?: string;
@@ -63,7 +71,22 @@ export class TagNotificationService {
           `[TagNotificationService] sending: site=${siteId} member=${member.email} contentType=${contentType}`,
         );
 
-        await ResendService.sendTransactionalEmail({ to: member.email, subject, html, lang });
+        const origin = safeOriginOf(contentLink);
+        await ResendService.sendTransactionalEmail({
+          to: member.email,
+          subject,
+          html,
+          lang,
+          tracking: origin
+            ? {
+                origin,
+                siteId,
+                recipientMemberId: member.id,
+                sendType: 'tag-notification',
+                sendId: contentLink,
+              }
+            : undefined,
+        });
       } catch (error) {
         console.error(
           `[TagNotificationService] failed to notify member=${memberId} contentType=${contentType}:`,

@@ -138,7 +138,7 @@ export class BlogAutogenService {
     // Best-effort notification - a failed email must not undo the draft that was already
     // safely created (mirrors the author-notification try/catch in
     // src/app/api/review/[token]/route.ts).
-    await this.notifyAdminsOfPendingReview(admins, siteName, reviewToken, draft.title).catch((err) => {
+    await this.notifyAdminsOfPendingReview(siteId, admins, siteName, reviewToken, post.id, draft.title).catch((err) => {
       console.error(`[BlogAutogenService] admin notification failed for site ${siteId}:`, err);
     });
 
@@ -146,9 +146,11 @@ export class BlogAutogenService {
   }
 
   private async notifyAdminsOfPendingReview(
+    siteId: string,
     admins: LocalizedMemberRecord[],
     siteName: string,
     reviewToken: string,
+    postId: string,
     postTitle: string,
   ): Promise<void> {
     const appUrl = (process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/+$/, '');
@@ -168,7 +170,14 @@ export class BlogAutogenService {
           button: { label: 'Review draft', url: reviewUrl },
           footerLines: ['FamCircle'],
         });
-        return ResendService.sendTransactionalEmail({ to: admin.email, subject, html });
+        return ResendService.sendTransactionalEmail({
+          to: admin.email,
+          subject,
+          html,
+          tracking: appUrl
+            ? { origin: appUrl, siteId, recipientMemberId: admin.id, sendType: 'blog-autogen-admin', sendId: postId }
+            : undefined,
+        });
       }),
     );
   }

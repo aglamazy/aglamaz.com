@@ -1,8 +1,9 @@
 // Uses plain fetch — no Resend SDK dependency needed.
 // Sending is gated on RESEND_API_KEY; missing key → log + no-op, never throws.
 
-import { renderEmailHtml, escapeHtml } from './emailTemplates';
+import { renderEmailHtml, escapeHtml, injectTrackingPixel } from './emailTemplates';
 import type { AnniversaryType } from '@/entities/Anniversary';
+import { signEmailTrackingToken, buildPixelTrackingUrl, type EmailTrackingIdentity } from './EmailTrackingService';
 
 export type TaggedContentType = 'blessing' | 'photo' | 'post';
 
@@ -44,11 +45,18 @@ export interface TagNotificationEmailParams {
   siteName?: string;
 }
 
+export interface TransactionalEmailTracking extends EmailTrackingIdentity {
+  /** The site's own canonical origin (e.g. "https://aglamaz.com") - the pixel/click routes are served from it, same as every other link already baked into this email. */
+  origin: string;
+}
+
 export interface TransactionalEmailParams {
   to: string;
   subject: string;
   html: string;
   lang?: string;
+  /** When set, a unique per-copy open-tracking pixel is minted and appended to `html` right before sending - the single choke point every send type funnels through, so translation (which runs before this call) never sees or mangles the pixel tag. */
+  tracking?: TransactionalEmailTracking;
 }
 
 
@@ -304,6 +312,13 @@ export class ResendService {
     const from =
       process.env.RESEND_FROM_EMAIL ?? 'FamCircle <reminders@mail.famcircle.org>';
 
+    let html = params.html;
+    if (params.tracking) {
+      const { origin, ...identity } = params.tracking;
+      const token = signEmailTrackingToken(identity);
+      html = injectTrackingPixel(html, buildPixelTrackingUrl(origin, token));
+    }
+
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
@@ -314,7 +329,7 @@ export class ResendService {
         from,
         to: [params.to],
         subject: params.subject,
-        html: params.html,
+        html,
       }),
     });
 

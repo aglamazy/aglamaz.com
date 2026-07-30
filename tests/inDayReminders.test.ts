@@ -64,7 +64,7 @@ const baseParams = (events: AnniversaryEvent[]) => ({
   events,
   today: today(),
   siteName: 'Test Family',
-  calendarUrl: 'https://example.com/app/calendar',
+  calendarUrlFor: () => 'https://example.com/app/calendar',
   manageLinkFor: (memberId: string) => `https://example.com/manage?m=${memberId}`,
 });
 

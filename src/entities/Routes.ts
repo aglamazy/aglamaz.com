@@ -145,6 +145,10 @@ export enum ApiRoute {
 
   // Review (token-gated, non-site-scoped - the token itself is the auth)
   REVIEW_DECISION = 'REVIEW_DECISION',
+
+  // Email open/click tracking (token-gated, non-site-scoped - the token itself is the auth)
+  TRACK_PIXEL = 'TRACK_PIXEL',
+  TRACK_CLICK = 'TRACK_CLICK',
 }
 
 export interface UrlParams {

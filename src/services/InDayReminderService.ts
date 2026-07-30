@@ -56,12 +56,13 @@ export function planInDaySends(params: {
   today: Date;
   members: InDayCandidateMember[];
   siteName: string;
-  calendarUrl: string;
+  /** Per-member calendar link - lets the caller wrap it in a click-tracking redirect unique to each recipient (still the same real calendar destination for everyone). */
+  calendarUrlFor: (memberId: string) => string;
   manageLinkFor: (memberId: string) => string;
   /** Public memorial page URL per event id, pre-resolved by the caller (isPublic lookup requires Firestore I/O, kept out of this pure function). */
   memorialUrlByEventId?: Record<string, string>;
 }): InDayEmailPlan[] {
-  const { events, today, members, siteName, calendarUrl, manageLinkFor, memorialUrlByEventId } = params;
+  const { events, today, members, siteName, calendarUrlFor, manageLinkFor, memorialUrlByEventId } = params;
   const todaysEvents = filterTodaysOccurrences(events, today);
   if (todaysEvents.length === 0) return [];
 
@@ -78,6 +79,7 @@ export function planInDaySends(params: {
 
     const lang = member.defaultLocale ?? 'he';
     const dir = lang === 'he' ? 'rtl' : 'ltr';
+    const calendarUrl = calendarUrlFor(member.memberId);
     const { subject, html } = ResendService.buildInDayReminderEmailHtml({
       firstName: member.firstName || member.displayName || member.email,
       events: eventsForMember.map((ev) => ({
