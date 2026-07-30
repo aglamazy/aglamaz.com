@@ -3,6 +3,20 @@ export interface FieldMeta {
   updatedAt: any;
 }
 
+// F7-A (famcircle#119): the ONE table every cron/send route reads before firing - rows
+// are these 4 send types, columns are on/off (+ recipients, informational; locale
+// reserved for later per Agla 2026-07-30, not built yet). No shadow config: the admin
+// read/write API and every cron below resolve through SiteRepository.resolveSendSettings,
+// never a separate flag.
+export const SEND_TYPES = ['digest', 'inDayReminders', 'yahrzeitWhatsapp', 'blogAutogen'] as const;
+export type SendType = typeof SEND_TYPES[number];
+
+export interface SendTypeSetting {
+  enabled: boolean;
+}
+
+export type SendSettings = Partial<Record<SendType, SendTypeSetting>>;
+
 // Define all translatable fields for a site
 export const SITE_TRANSLATABLE_FIELDS = ['name', 'aboutFamily', 'platformName'] as const;
 export type SiteTranslatableField = typeof SITE_TRANSLATABLE_FIELDS[number];
@@ -44,10 +58,17 @@ export interface ISite {
   // real Hebrew content).
   defaultLocale?: string;
 
-  // Per-site consent for the AI blog-autogen cron (BlogAutogenService) — defaults to
-  // undefined/false (off) so a site is never auto-drafted without an explicit opt-in.
-  // No admin UI wires this yet (fast-follow); set directly via SiteRepository until then.
+  // LEGACY per-site consent for the AI blog-autogen cron - superseded by
+  // sendSettings.blogAutogen.enabled (F7-A, famcircle#119). Kept only as a fallback for
+  // any site that had this set directly (via script) before the admin table existed;
+  // SiteRepository.resolveSendSettings prefers sendSettings and falls back to this field
+  // only when sendSettings.blogAutogen is absent. Do not read this field anywhere else.
   blogAutogenEnabled?: boolean;
+
+  // F7-A (famcircle#119): the admin-controlled on/off table for every send type - the
+  // SAME config every cron route reads before sending. See SendType/SendSettings above
+  // and SiteRepository.resolveSendSettings/updateSendSetting.
+  sendSettings?: SendSettings;
 
   // Flattened fields from current locale (for convenience)
   name?: string;

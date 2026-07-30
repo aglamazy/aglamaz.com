@@ -67,6 +67,13 @@ export async function GET(request: NextRequest) {
   for (const site of sites) {
     const siteId = site.id;
     try {
+      // F7-A (famcircle#119): the admin send-settings table is the ONE thing every send
+      // route checks before firing.
+      if (!siteRepo.resolveSendSettings(site).inDayReminders) {
+        console.log(`[cron/in-day-reminders] skipped (send-settings off): site=${siteId}`);
+        continue;
+      }
+
       await annivRepo.ensureHebrewHorizonForYear(siteId, today.getFullYear());
       const events = await annivRepo.getEventsForMonth(siteId, today.getMonth(), today.getFullYear());
       const todaysEvents = filterTodaysOccurrences(events, today);

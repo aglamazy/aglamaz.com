@@ -14,7 +14,7 @@
 // MagazineTemplateSuggesterService: isEnabled() gated on OPENAI_API_KEY, direct fetch to
 // api.openai.com/v1/chat/completions, model from OPENAI_MODEL || 'gpt-4o-mini' - no SDK
 // dependency added.
-import { SiteRepository } from '@/repositories/SiteRepository';
+import { SiteRepository, resolveSendSettingsForSite } from '@/repositories/SiteRepository';
 import { MemberRepository, type LocalizedMemberRecord } from '@/repositories/MemberRepository';
 import { BlogRepository } from '@/repositories/BlogRepository';
 import { monthKey } from '@/repositories/DigestSendRepository';
@@ -78,9 +78,11 @@ export class BlogAutogenService {
     if (!site) {
       throw new Error(`Site ${siteId} not found`);
     }
-    if (!site.blogAutogenEnabled) {
-      // Per-site consent gate (famcircle#103) - a family must explicitly opt in before
-      // any AI-drafted content is created for them. Defaults to off/undefined.
+    if (!resolveSendSettingsForSite(site).blogAutogen) {
+      // Per-site consent gate (famcircle#103), now resolved through the F7-A admin
+      // send-settings table (famcircle#119) instead of the standalone blogAutogenEnabled
+      // flag - a family must explicitly opt in before any AI-drafted content is created
+      // for them. Defaults to off/undefined.
       return { siteId, periodKey, outcome: 'skipped_not_opted_in' };
     }
     if (!site.defaultLocale) {

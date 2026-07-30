@@ -63,6 +63,18 @@ export async function GET(request: NextRequest) {
 
   for (const siteId of siteIds) {
     try {
+      // F7-A (famcircle#119): the admin send-settings table is the ONE thing every send
+      // route checks before firing - a site with digest switched off skips before any
+      // member/prefs reads, same as the "nobody eligible" skip below.
+      const siteForSendCheck = await siteRepo.get(siteId);
+      if (!siteForSendCheck) {
+        continue;
+      }
+      if (!siteRepo.resolveSendSettings(siteForSendCheck).digest) {
+        console.log(`[cron/digest] skipped (send-settings off): site=${siteId}`);
+        continue;
+      }
+
       // Idempotency (Agla, 2026-07-24 - the "3 of 11" incident): this cron is scheduled to
       // fire multiple times per period specifically so an interrupted run (deploy cutover,
       // timeout, partial failure) gets picked up by the next fire - onlyUnsent filters out
