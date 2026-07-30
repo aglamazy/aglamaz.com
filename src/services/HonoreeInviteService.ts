@@ -91,5 +91,10 @@ export async function sendHonoreeBlessingLink(params: {
     subject,
     html,
     lang: SOURCE_LOCALE,
+    // Only trackable when the honoree is an existing member - a raw honoreeEmail (no
+    // member doc) has no recipientMemberId to key the log by.
+    tracking: honoreeMemberId
+      ? { origin: baseUrl, siteId, recipientMemberId: honoreeMemberId, sendType: 'blessing-invite', sendId: blessingPage.id }
+      : undefined,
   });
 }

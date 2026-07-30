@@ -205,6 +205,10 @@ export const apiRoutePaths: Record<ApiRoute, string> = {
 
   // Review (token-gated, non-site-scoped)
   [ApiRoute.REVIEW_DECISION]: '/api/review/{token}',
+
+  // Email open/click tracking (token-gated, non-site-scoped)
+  [ApiRoute.TRACK_PIXEL]: '/api/track/pixel/{token}',
+  [ApiRoute.TRACK_CLICK]: '/api/track/click/{token}',
 };
 
 /**

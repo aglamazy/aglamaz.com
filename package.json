@@ -12,6 +12,7 @@
     "test:digest": "tsx tests/digestTranslation.test.ts",
     "test:digest-template": "tsx tests/digestTemplate.test.ts",
     "test:digest-compiler": "tsx tests/DigestCompilerService.test.ts",
+    "test:email-tracking": "tsx tests/emailTracking.test.ts",
     "test:e2e": "tsx tests/e2e.ts",
     "test:playwright": "playwright test",
     "test:playwright:ui": "playwright test --ui",

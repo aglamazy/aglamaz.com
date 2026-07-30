@@ -90,7 +90,15 @@ export async function POST(
         footerLines: ['FamCircle'],
       });
 
-      await ResendService.sendTransactionalEmail({ to: authorEmail, subject, html });
+      const authorId = (author as any)?.id as string | undefined;
+      await ResendService.sendTransactionalEmail({
+        to: authorEmail,
+        subject,
+        html,
+        tracking: authorId && appUrl
+          ? { origin: appUrl, siteId: prePost.siteId, recipientMemberId: authorId, sendType: 'blog-review-decision', sendId: prePost.id }
+          : undefined,
+      });
     }
   } catch (err) {
     console.error('[review/decide] author notification email failed', err);

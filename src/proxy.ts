@@ -74,6 +74,10 @@ const PUBLIC_REDIRECT_PATHS = ['/auth/login'];
 // prefix list and would otherwise expose the rest of /api/site/*.
 const PUBLIC_API_PATTERNS = [
   /^\/api\/site\/[^/]+\/blessing-pages\/[^/]+\/blessings\/public$/,
+  // Email open/click tracking - token-gated (the signed token is the auth), fetched by mail
+  // clients and link clicks with no session cookie at all.
+  /^\/api\/track\/pixel\/[^/]+$/,
+  /^\/api\/track\/click\/[^/]+$/,
 ];
 
 function isPublicApiPath(pathname: string) {

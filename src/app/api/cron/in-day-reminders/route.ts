@@ -18,6 +18,7 @@ import {
   buildReminderPreferenceLink,
   signReminderPreferenceToken,
 } from '@/services/ReminderPreferenceLinkService';
+import { signEmailTrackingToken, buildClickTrackingUrl } from '@/services/EmailTrackingService';
 import { AppRoute } from '@/utils/urls';
 import { getBaseUrlForSite, getUrl } from '@/utils/serverUrls';
 import type { ISite } from '@/entities/Site';
@@ -106,11 +107,20 @@ export async function GET(request: NextRequest) {
         }
       }
 
+      // Groups this batch's tracking events (one per site per day) - per-copy uniqueness
+      // still comes from recipientMemberId in the signed token, not from this id.
+      const sendId = today.toISOString().slice(0, 10);
+
       const plans = planInDaySends({
         events,
         today,
         siteName,
-        calendarUrl,
+        calendarUrlFor: (memberId) =>
+          buildClickTrackingUrl(
+            siteBaseUrl,
+            signEmailTrackingToken({ siteId, recipientMemberId: memberId, sendType: 'in-day-reminder', sendId }),
+            calendarUrl,
+          ),
         members: members.map((m, i) => ({
           memberId: m.id,
           email: m.email,
@@ -137,6 +147,13 @@ export async function GET(request: NextRequest) {
             subject: plan.subject,
             html: plan.html,
             lang: plan.lang,
+            tracking: {
+              origin: siteBaseUrl,
+              siteId,
+              recipientMemberId: plan.memberId,
+              sendType: 'in-day-reminder',
+              sendId,
+            },
           });
           totalSent++;
         } catch (memberErr) {

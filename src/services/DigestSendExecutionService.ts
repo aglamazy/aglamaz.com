@@ -135,6 +135,13 @@ export async function executeDigestSend(
         subject: localized.subject,
         html: localized.html,
         lang: recipientLocale,
+        tracking: {
+          origin: new URL(calendarUrl).origin,
+          siteId,
+          recipientMemberId: member.id,
+          sendType: 'digest',
+          sendId: `${cadence}:${period}`,
+        },
       });
       await digestSendRepository.markSent(siteId, member.id, cadence, period);
     }),
