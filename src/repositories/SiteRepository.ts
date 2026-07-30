@@ -4,11 +4,45 @@ import nextI18NextConfig from '../../next-i18next.config.js';
 import { initAdmin } from '@/firebase/admin';
 import { TranslationService } from '@/services/TranslationService';
 import { saveLocalizedContent } from '@/services/LocalizationService';
-import type { ISite } from '@/entities/Site';
+import { SEND_TYPES, type ISite, type SendType } from '@/entities/Site';
 
 const SUPPORTED_LOCALES: string[] = Array.isArray(nextI18NextConfig?.i18n?.locales)
   ? nextI18NextConfig.i18n.locales
   : ['en'];
+
+// F7-A (famcircle#119) defaults: digest/inDayReminders/yahrzeitWhatsapp had no site-level
+// switch before this table existed (member prefs / event matching decided everything), so
+// "not yet configured" preserves that always-on behavior. blogAutogen's existing consent
+// gate defaulted off - preserved here too (see resolveSendSettings's legacy fallback).
+const DEFAULT_SEND_ENABLED: Record<SendType, boolean> = {
+  digest: true,
+  inDayReminders: true,
+  yahrzeitWhatsapp: true,
+  blogAutogen: false,
+};
+
+/**
+ * F7-A (famcircle#119): resolves the effective on/off state for every send type from an
+ * ALREADY-FETCHED site - the one function every cron route, service (BlogAutogenService),
+ * and the admin API call, so there is exactly one place that decides what fires (no
+ * shadow config). Standalone (not a SiteRepository method) so DI-friendly callers can
+ * import it directly regardless of which SiteRepository instance (real or test double)
+ * they were handed. Pure/sync, so it's directly unit-testable without touching Firestore.
+ */
+export function resolveSendSettingsForSite(site: ISite): Record<SendType, boolean> {
+  const result = {} as Record<SendType, boolean>;
+  for (const type of SEND_TYPES) {
+    const explicit = site.sendSettings?.[type]?.enabled;
+    if (explicit !== undefined) {
+      result[type] = explicit;
+    } else if (type === 'blogAutogen' && site.blogAutogenEnabled !== undefined) {
+      result[type] = site.blogAutogenEnabled;
+    } else {
+      result[type] = DEFAULT_SEND_ENABLED[type];
+    }
+  }
+  return result;
+}
 
 export class TranslationDisabledError extends Error {
   constructor(public readonly locale: string) {
@@ -382,8 +416,45 @@ export class SiteRepository {
       updatedAt: plain.updatedAt,
       isDemo: plain.isDemo === true ? true : undefined,
       defaultLocale: (plain.defaultLocale as string) || undefined,
+      // Both were previously dropped here, silently - blogAutogenEnabled could never come
+      // back true through get()/fetchSite() (F7-A, famcircle#119 fix). sendSettings MUST
+      // survive deserialization or every cron reading it via an already-fetched ISite
+      // (rather than a fresh getSendSettings() call) would see it as always-unset.
+      blogAutogenEnabled: plain.blogAutogenEnabled === true ? true : undefined,
+      sendSettings: (plain.sendSettings as ISite['sendSettings']) || undefined,
       locales: (plain.locales as ISite['locales']) || {},
     } as ISite;
+  }
+
+  /**
+   * F7-A (famcircle#119): resolves the effective on/off state for every send type from an
+   * ALREADY-FETCHED site - the one function every cron route and the admin API call, so
+   * there is exactly one place that decides what fires (no shadow config). Thin wrapper
+   * around the standalone `resolveSendSettingsForSite` (below) so callers that already
+   * hold a SiteRepository instance don't need a second import.
+   */
+  resolveSendSettings(site: ISite): Record<SendType, boolean> {
+    return resolveSendSettingsForSite(site);
+  }
+
+  async getSendSettings(siteId: string): Promise<Record<SendType, boolean>> {
+    const site = await this.fetchSite(siteId);
+    if (!site) {
+      throw new SiteNotFoundError(siteId);
+    }
+    return this.resolveSendSettings(site);
+  }
+
+  async updateSendSetting(siteId: string, type: SendType, enabled: boolean): Promise<void> {
+    const docRef = this.siteDocRef(siteId);
+    const snap = await docRef.get();
+    if (!snap.exists) {
+      throw new SiteNotFoundError(siteId);
+    }
+    // Dotted-key path via .update() - NOT .set(merge:true), which does not nest dotted
+    // string keys (famcircle#105 landmine).
+    await docRef.update({ [`sendSettings.${type}.enabled`]: enabled, updatedAt: Timestamp.now() });
+    await this.revalidateSite(siteId);
   }
 
   private async ensureLocale(

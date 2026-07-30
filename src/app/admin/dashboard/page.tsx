@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { FileText, Users, MessageCircle, RefreshCw, BookOpen, ShieldCheck, Settings } from 'lucide-react';
+import { FileText, Users, MessageCircle, RefreshCw, BookOpen, ShieldCheck, Settings, ToggleLeft } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useTranslation } from 'react-i18next';
@@ -131,6 +131,13 @@ export default function AdminDashboard() {
       description: t('viewLoginAudit') || 'See who signed in, and when',
       href: '/admin/login-audit',
       gradient: 'from-slate-500 to-slate-600',
+    },
+    {
+      icon: ToggleLeft,
+      title: t('sendSettingsTitle') || 'Sends control',
+      description: t('manageSendSettings') || 'Turn each automated send on or off for this family',
+      href: '/admin/send-settings',
+      gradient: 'from-indigo-500 to-indigo-600',
     },
     {
       icon: Settings,

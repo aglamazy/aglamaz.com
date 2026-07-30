@@ -189,6 +189,7 @@ export const apiRoutePaths: Record<ApiRoute, string> = {
   [ApiRoute.SITE_LOGIN_AUDIT]: '/api/site/{siteId}/login-audit',
   [ApiRoute.SITE_DIGEST_PREVIEW_SEND]: '/api/site/{siteId}/digest-preview-send',
   [ApiRoute.SITE_DIGEST_PUBLISH_NOW]: '/api/site/{siteId}/digest-publish-now',
+  [ApiRoute.SITE_SEND_SETTINGS]: '/api/site/{siteId}/send-settings',
 
   // Dropbox
   [ApiRoute.SITE_DROPBOX_BROWSE]: '/api/site/{siteId}/dropbox/browse',

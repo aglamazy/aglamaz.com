@@ -227,11 +227,45 @@ async function testSkipsWhenNotOptedIn() {
   console.log('BlogAutogenService not-opted-in skip test passed');
 }
 
+async function testSkipsWhenSendSettingsTableTurnsBlogAutogenOff() {
+  const { BlogAutogenService } = await import('../src/services/BlogAutogenService');
+
+  // F7-A (famcircle#119): the new admin table is the ONE thing this checks now, and it
+  // must win even over a (stale) legacy blogAutogenEnabled=true - no shadow config.
+  const siteRepository: any = {
+    get: async () => ({
+      id: 'site1',
+      defaultLocale: 'en',
+      blogAutogenEnabled: true,
+      sendSettings: { blogAutogen: { enabled: false } },
+    }),
+  };
+  const blogAutogenRepository: any = { alreadyGenerated: async () => false };
+  const blogRepository: any = {
+    create: async () => {
+      throw new Error('should not create a post when the send-settings table has this off');
+    },
+  };
+
+  const service = new BlogAutogenService(
+    siteRepository,
+    {} as any,
+    blogRepository,
+    {} as any,
+    blogAutogenRepository,
+  );
+
+  const result = await service.generateForSite('site1', new Date('2026-07-10'));
+  assert.equal(result.outcome, 'skipped_not_opted_in');
+  console.log('BlogAutogenService send-settings-off skip test passed');
+}
+
 async function run() {
   await testGeneratesDraftAndRequestsReview();
   await testSkipsWhenAlreadyGeneratedThisPeriod();
   await testSkipsWhenNoActivity();
   await testSkipsWhenNotOptedIn();
+  await testSkipsWhenSendSettingsTableTurnsBlogAutogenOff();
 }
 
 run();

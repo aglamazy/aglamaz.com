@@ -85,6 +85,13 @@ export async function GET(request: NextRequest) {
         throw new Error(`Site ${siteId} not found`);
       }
 
+      // F7-A (famcircle#119): the admin send-settings table is the ONE thing every send
+      // route checks before firing.
+      if (!siteRepo.resolveSendSettings(site).yahrzeitWhatsapp) {
+        console.log(`[cron/yahrzeit-whatsapp] skipped (send-settings off): site=${siteId}`);
+        continue;
+      }
+
       const targetLocale = resolveTargetLocale(site);
       if (!targetLocale) {
         throw new Error(`Unable to resolve yahrzeit WhatsApp locale for site ${siteId}`);
