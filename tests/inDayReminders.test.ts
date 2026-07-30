@@ -194,6 +194,58 @@ function testDeathEventWithoutMemorialUsesCalendarLink() {
   console.log('death event without public memorial uses calendar link passed');
 }
 
+function testHonoreeIsExcludedFromTheirOwnBirthdayNotice() {
+  const t = today();
+  const ev = eventOn({ day: t.getDate(), month: t.getMonth(), type: 'birthday', honoreeMemberId: 'shaked' } as any);
+
+  const plans = planInDaySends({
+    ...baseParams([ev]),
+    members: [
+      { memberId: 'shaked', email: 'shaked@example.com', inDayRemindersEnabled: true, defaultLocale: 'en' },
+      { memberId: 'other', email: 'other@example.com', inDayRemindersEnabled: true, defaultLocale: 'en' },
+    ],
+  });
+
+  assert.equal(plans.length, 1, 'only the non-honoree member should receive a plan');
+  assert.equal(plans[0].memberId, 'other', 'the honoree must not receive their own birthday notice');
+  console.log('honoree excluded from their own birthday notice passed');
+}
+
+function testHonoreeWithoutHonoreeMemberIdStillGetsNotified() {
+  // honoreeMemberId is optional - events without it (relative not on the site, or an older
+  // event predating the field) must not accidentally exclude anyone.
+  const t = today();
+  const ev = eventOn({ day: t.getDate(), month: t.getMonth(), type: 'birthday' });
+
+  const plans = planInDaySends({
+    ...baseParams([ev]),
+    members: [
+      { memberId: 'm1', email: 'm1@example.com', inDayRemindersEnabled: true, defaultLocale: 'en' },
+    ],
+  });
+
+  assert.equal(plans.length, 1, 'members should still get notified when the event has no honoreeMemberId set');
+  console.log('event without honoreeMemberId still notifies members passed');
+}
+
+function testHonoreeOfOneEventStillGetsNotifiedAboutAnother() {
+  const t = today();
+  const ownBirthday = eventOn({ id: 'evt1', day: t.getDate(), month: t.getMonth(), type: 'birthday', name: 'Shaked', honoreeMemberId: 'shaked' } as any);
+  const grandmaYahrzeit = eventOn({ id: 'evt2', day: t.getDate(), month: t.getMonth(), type: 'death', name: 'Grandma' });
+
+  const plans = planInDaySends({
+    ...baseParams([ownBirthday, grandmaYahrzeit]),
+    members: [
+      { memberId: 'shaked', email: 'shaked@example.com', inDayRemindersEnabled: true, defaultLocale: 'en' },
+    ],
+  });
+
+  assert.equal(plans.length, 1, 'the honoree should still get a notice about the OTHER today-event');
+  assert.ok(!plans[0].html.includes('Shaked'), 'the honoree\'s own event must not appear in their email');
+  assert.ok(plans[0].html.includes('Grandma'), 'the other today-event must still appear');
+  console.log('honoree of one event still notified about a different today-event passed');
+}
+
 testFilterTodaysOccurrencesMatchesByDay();
 testFilterTodaysOccurrencesCoversAllThreeTypes();
 testFilterTodaysOccurrencesIgnoresOtherType();
@@ -205,3 +257,6 @@ testMultipleOccurrencesSameDayStillOneEmail();
 testMemberWithoutEmailIsSkipped();
 testDeathEventWithPublicMemorialUsesMemorialLink();
 testDeathEventWithoutMemorialUsesCalendarLink();
+testHonoreeIsExcludedFromTheirOwnBirthdayNotice();
+testHonoreeWithoutHonoreeMemberIdStillGetsNotified();
+testHonoreeOfOneEventStillGetsNotifiedAboutAnother();

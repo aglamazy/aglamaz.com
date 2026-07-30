@@ -70,11 +70,17 @@ export function planInDaySends(params: {
     if (!member.email) continue;
     if (!member.inDayRemindersEnabled) continue;
 
+    // The honoree of an event never gets notified about their own birthday/anniversary -
+    // exclude only the event(s) about them, not the member entirely, since a member can be
+    // the honoree of one today-event while still opted in for another today-event.
+    const eventsForMember = todaysEvents.filter((ev) => ev.honoreeMemberId !== member.memberId);
+    if (eventsForMember.length === 0) continue;
+
     const lang = member.defaultLocale ?? 'he';
     const dir = lang === 'he' ? 'rtl' : 'ltr';
     const { subject, html } = ResendService.buildInDayReminderEmailHtml({
       firstName: member.firstName || member.displayName || member.email,
-      events: todaysEvents.map((ev) => ({
+      events: eventsForMember.map((ev) => ({
         eventId: ev.id,
         type: ev.type,
         eventName: ev.name,

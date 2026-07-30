@@ -75,3 +75,30 @@ export function findGregorianForHebrewKeyInYear(hebKey: string, gregorianYear: n
   }
 }
 
+/**
+ * Resolves the display occurrence (month/day/year) of a Hebrew-tracked annual event for a
+ * queried (month, year), recomputed fresh from hebrewKey every call - deliberately does NOT
+ * consult any precomputed/cached occurrence table. A cache (e.g. AnniversaryEvent's
+ * hebrewOccurrences) can go stale (written by a since-fixed algorithm, hand-edited data,
+ * a missed recompute on save, ...) and silently misfire "today" reminders on the wrong day
+ * with nothing in the read path to catch it (famcircle#120: 6-day-early birthday misfire).
+ * Recomputing from hebrewKey - the source of truth for which Hebrew calendar day the event
+ * falls on - closes that whole bug class instead of trusting a derived value.
+ */
+export function resolveHebrewOccurrenceForMonth(
+  ev: { month: number; year: number; day: number; hebrewKey?: string },
+  month: number,
+  year: number,
+): { month: number; day: number; year: number } | null {
+  // The originally-entered occurrence is already correct for its own creation year - no
+  // Hebrew/Gregorian conversion needed or possible (hebrewKey maps a Hebrew day to *a*
+  // Gregorian year, not back to the exact date the event was created with).
+  if (ev.month === month && ev.year === year) {
+    return { month: ev.month, day: ev.day, year: ev.year };
+  }
+  if (!ev.hebrewKey) return null;
+  const g = findGregorianForHebrewKeyInYear(ev.hebrewKey, year);
+  if (!g || g.getMonth() !== month) return null;
+  return { month: g.getMonth(), day: g.getDate(), year };
+}
+

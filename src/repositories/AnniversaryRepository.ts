@@ -1,7 +1,7 @@
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { initAdmin } from '../firebase/admin';
 import type { AnniversaryEvent, AnniversaryType } from '@/entities/Anniversary';
-import { formatHebrewDisplay, formatHebrewKey, findGregorianForHebrewKeyInYear } from '@/utils/hebrew';
+import { formatHebrewDisplay, formatHebrewKey, findGregorianForHebrewKeyInYear, resolveHebrewOccurrenceForMonth } from '@/utils/hebrew';
 import { ConfigRepository } from '@/repositories/ConfigRepository';
 
 export class AnniversaryRepository {
@@ -110,6 +110,12 @@ export class AnniversaryRepository {
     for (const ev of hebEventsAll) {
       if (!ev.isAnnual) continue;
       const original = { originalDate: ev.date, originalMonth: ev.month, originalDay: ev.day, originalYear: ev.year };
+      // Recomputed fresh from hebrewKey every call, never trusting the precomputed
+      // hebrewOccurrences cache - see resolveHebrewOccurrenceForMonth's doc comment
+      // (famcircle#120: a stale cache entry silently misfired "today" reminders on the
+      // wrong day with nothing in the read path to catch it).
+      const occ = resolveHebrewOccurrenceForMonth(ev, month, year);
+      if (!occ) continue;
       // The originally-entered date is always known directly and must be visible
       // regardless of whether the lazy hebrewOccurrences horizon has reached this
       // year yet - it is occurrence zero, not something "computed on demand".
@@ -117,14 +123,12 @@ export class AnniversaryRepository {
         hebEventsForMonth.push({ ...ev, ...original } as any);
         continue;
       }
-      const occ = (ev.hebrewOccurrences || []).find((o) => o.year === year && o.month === month);
-      if (!occ) continue;
       hebEventsForMonth.push({
         ...ev,
         month: occ.month,
         day: occ.day,
         year: occ.year,
-        date: occ.date,
+        date: Timestamp.fromDate(new Date(occ.year, occ.month, occ.day)),
         ...original,
       } as any);
     }
