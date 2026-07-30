@@ -860,10 +860,20 @@ export default function AnniversariesPage() {
               <div className="flex gap-2 pt-2">
                 <button
                   onClick={() => {
+                    // selectedEvent can be a Hebrew-tracked event's *display* object, with
+                    // month/day/year overwritten to whichever occurrence is being shown for
+                    // the queried month - not its true stored date (see AnniversaryEvent's
+                    // originalDate/... doc comment). Must prefer the original* fields here,
+                    // same as EventFormContent's own pre-fill, or this edit path re-saves
+                    // the wrong date as if it were the original (famcircle#120's class of bug,
+                    // fixed once already for EventFormContent by 6e0af29 but missed here).
+                    const year = (selectedEvent as any).originalYear ?? selectedEvent.year;
+                    const month = (selectedEvent as any).originalMonth ?? selectedEvent.month;
+                    const day = (selectedEvent as any).originalDay ?? selectedEvent.day;
                     setForm({
                       name: selectedEvent.name,
                       description: selectedEvent.description || '',
-                      date: `${selectedEvent.year}-${String(selectedEvent.month + 1).padStart(2, '0')}-${String(selectedEvent.day).padStart(2, '0')}`,
+                      date: `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
                       type: selectedEvent.type,
                       isAnnual: selectedEvent.isAnnual,
                       imageUrl: '',
