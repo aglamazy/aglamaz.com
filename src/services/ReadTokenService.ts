@@ -6,7 +6,10 @@ import type { TokenClaims } from '@/auth/tokens';
 // famcircle#63 implements the same shape locally from the spec to unblock the auth-path wiring.
 // Once #62 lands, this file should be deleted and its call sites repointed at #62's version.
 
-const READ_TOKEN_AUDIENCE = 'read-only-access';
+// Exported so the Edge-runtime verifier (src/lib/edgeAuth.ts:verifyReadTokenEdge, used by
+// src/proxy.ts since middleware/proxy runs in the Edge runtime where Node's `crypto` module
+// used by verifyJwt below is unavailable) checks the same audience value, not a copy of it.
+export const READ_TOKEN_AUDIENCE = 'read-only-access';
 // Matches ReminderPreferenceLinkService's magic-link lifetime (src/services/ReminderPreferenceLinkService.ts).
 const READ_TOKEN_TTL_SECONDS = 14 * 24 * 60 * 60;
 

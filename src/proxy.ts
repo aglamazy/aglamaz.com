@@ -1,5 +1,5 @@
-import { ACCESS_TOKEN } from '@/auth/cookies';
-import { apiFetchFromMiddleware, verifyAccessToken } from 'src/lib/edgeAuth';
+import { ACCESS_TOKEN, RT_SESSION, RT_SESSION_MAX_AGE_SECONDS } from '@/auth/cookies';
+import { apiFetchFromMiddleware, verifyAccessToken, verifyReadTokenEdge } from 'src/lib/edgeAuth';
 import { NextRequest, NextResponse } from 'next/server';
 import { SUPPORTED_LOCALES as CONFIG_LOCALES } from '@/constants/i18n';
 import { findBestSupportedLocale, parseAcceptLanguage } from '@/utils/locale';
@@ -137,6 +137,36 @@ export async function proxy(request: NextRequest) {
   }
 
   const token = request.cookies.get(ACCESS_TOKEN)?.value;
+
+  // famcircle#125: page-level read-only-token auth for /app/* (magazine links w/o login).
+  // A signed `rt` token in the URL grants a read-only session with no Firebase Auth cookie —
+  // the page-level counterpart to withReadableGuard's API-route pattern
+  // (docs/family-digest-formats-spec.md §7). Only fires when there's no real session, so a
+  // logged-in user's `rt` param is simply ignored. On success: set the RT_SESSION cookie and
+  // redirect to the same path with `rt` stripped (so it doesn't linger in browser history).
+  // On failure: fall through unchanged — never a redirect from here, never a 500 — the
+  // existing unauthenticated behavior further down (and in the layout) still applies.
+  // NOTE: this never grants write access — withMemberGuard/withUserGuard (write routes)
+  // never read RT_SESSION or `rt`, by construction.
+  if (!token && (normalizedPath === '/app' || normalizedPath.startsWith('/app/'))) {
+    const rt = request.nextUrl.searchParams.get('rt');
+    if (rt) {
+      const claims = await verifyReadTokenEdge(rt);
+      if (claims) {
+        const redirectUrl = new URL(pathname, request.url);
+        const response = NextResponse.redirect(redirectUrl);
+        response.cookies.set(RT_SESSION, rt, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          path: '/',
+          maxAge: RT_SESSION_MAX_AGE_SECONDS,
+        });
+        return response;
+      }
+    }
+  }
+
   const isPublic = PUBLIC_PATHS.some((p) => normalizedPath === p || normalizedPath.startsWith(p + '/'))
     || isPublicApiPath(normalizedPath);
 

@@ -1,8 +1,9 @@
 import ClientLayoutShell from '../../components/ClientLayoutShell';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
-import { headers } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { resolveSiteId } from '@/utils/resolveSiteId';
-import { getMemberFromToken, getUserFromToken } from '@/utils/serverAuth';
+import { getMemberFromReadToken, getMemberFromToken, getUserFromToken } from '@/utils/serverAuth';
+import { RT_SESSION } from '@/auth/cookies';
 import I18nProvider from '@/components/I18nProvider';
 import { resolveLocaleForPrivateRoutes } from '@/utils/resolveLocale';
 import { fetchSiteInfo } from '@/firebase/admin';
@@ -29,7 +30,24 @@ export default async function RootLayout({ children }: AppLayoutProps) {
 
   // Get member and site info for SSR
   const siteId = await resolveSiteId();
-  const member = siteId ? await getMemberFromToken(siteId) : null;
+  const sessionMember = siteId ? await getMemberFromToken(siteId) : null;
+
+  // No Firebase session at all - fall back to a read-only member context resolved from the
+  // RT_SESSION cookie (set by src/proxy.ts after verifying a `?rt=` read-token). This is the
+  // page-level counterpart to withReadableGuard's API-route pattern - same resulting member
+  // shape, just flagged read-only below so the client (famcircle#126) knows not to treat it
+  // as a full session.
+  let isReadOnly = false;
+  let member = sessionMember;
+  if (!userData && !sessionMember && siteId) {
+    const cookieStore = await cookies();
+    const rtSessionValue = cookieStore.get(RT_SESSION)?.value ?? null;
+    const readOnlyMember = await getMemberFromReadToken(siteId, rtSessionValue);
+    if (readOnlyMember) {
+      member = readOnlyMember;
+      isReadOnly = true;
+    }
+  }
 
   // Resolve locale with priority: query param > member preference > Accept-Language
   const { baseLocale, resolvedLocale } = await resolveLocaleForPrivateRoutes(
@@ -74,6 +92,13 @@ export default async function RootLayout({ children }: AppLayoutProps) {
             type="application/json"
             dangerouslySetInnerHTML={{
               __html: stripScriptTags(JSON.stringify(member ?? null)),
+            }}
+          />
+          <script
+            id="__READONLY__"
+            type="application/json"
+            dangerouslySetInnerHTML={{
+              __html: stripScriptTags(JSON.stringify(isReadOnly)),
             }}
           />
           <I18nProvider initialLocale={baseLocale} resolvedLocale={resolvedLocale}>
