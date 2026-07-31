@@ -10,6 +10,8 @@ import { ApiRoute } from '@/entities/Routes';
 import { useSiteStore } from '@/store/SiteStore';
 import { initFirebase, ensureFirebaseSignedIn, auth } from '@/firebase/client';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import ReadOnlyNotice from '@/components/ReadOnlyNotice';
+import { useReadOnlyStore } from '@/store/ReadOnlyStore';
 
 export default function NewOccurrencePage() {
   const { t } = useTranslation();
@@ -17,6 +19,7 @@ export default function NewOccurrencePage() {
   const params = useParams<{ id: string }>();
   const eventId = params?.id || '';
   const siteId = useSiteStore((state) => state.siteInfo?.id);
+  const isReadOnly = useReadOnlyStore((state) => state.isReadOnly);
   const [date, setDate] = useState('');
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
@@ -130,6 +133,19 @@ export default function NewOccurrencePage() {
       setSaving(false);
     }
   };
+
+  if (isReadOnly) {
+    return (
+      <Card className="max-w-md mx-auto">
+        <CardHeader>
+          <CardTitle>{t('newOccurrence')}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ReadOnlyNotice />
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="max-w-md mx-auto">

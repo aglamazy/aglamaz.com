@@ -11,6 +11,7 @@ import { apiFetch } from '@/utils/apiFetch';
 import { useUserStore } from '@/store/UserStore';
 import { useMemberStore } from '@/store/MemberStore';
 import { useSiteStore } from '@/store/SiteStore';
+import { useReadOnlyStore } from '@/store/ReadOnlyStore';
 import { formatLocalizedDate } from '@/utils/dateFormat';
 import type { ImageLikeMeta } from '@/types/likes';
 import { useAddAction } from '@/hooks/useAddAction';
@@ -48,6 +49,7 @@ export default function PhotosPage() {
   const user = useUserStore((state) => state.user);
   const memberRole = useMemberStore((state) => state.member?.role);
   const site = useSiteStore((state) => state.siteInfo);
+  const isReadOnly = useReadOnlyStore((state) => state.isReadOnly);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState('');
@@ -68,12 +70,13 @@ export default function PhotosPage() {
 
   const canEditOccurrence = useCallback(
     (creatorId?: string) => {
+      if (isReadOnly) return false;
       if (!creatorId) return false;
       if (isAdmin) return true;
       if (!currentUserId) return false;
       return creatorId === currentUserId;
     },
-    [isAdmin, currentUserId]
+    [isReadOnly, isAdmin, currentUserId]
   );
 
   useEffect(() => {
@@ -571,17 +574,21 @@ export default function PhotosPage() {
                 <p className="text-lg text-sage-600 font-medium">
                   {t('noPicturesYet')}
                 </p>
-                <p className="text-sage-500">
-                  {t('wouldYouLikeToPostFirst')}
-                </p>
+                {!isReadOnly && (
+                  <p className="text-sage-500">
+                    {t('wouldYouLikeToPostFirst')}
+                  </p>
+                )}
               </>
             )}
-            <button
-              onClick={() => router.push('/app/photo/new')}
-              className="mt-6 px-6 py-3 bg-sage-600 text-white rounded-lg hover:bg-sage-700 transition-colors"
-            >
-              {t('uploadPhoto')}
-            </button>
+            {!isReadOnly && (
+              <button
+                onClick={() => router.push('/app/photo/new')}
+                className="mt-6 px-6 py-3 bg-sage-600 text-white rounded-lg hover:bg-sage-700 transition-colors"
+              >
+                {t('uploadPhoto')}
+              </button>
+            )}
           </div>
         </div>
       </>

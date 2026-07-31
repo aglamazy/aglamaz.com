@@ -476,5 +476,8 @@
   "magazineOptInButton": "الاشتراك في المجلة الشهرية",
   "magazineOptOutSuccess": "تم إلغاء اشتراكك في المجلة.",
   "magazineOptInSuccess": "تم تفعيل اشتراكك في المجلة.",
-  "magazineOptOutFailed": "فشل تحديث إعدادات المجلة."
+  "magazineOptOutFailed": "فشل تحديث إعدادات المجلة.",
+  "readOnlyBannerMessage": "أنت تشاهد في وضع القراءة فقط.",
+  "readOnlyBannerLoginCta": "سجّل الدخول لإجراء تغييرات",
+  "readOnlyFormMessage": "هذه الصفحة للقراءة فقط. سجّل الدخول لإجراء تغييرات."
 }

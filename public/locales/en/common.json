@@ -580,5 +580,8 @@
   "submit": "Submit",
   "reviewApprovedMessage": "Approved — this post is now published.",
   "reviewChangesRequestedMessage": "Feedback sent to the author.",
-  "reviewDecisionFailed": "Failed to record your decision. Please try again."
+  "reviewDecisionFailed": "Failed to record your decision. Please try again.",
+  "readOnlyBannerMessage": "You're viewing in read-only mode.",
+  "readOnlyBannerLoginCta": "Log in to make changes",
+  "readOnlyFormMessage": "This page is read-only. Log in to make changes."
 }

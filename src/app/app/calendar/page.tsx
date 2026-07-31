@@ -10,6 +10,7 @@ import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useUserStore } from '@/store/UserStore';
 import { useMemberStore } from '@/store/MemberStore';
 import { useSiteStore } from '@/store/SiteStore';
+import { useReadOnlyStore } from '@/store/ReadOnlyStore';
 import { apiFetch } from '@/utils/apiFetch';
 import { ApiRoute, AppRoute } from '@/entities/Routes';
 import { getPath } from '@/utils/urls';
@@ -59,6 +60,7 @@ export default function AnniversariesPage() {
   const member = useMemberStore((state) => state.member);
   const fetchMember = useMemberStore((s) => s.fetchMember);
   const siteInfo = useSiteStore((s) => s.siteInfo);
+  const isReadOnly = useReadOnlyStore((s) => s.isReadOnly);
   const { t, i18n } = useTranslation();
   const router = useRouter();
 
@@ -844,12 +846,14 @@ export default function AnniversariesPage() {
             )}
             {/* Add event and linked items on a single row */}
             <div className="flex flex-wrap items-center gap-2 pt-2">
-              <button
-                onClick={() => router.push(getPath(AppRoute.APP_ANNIVERSARY_EVENT_NEW, { id: selectedEvent.id }))}
-                className="px-3 py-1 bg-primary text-white rounded"
-              >
-                {t('addEvent')}
-              </button>
+              {!isReadOnly && (
+                <button
+                  onClick={() => router.push(getPath(AppRoute.APP_ANNIVERSARY_EVENT_NEW, { id: selectedEvent.id }))}
+                  className="px-3 py-1 bg-primary text-white rounded"
+                >
+                  {t('addEvent')}
+                </button>
+              )}
               {(() => {
                 const currentYear = new Date().getFullYear();
                 const blessingPages = (selectedEvent as any).blessingPages || [];
@@ -876,6 +880,8 @@ export default function AnniversariesPage() {
                       </a>
                     </div>
                   );
+                } else if (isReadOnly) {
+                  return null;
                 } else {
                   return (
                     <button
@@ -904,7 +910,7 @@ export default function AnniversariesPage() {
                 );
               })}
             </div>
-            {(user?.user_id === selectedEvent.ownerId || member?.role === 'admin') && (
+            {!isReadOnly && (user?.user_id === selectedEvent.ownerId || member?.role === 'admin') && (
               <div className="flex gap-2 pt-2">
                 <button
                   onClick={() => {

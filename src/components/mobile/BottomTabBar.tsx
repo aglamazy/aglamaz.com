@@ -4,6 +4,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { Calendar, Image, Plus, FileText, User } from 'lucide-react';
 import { useUserStore } from '@/store/UserStore';
 import { useMemberStore } from '@/store/MemberStore';
+import { useReadOnlyStore } from '@/store/ReadOnlyStore';
 import MemberAvatar from '@/components/MemberAvatar';
 import styles from './BottomTabBar.module.css';
 import { triggerAddAction } from '@/hooks/useAddAction';
@@ -21,9 +22,11 @@ export default function BottomTabBar() {
   const router = useRouter();
   const user = useUserStore((state) => state.user);
   const member = useMemberStore((state) => state.member);
+  const isReadOnly = useReadOnlyStore((state) => state.isReadOnly);
 
   // Determine what the Add button should do based on current page
   const handleAddClick = () => {
+    if (isReadOnly) return;
     const handled = triggerAddAction();
     if (!handled) {
       console.warn('No add action registered for current page:', pathname);
@@ -90,6 +93,9 @@ export default function BottomTabBar() {
                   onClick={handleAddClick}
                   className={`${styles.tab} ${styles.addTab}`}
                   aria-label={tab.label}
+                  aria-disabled={isReadOnly}
+                  disabled={isReadOnly}
+                  style={isReadOnly ? { opacity: 0.4, cursor: 'not-allowed' } : undefined}
                 >
                   <div className={styles.addIconWrapper}>
                     {tab.icon}

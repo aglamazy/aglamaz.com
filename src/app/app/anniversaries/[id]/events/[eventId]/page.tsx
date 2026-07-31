@@ -6,6 +6,7 @@ import I18nText from '@/components/I18nText';
 import { apiFetch } from '@/utils/apiFetch';
 import { ApiRoute } from '@/entities/Routes';
 import { useSiteStore } from '@/store/SiteStore';
+import { useReadOnlyStore } from '@/store/ReadOnlyStore';
 import { initFirebase, ensureFirebaseSignedIn, auth } from '@/firebase/client';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import AddFab from '@/components/ui/AddFab';
@@ -38,6 +39,7 @@ export default function OccurrenceDetailsPage({ params: paramsPromise }: { param
   const params = use(paramsPromise);
   const { t } = useTranslation();
   const siteId = useSiteStore((state) => state.siteInfo?.id);
+  const isReadOnly = useReadOnlyStore((state) => state.isReadOnly);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [event, setEvent] = useState<EventDoc | null>(null);
@@ -288,10 +290,12 @@ export default function OccurrenceDetailsPage({ params: paramsPromise }: { param
           )}
           {uploadError && <div className="text-red-600 mb-1"><I18nText k="somethingWentWrong" /></div>}
           <div className="mb-2"><span className="font-medium"><I18nText k="date" />:</span> {dateText}</div>
-          <div className="mb-3 flex gap-2">
-            <Button onClick={() => setShowEditModal(true)}>{t('edit')}</Button>
-            <Button variant="outline" onClick={() => setShowDropboxImport(true)}>Import from Dropbox</Button>
-          </div>
+          {!isReadOnly && (
+            <div className="mb-3 flex gap-2">
+              <Button onClick={() => setShowEditModal(true)}>{t('edit')}</Button>
+              <Button variant="outline" onClick={() => setShowDropboxImport(true)}>Import from Dropbox</Button>
+            </div>
+          )}
           <div>
             <a className="text-blue-600 hover:underline" href="/app/calendar">
               <I18nText k="familyCalendar" />

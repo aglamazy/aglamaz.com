@@ -571,5 +571,8 @@
   "submit": "שלח",
   "reviewApprovedMessage": "אושר — הפוסט פורסם כעת.",
   "reviewChangesRequestedMessage": "המשוב נשלח לכותב/ת.",
-  "reviewDecisionFailed": "רישום ההחלטה נכשל. נסו שוב."
+  "reviewDecisionFailed": "רישום ההחלטה נכשל. נסו שוב.",
+  "readOnlyBannerMessage": "אתם צופים במצב לקריאה בלבד.",
+  "readOnlyBannerLoginCta": "התחברו כדי לבצע שינויים",
+  "readOnlyFormMessage": "עמוד זה לקריאה בלבד. התחברו כדי לבצע שינויים."
 }

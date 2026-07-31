@@ -1,6 +1,7 @@
 "use client";
 
 import React from 'react';
+import { useReadOnlyStore } from '@/store/ReadOnlyStore';
 
 interface AddFabProps {
   onClick: () => void;
@@ -8,6 +9,9 @@ interface AddFabProps {
 }
 
 export default function AddFab({ onClick, ariaLabel = 'Add' }: AddFabProps) {
+  const isReadOnly = useReadOnlyStore((state) => state.isReadOnly);
+  if (isReadOnly) return null;
+
   return (
     <button
       type="button"

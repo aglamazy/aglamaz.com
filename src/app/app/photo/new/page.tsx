@@ -12,12 +12,15 @@ import ImageUploadArea, { type PreviewItem } from '@/components/ui/ImageUploadAr
 import DateInput from '@/components/ui/DateInput';
 import { ApiRoute } from '@/utils/urls';
 import { ensureDecodableImage } from '@/utils/heicConvert';
+import ReadOnlyNotice from '@/components/ReadOnlyNotice';
+import { useReadOnlyStore } from '@/store/ReadOnlyStore';
 
 const MAX_VIDEO_SIZE = 50 * 1024 * 1024; // 50 MB
 
 export default function NewPhotoPage() {
   const { t, i18n } = useTranslation();
   const router = useRouter();
+  const isReadOnly = useReadOnlyStore((state) => state.isReadOnly);
   const [date, setDate] = useState(() => {
     const today = new Date();
     const yyyy = today.getFullYear();
@@ -189,6 +192,9 @@ export default function NewPhotoPage() {
       </div>
 
       {/* Form */}
+      {isReadOnly ? (
+        <ReadOnlyNotice />
+      ) : (
       <form onSubmit={handleSubmit} className="p-4 space-y-4 max-w-2xl mx-auto pb-24">
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
@@ -279,6 +285,7 @@ export default function NewPhotoPage() {
           </Button>
         </div>
       </form>
+      )}
     </div>
   );
 }
