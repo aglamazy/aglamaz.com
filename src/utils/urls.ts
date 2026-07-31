@@ -202,6 +202,10 @@ export const apiRoutePaths: Record<ApiRoute, string> = {
   // Growth (public marketing-page email capture, distinct from Member data)
   [ApiRoute.SITE_GROWTH_SIGNUP]: '/api/site/{siteId}/growth-signup',
 
+  // Blog subscribe (public post-notify email capture; admin-visible list)
+  [ApiRoute.SITE_BLOG_SUBSCRIBE]: '/api/site/{siteId}/blog-subscribe',
+  [ApiRoute.SITE_BLOG_SUBSCRIBERS]: '/api/site/{siteId}/blog-subscribers',
+
   // Token-gated reminder preferences
   [ApiRoute.REMINDER_PREFERENCES]: '/api/notifications/preferences',
 

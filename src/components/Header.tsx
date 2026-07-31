@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import Navigation from "@/components/Navigation";
 import { useTranslation } from 'react-i18next';
-import { LogOut, Users, MessageCircle, Home as HomeIcon, BookOpen, User, LayoutDashboard, Images, Calendar } from 'lucide-react';
+import { LogOut, Users, MessageCircle, Home as HomeIcon, BookOpen, User, LayoutDashboard, Images, Calendar, Mail } from 'lucide-react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { IUser } from "@/entities/User";
 import { IMember } from "@/entities/Member";
@@ -220,6 +220,16 @@ export default function Header({ user, member, onLogout, siteInfo }: HeaderProps
                       >
                         <MessageCircle size={16} className="mr-3"/>
                         {t('contactMessages')}
+                      </button>
+                      <button
+                        onClick={() => {
+                          setIsUserMenuOpen(false);
+                          router.push('/admin/blog-subscribers');
+                        }}
+                        className="flex items-center w-full px-4 py-2 text-sm text-green-700 hover:bg-green-50 transition-colors duration-200"
+                      >
+                        <Mail size={16} className="mr-3"/>
+                        {t('blogSubscribers')}
                       </button>
                     </>
                   )}
