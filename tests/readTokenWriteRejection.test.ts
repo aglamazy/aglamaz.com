@@ -60,6 +60,9 @@ async function run() {
   );
   const blogRoute = await import('../src/app/api/site/[siteId]/blog/route');
   const profileRoute = await import('../src/app/api/user/profile/route');
+  const notificationPreferencesRoute = await import(
+    '../src/app/api/site/[siteId]/notification-preferences/route'
+  );
 
   await assertRejectedLikeUnauthenticated(
     'blessing create (POST)',
@@ -85,6 +88,19 @@ async function run() {
     'https://example.com/api/user/profile?siteId=site1',
     'PUT',
     { displayName: 'New Name' },
+    tokenMod.generateReadToken,
+  );
+
+  // famcircle#128: GET on this route was converted to withReadableGuard so the digest
+  // footer's manage-preferences link can view preferences with no login. PUT must still
+  // reject a read-token-only request exactly like unauthenticated - the read-token grants
+  // READ access only.
+  await assertRejectedLikeUnauthenticated(
+    'notification preferences update (PUT)',
+    notificationPreferencesRoute.PUT,
+    'https://example.com/api/site/site1/notification-preferences',
+    'PUT',
+    { magazineCadence: 'none' },
     tokenMod.generateReadToken,
   );
 }

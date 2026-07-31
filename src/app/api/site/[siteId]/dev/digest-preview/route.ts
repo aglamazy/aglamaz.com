@@ -34,6 +34,7 @@ const getHandler = async (request: Request, context: GuardContext) => {
   const recipientName = member.firstName || member.displayName || member.email || 'משפחה';
   const calendarUrl = new URL(getPath(AppRoute.APP_CALENDAR), url.origin).toString();
   const galleryUrl = new URL(getPath(AppRoute.APP_PHOTOS), url.origin).toString();
+  const manageUrl = new URL(getPath(AppRoute.APP_MANAGE_PREFERENCES), url.origin).toString();
 
   const now = new Date();
   const digest =
@@ -41,7 +42,7 @@ const getHandler = async (request: Request, context: GuardContext) => {
       ? await compiler.compileWeeklyDigest(siteId, now, { locale: LOCALE })
       : await compiler.compileMonthlyDigest(siteId, now, { locale: LOCALE });
   const readOnlyToken = generateReadToken({ memberId: context.member!.uid, siteId });
-  const options = { locale: LOCALE, siteName, recipientName, calendarUrl, galleryUrl, readOnlyToken };
+  const options = { locale: LOCALE, siteName, recipientName, calendarUrl, galleryUrl, manageUrl, readOnlyToken };
   const html =
     cadence === 'weekly'
       ? DigestTemplateService.buildWeeklyDigestEmail(digest, options).html

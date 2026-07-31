@@ -21,6 +21,12 @@ export interface BuildDigestEmailOptions {
   calendarUrl: string;
   /** Link into the app gallery - every photo thumbnail wraps this. */
   galleryUrl: string;
+  /** Link into the dedicated notification-preferences page (src/app/app/manage-preferences) -
+   * the footer's manage-preferences link wraps this, per family-digest-formats-spec.md §7's
+   * fix for the "/app/profile requires login" bug (famcircle#128). Deliberately NOT
+   * /app/profile - that page also renders EditUserDetails, a write-guarded form that 401s
+   * for a read-only visitor. */
+  manageUrl: string;
   /** This recipient's signed read-only token (ReadTokenService.generateReadToken) - every
    * /app/* link in the email carries it as `?rt=`, so opening the magazine from an inbox
    * lands read-only with no login prompt (famcircle#127, the read-only-magazine-links ask). */
@@ -320,6 +326,7 @@ function buildCadenceDigestEmail(
   // the magazine from an inbox works with no login prompt (famcircle#127).
   const calendarUrl = withReadOnlyToken(options.calendarUrl, options.readOnlyToken);
   const galleryUrl = withReadOnlyToken(options.galleryUrl, options.readOnlyToken);
+  const manageUrl = withReadOnlyToken(options.manageUrl, options.readOnlyToken);
 
   const renderArticles = (entries: DigestEventWithPhotos[], showBlessingLink: boolean, isPastSection: boolean) =>
     entries
@@ -355,7 +362,12 @@ function buildCadenceDigestEmail(
     preheader: subject,
     greeting,
     paragraphs,
-    footerLines: ['תקציר זה נוצר באופן אוטומטי.'],
+    // The manage-preferences link (not /app/profile - famcircle#128) carries the same
+    // read-only token as every other /app/* link above, so it opens with no login wall.
+    footerLines: [
+      'תקציר זה נוצר באופן אוטומטי.',
+      `<a href="${escapeHtml(manageUrl)}">ניהול העדפות התראות</a>`,
+    ],
   });
 
   const photoLines = digest.photos.map((photo) => formatPhotoLine(photo, options.locale));
@@ -372,6 +384,7 @@ function buildCadenceDigestEmail(
     ),
     digest.photos.length ? ['תמונות אחרונות מהמשפחה:', ...photoLines.map((l) => `• ${l}`)].join('\n') : null,
     'תקציר זה נוצר באופן אוטומטי.',
+    `ניהול העדפות התראות: ${manageUrl}`,
   ].filter((s): s is string => s !== null);
   const text = textSections.join('\n\n');
 

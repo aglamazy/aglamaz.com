@@ -1,4 +1,5 @@
 import { withMemberGuard } from '@/lib/withMemberGuard';
+import { withReadableGuard } from '@/lib/withReadableGuard';
 import { GuardContext } from '@/app/api/types';
 import { notificationPreferencesRepository } from '@/repositories/NotificationPreferencesRepository';
 
@@ -55,5 +56,9 @@ const putHandler = async (request: Request, context: GuardContext) => {
   }
 };
 
-export const GET = withMemberGuard(getHandler);
+// GET is view-only, so it's safe to allow a signed `rt` read-token in place of a full
+// session (docs/family-digest-formats-spec.md §7) - this is the destination the digest
+// footer's manage-preferences link (no login) reads from. PUT stays on withMemberGuard:
+// any WRITE still requires a real session, per §7's read-token-grants-READ-only rule.
+export const GET = withReadableGuard(getHandler);
 export const PUT = withMemberGuard(putHandler);
