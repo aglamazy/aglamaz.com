@@ -57,12 +57,13 @@ interface FamilyBlogPageProps {
 export async function generateMetadata({ params }: FamilyBlogPageProps): Promise<Metadata> {
   const { locale: paramLocale } = await params;
   const locale = SUPPORTED.includes(paramLocale) ? paramLocale : DEFAULT_LOCALE;
+  const t = await getServerT(locale);
 
   return buildPageMetadata({
     locale,
     path: 'blog',
-    title: 'Family Blog – Recent Posts',
-    description: 'Recent posts from the family blog — stories, updates and memories shared by the family.',
+    title: `${t('familyBlog')} – ${t('recentPosts')}`,
+    description: t('blogPageDescription') as string,
     type: 'website',
   });
 }

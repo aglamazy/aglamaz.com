@@ -65,6 +65,7 @@ interface AuthorPageParams {
 export async function generateMetadata({ params }: { params: Promise<AuthorPageParams> }): Promise<Metadata> {
   const { locale: paramLocale, id } = await params;
   const locale = SUPPORTED_LOCALES.includes(paramLocale) ? paramLocale : DEFAULT_LOCALE;
+  const t = await getServerT(locale);
 
   let authorName = id;
   try {
@@ -84,8 +85,8 @@ export async function generateMetadata({ params }: { params: Promise<AuthorPageP
   return buildPageMetadata({
     locale,
     path: `blog/${id}`,
-    title: `${authorName} – Family Blog`,
-    description: `Blog posts by ${authorName} — stories and updates shared with the family.`,
+    title: `${authorName} – ${t('familyBlog')}`,
+    description: t('blogAuthorPageDescription', { authorName }) as string,
     type: 'profile',
   });
 }

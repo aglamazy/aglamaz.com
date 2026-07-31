@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { BlogRepository, isPublished } from '@/repositories/BlogRepository';
 import { FamilyRepository } from '@/repositories/FamilyRepository';
 import { SUPPORTED_LOCALES } from '@/constants/i18n';
+import { DEFAULT_LOCALE } from '@/i18n';
 import { resolveSiteId } from '@/utils/resolveSiteId';
 
 export const dynamic = 'force-dynamic';
@@ -15,7 +16,7 @@ function generateAlternateLinks(base: string, path: string) {
   const entries = SUPPORTED_LOCALES.map((locale) =>
     `    <xhtml:link rel="alternate" hreflang="${locale}" href="${xmlEscape(`${base}/${locale}${normalized ? `/${normalized}` : ''}`)}" />`
   );
-  entries.push(`    <xhtml:link rel="alternate" hreflang="x-default" href="${xmlEscape(`${base}/en${normalized ? `/${normalized}` : ''}`)}" />`);
+  entries.push(`    <xhtml:link rel="alternate" hreflang="x-default" href="${xmlEscape(`${base}/${DEFAULT_LOCALE}${normalized ? `/${normalized}` : ''}`)}" />`);
   return entries;
 }
 
