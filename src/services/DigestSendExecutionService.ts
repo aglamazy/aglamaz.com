@@ -93,6 +93,7 @@ export async function executeDigestSend(
   // or a Vercel preview deployment must never bake that host into a sent link.
   const calendarUrl = await getUrl(AppRoute.APP_CALENDAR, siteId);
   const galleryUrl = await getUrl(AppRoute.APP_PHOTOS, siteId);
+  const manageUrl = await getUrl(AppRoute.APP_MANAGE_PREFERENCES, siteId);
   const siteName = resolveDigestSiteName(site, SOURCE_LOCALE, siteId);
   const digest =
     cadence === 'monthly'
@@ -121,6 +122,7 @@ export async function executeDigestSend(
               recipientName,
               calendarUrl,
               galleryUrl,
+              manageUrl,
               readOnlyToken,
             })
           : DigestTemplateService.buildMonthlyDigestEmail(digest, {
@@ -129,6 +131,7 @@ export async function executeDigestSend(
               recipientName,
               calendarUrl,
               galleryUrl,
+              manageUrl,
               readOnlyToken,
             });
 

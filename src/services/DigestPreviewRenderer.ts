@@ -32,6 +32,7 @@ export async function buildDigestPreviewSection(
 
   const calendarUrl = await getUrl(AppRoute.APP_CALENDAR, siteId);
   const galleryUrl = await getUrl(AppRoute.APP_PHOTOS, siteId);
+  const manageUrl = await getUrl(AppRoute.APP_MANAGE_PREFERENCES, siteId);
   const siteName = resolveDigestSiteName(site, SOURCE_LOCALE, siteId);
   const digest =
     cadence === 'monthly'
@@ -42,8 +43,8 @@ export async function buildDigestPreviewSection(
   // so there's no real member to mint a read-only token for.
   const template =
     cadence === 'weekly'
-      ? DigestTemplateService.buildWeeklyDigestEmail(digest, { locale: SOURCE_LOCALE, siteName, recipientName: '(recipient name)', calendarUrl, galleryUrl, readOnlyToken: '' })
-      : DigestTemplateService.buildMonthlyDigestEmail(digest, { locale: SOURCE_LOCALE, siteName, recipientName: '(recipient name)', calendarUrl, galleryUrl, readOnlyToken: '' });
+      ? DigestTemplateService.buildWeeklyDigestEmail(digest, { locale: SOURCE_LOCALE, siteName, recipientName: '(recipient name)', calendarUrl, galleryUrl, manageUrl, readOnlyToken: '' })
+      : DigestTemplateService.buildMonthlyDigestEmail(digest, { locale: SOURCE_LOCALE, siteName, recipientName: '(recipient name)', calendarUrl, galleryUrl, manageUrl, readOnlyToken: '' });
 
   const recipientRows = recipients.length
     ? recipients

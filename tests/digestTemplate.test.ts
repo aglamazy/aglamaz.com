@@ -22,6 +22,8 @@ import type { CadenceDigestPayload } from '../src/services/DigestCompilerService
 
 const CALENDAR_URL = 'https://example.com/app/calendar';
 const GALLERY_URL = 'https://example.com/app/photos';
+const MANAGE_URL = 'https://example.com/app/manage-preferences';
+const TEST_READ_TOKEN = 'test-token';
 
 const FIXTURE: CadenceDigestPayload = {
   siteId: 'site1',
@@ -119,6 +121,8 @@ function buildFixtureHtml(): string {
     recipientName: 'Grandpa Moshe',
     calendarUrl: CALENDAR_URL,
     galleryUrl: GALLERY_URL,
+    manageUrl: MANAGE_URL,
+    readOnlyToken: TEST_READ_TOKEN,
   });
   return result.html;
 }
@@ -154,7 +158,9 @@ function testPastEventShowsDescriptionAndOwnPhotos() {
 
 function testEventRowsAreClickableIntoCalendar() {
   const html = buildFixtureHtml();
-  const anchorCount = (html.match(new RegExp(`<a href="${CALENDAR_URL}"`, 'g')) || []).length;
+  // Every /app/* link carries the recipient's read-only token as `?rt=` (famcircle#127) -
+  // match the tokenized href, not a bare exact-match that predates that change.
+  const anchorCount = (html.match(new RegExp(`<a href="${CALENDAR_URL}\\?rt=${TEST_READ_TOKEN}"`, 'g')) || []).length;
   // Per event: 1 header (title+date) anchor + 1 anchor per collage photo, into the
   // calendar (the event's own context) - not the general gallery (Agla, 2026-07-21).
   // 2 coming events + 1 past event, each with exactly 1 photo -> 2 anchors each = 6.
@@ -164,7 +170,7 @@ function testEventRowsAreClickableIntoCalendar() {
 
 function testPhotoThumbnailsAreClickableIntoGallery() {
   const html = buildFixtureHtml();
-  const anchorCount = (html.match(new RegExp(`<a href="${GALLERY_URL}"`, 'g')) || []).length;
+  const anchorCount = (html.match(new RegExp(`<a href="${GALLERY_URL}\\?rt=${TEST_READ_TOKEN}"`, 'g')) || []).length;
   // Only the general recent-photos section (not tied to any one event) links to the
   // gallery now - per-event collages link to the calendar instead (Agla, 2026-07-21).
   assert.equal(anchorCount, 1, 'only the general recent-photos collage should link to the gallery');
@@ -185,6 +191,8 @@ function testGreetingUsesRecipientNameNotSiteName() {
     recipientName: 'Dan',
     calendarUrl: CALENDAR_URL,
     galleryUrl: GALLERY_URL,
+    manageUrl: MANAGE_URL,
+    readOnlyToken: TEST_READ_TOKEN,
   });
   assert.ok(result.html.includes('Dan'), 'greeting must address the actual recipient');
   assert.ok(!result.text.startsWith('שלום The Aglamaz Family'), 'greeting must not address the site');
@@ -199,8 +207,14 @@ function testEmptySectionsAreOmitted() {
     recipientName: 'Dan',
     calendarUrl: CALENDAR_URL,
     galleryUrl: GALLERY_URL,
+    manageUrl: MANAGE_URL,
+    readOnlyToken: TEST_READ_TOKEN,
   });
-  assert.ok(!result.html.includes('<a href='), 'a fully empty digest must render no section content at all');
+  // The footer's manage-preferences link (famcircle#128) is unconditional - it's not
+  // digest-content, so it must still appear even when every section is empty. Strip it
+  // before asserting the actual section content rendered nothing.
+  const withoutFooterLink = result.html.replace(new RegExp(`<a href="${MANAGE_URL}[^"]*">[^<]*</a>`), '');
+  assert.ok(!withoutFooterLink.includes('<a href='), 'a fully empty digest must render no section content at all');
   console.log('empty sections are omitted rather than shown empty: PASSED');
 }
 
@@ -226,6 +240,8 @@ function testComingSectionSplitsByMonth() {
     recipientName: 'Test Recipient',
     calendarUrl: CALENDAR_URL,
     galleryUrl: GALLERY_URL,
+    manageUrl: MANAGE_URL,
+    readOnlyToken: TEST_READ_TOKEN,
   });
   assert.ok(html.includes('<h2'), 'coming section must use real h2 sub-headings');
   assert.ok(html.includes('אירועים בJuly'), 'July sub-heading missing or wrong copy');
@@ -264,6 +280,8 @@ function testGreetingBidiIsolatesLatinNameAndTextStaysClean() {
     recipientName: 'Yaakov Aglamaz',
     calendarUrl: CALENDAR_URL,
     galleryUrl: GALLERY_URL,
+    manageUrl: MANAGE_URL,
+    readOnlyToken: TEST_READ_TOKEN,
   });
   assert.ok(result.html.includes('<bdi>Yaakov Aglamaz</bdi>'), 'HTML greeting must bidi-isolate the recipient name');
   assert.ok(!result.text.includes('<bdi>'), 'plain-text greeting must not contain HTML markup');
@@ -344,6 +362,8 @@ function testBirthdayEventNameAutoLabel() {
     recipientName: 'Test',
     calendarUrl: CALENDAR_URL,
     galleryUrl: GALLERY_URL,
+    manageUrl: MANAGE_URL,
+    readOnlyToken: TEST_READ_TOKEN,
   }).html;
   const partyHtml = DigestTemplateService.buildMonthlyDigestEmail(partyNameEvent, {
     locale: 'he',
@@ -351,6 +371,8 @@ function testBirthdayEventNameAutoLabel() {
     recipientName: 'Test',
     calendarUrl: CALENDAR_URL,
     galleryUrl: GALLERY_URL,
+    manageUrl: MANAGE_URL,
+    readOnlyToken: TEST_READ_TOKEN,
   }).html;
 
   assert.ok(bareHtml.includes('יום ההולדת של אורן אגלמז'), 'bare-name birthday event must get the auto birthday label');
@@ -371,14 +393,18 @@ function testWriteBlessingLinkOnComingEventsOnly() {
     recipientName: 'Test Recipient',
     calendarUrl: CALENDAR_URL,
     galleryUrl: GALLERY_URL,
+    manageUrl: MANAGE_URL,
+    readOnlyToken: TEST_READ_TOKEN,
   });
   const moshIdx = html.indexOf('Grandpa Moshe');
-  const moshBlock = html.slice(moshIdx, moshIdx + 600);
+  // Window widened past 600: every /app/* link in the block now carries a `?rt=` read-only
+  // token (famcircle#127), pushing the CTA text further from the event name than before.
+  const moshBlock = html.slice(moshIdx, moshIdx + 700);
   assert.ok(moshBlock.includes('/app/blessing/e1-2026'), 'coming event must link to its blessing page');
   assert.ok(moshBlock.includes('Write a blessing'), 'coming event must show the write-a-blessing CTA text');
 
   const sarahIdx = html.indexOf('Grandma Sarah');
-  const sarahBlock = html.slice(sarahIdx, sarahIdx + 600);
+  const sarahBlock = html.slice(sarahIdx, sarahIdx + 700);
   assert.ok(!sarahBlock.includes('/app/blessing/e2-standing'), 'past event must not show a write-a-blessing link');
   console.log('write-a-blessing link shows for coming events only: PASSED');
 }
@@ -418,6 +444,8 @@ function testDeathEventCtaReadsAsMemorialNotBlessing() {
     recipientName: 'Test Recipient',
     calendarUrl: CALENDAR_URL,
     galleryUrl: GALLERY_URL,
+    manageUrl: MANAGE_URL,
+    readOnlyToken: TEST_READ_TOKEN,
   });
   const yosefIdx = html.indexOf('Grandpa Yosef');
   const yosefBlock = html.slice(yosefIdx, yosefIdx + 800);
@@ -447,6 +475,8 @@ function testPastDeathEventWithPublicBlessingPageLinksToMemorial() {
     recipientName: 'Test Recipient',
     calendarUrl: CALENDAR_URL,
     galleryUrl: GALLERY_URL,
+    manageUrl: MANAGE_URL,
+    readOnlyToken: TEST_READ_TOKEN,
   });
   const sarahIdx = html.indexOf('Grandma Sarah');
   const sarahBlock = html.slice(Math.max(0, sarahIdx - 200), sarahIdx);
@@ -464,11 +494,33 @@ function testPastDeathEventWithoutPublicBlessingPageFallsBackToCalendar() {
   const sarahIdx = html.indexOf('Grandma Sarah');
   const sarahBlock = html.slice(Math.max(0, sarahIdx - 200), sarahIdx);
   assert.ok(
-    sarahBlock.includes(`<a href="${CALENDAR_URL}"`),
+    sarahBlock.includes(`<a href="${CALENDAR_URL}?rt=${TEST_READ_TOKEN}"`),
     'past death event without a public blessing page must fall back to the calendar link',
   );
   assert.ok(!sarahBlock.includes('/public/memorial/'), 'must never link to a memorial page that is not public');
   console.log('past death event without a public blessing page falls back to the calendar link: PASSED');
+}
+
+function testFooterManageLinkCarriesReadOnlyTokenAndNeverPointsAtProfile() {
+  // famcircle#128: the footer manage-preferences link must use the same read-only-token
+  // path as the calendar/gallery links (family-digest-formats-spec.md §7) - never the
+  // login-gated /app/profile page.
+  const { html, text } = DigestTemplateService.buildMonthlyDigestEmail(FIXTURE, {
+    locale: 'en',
+    siteName: 'The Aglamaz Family',
+    recipientName: 'Test Recipient',
+    calendarUrl: CALENDAR_URL,
+    galleryUrl: GALLERY_URL,
+    manageUrl: MANAGE_URL,
+    readOnlyToken: TEST_READ_TOKEN,
+  });
+  assert.ok(
+    html.includes(`<a href="${MANAGE_URL}?rt=${TEST_READ_TOKEN}">`),
+    'footer must link to manageUrl carrying the recipient read-only token as ?rt=',
+  );
+  assert.ok(!html.includes('/app/profile'), 'footer must never link to the login-gated /app/profile page');
+  assert.ok(text.includes(`${MANAGE_URL}?rt=${TEST_READ_TOKEN}`), 'plain-text footer must also carry the manage link with its read-only token');
+  console.log('footer manage-preferences link carries the read-only token and never points at /app/profile: PASSED');
 }
 
 function run() {
@@ -494,6 +546,7 @@ function run() {
   testDeathEventCtaReadsAsMemorialNotBlessing();
   testPastDeathEventWithPublicBlessingPageLinksToMemorial();
   testPastDeathEventWithoutPublicBlessingPageFallsBackToCalendar();
+  testFooterManageLinkCarriesReadOnlyTokenAndNeverPointsAtProfile();
 }
 
 run();
