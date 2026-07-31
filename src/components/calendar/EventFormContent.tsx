@@ -172,6 +172,9 @@ export default function EventFormContent({ editEvent, onSuccess, onViewSimilarEv
     if (!editEvent?.imageUrl || loadingExistingPhoto) return;
     setLoadingExistingPhoto(true);
     try {
+      // Firebase Storage download URL, not one of our API routes - apiFetch's
+      // siteId/auth injection doesn't apply here, we just need the raw image bytes.
+      // eslint-disable-next-line no-restricted-globals
       const response = await fetch(editEvent.imageUrl);
       if (!response.ok) throw new Error(`Failed to fetch image: ${response.status}`);
       const blob = await response.blob();
@@ -210,15 +213,6 @@ export default function EventFormContent({ editEvent, onSuccess, onViewSimilarEv
     }
   };
 
-  const handleCrop = async () => {
-    const croppedFile = await cropCurrentImage();
-    if (!croppedFile) return;
-    setImageFile(croppedFile);
-    const dataUrl = URL.createObjectURL(croppedFile);
-    setForm((prev) => ({ ...prev, imageUrl: dataUrl }));
-    setImageSrc('');
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
@@ -226,8 +220,8 @@ export default function EventFormContent({ editEvent, onSuccess, onViewSimilarEv
     try {
       let fileToUpload = imageFile;
       if (imageSrc) {
-        // Crop UI is still open (user never clicked "Crop image") - crop now
-        // using the current offset so the raw original never gets uploaded.
+        // Crop happens on save, not via a separate button - whatever framing the
+        // slider shows right now is what gets uploaded.
         const croppedFile = await cropCurrentImage();
         if (croppedFile) {
           fileToUpload = croppedFile;
@@ -486,24 +480,19 @@ export default function EventFormContent({ editEvent, onSuccess, onViewSimilarEv
               />
             </div>
             {maxOffsetY > 0 && (
-              <input
-                type="range"
-                min={0}
-                max={maxOffsetY}
-                value={offsetY}
-                onChange={(e) => setOffsetY(Number(e.target.value))}
-                className="w-full mt-2"
-              />
-            )}
-            <button
-              type="button"
-              onClick={handleCrop}
-              className="mt-2 bg-primary text-white px-4 py-2 rounded"
-            >
-              {t('cropImage')}
-            </button>
-            {form.imageUrl && (
-              <img src={form.imageUrl} alt="preview" className="w-full mt-2 rounded"/>
+              <>
+                <input
+                  type="range"
+                  min={0}
+                  max={maxOffsetY}
+                  value={offsetY}
+                  onChange={(e) => setOffsetY(Number(e.target.value))}
+                  className="w-full mt-2"
+                />
+                <p className="text-xs text-sage-600 mt-1">
+                  {t('cropAppliesOnSave', { defaultValue: 'Drag to frame the photo - it saves with the event.' })}
+                </p>
+              </>
             )}
           </div>
         )}

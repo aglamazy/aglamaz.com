@@ -158,6 +158,7 @@
   "memorialCandle": "Anma mumu",
   "image": "Resim",
   "cropImage": "Resmi Kırp",
+  "cropAppliesOnSave": "Fotoğrafı çerçevelemek için sürükleyin - etkinlikle birlikte kaydedilir.",
   "tapToRecropPhoto": "Kırpmayı ayarlamak için fotoğrafa dokunun",
   "failedToLoadPhotoForCrop": "Düzenleme için fotoğraf yüklenemedi. Lütfen tekrar deneyin.",
   "annualEvent": "Yıllık etkinlik",
