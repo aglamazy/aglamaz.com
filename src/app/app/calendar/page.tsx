@@ -522,30 +522,70 @@ export default function AnniversariesPage() {
             })}
           </div>
         )}
-        {/* If more than one item (anniversary + occurrences), show text chips (no image). */}
+        {/* If more than one item (anniversary + occurrences), show text chips (no image) —
+            except the exactly-2-plain-events case, which gets a side-by-side photo collage. */}
         {totalItems > 1 ? (
-          <div className={`mt-4 sm:mt-6 flex flex-col gap-1 ${isCurrentMonth ? '' : 'opacity-50'}`}>
-            {dayEvents.map((ev) => (
-              <div
-                key={ev.id}
-                onClick={async () => {
-                  // Fetch full event details including blessing pages
-                  try {
-                    const { event } = await apiFetch<{ event: AnniversaryEvent }>(ApiRoute.SITE_ANNIVERSARY_BY_ID, {
-                      pathParams: { anniversaryId: ev.id },
-                    });
-                    setSelectedEvent(event);
-                  } catch (err) {
-                    console.error('Failed to fetch event details:', err);
-                    setSelectedEvent(ev);
-                  }
-                }}
-                className="bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded cursor-pointer text-[10px] sm:text-xs"
-              >
-                <span className={styles.nameMobile}>{truncateResponsive(ev.name, 6, 16)}</span>
-              </div>
-            ))}
-          </div>
+          dayEvents.length === 2 && dayOccs.length === 0 ? (
+            <div className={`mt-4 sm:mt-6 flex flex-row gap-1 h-16 sm:h-20 ${isCurrentMonth ? '' : 'opacity-50'}`}>
+              {dayEvents.map((ev) => {
+                const fallbackImages = Array.isArray((ev as unknown as { images?: string[] })?.images)
+                  ? (ev as unknown as { images?: string[] }).images
+                  : [];
+                const imageUrl = ev.imageUrl || fallbackImages[0];
+                return (
+                  <div
+                    key={ev.id}
+                    onClick={async () => {
+                      // Fetch full event details including blessing pages
+                      try {
+                        const { event } = await apiFetch<{ event: AnniversaryEvent }>(ApiRoute.SITE_ANNIVERSARY_BY_ID, {
+                          pathParams: { anniversaryId: ev.id },
+                        });
+                        setSelectedEvent(event);
+                      } catch (err) {
+                        console.error('Failed to fetch event details:', err);
+                        setSelectedEvent(ev);
+                      }
+                    }}
+                    className="flex-1 min-w-0 h-full cursor-pointer rounded overflow-hidden"
+                  >
+                    {imageUrl ? (
+                      <img src={imageUrl} alt="" className="w-full h-full object-cover rounded" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-blue-100 text-blue-800 rounded text-center px-0.5">
+                        <span className={`${styles.nameMobile} text-[9px] sm:text-[10px]`}>
+                          {truncateResponsive(ev.name, 6, 16)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className={`mt-4 sm:mt-6 flex flex-col gap-1 ${isCurrentMonth ? '' : 'opacity-50'}`}>
+              {dayEvents.map((ev) => (
+                <div
+                  key={ev.id}
+                  onClick={async () => {
+                    // Fetch full event details including blessing pages
+                    try {
+                      const { event } = await apiFetch<{ event: AnniversaryEvent }>(ApiRoute.SITE_ANNIVERSARY_BY_ID, {
+                        pathParams: { anniversaryId: ev.id },
+                      });
+                      setSelectedEvent(event);
+                    } catch (err) {
+                      console.error('Failed to fetch event details:', err);
+                      setSelectedEvent(ev);
+                    }
+                  }}
+                  className="bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded cursor-pointer text-[10px] sm:text-xs"
+                >
+                  <span className={styles.nameMobile}>{truncateResponsive(ev.name, 6, 16)}</span>
+                </div>
+              ))}
+            </div>
+          )
         ) : (
           (() => {
             const renderEventCard = (
