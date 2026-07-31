@@ -143,6 +143,8 @@
   "memorialCandle": "נר זיכרון",
   "image": "תמונה",
   "cropImage": "חתוך תמונה",
+  "tapToRecropPhoto": "הקישו על התמונה כדי לכוונן את החיתוך",
+  "failedToLoadPhotoForCrop": "לא ניתן היה לטעון את התמונה לעריכה. נסו שוב.",
   "annualEvent": "אירוע שנתי",
   "saving": "שומר...",
   "save": "שמור",

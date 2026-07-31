@@ -61,6 +61,7 @@ export default function EventFormContent({ editEvent, onSuccess, onViewSimilarEv
   const [imageSrc, setImageSrc] = useState('');
   const [offsetY, setOffsetY] = useState(0);
   const [maxOffsetY, setMaxOffsetY] = useState(0);
+  const [loadingExistingPhoto, setLoadingExistingPhoto] = useState(false);
   const imgRef = useRef<HTMLImageElement | null>(null);
   const cropRef = useRef<HTMLDivElement | null>(null);
 
@@ -167,6 +168,26 @@ export default function EventFormContent({ editEvent, onSuccess, onViewSimilarEv
     setForm((prev) => ({ ...prev, imageUrl: '' }));
   };
 
+  const handleEditExistingPhoto = async () => {
+    if (!editEvent?.imageUrl || loadingExistingPhoto) return;
+    setLoadingExistingPhoto(true);
+    try {
+      const response = await fetch(editEvent.imageUrl);
+      if (!response.ok) throw new Error(`Failed to fetch image: ${response.status}`);
+      const blob = await response.blob();
+      const file = new File([blob], 'existing-photo.jpg', { type: blob.type || 'image/jpeg' });
+      setImageFile(file);
+      const reader = new FileReader();
+      reader.onload = () => setImageSrc(reader.result as string);
+      reader.readAsDataURL(file);
+    } catch (err) {
+      console.error('[EventFormContent] failed to load existing photo for cropping', err);
+      setError(t('failedToLoadPhotoForCrop', { defaultValue: 'Could not load photo for editing. Please try again.' }));
+    } finally {
+      setLoadingExistingPhoto(false);
+    }
+  };
+
   const onImageLoad = () => {
     const img = imgRef.current;
     const container = cropRef.current;
@@ -177,20 +198,25 @@ export default function EventFormContent({ editEvent, onSuccess, onViewSimilarEv
     setOffsetY(excess / 2);
   };
 
-  const handleCrop = async () => {
+  const cropCurrentImage = async (): Promise<File | null> => {
     const img = imgRef.current;
     const container = cropRef.current;
-    if (!img || !container) return;
-
+    if (!img || !container) return null;
     try {
-      const croppedFile = await ImageStore.cropImage(img, container.offsetWidth, container.offsetHeight, offsetY);
-      setImageFile(croppedFile);
-      const dataUrl = URL.createObjectURL(croppedFile);
-      setForm((prev) => ({ ...prev, imageUrl: dataUrl }));
-      setImageSrc('');
+      return await ImageStore.cropImage(img, container.offsetWidth, container.offsetHeight, offsetY);
     } catch (err) {
       console.error('Failed to crop image:', err);
+      return null;
     }
+  };
+
+  const handleCrop = async () => {
+    const croppedFile = await cropCurrentImage();
+    if (!croppedFile) return;
+    setImageFile(croppedFile);
+    const dataUrl = URL.createObjectURL(croppedFile);
+    setForm((prev) => ({ ...prev, imageUrl: dataUrl }));
+    setImageSrc('');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -198,9 +224,21 @@ export default function EventFormContent({ editEvent, onSuccess, onViewSimilarEv
     setSaving(true);
     setError('');
     try {
+      let fileToUpload = imageFile;
+      if (imageSrc) {
+        // Crop UI is still open (user never clicked "Crop image") - crop now
+        // using the current offset so the raw original never gets uploaded.
+        const croppedFile = await cropCurrentImage();
+        if (croppedFile) {
+          fileToUpload = croppedFile;
+          setImageFile(croppedFile);
+          setImageSrc('');
+        }
+      }
+
       let imageUrl = editEvent?.imageUrl || '';
-      if (imageFile) {
-        imageUrl = await ImageStore.uploadAnniversaryImage(imageFile);
+      if (fileToUpload) {
+        imageUrl = await ImageStore.uploadAnniversaryImage(fileToUpload);
       }
 
       if (!site?.id) {
@@ -408,7 +446,21 @@ export default function EventFormContent({ editEvent, onSuccess, onViewSimilarEv
         <label className="block mb-1 text-sm text-text">{t('image')}</label>
         {editEvent?.imageUrl && !imageSrc && !form.imageUrl && (
           <div className="mb-3">
-            <img src={editEvent.imageUrl} alt="" className="w-full h-40 object-cover rounded-lg"/>
+            <button
+              type="button"
+              onClick={handleEditExistingPhoto}
+              disabled={loadingExistingPhoto}
+              className="relative block w-full disabled:opacity-60"
+              aria-label={t('tapToRecropPhoto', { defaultValue: 'Tap photo to adjust crop' }) as string}
+              title={t('tapToRecropPhoto', { defaultValue: 'Tap photo to adjust crop' }) as string}
+            >
+              <img src={editEvent.imageUrl} alt="" className="w-full h-40 object-cover rounded-lg"/>
+              <span className="absolute inset-0 flex items-center justify-center bg-black/0 hover:bg-black/20 transition-colors rounded-lg">
+                {loadingExistingPhoto && (
+                  <span className="text-white text-sm">{t('loading', { defaultValue: 'Loading...' })}</span>
+                )}
+              </span>
+            </button>
           </div>
         )}
         {!imageSrc && !form.imageUrl && (

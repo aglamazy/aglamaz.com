@@ -113,6 +113,8 @@
   "wedding": "زفاف",
   "image": "صورة",
   "cropImage": "قص الصورة",
+  "tapToRecropPhoto": "انقر على الصورة لتعديل القص",
+  "failedToLoadPhotoForCrop": "تعذر تحميل الصورة للتعديل. يرجى المحاولة مرة أخرى.",
   "annualEvent": "مناسبة سنوية",
   "saving": "جارٍ الحفظ...",
   "save": "حفظ",

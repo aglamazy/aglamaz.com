@@ -144,6 +144,8 @@
   "memorialCandle": "Memorial candle",
   "image": "Image",
   "cropImage": "Crop Image",
+  "tapToRecropPhoto": "Tap photo to adjust crop",
+  "failedToLoadPhotoForCrop": "Could not load photo for editing. Please try again.",
   "annualEvent": "Annual event",
   "saving": "Saving...",
   "save": "Save",
