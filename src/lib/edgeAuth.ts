@@ -2,6 +2,7 @@
 import { jwtVerify, importSPKI } from 'jose'
 import { NextRequest, NextResponse } from 'next/server';
 import { landingPage } from "@/app/settings";
+import { READ_TOKEN_AUDIENCE } from '@/services/ReadTokenService';
 
 const ALG = 'RS256'
 
@@ -36,6 +37,38 @@ export async function verifyJwt<T extends object = Record<string, unknown>>(toke
 
 export function verifyAccessToken<T extends object = Record<string, unknown>>(token: string) {
   return verifyJwt<T>(token)
+}
+
+export interface EdgeReadTokenPayload {
+  memberId: string;
+  siteId: string;
+}
+
+/**
+ * Edge-runtime-safe counterpart to ReadTokenService.verifyReadToken. Middleware/proxy runs
+ * in the Edge runtime, where Node's `crypto` module (used by src/auth/jwt.ts's verifyJwt) is
+ * unavailable — same split this file already applies to the main ACCESS_TOKEN (verifyAccessToken
+ * above verifies with `jose` against the same RSA public key that src/auth/jwt.ts signs with,
+ * rather than re-implementing signing). Same key, same algorithm, same audience — just a
+ * different verification library. Returns null on any failure (missing, expired, wrong
+ * audience, malformed, site/member claims absent).
+ */
+export async function verifyReadTokenEdge(token: string): Promise<EdgeReadTokenPayload | null> {
+  try {
+    const key = await getVerifyKey();
+    const { payload } = await jwtVerify(token, key, { algorithms: [ALG] });
+    if (payload.aud !== READ_TOKEN_AUDIENCE) return null;
+
+    const memberId = (payload as Record<string, unknown>).memberId;
+    const siteId = (payload as Record<string, unknown>).siteId;
+    if (typeof memberId !== 'string' || !memberId.trim()) return null;
+    if (typeof siteId !== 'string' || !siteId.trim()) return null;
+    if (payload.sub !== memberId) return null;
+
+    return { memberId, siteId };
+  } catch {
+    return null;
+  }
 }
 
 function extractCookieHeader(setCookieHeader: string): string {
