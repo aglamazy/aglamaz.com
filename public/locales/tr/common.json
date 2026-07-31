@@ -527,5 +527,8 @@
   "submit": "Gönder",
   "reviewApprovedMessage": "Onaylandı — bu gönderi artık yayında.",
   "reviewChangesRequestedMessage": "Geri bildirim yazara gönderildi.",
-  "reviewDecisionFailed": "Kararınız kaydedilemedi. Lütfen tekrar deneyin."
+  "reviewDecisionFailed": "Kararınız kaydedilemedi. Lütfen tekrar deneyin.",
+  "readOnlyBannerMessage": "Salt okunur modda görüntülüyorsunuz.",
+  "readOnlyBannerLoginCta": "Değişiklik yapmak için giriş yapın",
+  "readOnlyFormMessage": "Bu sayfa salt okunurdur. Değişiklik yapmak için giriş yapın."
 }

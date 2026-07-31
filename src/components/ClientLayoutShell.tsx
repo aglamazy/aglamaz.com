@@ -13,11 +13,13 @@ import { usePendingMemberModalStore } from '@/store/PendingMemberModalStore';
 import { useNotMemberModalStore } from '@/store/NotMemberModalStore';
 import { useEditUserModalStore } from '@/store/EditUserModalStore';
 import { usePresentationModeStore } from '@/store/PresentationModeStore';
+import { useReadOnlyStore } from '@/store/ReadOnlyStore';
 import ClientDesktopShell from '@/components/ClientDesktopShell';
 import ClientMobileShell from '@/components/ClientMobileShell';
 import { apiFetch } from '@/utils/apiFetch';
 import { ApiRoute } from '@/entities/Routes';
 import { ISite } from '@/entities/Site';
+import ReadOnlyBanner from '@/components/ReadOnlyBanner';
 
 interface ClientLayoutShellProps {
   children: React.ReactNode;
@@ -29,6 +31,8 @@ export default function ClientLayoutShell({ children }: ClientLayoutShellProps) 
   const hydrateSiteInfo = useSiteStore((state) => state.hydrateFromWindow);
   const member = useMemberStore((state) => state.member);
   const hydrateMemberInfo = useMemberStore((state) => state.hydrateFromWindow);
+  const isReadOnly = useReadOnlyStore((state) => state.isReadOnly);
+  const hydrateReadOnly = useReadOnlyStore((state) => state.hydrateFromWindow);
   const router = useRouter();
   const { t, i18n } = useTranslation();
   const { isOpen: isLoginOpen, close: closeLogin, open: openLogin } = useLoginModalStore();
@@ -126,6 +130,11 @@ export default function ClientLayoutShell({ children }: ClientLayoutShellProps) 
     }
   }, [member, hydrateMemberInfo]);
 
+  // Hydrate read-only flag from window on mount (famcircle#125's __READONLY__ script tag)
+  useEffect(() => {
+    hydrateReadOnly();
+  }, [hydrateReadOnly]);
+
   const headerReady = mounted && !!siteInfo;
 
   const handleLogout = async () => {
@@ -141,6 +150,7 @@ export default function ClientLayoutShell({ children }: ClientLayoutShellProps) 
 
   return (
     <I18nGate>
+        {isReadOnly && <ReadOnlyBanner />}
         {/* Render both mobile and desktop shells, CSS controls visibility */}
         <div className="mobile-only">
           <ClientMobileShell

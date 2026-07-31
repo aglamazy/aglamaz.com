@@ -4,10 +4,13 @@ import { useRouter } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
 import { X } from 'lucide-react';
 import EventFormContent from '@/components/calendar/EventFormContent';
+import ReadOnlyNotice from '@/components/ReadOnlyNotice';
+import { useReadOnlyStore } from '@/store/ReadOnlyStore';
 
 export default function NewCalendarEventPage() {
   const router = useRouter();
   const { t } = useTranslation();
+  const isReadOnly = useReadOnlyStore((state) => state.isReadOnly);
 
   return (
     <div className="min-h-screen bg-white">
@@ -25,9 +28,13 @@ export default function NewCalendarEventPage() {
 
       {/* Form */}
       <div className="p-4 max-w-2xl mx-auto pb-24">
-        <EventFormContent
-          onSuccess={() => router.push('/app/calendar')}
-        />
+        {isReadOnly ? (
+          <ReadOnlyNotice />
+        ) : (
+          <EventFormContent
+            onSuccess={() => router.push('/app/calendar')}
+          />
+        )}
       </div>
     </div>
   );
