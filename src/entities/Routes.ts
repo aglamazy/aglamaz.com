@@ -141,6 +141,10 @@ export enum ApiRoute {
   // Growth (public marketing-page email capture, distinct from Member data)
   SITE_GROWTH_SIGNUP = 'SITE_GROWTH_SIGNUP',
 
+  // Blog subscribe (public post-notify email capture; admin-visible list)
+  SITE_BLOG_SUBSCRIBE = 'SITE_BLOG_SUBSCRIBE',
+  SITE_BLOG_SUBSCRIBERS = 'SITE_BLOG_SUBSCRIBERS',
+
   // Token-gated reminder preferences link
   REMINDER_PREFERENCES = 'REMINDER_PREFERENCES',
 

@@ -5,6 +5,7 @@ import { FamilyRepository } from '@/repositories/FamilyRepository';
 import crypto from 'crypto';
 import styles from './page.module.css';
 import BlogCTA from '@/components/blog/BlogCTA';
+import BlogSubscribeForm from '@/components/blog/BlogSubscribeForm';
 import AddPostFab from '@/components/blog/AddPostFab';
 import I18nText from '@/components/I18nText';
 import TranslationTrigger from '@/components/blog/TranslationTrigger';
@@ -183,6 +184,7 @@ export default async function FamilyBlogPage({ params }: FamilyBlogPageProps) {
         </Card>
       ))}
       {posts.length === 0 && <div><I18nText k="noPublicPostsYet" /></div>}
+      <BlogSubscribeForm />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: structuredData }} />
     </div>
   );
