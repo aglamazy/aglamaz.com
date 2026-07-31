@@ -4,6 +4,7 @@
 import { withMemberGuard } from '@/lib/withMemberGuard';
 import { DigestCompilerService } from '@/services/DigestCompilerService';
 import { DigestTemplateService, resolveDigestSiteName } from '@/services/DigestTemplateService';
+import { generateReadToken } from '@/services/ReadTokenService';
 import { SiteRepository } from '@/repositories/SiteRepository';
 import { getPath } from '@/utils/urls';
 import { AppRoute } from '@/entities/Routes';
@@ -39,7 +40,8 @@ const getHandler = async (request: Request, context: GuardContext) => {
     cadence === 'weekly'
       ? await compiler.compileWeeklyDigest(siteId, now, { locale: LOCALE })
       : await compiler.compileMonthlyDigest(siteId, now, { locale: LOCALE });
-  const options = { locale: LOCALE, siteName, recipientName, calendarUrl, galleryUrl };
+  const readOnlyToken = generateReadToken({ memberId: context.member!.uid, siteId });
+  const options = { locale: LOCALE, siteName, recipientName, calendarUrl, galleryUrl, readOnlyToken };
   const html =
     cadence === 'weekly'
       ? DigestTemplateService.buildWeeklyDigestEmail(digest, options).html

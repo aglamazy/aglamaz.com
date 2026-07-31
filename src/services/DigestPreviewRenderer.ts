@@ -37,10 +37,13 @@ export async function buildDigestPreviewSection(
     cadence === 'monthly'
       ? await digestCompiler.compileMonthlyDigest(siteId, referenceDate, { locale: SOURCE_LOCALE })
       : await digestCompiler.compileWeeklyDigest(siteId, referenceDate, { locale: SOURCE_LOCALE });
+  // No real recipient here (admin-facing "what would this look like" preview) - the
+  // /app/* links in this rendering aren't meant to be functional for anyone specific,
+  // so there's no real member to mint a read-only token for.
   const template =
     cadence === 'weekly'
-      ? DigestTemplateService.buildWeeklyDigestEmail(digest, { locale: SOURCE_LOCALE, siteName, recipientName: '(recipient name)', calendarUrl, galleryUrl })
-      : DigestTemplateService.buildMonthlyDigestEmail(digest, { locale: SOURCE_LOCALE, siteName, recipientName: '(recipient name)', calendarUrl, galleryUrl });
+      ? DigestTemplateService.buildWeeklyDigestEmail(digest, { locale: SOURCE_LOCALE, siteName, recipientName: '(recipient name)', calendarUrl, galleryUrl, readOnlyToken: '' })
+      : DigestTemplateService.buildMonthlyDigestEmail(digest, { locale: SOURCE_LOCALE, siteName, recipientName: '(recipient name)', calendarUrl, galleryUrl, readOnlyToken: '' });
 
   const recipientRows = recipients.length
     ? recipients

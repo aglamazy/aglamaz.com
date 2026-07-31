@@ -21,6 +21,10 @@ export interface BuildDigestEmailOptions {
   calendarUrl: string;
   /** Link into the app gallery - every photo thumbnail wraps this. */
   galleryUrl: string;
+  /** This recipient's signed read-only token (ReadTokenService.generateReadToken) - every
+   * /app/* link in the email carries it as `?rt=`, so opening the magazine from an inbox
+   * lands read-only with no login prompt (famcircle#127, the read-only-magazine-links ask). */
+  readOnlyToken: string;
 }
 
 /**
@@ -156,6 +160,16 @@ function formatPhotoLine(photo: GalleryPhoto, locale: string): string {
   return `${formattedDate}`;
 }
 
+/** Appends/overwrites the `rt` read-only-token query param on a same-origin /app/* link.
+ * Building a NEW url from just `new URL(x).origin` (as the blessing-link below does)
+ * drops any existing query string, so that call site re-applies this rather than relying
+ * on the token already being baked into the base calendarUrl/galleryUrl it started from. */
+function withReadOnlyToken(url: string, token: string): string {
+  const u = new URL(url);
+  u.searchParams.set('rt', token);
+  return u.toString();
+}
+
 const TYPE_ICON: Record<AnniversaryType, string> = {
   birthday: '🎂',
   wedding: '💍',
@@ -207,6 +221,7 @@ function renderEventArticle(
   calendarUrl: string,
   showBlessingLink: boolean,
   isPastSection: boolean,
+  readOnlyToken: string,
 ): string {
   const { event, photoUrls, blessingPageSlug, blessingPageIsPublic } = entry;
   const name = formatEventName(escapeHtml(event.name), event.type, locale);
@@ -236,7 +251,7 @@ function renderEventArticle(
   const blessingCtaLabel = ctaLabelMap[locale] ?? ctaLabelMap.en;
   const blessingLink =
     showBlessingLink && blessingPageSlug
-      ? `<div style="margin-top:10px;"><a href="${escapeHtml(new URL(calendarUrl).origin)}/app/blessing/${escapeHtml(blessingPageSlug)}" style="font-size:14px;font-weight:600;color:#2f6f4d;text-decoration:none;">${escapeHtml(blessingCtaLabel)}</a></div>`
+      ? `<div style="margin-top:10px;"><a href="${escapeHtml(withReadOnlyToken(`${new URL(calendarUrl).origin}/app/blessing/${blessingPageSlug}`, readOnlyToken))}" style="font-size:14px;font-weight:600;color:#2f6f4d;text-decoration:none;">${escapeHtml(blessingCtaLabel)}</a></div>`
       : '';
 
   // Text (title/date/description) reads before the images, not after (Agla, 2026-07-21).
@@ -301,8 +316,15 @@ function buildCadenceDigestEmail(
   const comingLabel = formatRangeLabel(digest.comingRange.startDate, digest.comingRange.endDate, options.locale);
   const comingGroups = groupEventsByMonth(digest.comingEvents);
 
+  // Every /app/* link in this email carries this recipient's read-only token, so opening
+  // the magazine from an inbox works with no login prompt (famcircle#127).
+  const calendarUrl = withReadOnlyToken(options.calendarUrl, options.readOnlyToken);
+  const galleryUrl = withReadOnlyToken(options.galleryUrl, options.readOnlyToken);
+
   const renderArticles = (entries: DigestEventWithPhotos[], showBlessingLink: boolean, isPastSection: boolean) =>
-    entries.map((entry) => renderEventArticle(entry, options.locale, options.calendarUrl, showBlessingLink, isPastSection)).join('');
+    entries
+      .map((entry) => renderEventArticle(entry, options.locale, calendarUrl, showBlessingLink, isPastSection, options.readOnlyToken))
+      .join('');
 
   const pastArticles = renderArticles(digest.pastEvents, false, true);
   const comingInner = comingGroups
@@ -312,7 +334,7 @@ function buildCadenceDigestEmail(
         renderArticles(group.entries, true, false),
     )
     .join('');
-  const photoCollage = renderGlobalCollage(digest.photos, options.galleryUrl);
+  const photoCollage = renderGlobalCollage(digest.photos, galleryUrl);
 
   const subject = `${subjectPrefix} - ${options.siteName} - ${comingLabel}`;
   const greeting = renderGreeting(options.recipientName);

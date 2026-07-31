@@ -191,6 +191,15 @@ export default function EventFormContent({ editEvent, onSuccess, onViewSimilarEv
     }
   };
 
+  // Crop slider should exist for an existing photo on edit, not just for a freshly
+  // picked file (Agla, 2026-07-31) - auto-load it into the cropper instead of waiting
+  // for the user to tap the static preview first.
+  useEffect(() => {
+    if (editEvent?.imageUrl) {
+      handleEditExistingPhoto();
+    }
+  }, [editEvent?.imageUrl]);
+
   const onImageLoad = () => {
     const img = imgRef.current;
     const container = cropRef.current;

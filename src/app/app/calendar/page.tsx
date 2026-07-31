@@ -532,6 +532,7 @@ export default function AnniversariesPage() {
                   ? (ev as unknown as { images?: string[] }).images
                   : [];
                 const imageUrl = ev.imageUrl || fallbackImages[0];
+                const firstName = ev.name?.trim().split(/\s+/)[0] || ev.name;
                 return (
                   <div
                     key={ev.id}
@@ -547,10 +548,17 @@ export default function AnniversariesPage() {
                         setSelectedEvent(ev);
                       }
                     }}
-                    className="flex-1 min-w-0 h-full cursor-pointer rounded overflow-hidden"
+                    className="flex-1 min-w-0 h-full cursor-pointer rounded overflow-hidden flex flex-col"
                   >
                     {imageUrl ? (
-                      <img src={imageUrl} alt="" className="w-full h-full object-cover rounded" />
+                      <>
+                        <span
+                          className={`${styles.nameMobile} text-[8px] sm:text-[9px] text-center leading-tight truncate px-0.5`}
+                        >
+                          {truncateResponsive(firstName, 6, 16)}
+                        </span>
+                        <img src={imageUrl} alt="" className="w-full flex-1 min-h-0 object-cover rounded" />
+                      </>
                     ) : (
                       <div className="w-full h-full flex items-center justify-center bg-blue-100 text-blue-800 rounded text-center px-0.5">
                         <span className={`${styles.nameMobile} text-[9px] sm:text-[10px]`}>

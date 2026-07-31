@@ -9,6 +9,7 @@ import { digestSendRepository } from '@/repositories/DigestSendRepository';
 import type { DigestRecipientPlan } from '@/services/DigestSendPlanService';
 import { DigestCompilerService } from '@/services/DigestCompilerService';
 import { DigestTemplateService, resolveDigestSiteName } from '@/services/DigestTemplateService';
+import { generateReadToken } from '@/services/ReadTokenService';
 import { ResendService } from '@/services/ResendService';
 import { TranslationService } from '@/services/TranslationService';
 import { AppRoute } from '@/utils/urls';
@@ -105,6 +106,13 @@ export async function executeDigestSend(
   const results = await Promise.allSettled(
     recipients.map(async ({ member, locale: recipientLocale }) => {
       const recipientName = member.firstName || member.displayName || member.email;
+      // Grants THIS member read-only access to their own site with no login prompt when
+      // they click a link from the email (famcircle#127) - never accepted by write routes.
+      // ReadTokenService's memberId claim resolves via MemberRepository.getByUid on
+      // verification (src/utils/serverAuth.ts:getMemberFromReadToken) - it must be the
+      // Firebase Auth uid, not the Firestore doc id (member.id); those are two distinct
+      // fields on IMember and can differ.
+      const readOnlyToken = generateReadToken({ memberId: member.uid, siteId });
       const template =
         cadence === 'weekly'
           ? DigestTemplateService.buildWeeklyDigestEmail(digest, {
@@ -113,6 +121,7 @@ export async function executeDigestSend(
               recipientName,
               calendarUrl,
               galleryUrl,
+              readOnlyToken,
             })
           : DigestTemplateService.buildMonthlyDigestEmail(digest, {
               locale: SOURCE_LOCALE,
@@ -120,6 +129,7 @@ export async function executeDigestSend(
               recipientName,
               calendarUrl,
               galleryUrl,
+              readOnlyToken,
             });
 
       const localized = await maybeTranslateDigest({
