@@ -140,6 +140,7 @@ export const apiRoutePaths: Record<ApiRoute, string> = {
   [ApiRoute.SITE_ANNIVERSARIES]: '/api/site/{siteId}/anniversaries',
   [ApiRoute.SITE_ANNIVERSARIES_SEARCH]: '/api/site/{siteId}/anniversaries/search',
   [ApiRoute.SITE_ANNIVERSARY_BY_ID]: '/api/site/{siteId}/anniversaries/{anniversaryId}',
+  [ApiRoute.SITE_ANNIVERSARY_PHOTO]: '/api/site/{siteId}/anniversaries/{anniversaryId}/photo',
   [ApiRoute.SITE_ANNIVERSARY_EVENT_BY_ID]: '/api/site/{siteId}/anniversaries/{anniversaryId}/events/{eventId}',
   [ApiRoute.SITE_ANNIVERSARY_EVENT_IMAGE_LIKES]: '/api/site/{siteId}/anniversaries/{anniversaryId}/events/{eventId}/image-likes',
   [ApiRoute.SITE_ANNIVERSARY_EVENTS]: '/api/site/{siteId}/anniversaries/{anniversaryId}/events',

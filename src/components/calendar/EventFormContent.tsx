@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, ChangeEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { apiFetch } from '@/utils/apiFetch';
+import { getApiPath } from '@/utils/urls';
 import { ApiRoute } from '@/entities/Routes';
 import type { AnniversaryEvent, AnniversaryType } from '@/entities/Anniversary';
 import styles from '@/app/app/calendar/page.module.css';
@@ -169,13 +170,18 @@ export default function EventFormContent({ editEvent, onSuccess, onViewSimilarEv
   };
 
   const handleEditExistingPhoto = async () => {
-    if (!editEvent?.imageUrl || loadingExistingPhoto) return;
+    if (!editEvent?.imageUrl || !editEvent?.id || !site?.id || loadingExistingPhoto) return;
     setLoadingExistingPhoto(true);
     try {
-      // Firebase Storage download URL, not one of our API routes - apiFetch's
-      // siteId/auth injection doesn't apply here, we just need the raw image bytes.
+      // Fetch through our own API (which fetches the Firebase Storage bytes
+      // server-side), not the Storage URL directly - a browser-side fetch() of that
+      // URL fails cross-origin (the bucket isn't CORS-configured for this app's
+      // origin; an <img src> tag doesn't need CORS but a programmatic fetch does).
+      // apiFetch() itself always parses JSON/text, so a plain fetch is used here to
+      // get the raw image bytes.
+      const url = getApiPath(ApiRoute.SITE_ANNIVERSARY_PHOTO, site.id, { anniversaryId: editEvent.id });
       // eslint-disable-next-line no-restricted-globals
-      const response = await fetch(editEvent.imageUrl);
+      const response = await fetch(url, { credentials: 'include' });
       if (!response.ok) throw new Error(`Failed to fetch image: ${response.status}`);
       const blob = await response.blob();
       const file = new File([blob], 'existing-photo.jpg', { type: blob.type || 'image/jpeg' });
