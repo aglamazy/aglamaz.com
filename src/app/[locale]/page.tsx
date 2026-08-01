@@ -58,12 +58,11 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
     // Metadata is best-effort; fall back to generic values below.
   }
 
+  const t = await getServerT(locale);
   const title = siteName;
   const description =
     aboutFamily ||
-    (siteName
-      ? `${siteName} — a private family circle for shared stories, photos, blog posts and a family calendar.`
-      : undefined);
+    (siteName ? (t('defaultFamilyDescription', { siteName }) as string) : undefined);
 
   return buildPageMetadata({ locale, path: '', title, description, siteName, type: 'website' });
 }

@@ -537,5 +537,6 @@
   "reviewDecisionFailed": "Kararınız kaydedilemedi. Lütfen tekrar deneyin.",
   "readOnlyBannerMessage": "Salt okunur modda görüntülüyorsunuz.",
   "readOnlyBannerLoginCta": "Değişiklik yapmak için giriş yapın",
-  "readOnlyFormMessage": "Bu sayfa salt okunurdur. Değişiklik yapmak için giriş yapın."
+  "readOnlyFormMessage": "Bu sayfa salt okunurdur. Değişiklik yapmak için giriş yapın.",
+  "defaultFamilyDescription": "{{siteName}} — hikayelerin, fotoğrafların, blog yazılarının ve aile takviminin paylaşıldığı özel bir aile çevresi."
 }
