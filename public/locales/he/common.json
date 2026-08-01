@@ -581,5 +581,6 @@
   "reviewDecisionFailed": "רישום ההחלטה נכשל. נסו שוב.",
   "readOnlyBannerMessage": "אתם צופים במצב לקריאה בלבד.",
   "readOnlyBannerLoginCta": "התחברו כדי לבצע שינויים",
-  "readOnlyFormMessage": "עמוד זה לקריאה בלבד. התחברו כדי לבצע שינויים."
+  "readOnlyFormMessage": "עמוד זה לקריאה בלבד. התחברו כדי לבצע שינויים.",
+  "defaultFamilyDescription": "{{siteName}} — מעגל משפחתי פרטי לשיתוף סיפורים, תמונות, פוסטים בבלוג ולוח שנה משפחתי."
 }

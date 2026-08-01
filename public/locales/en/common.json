@@ -590,5 +590,6 @@
   "reviewDecisionFailed": "Failed to record your decision. Please try again.",
   "readOnlyBannerMessage": "You're viewing in read-only mode.",
   "readOnlyBannerLoginCta": "Log in to make changes",
-  "readOnlyFormMessage": "This page is read-only. Log in to make changes."
+  "readOnlyFormMessage": "This page is read-only. Log in to make changes.",
+  "defaultFamilyDescription": "{{siteName}} — a private family circle for shared stories, photos, blog posts and a family calendar."
 }
