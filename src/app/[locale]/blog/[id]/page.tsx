@@ -28,7 +28,7 @@ import { notFound } from 'next/navigation';
 import crypto from 'crypto';
 import { DEFAULT_LOCALE, SUPPORTED_LOCALES } from '@/i18n';
 import type { Metadata } from 'next';
-import { buildTranslationTriggerPayload, localizeBlogPosts } from '@/utils/blogLocales';
+import { buildTranslationTriggerPayload, hasNativeLocale, localizeBlogPosts } from '@/utils/blogLocales';
 import BlogPostBody from '@/components/blog/BlogPostBody';
 import { isPublished } from '@/repositories/BlogRepository';
 import { buildPageMetadata } from '@/utils/seo';
@@ -68,6 +68,12 @@ export async function generateMetadata({ params }: { params: Promise<AuthorPageP
   const t = await getServerT(locale);
 
   let authorName = id;
+  // If none of this author's public posts have a real (translated) entry for
+  // this locale, the page renders entirely as a fallback copy of another
+  // locale - point canonical there instead of self (see famcircle GSC:
+  // "tr/blog/yaakov-aglamaz — Crawled, currently not indexed" and the sibling
+  // hasNativeLocale doc comment in blogLocales.ts).
+  let canonicalLocale = locale;
   try {
     const siteId = await resolveSiteId();
     if (siteId) {
@@ -77,9 +83,18 @@ export async function generateMetadata({ params }: { params: Promise<AuthorPageP
         (member as any)?.firstName ||
         (member as any)?.email ||
         id;
+
+      const uid = (member as any)?.userId || (member as any)?.uid || '';
+      if (uid) {
+        const posts = (await new BlogRepository().getByAuthor(uid))
+          .filter((p) => (p as any).siteId === siteId && p.isPublic && isPublished(p));
+        if (posts.length > 0 && !posts.some((p) => hasNativeLocale(p, locale))) {
+          canonicalLocale = DEFAULT_LOCALE;
+        }
+      }
     }
   } catch {
-    // best-effort; fall back to the handle
+    // best-effort; fall back to the handle / self-referencing canonical
   }
 
   return buildPageMetadata({
@@ -88,6 +103,7 @@ export async function generateMetadata({ params }: { params: Promise<AuthorPageP
     title: `${authorName} – ${t('familyBlog')}`,
     description: t('blogAuthorPageDescription', { authorName }) as string,
     type: 'profile',
+    canonicalLocale,
   });
 }
 

@@ -26,6 +26,20 @@ export function getAvailableLocales(post: IBlogPost): string[] {
   return Object.keys(getLocalesMap(post));
 }
 
+/**
+ * True when a post has real (translated) title+content stored for `locale`,
+ * as opposed to being served there only via the fallback chain in
+ * resolveLocalizedFields. Used to detect pages whose visible content is
+ * actually a copy of another locale's content (see famcircle GSC: "tr/blog —
+ * Duplicate without user-selected canonical", canonical chosen as he/blog).
+ */
+export function hasNativeLocale(post: IBlogPost, locale: string): boolean {
+  const locales = getLocalesMap(post);
+  const match = findLocaleMatch(locales, locale);
+  const entry = match ? locales[match] : undefined;
+  return Boolean(entry?.title && entry?.content);
+}
+
 export function resolvePrimaryLocale(post: IBlogPost): string {
   const available = getAvailableLocales(post);
   const declared = normalize(post.primaryLocale);

@@ -66,11 +66,19 @@ export function toPlainDescription(raw?: string): string | undefined {
 /**
  * Builds canonical + hreflang alternates for a localized path across every
  * supported locale, plus x-default. Returns undefined when no base URL is known.
+ *
+ * `canonicalLocale` lets a page point its canonical at a DIFFERENT locale than
+ * the one it's rendering under (defaults to `locale`, i.e. self-referencing).
+ * Used when the page's visible content is actually a fallback copy of another
+ * locale (e.g. an untranslated blog post) - pointing canonical at the source
+ * locale gives search engines the consolidation signal our own markup was
+ * missing, instead of leaving it to guess (see buildPageMetadata callers).
  */
 export function buildAlternates(
   baseUrl: string | null,
   locale: string,
-  path = ''
+  path = '',
+  canonicalLocale: string = locale
 ): Metadata['alternates'] {
   if (!baseUrl) return undefined;
   const suffix = pathSuffix(path);
@@ -80,7 +88,7 @@ export function buildAlternates(
   }
   languages['x-default'] = `${baseUrl}/${DEFAULT_LOCALE}${suffix}`;
   return {
-    canonical: `${baseUrl}/${locale}${suffix}`,
+    canonical: `${baseUrl}/${canonicalLocale}${suffix}`,
     languages,
   };
 }
@@ -92,6 +100,8 @@ export interface PageMetaInput {
   description?: string;
   siteName?: string;
   type?: 'website' | 'article' | 'profile';
+  /** Overrides which locale's URL the canonical tag points at (see buildAlternates). */
+  canonicalLocale?: string;
 }
 
 /**
@@ -102,8 +112,12 @@ export interface PageMetaInput {
 export async function buildPageMetadata(input: PageMetaInput): Promise<Metadata> {
   const baseUrl = await resolveMetadataBaseUrl();
   const locale = SUPPORTED_LOCALES.includes(input.locale) ? input.locale : DEFAULT_LOCALE;
+  const canonicalLocale =
+    input.canonicalLocale && SUPPORTED_LOCALES.includes(input.canonicalLocale)
+      ? input.canonicalLocale
+      : locale;
   const path = input.path ?? '';
-  const alternates = buildAlternates(baseUrl, locale, path);
+  const alternates = buildAlternates(baseUrl, locale, path, canonicalLocale);
   const canonicalUrl = alternates?.canonical as string | undefined;
   const description = toPlainDescription(input.description);
   const ogImage = baseUrl ? `${baseUrl}/og` : undefined;
