@@ -96,6 +96,33 @@ async function testValidReadTokenGetsReadOnlyMemberContext() {
   console.log('valid read token resolves read-only member context passed');
 }
 
+async function testValidReadTokenViaCookieGetsReadOnlyMemberContext() {
+  // The real-world shape after the FIRST magazine-link hit: src/proxy.ts already
+  // stripped `?rt=` from the URL and set the RT_SESSION cookie instead - every
+  // client-side fetch after the initial page load looks like this, not like the
+  // `?rt=` query-param case above. Regression test for the bug where this guard
+  // only ever checked the query param, so every such fetch 401'd and apiFetch's
+  // 401 handler hard-redirected the whole page away (Agla, 2026-08-02).
+  const rt = generateReadToken({ memberId: 'member1', siteId: 'site1' });
+  __setMockCookies(() => ({ get: (name: string) => (name === 'RT_SESSION' ? { value: rt } : undefined) }));
+  __setMockMemberRepository({ getByUid: async (siteId: string, uid: string) => (siteId === 'site1' && uid === 'member1' ? memberRecord : null) });
+
+  let called = false;
+  let capturedMember: any;
+  const handler = (_req: Request, ctx: any) => {
+    called = true;
+    capturedMember = ctx.member;
+    return NextResponse.json({ ok: true });
+  };
+  const guarded = withReadableGuard(handler);
+  // No `?rt=` on this request at all - only the cookie carries the token.
+  const res = await guarded(new Request('https://example.com/api/site/site1/anniversaries'), {} as any);
+  assert.equal(res.status, 200);
+  assert.equal(called, true);
+  assert.equal(capturedMember.uid, 'user1');
+  console.log('valid read token via RT_SESSION cookie (no query param) resolves read-only member context passed');
+}
+
 async function testWrongSiteTokenRejected() {
   __setMockCookies(() => ({ get: () => undefined }));
   __setMockMemberRepository({ getByUid: async () => memberRecord });
@@ -140,6 +167,7 @@ async function run() {
   await testRealSessionTakesPriority();
   await testNoSessionNoTokenRejected();
   await testValidReadTokenGetsReadOnlyMemberContext();
+  await testValidReadTokenViaCookieGetsReadOnlyMemberContext();
   await testWrongSiteTokenRejected();
   await testExpiredReadTokenRejected();
 }

@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers';
 import { verifyAccessToken } from '@/auth/service';
-import { ACCESS_TOKEN } from '@/auth/cookies';
+import { ACCESS_TOKEN, RT_SESSION } from '@/auth/cookies';
 import { MemberRepository } from '@/repositories/MemberRepository';
 import type { LocalizedMemberRecord } from '@/repositories/MemberRepository';
 import type { TokenClaims } from '@/auth/tokens';
@@ -60,6 +60,22 @@ export async function getMemberFromToken(siteId: string): Promise<LocalizedMembe
     return member;
   } catch (error) {
     console.error('[getMemberFromToken] failed', error);
+    return null;
+  }
+}
+
+/**
+ * Read the RT_SESSION cookie (src/proxy.ts sets it from a `?rt=` param on the first hit to a
+ * magazine link) through the same mockable cookie accessor getUserFromToken already uses, so
+ * callers checking for a read-only session via cookie - not just the original `?rt=` query
+ * param - can be tested the same way. Server-side only.
+ */
+export async function getRtSessionCookie(): Promise<string | null> {
+  try {
+    const cookieStore = await getCookies();
+    return cookieStore.get(RT_SESSION)?.value ?? null;
+  } catch (error) {
+    console.error('[getRtSessionCookie] failed', error);
     return null;
   }
 }
