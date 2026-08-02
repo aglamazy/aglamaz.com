@@ -99,6 +99,19 @@ Traps that have actually broken builds/data in this repo — read before baking 
   through `.update()`, never `.set(..., {merge:true})`. The shared `LocalizationService`
   (`saveLocalizedContent`/`buildLocalizedUpdate`) already gets this right - prefer
   reusing it over hand-rolling another dotted-key writer.
+- **Never `fetch()` a Firebase Storage download URL from the browser** - the bucket
+  has no CORS configuration (no `cors.json` ever applied via `gsutil`), so a
+  programmatic cross-origin `fetch()`/`XHR` to `firebasestorage.googleapis.com` is
+  silently blocked by the browser. An `<img src=...>` tag pointed at the SAME URL
+  works fine (CORS doesn't apply to image loads), which is exactly why this bug
+  passed `tsc`/`next build`/manual smoke and only surfaced when a real user tried it
+  (famcircle: `EventFormContent.tsx`'s existing-photo re-crop flow, 2026-08-01 -
+  needed the raw image bytes for a `<canvas>` crop, not just to display it). If you
+  need Storage image BYTES client-side (not just to display the image), proxy the
+  fetch through a same-origin API route instead (server-to-server `fetch()` has no
+  CORS restriction) - see
+  `src/app/api/site/[siteId]/anniversaries/[anniversaryId]/photo/route.ts` for the
+  pattern.
 
 ## TypeScript Interfaces Reference
 
