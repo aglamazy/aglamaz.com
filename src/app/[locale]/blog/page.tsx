@@ -21,7 +21,7 @@ import { createBlogSchema, createBlogPostingSchema, createBreadcrumbSchema, type
 import UnderConstruction from '@/components/UnderConstruction';
 import { DEFAULT_LOCALE, SUPPORTED_LOCALES } from '@/i18n';
 import type { Metadata } from 'next';
-import { buildTranslationTriggerPayload, localizeBlogPosts } from '@/utils/blogLocales';
+import { buildTranslationTriggerPayload, hasNativeLocale, localizeBlogPosts } from '@/utils/blogLocales';
 import BlogPostBody from '@/components/blog/BlogPostBody';
 import { buildPageMetadata } from '@/utils/seo';
 
@@ -60,12 +60,30 @@ export async function generateMetadata({ params }: FamilyBlogPageProps): Promise
   const locale = SUPPORTED.includes(paramLocale) ? paramLocale : DEFAULT_LOCALE;
   const t = await getServerT(locale);
 
+  // If none of the site's public posts have a real (translated) entry for
+  // this locale, the page renders entirely as a fallback copy of another
+  // locale - point canonical there instead of self so search engines get an
+  // explicit consolidation signal (see hasNativeLocale doc comment).
+  let canonicalLocale = locale;
+  try {
+    const siteId = await resolveSiteId();
+    if (siteId) {
+      const posts = await new BlogRepository().getPublicBySite(siteId, 30);
+      if (posts.length > 0 && !posts.some((p) => hasNativeLocale(p, locale))) {
+        canonicalLocale = DEFAULT_LOCALE;
+      }
+    }
+  } catch {
+    // Metadata is best-effort; fall back to self-referencing canonical.
+  }
+
   return buildPageMetadata({
     locale,
     path: 'blog',
     title: `${t('familyBlog')} – ${t('recentPosts')}`,
     description: t('blogPageDescription') as string,
     type: 'website',
+    canonicalLocale,
   });
 }
 
