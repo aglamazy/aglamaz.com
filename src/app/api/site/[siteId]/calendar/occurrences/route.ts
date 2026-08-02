@@ -1,4 +1,4 @@
-import { withMemberGuard } from '@/lib/withMemberGuard';
+import { withReadableGuard } from '@/lib/withReadableGuard';
 import { GuardContext } from '@/app/api/types';
 import { AnniversaryOccurrenceRepository } from '@/repositories/AnniversaryOccurrenceRepository';
 import { AnniversaryRepository } from '@/repositories/AnniversaryRepository';
@@ -58,4 +58,11 @@ const getHandler = async (req: Request, context: GuardContext) => {
   }
 };
 
-export const GET = withMemberGuard(getHandler);
+// Pure read data (which anniversaries occurred this month) - a read-only-token
+// visitor (famcircle#125) needs this too, same as the sibling anniversaries route.
+// This was withMemberGuard (never accepts a read-only session by design), so this
+// call 401'd for every magazine-link visitor - apiFetch's global 401 handler then
+// hard-redirected the whole page before the calendar page's own try/catch around
+// this fetch ever got a chance to just show an empty occurrences list instead
+// (Agla, 2026-08-02: "login modal appeared and then redirected to /he").
+export const GET = withReadableGuard(getHandler);

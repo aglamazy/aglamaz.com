@@ -1,4 +1,5 @@
 import { withMemberGuard } from '@/lib/withMemberGuard';
+import { withReadableGuard } from '@/lib/withReadableGuard';
 import { GuardContext } from '@/app/api/types';
 import { AnniversaryRepository } from '@/repositories/AnniversaryRepository';
 import { AnniversaryOccurrenceRepository } from '@/repositories/AnniversaryOccurrenceRepository';
@@ -110,5 +111,8 @@ const postHandler = async (request: Request, context: GuardContext & { params: P
   }
 };
 
-export const GET = withMemberGuard(getHandler);
+// Pure read (an event's linked occurrences) - same class of gap as
+// calendar/occurrences/route.ts: a read-only-token visitor clicking into an event
+// detail must be able to see this too. POST stays write-guarded.
+export const GET = withReadableGuard(getHandler);
 export const POST = withMemberGuard(postHandler);

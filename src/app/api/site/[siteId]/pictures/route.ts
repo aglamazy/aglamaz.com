@@ -1,4 +1,4 @@
-import { withMemberGuard } from '@/lib/withMemberGuard';
+import { withReadableGuard } from '@/lib/withReadableGuard';
 import { AnniversaryOccurrenceRepository } from '@/repositories/AnniversaryOccurrenceRepository';
 import { AnniversaryRepository } from '@/repositories/AnniversaryRepository';
 import { GalleryPhotoRepository } from '@/repositories/GalleryPhotoRepository';
@@ -138,4 +138,7 @@ const getHandler = async (req: Request, context: GuardContext) => {
   }
 };
 
-export const GET = withMemberGuard(getHandler);
+// Pure read (the gallery feed) - the other magazine link (galleryUrl, famcircle#127)
+// needs this to work for a read-only-token visitor, same class of gap as
+// calendar/occurrences and anniversaries/[id]/events.
+export const GET = withReadableGuard(getHandler);
