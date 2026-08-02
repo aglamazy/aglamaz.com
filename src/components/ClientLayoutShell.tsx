@@ -50,12 +50,26 @@ export default function ClientLayoutShell({ children }: ClientLayoutShellProps) 
     hydrateUser();
   }, [hydrateUser]);
 
+  // Must run (and, being a synchronous store write, settle) before the checkAuth
+  // effect below reads it - both fire in the same synchronous effect-flush on
+  // mount, so declaration order here is what makes that ordering guarantee hold.
+  useEffect(() => {
+    hydrateReadOnly();
+  }, [hydrateReadOnly]);
+
   useEffect(() => {
     checkAuth()
       .then(() => {
+        // A read-only (magazine-link) session never has a real Firebase user by
+        // design (famcircle#125/126) - checkAuth() correctly finding none here is
+        // expected, not a reason to pop the login modal over content that's
+        // legitimately already visible (Agla, 2026-08-02: modal appeared over a
+        // working read-only calendar view and blocked it).
+        if (useReadOnlyStore.getState().isReadOnly) return;
         if (!useUserStore.getState().user) openLogin();
       })
       .catch((err) => {
+        if (useReadOnlyStore.getState().isReadOnly) return;
         openLogin();
         throw err;
       });
@@ -129,11 +143,6 @@ export default function ClientLayoutShell({ children }: ClientLayoutShellProps) 
       hydrateMemberInfo();
     }
   }, [member, hydrateMemberInfo]);
-
-  // Hydrate read-only flag from window on mount (famcircle#125's __READONLY__ script tag)
-  useEffect(() => {
-    hydrateReadOnly();
-  }, [hydrateReadOnly]);
 
   const headerReady = mounted && !!siteInfo;
 
