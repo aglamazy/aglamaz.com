@@ -11,9 +11,16 @@
  * Listmonk binds 127.0.0.1:9000 there by design and is not publicly reachable - LISTMONK_API_URL
  * only makes sense from that host's own vantage point. Do NOT "fix" it to a public hostname.
  *
- * Credentials (LISTMONK_API_URL/LISTMONK_API_USER/LISTMONK_API_TOKEN) are delivered by Buddy
- * server-side into /etc/famcircle-listmonk-sync.env on ub04 (root:fcsync, mode 640) - this
- * script only ever reads them from process.env, no literal fallback on any of them.
+ * Credentials (LISTMONK_API_URL/LISTMONK_API_USER/LISTMONK_API_TOKEN,
+ * BLOG_SUBSCRIBERS_SYNC_SECRET) are delivered by Buddy server-side into
+ * /etc/famcircle-listmonk-sync.env on ub04 (root:fcsync, mode 640) - this script only ever
+ * reads them from process.env, no literal fallback on any of them.
+ *
+ * Subscriber emails are fetched over HTTP from FamCircle's own deploy (GET
+ * /api/site/{siteId}/blog-subscribers/sync, bearer-secret guarded), NOT via a Firebase Admin
+ * key on ub04 - per Buddy's 2026-08-03 ruling, ub04 (a mail-sending box) must never hold a
+ * credential that reads the entire product's Firestore just to sync one mailing list. The
+ * sync secret is scoped to exactly this one narrow read.
  *
  * Idempotency (the condition that matters most, per Buddy's approval): re-running must NEVER
  * resurrect a subscriber who unsubscribed in Listmonk. Every email is looked up first; a
@@ -24,14 +31,11 @@
  * Logging: counts only (added/updated/skipped/failed) - never subscriber emails. A log file is
  * another copy of the PII this whole design was built to minimise.
  *
- * Fails loud: any missing env var, any Listmonk auth/network failure, exits non-zero.
+ * Fails loud: any missing env var, any Listmonk/FamCircle-API auth or network failure, exits
+ * non-zero.
  *
  * Usage: npx tsx scripts/sync-listmonk-subscribers.ts
  */
-import { config } from 'dotenv';
-config({ path: '.env.local' });
-import { initAdmin } from '../src/firebase/admin';
-import { BlogSubscriberRepository } from '../src/repositories/BlogSubscriberRepository';
 
 function requireEnv(name: string): string {
   const value = process.env[name];
@@ -108,6 +112,21 @@ class ListmonkClient {
   }
 }
 
+async function fetchSubscriberEmails(baseUrl: string, secret: string, siteId: string): Promise<{ email: string }[]> {
+  const res = await fetch(`${baseUrl.replace(/\/+$/, '')}/api/site/${siteId}/blog-subscribers/sync`, {
+    headers: { Authorization: `Bearer ${secret}` },
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`blog-subscribers/sync fetch failed: ${res.status} ${body.slice(0, 200)}`);
+  }
+  const json = await res.json();
+  if (!Array.isArray(json?.items)) {
+    throw new Error('blog-subscribers/sync returned an unexpected shape');
+  }
+  return json.items;
+}
+
 async function main() {
   const apiUrl = requireEnv('LISTMONK_API_URL').replace(/\/+$/, '');
   const apiUser = requireEnv('LISTMONK_API_USER');
@@ -117,11 +136,12 @@ async function main() {
   if (!Number.isFinite(listId)) {
     throw new Error('LISTMONK_SYNC_LIST_ID must be a number');
   }
+  const famcircleApiUrl = requireEnv('BLOG_SUBSCRIBERS_SYNC_URL');
+  const famcircleApiSecret = requireEnv('BLOG_SUBSCRIBERS_SYNC_SECRET');
 
   const client = new ListmonkClient(apiUrl, `token ${apiUser}:${apiToken}`);
 
-  initAdmin();
-  const subscribers = await new BlogSubscriberRepository().getBySite(siteId);
+  const subscribers = await fetchSubscriberEmails(famcircleApiUrl, famcircleApiSecret, siteId);
 
   let added = 0;
   let alreadyOnList = 0;

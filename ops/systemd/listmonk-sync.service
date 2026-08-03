@@ -7,15 +7,18 @@ Wants=network-online.target
 Type=oneshot
 User=fcsync
 Group=fcsync
-# Secrets (LISTMONK_API_URL/LISTMONK_API_USER/LISTMONK_API_TOKEN) - Buddy-delivered,
-# root:fcsync 640, never committed. Non-secret sync config lives here instead.
+# Secrets (LISTMONK_API_URL/LISTMONK_API_USER/LISTMONK_API_TOKEN,
+# BLOG_SUBSCRIBERS_SYNC_SECRET) - Buddy-delivered, root:fcsync 640, never committed.
+# Non-secret sync config lives here instead.
 EnvironmentFile=/etc/famcircle-listmonk-sync.env
 Environment=LISTMONK_SYNC_SITE_ID=XFptrxZIKXV6P2TjtGCL
 Environment=LISTMONK_SYNC_LIST_ID=8
-# Host-specific - PLACEHOLDER, adjust to wherever this repo is actually cloned on ub04.
-# ExecStart intentionally reads the same var (via sh -c) so there's one path to change,
-# not two - do not hardcode a second copy of this path below.
-Environment=FAMCIRCLE_CHECKOUT_DIR=/opt/famcircle
+# FamCircle's own prod deploy - the sync fetches subscriber emails from here (bearer-secret
+# guarded, see src/app/api/site/[siteId]/blog-subscribers/sync/route.ts), NOT from a Firebase
+# Admin key on this host (Buddy's 2026-08-03 ruling: least privilege, ub04 gets exactly this
+# one narrow read and nothing else).
+Environment=BLOG_SUBSCRIBERS_SYNC_URL=https://aglamaz.com
+Environment=FAMCIRCLE_CHECKOUT_DIR=/opt/famcircle-sync
 ExecStart=/bin/sh -c '"$FAMCIRCLE_CHECKOUT_DIR"/scripts/listmonk-sync-cron.sh'
 StandardOutput=journal
 StandardError=journal

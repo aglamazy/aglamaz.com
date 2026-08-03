@@ -93,6 +93,11 @@ const PUBLIC_API_PATTERNS = [
   // route handler's own site+isPublic scoping, locale allowlist, and rate
   // limiting (see the route's own comment) ever run.
   /^\/api\/site\/[^/]+\/blog\/translate$/,
+  // Service-to-service blog-subscriber sync (scout#169) - the ub04 Listmonk cron has no
+  // session, only its own bearer secret (BLOG_SUBSCRIBERS_SYNC_SECRET, checked inside the
+  // route handler itself, same pattern as CRON_SECRET). This exemption only lets the
+  // request THROUGH to that check - it does not skip it.
+  /^\/api\/site\/[^/]+\/blog-subscribers\/sync$/,
 ];
 
 function isPublicApiPath(pathname: string) {
