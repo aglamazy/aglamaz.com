@@ -1,0 +1,10 @@
+[Unit]
+Description=Run listmonk-sync.service periodically (blog subscribers -> Listmonk list 8)
+
+[Timer]
+OnCalendar=*-*-* *:00/30:00
+Persistent=true
+RandomizedDelaySec=60
+
+[Install]
+WantedBy=timers.target

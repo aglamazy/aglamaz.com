@@ -1,0 +1,21 @@
+[Unit]
+Description=Sync FamCircle blog subscribers into Listmonk list 8 (scout#169, push-model)
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=fcsync
+Group=fcsync
+# Secrets (LISTMONK_API_URL/LISTMONK_API_USER/LISTMONK_API_TOKEN) - Buddy-delivered,
+# root:fcsync 640, never committed. Non-secret sync config lives here instead.
+EnvironmentFile=/etc/famcircle-listmonk-sync.env
+Environment=LISTMONK_SYNC_SITE_ID=XFptrxZIKXV6P2TjtGCL
+Environment=LISTMONK_SYNC_LIST_ID=8
+# Host-specific - PLACEHOLDER, adjust to wherever this repo is actually cloned on ub04.
+# ExecStart intentionally reads the same var (via sh -c) so there's one path to change,
+# not two - do not hardcode a second copy of this path below.
+Environment=FAMCIRCLE_CHECKOUT_DIR=/opt/famcircle
+ExecStart=/bin/sh -c '"$FAMCIRCLE_CHECKOUT_DIR"/scripts/listmonk-sync-cron.sh'
+StandardOutput=journal
+StandardError=journal
