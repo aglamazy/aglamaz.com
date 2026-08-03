@@ -7,7 +7,7 @@ import type { Metadata } from 'next';
 import { getMemberFromToken } from '@/utils/serverAuth';
 import { DEFAULT_LOCALE } from '../i18n';
 
-const GOOGLE_VERIFICATION = process.env.GOOGLE_SITE_VERIFICATION || '';
+const GOOGLE_VERIFICATION = process.env.GOOGLE_SITE_VERIFICATION?.trim();
 
 export async function generateMetadata(): Promise<Metadata> {
   try {
@@ -23,9 +23,13 @@ export async function generateMetadata(): Promise<Metadata> {
       icons: {
         icon: '/favicon.svg',
       },
-      verification: {
-        google: GOOGLE_VERIFICATION,
-      },
+      ...(GOOGLE_VERIFICATION
+        ? {
+            verification: {
+              google: GOOGLE_VERIFICATION,
+            },
+          }
+        : {}),
     };
   } catch (error) {
     console.error('Failed to generate metadata:', error);

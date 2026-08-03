@@ -43,6 +43,8 @@
   "getStarted": "ابدأ الآن",
   "adminDashboard": "لوحة المسؤول",
   "adminDashboardSubtitle": "إدارة إعدادات الموقع والأعضاء",
+  "clearCache": "مسح ذاكرة التخزين المؤقت",
+  "cacheCleared": "تم مسح ذاكرة التخزين المؤقت!",
   "manage": "إدارة",
   "manageSiteDescription": "تعديل وصف الموقع ورسالة الترحيب",
   "managePendingMembers": "مراجعة طلبات الأعضاء المعلقة والموافقة عليها",

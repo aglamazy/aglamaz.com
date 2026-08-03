@@ -43,6 +43,8 @@
   "getStarted": "Get started",
   "adminDashboard": "Admin Dashboard",
   "adminDashboardSubtitle": "Manage your site settings and members",
+  "clearCache": "Clear Cache",
+  "cacheCleared": "Cache Cleared!",
   "manage": "Manage",
   "manageSiteDescription": "Edit the site description and welcome message",
   "managePendingMembers": "Review and approve pending member requests",
