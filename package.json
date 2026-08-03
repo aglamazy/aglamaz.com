@@ -14,6 +14,7 @@
     "test:digest-compiler": "tsx tests/DigestCompilerService.test.ts",
     "test:send-settings": "tsx tests/SendSettings.test.ts",
     "test:blog-autogen": "tsx tests/BlogAutogenService.test.ts",
+    "test:blog-candidate-submission": "tsx tests/BlogCandidateSubmissionService.test.ts",
     "test:email-tracking": "tsx tests/emailTracking.test.ts",
     "test:e2e": "tsx tests/e2e.ts",
     "test:playwright": "playwright test",

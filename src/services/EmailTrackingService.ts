@@ -13,7 +13,8 @@ export type EmailTrackingSendType =
   | 'tag-notification'
   | 'blessing-invite'
   | 'blog-review-decision'
-  | 'blog-autogen-admin';
+  | 'blog-autogen-admin'
+  | 'blog-candidate-submission';
 
 export interface EmailTrackingTokenClaims extends TokenClaims {
   recipientMemberId: string;
