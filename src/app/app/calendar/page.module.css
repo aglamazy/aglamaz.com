@@ -63,3 +63,11 @@
 :global([dir='rtl']) .yearNavIcon {
   transform: scaleX(-1);
 }
+
+.eventThumbnail {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: 0.25rem;
+  display: block;
+}
