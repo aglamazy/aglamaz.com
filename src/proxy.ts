@@ -148,21 +148,39 @@ export async function proxy(request: NextRequest) {
   // existing unauthenticated behavior further down (and in the layout) still applies.
   // NOTE: this never grants write access — withMemberGuard/withUserGuard (write routes)
   // never read RT_SESSION or `rt`, by construction.
-  if (!token && (normalizedPath === '/app' || normalizedPath.startsWith('/app/'))) {
+  if (normalizedPath === '/app' || normalizedPath.startsWith('/app/')) {
     const rt = request.nextUrl.searchParams.get('rt');
     if (rt) {
-      const claims = await verifyReadTokenEdge(rt);
-      if (claims) {
-        const redirectUrl = new URL(pathname, request.url);
-        const response = NextResponse.redirect(redirectUrl);
-        response.cookies.set(RT_SESSION, rt, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'lax',
-          path: '/',
-          maxAge: RT_SESSION_MAX_AGE_SECONDS,
-        });
-        return response;
+      // famcircle#138: gating on "token present" rather than "token valid" meant ANY
+      // leftover access_token cookie (stale/expired — not just a real active session)
+      // silently blocked rt-processing entirely: no redirect, no RT_SESSION, no error.
+      // Every visitor who ever logged in carries that cookie, so every weekly-digest
+      // magic link silently failed for them while working fine in incognito — which is
+      // exactly why this looked unreproducible. Must verify validity, not presence, and
+      // fail OPEN to the magic link when the existing cookie turns out to be dead.
+      let hasValidAccessToken = false;
+      if (token) {
+        try {
+          await verifyAccessToken(token);
+          hasValidAccessToken = true;
+        } catch {
+          hasValidAccessToken = false;
+        }
+      }
+      if (!hasValidAccessToken) {
+        const claims = await verifyReadTokenEdge(rt);
+        if (claims) {
+          const redirectUrl = new URL(pathname, request.url);
+          const response = NextResponse.redirect(redirectUrl);
+          response.cookies.set(RT_SESSION, rt, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            path: '/',
+            maxAge: RT_SESSION_MAX_AGE_SECONDS,
+          });
+          return response;
+        }
       }
     }
   }

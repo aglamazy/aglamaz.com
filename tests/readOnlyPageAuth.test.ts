@@ -87,12 +87,56 @@ async function testInvalidReadTokenFallsThroughWithoutRedirect() {
   console.log('invalid rt token falls through to existing unauthenticated behavior (no redirect, no throw) passed');
 }
 
+// famcircle#138: a stale/expired access_token cookie must NOT silently block rt-processing.
+// Before the fix, gating on "token present" rather than "token valid" meant ANY leftover
+// access_token cookie (not just a real active session) dropped the rt param with no redirect,
+// no RT_SESSION, no error — every visitor who ever logged in carries that cookie, so every
+// weekly-digest magic link silently failed for them while working fine in incognito.
+async function testStaleAccessTokenCookieDoesNotBlockReadToken() {
+  const { generateReadToken } = await import('../src/services/ReadTokenService');
+  const { proxy } = await import('../src/proxy');
+  const { RT_SESSION, ACCESS_TOKEN } = await import('../src/auth/cookies');
+
+  const rt = generateReadToken({ memberId: 'member4', siteId: 'site4' });
+  const req = new NextRequest(`https://example.com/app/calendar?rt=${rt}`);
+  req.cookies.set(ACCESS_TOKEN, 'stale-or-garbage-not-a-valid-jwt');
+  const res = await proxy(req);
+
+  assert.equal(res.status, 307, 'a valid rt token must still redirect+set RT_SESSION even with a stale access_token cookie present');
+  const cookie = res.cookies.get(RT_SESSION);
+  assert.ok(cookie, 'RT_SESSION must be set despite the stale access_token cookie');
+  assert.equal(cookie?.value, rt);
+  console.log('stale access_token cookie does not block rt-token processing (famcircle#138) passed');
+}
+
+// The flip side: a REAL, valid access_token means the visitor already has a real session —
+// existing design intentionally ignores `rt` in that case (never overrides a real session with
+// a read-only one).
+async function testValidAccessTokenCookieSkipsReadTokenProcessing() {
+  const { generateReadToken } = await import('../src/services/ReadTokenService');
+  const { signAccessToken } = await import('../src/auth/service');
+  const { proxy } = await import('../src/proxy');
+  const { RT_SESSION, ACCESS_TOKEN } = await import('../src/auth/cookies');
+
+  const rt = generateReadToken({ memberId: 'member5', siteId: 'site5' });
+  const accessToken = signAccessToken({ userId: 'user1', siteId: 'site5', role: 'member', firstName: 'Test' });
+  const req = new NextRequest(`https://example.com/app/calendar?rt=${rt}`);
+  req.cookies.set(ACCESS_TOKEN, accessToken);
+  const res = await proxy(req);
+
+  assert.notEqual(res.status, 307, 'a real logged-in session must not be redirected for rt-processing');
+  assert.ok(!res.cookies.get(RT_SESSION), 'RT_SESSION must not be set when a valid access_token cookie is already present');
+  console.log('valid access_token cookie skips rt-token processing, keeps the real session (famcircle#138) passed');
+}
+
 async function run() {
   await testReadTokenRoundTrip();
   await testEdgeVerifierAgreesWithNodeVerifier();
   await testProxyMatcherCoversAppRoutes();
   await testValidReadTokenSetsRtSessionCookieAndRedirects();
   await testInvalidReadTokenFallsThroughWithoutRedirect();
+  await testStaleAccessTokenCookieDoesNotBlockReadToken();
+  await testValidAccessTokenCookieSkipsReadTokenProcessing();
 }
 
 run();
