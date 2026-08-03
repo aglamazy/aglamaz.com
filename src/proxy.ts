@@ -78,6 +78,14 @@ const PUBLIC_API_PATTERNS = [
   // clients and link clicks with no session cookie at all.
   /^\/api\/track\/pixel\/[^/]+$/,
   /^\/api\/track\/click\/[^/]+$/,
+  // Public blog read surface (list + single post) - both route handlers already filter to
+  // isPublic+published posts themselves (BlogRepository.getPublicBySite/getById), same data
+  // the site's own /{locale}/blog pages render server-side. Without this, an external caller
+  // with no session cookie (e.g. Shofar's Listmonk-campaign build, scout#169) 401'd on both -
+  // the [locale]/blog pages never actually hit this middleware gate since they call
+  // BlogRepository directly server-side, so the gap was latent until something reached this
+  // route as a real HTTP client instead.
+  /^\/api\/site\/[^/]+\/blog\/public(\/[^/]+)?$/,
 ];
 
 function isPublicApiPath(pathname: string) {
