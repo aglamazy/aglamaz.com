@@ -27,13 +27,22 @@ const FALLBACK_LOCALE =
 // instead, so every crawl of a bare public path lands on the same target.
 const CRAWLER_UA_RE = /bot|crawl|spider|slurp|facebookexternalhit|embedly|quora link preview|showyoubot|outbrain|pinterest|vkshare|w3c_validator/i;
 
-// Helper to add locale header to response
-function addLocaleHeader(response: NextResponse, request: NextRequest): NextResponse {
+// Forwards ?locale= as an x-locale REQUEST header so Server Components (which read it via
+// headers()) and API routes (request.headers.get('x-locale')) can actually see it. Setting it
+// on a NextResponse.next()'s own .headers only decorates the outgoing HTTP response and never
+// reaches the downstream request - it must go through the `request: { headers }` override for
+// Next.js to inject it as x-middleware-request-x-locale (rescued from a stranded fix,
+// hopper #3914, famcircle#113 - the old response-only version silently broke every downstream
+// x-locale reader whenever a caller relied on ?locale= query-param forwarding rather than the
+// path-based /{locale}/... routing).
+function withLocaleHeader(request: NextRequest): NextResponse {
   const locale = request.nextUrl.searchParams.get('locale');
-  if (locale) {
-    response.headers.set('x-locale', locale);
+  if (!locale) {
+    return NextResponse.next();
   }
-  return response;
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set('x-locale', locale);
+  return NextResponse.next({ request: { headers: requestHeaders } });
 }
 
 // Paths that should get locale prefixes (e.g., / -> /en, /blog -> /en/blog)
@@ -210,7 +219,7 @@ export async function proxy(request: NextRequest) {
 
   // Allow public paths regardless of auth status
   if (isPublic) {
-    return addLocaleHeader(NextResponse.next(), request);
+    return withLocaleHeader(request);
   }
 
   const isApi = pathname.startsWith('/api');
@@ -236,7 +245,7 @@ export async function proxy(request: NextRequest) {
     if (needsCredentialSetup) {
       if (isApi) {
         if (isCredentialApi || isLogoutApi) {
-          return addLocaleHeader(NextResponse.next(), request);
+          return withLocaleHeader(request);
         }
         return NextResponse.json({ error: 'Credentials setup required' }, { status: 403 });
       }
@@ -268,7 +277,7 @@ export async function proxy(request: NextRequest) {
       }
 
       if (!res.ok) {
-        return addLocaleHeader(NextResponse.next(), request);
+        return withLocaleHeader(request);
       }
 
       const memberRes = await res.json();
@@ -277,11 +286,11 @@ export async function proxy(request: NextRequest) {
         memberRes?.member &&
         ['member', 'admin'].includes(memberRes.member.role);
       if (!ok) {
-        return addLocaleHeader(NextResponse.next(), request);
+        return withLocaleHeader(request);
       }
     }
 
-    return addLocaleHeader(NextResponse.next(), request);
+    return withLocaleHeader(request);
   } catch {
     if (isApi) {
       return NextResponse.json({ error: 'Unauthorized (api)' }, { status: 401 });
