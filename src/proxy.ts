@@ -86,6 +86,13 @@ const PUBLIC_API_PATTERNS = [
   // BlogRepository directly server-side, so the gap was latent until something reached this
   // route as a real HTTP client instead.
   /^\/api\/site\/[^/]+\/blog\/public(\/[^/]+)?$/,
+  // Public blog auto-translate trigger (famcircle#140) - fired client-side by
+  // TranslationTrigger on the public /{locale}/blog pages so an anonymous
+  // visitor viewing a locale the post has no translation for yet actually
+  // gets one generated, instead of silently 401'ing at this gate before the
+  // route handler's own site+isPublic scoping, locale allowlist, and rate
+  // limiting (see the route's own comment) ever run.
+  /^\/api\/site\/[^/]+\/blog\/translate$/,
 ];
 
 function isPublicApiPath(pathname: string) {
