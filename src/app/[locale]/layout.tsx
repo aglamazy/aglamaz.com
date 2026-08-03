@@ -1,9 +1,11 @@
+import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 import PublicLayoutShell from '@/components/PublicLayoutShell';
 import I18nProvider from '@/components/I18nProvider';
 import I18nGate from '@/components/I18nGate';
 import { fetchSiteInfo } from '@/firebase/admin';
 import { resolveSiteId } from '@/utils/resolveSiteId';
+import { getPlatformName } from '@/utils/platformName';
 import { headers } from 'next/headers';
 import { DEFAULT_LOCALE, SUPPORTED_LOCALES } from '@/i18n';
 import { assertSerializableDev } from '@/utils/assertSerializableDev';
@@ -19,6 +21,33 @@ export function generateStaticParams() {
 interface LocaleLayoutProps {
   children: ReactNode;
   params: Promise<{ locale: string }>;
+}
+
+// The root layout's title template is built from a locale-less siteName lookup
+// (see src/app/layout.tsx), which always resolves to the app's DEFAULT_LOCALE.
+// Every page under [locale] needs its "%s | <site name>" suffix in the locale
+// actually being viewed, so we re-derive the template here with the resolved
+// locale — this nearer template wins over the root layout's for all descendants.
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+  const { locale: paramsLocale } = await params;
+  const locale = SUPPORTED_LOCALES.includes(paramsLocale) ? paramsLocale : DEFAULT_LOCALE;
+
+  let siteName: string | undefined;
+  try {
+    const siteId = await resolveSiteId();
+    const siteInfo = siteId ? await fetchSiteInfo(siteId, locale) : null;
+    siteName = siteInfo?.name?.trim() || getPlatformName(siteInfo, locale);
+  } catch {
+    // Metadata is best-effort; fall back to the generic platform name below.
+  }
+
+  const name = siteName || getPlatformName(null);
+  return {
+    title: {
+      default: name,
+      template: `%s | ${name}`,
+    },
+  };
 }
 
 export default async function PublicLayout({ children, params }: LocaleLayoutProps) {
