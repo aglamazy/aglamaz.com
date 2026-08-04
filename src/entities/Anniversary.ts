@@ -1,4 +1,5 @@
 import { LocalizableDocument } from '@/services/LocalizationService';
+import type { CalendarSystem } from '@/utils/calendarSystems';
 
 export type AnniversaryType = 'birthday' | 'death' | 'wedding' | 'other';
 
@@ -25,6 +26,7 @@ export interface AnniversaryEvent extends LocalizableDocument {
   originalYear?: number;
   isAnnual: boolean;
   useHebrew?: boolean;
+  calendarSystem?: CalendarSystem;
   deletedAt?: any;
   hebrewDate?: string; // Display like "ג' אלול תש"ל" (server formatted)
   hebrewKey?: string; // Matching key (e.g., "Elul 3")

@@ -1,3 +1,5 @@
+import type { CalendarSystem } from '@/utils/calendarSystems';
+
 export interface FieldMeta {
   source: 'manual' | 'gpt' | 'other';
   updatedAt: any;
@@ -74,6 +76,14 @@ export interface ISite {
   name?: string;
   aboutFamily?: string;
   platformName?: string;
+
+  // Site-level calendar-system config (famcircle#113/#3167) - replaces the old
+  // single-checkbox "use Hebrew calendar" toggle. calendarSystems is the set of
+  // calendars this family's events can be entered in; defaultCalendarSystem is
+  // pre-selected on new-event forms. Both optional - absent means "not configured
+  // yet", callers fall back to inferDefaultCalendarSystems/getDefaultCalendarSystem.
+  calendarSystems?: CalendarSystem[];
+  defaultCalendarSystem?: CalendarSystem;
 
   // Storage structure (for accessing other locales and metadata)
   locales?: Record<string, SiteLocaleContent>;

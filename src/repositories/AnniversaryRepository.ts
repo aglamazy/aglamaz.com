@@ -1,8 +1,37 @@
-import { getFirestore, Timestamp } from 'firebase-admin/firestore';
+import { FieldValue, getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { initAdmin } from '../firebase/admin';
 import type { AnniversaryEvent, AnniversaryType } from '@/entities/Anniversary';
 import { formatHebrewDisplay, formatHebrewKey, findGregorianForHebrewKeyInYear, resolveHebrewOccurrenceForMonth } from '@/utils/hebrew';
 import { ConfigRepository } from '@/repositories/ConfigRepository';
+import { isCalendarSystem, type CalendarSystem } from '@/utils/calendarSystems';
+
+export function isJewishCalendarSystem(calendarSystem?: CalendarSystem | null): calendarSystem is 'jewish' {
+  return calendarSystem === 'jewish';
+}
+
+export function resolveCalendarSystem(
+  calendarSystem?: CalendarSystem,
+  useHebrew?: boolean,
+  existing?: CalendarSystem,
+): CalendarSystem | undefined {
+  if (isCalendarSystem(calendarSystem)) {
+    return calendarSystem;
+  }
+  if (useHebrew === true) {
+    return 'jewish';
+  }
+  if (useHebrew === false) {
+    return 'gregorian';
+  }
+  return existing;
+}
+
+export function clearHebrewFields(payload: Record<string, any>) {
+  payload.useHebrew = FieldValue.delete();
+  payload.hebrewDate = FieldValue.delete();
+  payload.hebrewKey = FieldValue.delete();
+  payload.hebrewOccurrences = FieldValue.delete();
+}
 
 export class AnniversaryRepository {
   private readonly collection = 'anniversaries';
@@ -23,6 +52,7 @@ export class AnniversaryRepository {
     isAnnual: boolean;
     createdBy: string;
     imageUrl?: string;
+    calendarSystem?: CalendarSystem;
     useHebrew?: boolean;
     locale: string;
     honoreeMemberId?: string;
@@ -31,6 +61,7 @@ export class AnniversaryRepository {
     const db = this.getDb();
     const now = Timestamp.now();
     const eventDate = Timestamp.fromDate(eventData.date);
+    const calendarSystem = resolveCalendarSystem(eventData.calendarSystem, eventData.useHebrew);
 
     // Build locales structure for the name field
     const localeData: any = {
@@ -59,13 +90,16 @@ export class AnniversaryRepository {
       },
       createdAt: now,
     };
+    if (calendarSystem) {
+      base.calendarSystem = calendarSystem;
+    }
     // Mutually exclusive - a member link always wins over a raw email if both are somehow sent.
     if (eventData.honoreeMemberId) {
       base.honoreeMemberId = eventData.honoreeMemberId;
     } else if (eventData.honoreeEmail) {
       base.honoreeEmail = eventData.honoreeEmail;
     }
-    if (eventData.useHebrew) {
+    if (isJewishCalendarSystem(calendarSystem)) {
       base.useHebrew = true;
       base.hebrewDate = formatHebrewDisplay(eventData.date);
       base.hebrewKey = formatHebrewKey(eventData.date);
@@ -236,6 +270,7 @@ export class AnniversaryRepository {
     date?: Date;
     isAnnual?: boolean;
     imageUrl?: string;
+    calendarSystem?: CalendarSystem;
     useHebrew?: boolean;
     locale?: string;
     /** undefined = leave untouched; null = clear; string = set. Setting one always clears the other (mutually exclusive). */
@@ -276,13 +311,20 @@ export class AnniversaryRepository {
     if (updates.isAnnual !== undefined) data.isAnnual = updates.isAnnual;
     if (updates.imageUrl !== undefined) data.imageUrl = updates.imageUrl;
     if (updates.description !== undefined) data.description = updates.description;
+    const existingCalendarSystem = resolveCalendarSystem((existing as any).calendarSystem, (existing as any).useHebrew, undefined);
+    const nextCalendarSystem = resolveCalendarSystem(updates.calendarSystem, updates.useHebrew, existingCalendarSystem);
+    if (updates.calendarSystem !== undefined) {
+      data.calendarSystem = updates.calendarSystem;
+    } else if (updates.useHebrew !== undefined) {
+      data.calendarSystem = nextCalendarSystem;
+    }
     if (updates.date) {
       const eventDate = Timestamp.fromDate(updates.date);
       data.date = eventDate;
       data.month = updates.date.getMonth();
       data.day = updates.date.getDate();
       data.year = updates.date.getFullYear();
-      if (updates.useHebrew) {
+      if (isJewishCalendarSystem(nextCalendarSystem)) {
         data.useHebrew = true;
         data.hebrewDate = formatHebrewDisplay(updates.date);
         data.hebrewKey = formatHebrewKey(updates.date);
@@ -298,11 +340,12 @@ export class AnniversaryRepository {
           }
         }
         data.hebrewOccurrences = occurrences;
+      } else if (updates.calendarSystem !== undefined || updates.useHebrew !== undefined || (existing as any).useHebrew) {
+        clearHebrewFields(data);
       }
     }
     if (updates.useHebrew !== undefined && !updates.date) {
-      data.useHebrew = !!updates.useHebrew;
-      if (updates.useHebrew && existing.date) {
+      if (isJewishCalendarSystem(nextCalendarSystem) && existing.date) {
         const d = (existing.date as Timestamp).toDate();
         data.hebrewDate = formatHebrewDisplay(d);
         data.hebrewKey = formatHebrewKey(d);
@@ -318,6 +361,9 @@ export class AnniversaryRepository {
           }
         }
         data.hebrewOccurrences = occurrences;
+        data.useHebrew = true;
+      } else if (updates.calendarSystem !== undefined || updates.useHebrew !== undefined || (existing as any).useHebrew) {
+        clearHebrewFields(data);
       }
     }
     if (updates.honoreeMemberId !== undefined) {
