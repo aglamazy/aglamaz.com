@@ -111,9 +111,11 @@ export class SiteRepository {
 
   async create(params: CreateSiteParams): Promise<ISite> {
     const { ownerUid, name, locale, aboutFamily = '', platformName = '', country, timezone, isDemo } = params;
-    if (!ownerUid) {
-      throw new Error('ownerUid is required');
-    }
+    // ownerUid may be legitimately empty at creation time (famcircle#97's admin-provisioned
+    // flow: the owner has no Firebase Auth account yet when the site is created, only an
+    // invite). The admin dashboard already has a "missing admin email" banner + the
+    // SITE_ADMIN_OWNER endpoint (src/app/api/site/[siteId]/admin/owner/route.ts) to backfill
+    // it by email once the owner signs up - this is an anticipated state, not a bug.
     if (!name) {
       throw new Error('name is required');
     }
@@ -438,6 +440,25 @@ export class SiteRepository {
     }
 
     return fetcher();
+  }
+
+  // famcircle#97: admin-provisioned site creation. Per docs/FAMILYCORE_SITE_CREATION.md's
+  // security notes - never let a caller pick a taken domain, since domainMappings is the
+  // ONLY thing standing between a new domain and NEXT_SITE_ID's fallback rendering the
+  // Aglamaz family's private site (see FamilyCore's docs/multi-site-concept.md landmine #1).
+  async createDomainMapping(domain: string, siteId: string, opts: { isPrimary?: boolean; createdBy?: string } = {}): Promise<void> {
+    const normalizedDomain = domain.toLowerCase().trim();
+    const ref = this.domainMappingRef(normalizedDomain);
+    const existing = await ref.get();
+    if (existing.exists) {
+      throw new Error(`Domain ${normalizedDomain} is already assigned to another site`);
+    }
+    await ref.set({
+      siteId,
+      isPrimary: opts.isPrimary ?? false,
+      createdAt: Timestamp.now(),
+      ...(opts.createdBy ? { createdBy: opts.createdBy } : {}),
+    });
   }
 
   async getDomainBySiteId(siteId: string, opts?: GetOptions): Promise<string | null> {
