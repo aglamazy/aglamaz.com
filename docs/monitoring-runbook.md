@@ -109,6 +109,35 @@
 This is the observability half: a real check against the real URL/DB, and
 proof (not just documentation) that failures are actually detected.
 
+## JWT_PRIVATE_KEY / EMAIL_TRACKING_TTL_SECONDS — do not "fix" this TTL
+
+`src/services/EmailTrackingService.ts` signs the per-copy open/click tracking
+token (`signEmailTrackingToken`, the F7 email-open-analytics pixel — see
+`AH#699`-style decision logging convention, Agla-requested measurement that
+proved real digest opens in the wild) with `EMAIL_TRACKING_TTL_SECONDS = 400
+* 24 * 60 * 60` — **~13 months, deliberately, not an oversight.** Every
+outgoing email (digest, in-day reminder, tag-notification, blessing-invite,
+blog-review-decision, blog-autogen-admin) embeds one, and it must still
+verify whenever the recipient eventually opens that specific email - which
+could be months later. A shorter "hygienic-looking" TTL would silently break
+tracking on any email older than the new window, and because JWT
+verification fails closed, a broken pixel produces the SAME "0 opens"
+signal as a real non-open — nobody would notice the regression from the
+data alone (flagged by Buddy, 2026-08-05, while auditing whether
+`JWT_PRIVATE_KEY` is in secrets custody).
+
+This also means `JWT_PRIVATE_KEY` is a long-lived-in-the-wild signing key:
+rotating or losing it does not break the app (a fresh RSA keypair can be
+minted anytime, new tokens sign immediately) but it DOES silently
+invalidate every already-issued token - auth sessions (≤30d), the
+famcircle#138 read-only magazine token (14d), reminder-preference links
+(14d), and up to ~13 months of already-embedded tracking tokens, with no
+registry of how many are outstanding. Nothing about this is broken as of
+2026-08-05 (the key is live on Vercel and working); the gap is that it has
+no counterpart in `secrets/env/aglamaz-com.production.env` custody, so
+recovery after a lost/misconfigured Vercel project would force a mass,
+unsized invalidation. Tracked as a custody-backfill item, not urgent.
+
 ## What this wires into (fleet side — NOT part of this repo)
 
 The fleet's **Medic** pattern (`~/develop/Buddy/docs/harness-model.md` §3.3) is
