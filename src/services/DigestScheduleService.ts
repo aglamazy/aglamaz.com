@@ -36,3 +36,22 @@ export function nextCadenceToFire(now: Date): { cadence: DigestCadence; fireDate
     ? { cadence: 'weekly', fireDate: weeklyFire }
     : { cadence: 'monthly', fireDate: monthlyFire };
 }
+
+/**
+ * The most recent weekly burst start that has already happened (today's, if today is
+ * Friday at/after 06:00 UTC and the burst has already run). famcircle#144's monitoring
+ * follow-up: nextWeeklyFireDate always looks forward, but a schedule-aware health check
+ * needs to ask "was the period that already fired actually delivered" - derived as
+ * nextWeeklyFireDate minus one cycle, which nextWeeklyFireDate's own same-day rollover
+ * already makes correct in both the "today is fire day" and "today is any other day" cases.
+ */
+export function lastWeeklyFireDate(now: Date): Date {
+  const next = nextWeeklyFireDate(now);
+  return new Date(next.getTime() - 7 * 24 * 60 * 60 * 1000);
+}
+
+/** Same derivation as lastWeeklyFireDate, for the monthly cadence. */
+export function lastMonthlyFireDate(now: Date): Date {
+  const next = nextMonthlyFireDate(now);
+  return new Date(Date.UTC(next.getUTCFullYear(), next.getUTCMonth() - 1, 1, 0, 0, 0));
+}

@@ -20,14 +20,18 @@ export interface EmailVolumeCheckResult {
  * own first live run): the original 48h default false-positived on a genuinely healthy
  * quiet stretch (2026-08-03 02:29 to 2026-08-05 20:00, ~66h and still climbing toward the
  * next Thursday digest-preview) - /api/health was fully green, every cron still correctly
- * registered, no real problem. The per-site weekly cadence isn't a single global day (a
- * real weekly send landed on a Sunday, 2026-08-02, alongside Thursday/Friday ones), so gaps
- * approaching 4 days can be entirely normal near a weekly boundary. 96h still catches a
- * multi-day total outage (the actual failure mode found 2026-08-05: 72h of zero activity,
- * discovered by accident 10 days later) within about a day of it exceeding normal patterns,
- * while tolerating the real quiet stretches this fires against. Still empirical, not proven
- * optimal - if this starts missing real gaps or still false-positiving, recalibrate against
- * fresh Resend history rather than guessing again.
+ * registered, no real problem. Gaps approaching 4 days can be entirely normal near a
+ * weekly-digest boundary even though the digest cadence itself is a single global Friday
+ * burst (see DigestScheduleService.nextWeeklyFireDate) - other send types (in-day
+ * reminders, blog-autogen, ad hoc admin sends) don't share that fixed schedule, so a quiet
+ * stretch on THIS check doesn't mean "the digest didn't fire", just "nothing on any
+ * channel fired". 96h still catches a multi-day total outage (the actual failure mode
+ * found 2026-08-05: 72h of zero activity, discovered by accident 10 days later) within
+ * about a day of it exceeding normal patterns, while tolerating the real quiet stretches
+ * this fires against. Still empirical, not proven optimal - if this starts missing real
+ * gaps or still false-positiving, recalibrate against fresh Resend history rather than
+ * guessing again. For the digest specifically, prefer check-digest-delivery.ts (schedule-
+ * aware, checks the actual due period rather than a rolling window) over widening this one.
  */
 export async function checkEmailVolume(apiKey: string, windowHours = 96): Promise<EmailVolumeCheckResult> {
   try {

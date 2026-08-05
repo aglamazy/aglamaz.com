@@ -52,8 +52,50 @@
   proves the detection logic against a real local HTTP server (healthy, stale
   data outside the window, API error) without a live Resend call.
 
-This is the observability half: a real check against the real URL, and proof
-(not just documentation) that failures are actually detected.
+- **`scripts/check-digest-delivery.ts`** (famcircle#144 follow-up, 2026-08-05) —
+  schedule-aware replacement/supplement for `check-email-volume.ts`'s blunt
+  staleness floor, built after Buddy rejected widening that window further:
+  *"the fix is not to widen the window until it stops complaining - that just
+  moves the blind spot. Size it to the actual send calendar: a weekly digest
+  means the check should ask 'did the digest that was DUE actually go', not
+  'has anything gone recently'."* Correcting an earlier claim in this repo's
+  history: the weekly cadence is **not** per-site - `DigestScheduleService`'s
+  `nextWeeklyFireDate` is a single global Friday-06:00-UTC burst window (see
+  `src/services/DigestScheduleService.ts`), so "did Friday's digest go out"
+  is a well-defined, checkable question.
+
+  For each cadence (weekly/monthly) whose last scheduled fire has cleared a
+  grace window (default 2h, covers the cron's own up-to-1h retry burst), and
+  for every site with the `digest` send-type enabled
+  (`SiteRepository.resolveSendSettings`), it calls the exact same
+  `resolveDigestRecipients` function the real cron
+  (`src/app/api/cron/digest/route.ts`) and the admin preview endpoint use - no
+  parallel reimplementation of "who's eligible" to drift out of sync. A site
+  with zero eligible members for that cadence/period is skipped (normal - the
+  real cron does the same "nobody eligible" skip). A site WITH eligible
+  members where every one of them is still unsent for an already-fired period
+  is flagged as a genuine miss:
+  ```
+  npm run monitor:digest-delivery
+  # or: DIGEST_DELIVERY_GRACE_HOURS=4 npx tsx scripts/check-digest-delivery.ts
+  ```
+  Reads Firebase Admin credentials the same way the app does (no separate
+  API key). See `scripts/lib/digestDeliveryCheck.ts` for the pure
+  dependency-injected check logic and `tests/digestDeliveryCheck.test.ts` for
+  the 5 scenarios it proves (grace window not yet elapsed, all-unsent miss,
+  partial-sent healthy, zero-eligible skip, per-site error isolation) without
+  touching a live Firestore project.
+
+  This does not replace `check-email-volume.ts` - that check still covers the
+  *other* send types (in-day reminders, yahrzeit WhatsApp, blog-autogen) that
+  don't have a fixed weekly/monthly schedule to check against. Run both.
+
+- **`tests/digestDeliveryCheck.test.ts`** — proves `digestDeliveryCheck.ts`'s
+  logic against fake injected dependencies (no live Firestore), same
+  dependency-injection pattern as the HTTP-mock tests above.
+
+This is the observability half: a real check against the real URL/DB, and
+proof (not just documentation) that failures are actually detected.
 
 ## What this wires into (fleet side — NOT part of this repo)
 
