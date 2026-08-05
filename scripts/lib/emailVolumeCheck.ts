@@ -14,13 +14,22 @@ export interface EmailVolumeCheckResult {
  * Resend's own /emails list, most-recent-first (confirmed by direct API use investigating
  * famcircle#144's 3-day outage) - the only ground truth upstream of our own tracking
  * collection, which only logs opens/clicks, never sends. "Healthy" means at least one email
- * was sent in the trailing windowHours - not a rate check, a dead-man's-switch: FamCircle's
- * schedule guarantees at least a weekly-digest-preview + the real weekly digest every
- * Thursday/Friday, so a 48h floor tolerates normal quiet days while still catching a
+ * was sent in the trailing windowHours - not a rate check, a dead-man's-switch.
+ *
+ * Window calibrated EMPIRICALLY, not just from the cron schedule (2026-08-05, this check's
+ * own first live run): the original 48h default false-positived on a genuinely healthy
+ * quiet stretch (2026-08-03 02:29 to 2026-08-05 20:00, ~66h and still climbing toward the
+ * next Thursday digest-preview) - /api/health was fully green, every cron still correctly
+ * registered, no real problem. The per-site weekly cadence isn't a single global day (a
+ * real weekly send landed on a Sunday, 2026-08-02, alongside Thursday/Friday ones), so gaps
+ * approaching 4 days can be entirely normal near a weekly boundary. 96h still catches a
  * multi-day total outage (the actual failure mode found 2026-08-05: 72h of zero activity,
- * discovered by accident 10 days later) well within a day of it starting.
+ * discovered by accident 10 days later) within about a day of it exceeding normal patterns,
+ * while tolerating the real quiet stretches this fires against. Still empirical, not proven
+ * optimal - if this starts missing real gaps or still false-positiving, recalibrate against
+ * fresh Resend history rather than guessing again.
  */
-export async function checkEmailVolume(apiKey: string, windowHours = 48): Promise<EmailVolumeCheckResult> {
+export async function checkEmailVolume(apiKey: string, windowHours = 96): Promise<EmailVolumeCheckResult> {
   try {
     const res = await fetch('https://api.resend.com/emails', {
       headers: { Authorization: `Bearer ${apiKey}` },

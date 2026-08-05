@@ -34,18 +34,19 @@
   went undetected for 10 days, discovered by accident while investigating an
   unrelated question. Queries Resend's own send history directly (ground
   truth upstream of `emailTrackingEvents`, which only logs opens/clicks, never
-  sends) for at least one email in a trailing window (default 48h - tolerates
-  a normal quiet day while still catching a multi-day outage well within a
-  day of it starting, given the weekly digest+preview guarantee activity at
-  least twice a week):
+  sends) for at least one email in a trailing window (default 96h, revised
+  from an initial 48h after it false-positived on its first live run 2026-08-05
+  - a genuinely healthy ~66h quiet stretch near a weekly-digest boundary, since
+  the per-site weekly cadence isn't a single global day):
   ```
   npm run monitor:email-volume
   # or: RESEND_VOLUME_WINDOW_HOURS=72 npx tsx scripts/check-email-volume.ts
   ```
   Reads `RESEND_API_KEY` from the environment, no fallback. See
-  `scripts/lib/emailVolumeCheck.ts` for the exact floor/window reasoning -
-  the 48h default is a starting point, not a proven-optimal threshold; tune
-  it if it proves noisy or misses something.
+  `scripts/lib/emailVolumeCheck.ts` for the full floor/window reasoning,
+  including the 2026-08-05 recalibration - still empirical, not proven
+  optimal; recalibrate against fresh Resend history if it proves noisy or
+  misses something, don't just guess a new number.
 
 - **`tests/emailVolumeCheck.test.ts`** — same pattern as `uptimeCheck.test.ts`,
   proves the detection logic against a real local HTTP server (healthy, stale
