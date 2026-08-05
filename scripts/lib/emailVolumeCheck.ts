@@ -16,22 +16,25 @@ export interface EmailVolumeCheckResult {
  * collection, which only logs opens/clicks, never sends. "Healthy" means at least one email
  * was sent in the trailing windowHours - not a rate check, a dead-man's-switch.
  *
- * Window calibrated EMPIRICALLY, not just from the cron schedule (2026-08-05, this check's
- * own first live run): the original 48h default false-positived on a genuinely healthy
- * quiet stretch (2026-08-03 02:29 to 2026-08-05 20:00, ~66h and still climbing toward the
- * next Thursday digest-preview) - /api/health was fully green, every cron still correctly
- * registered, no real problem. Gaps approaching 4 days can be entirely normal near a
- * weekly-digest boundary even though the digest cadence itself is a single global Friday
- * burst (see DigestScheduleService.nextWeeklyFireDate) - other send types (in-day
- * reminders, blog-autogen, ad hoc admin sends) don't share that fixed schedule, so a quiet
- * stretch on THIS check doesn't mean "the digest didn't fire", just "nothing on any
- * channel fired". 96h still catches a multi-day total outage (the actual failure mode
- * found 2026-08-05: 72h of zero activity, discovered by accident 10 days later) within
- * about a day of it exceeding normal patterns, while tolerating the real quiet stretches
- * this fires against. Still empirical, not proven optimal - if this starts missing real
- * gaps or still false-positiving, recalibrate against fresh Resend history rather than
- * guessing again. For the digest specifically, prefer check-digest-delivery.ts (schedule-
- * aware, checks the actual due period rather than a rolling window) over widening this one.
+ * Window is 48h, INTENTIONALLY kept tight even though it false-positives on normal quiet
+ * stretches (Buddy, 2026-08-05, rejecting a same-night widen-to-96h patch): the outage
+ * this check exists for was 72 hours (2026-07-25 to 07-27). A 96h window requires 96h of
+ * silence before alarming - it would not have caught the exact incident it was built for.
+ * "Recalibrate from real data" is the wrong move when the real data sits past the edge of
+ * usefulness; a monitor guaranteed to sleep through its own founding case is worse than a
+ * noisy one. The interim tradeoff Buddy chose instead: keep 48h and route ITS alarms to
+ * Buddy only (not a production-down page) rather than widening the window - noise into an
+ * inbox is cheap, a blind spot is not. That routing is done on the timer/infra side, not
+ * in this script.
+ *
+ * The real fix for the digest specifically is scripts/check-digest-delivery.ts
+ * (schedule-aware: "did the period that was DUE actually go", not "has anything gone
+ * recently") - this check stays in place as the floor for the OTHER send types (in-day
+ * reminders, blog-autogen, ad hoc admin sends) that don't have a fixed schedule to check
+ * against, AND as a backstop against the case where every site's due period had zero
+ * eligible recipients (so the precise per-period check would correctly report healthy
+ * while the whole channel is still actually dark) - see docs/monitoring-runbook.md. Run
+ * both; neither one alone covers everything the other does.
  */
 export async function checkEmailVolume(apiKey: string, windowHours = 96): Promise<EmailVolumeCheckResult> {
   try {

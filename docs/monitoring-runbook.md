@@ -34,19 +34,22 @@
   went undetected for 10 days, discovered by accident while investigating an
   unrelated question. Queries Resend's own send history directly (ground
   truth upstream of `emailTrackingEvents`, which only logs opens/clicks, never
-  sends) for at least one email in a trailing window (default 96h, revised
-  from an initial 48h after it false-positived on its first live run 2026-08-05
-  - a genuinely healthy ~66h quiet stretch near a weekly-digest boundary, since
-  the per-site weekly cadence isn't a single global day):
+  sends) for at least one email in a trailing window (default **48h, kept
+  deliberately tight** - a same-night attempt to widen it to 96h to stop a
+  false positive was rejected by Buddy 2026-08-05: the founding outage was
+  72h, so a 96h window is guaranteed to sleep through the exact incident this
+  check exists to catch. Interim tradeoff: keep 48h, route its (expected,
+  frequent) alarms to Buddy only rather than a production-down page - noise
+  into an inbox is cheap, a blind spot is not; that routing is a timer/infra
+  concern, not something this script does):
   ```
   npm run monitor:email-volume
   # or: RESEND_VOLUME_WINDOW_HOURS=72 npx tsx scripts/check-email-volume.ts
   ```
   Reads `RESEND_API_KEY` from the environment, no fallback. See
-  `scripts/lib/emailVolumeCheck.ts` for the full floor/window reasoning,
-  including the 2026-08-05 recalibration - still empirical, not proven
-  optimal; recalibrate against fresh Resend history if it proves noisy or
-  misses something, don't just guess a new number.
+  `scripts/lib/emailVolumeCheck.ts` for the full reasoning. Still runs
+  alongside `check-digest-delivery.ts` below, not replaced by it - see that
+  entry for why both are needed.
 
 - **`tests/emailVolumeCheck.test.ts`** — same pattern as `uptimeCheck.test.ts`,
   proves the detection logic against a real local HTTP server (healthy, stale
@@ -86,9 +89,18 @@
   partial-sent healthy, zero-eligible skip, per-site error isolation) without
   touching a live Firestore project.
 
-  This does not replace `check-email-volume.ts` - that check still covers the
-  *other* send types (in-day reminders, yahrzeit WhatsApp, blog-autogen) that
-  don't have a fixed weekly/monthly schedule to check against. Run both.
+  This does not replace `check-email-volume.ts` - run both, for two separate
+  reasons Buddy flagged 2026-08-05: (1) the *other* send types (in-day
+  reminders, yahrzeit WhatsApp, blog-autogen) have no fixed weekly/monthly
+  schedule for this check to evaluate against, and (2) this check's
+  per-period precision has a real blind spot of its own - if every
+  digest-enabled site happens to have zero eligible recipients for a given
+  due period, this check correctly reports healthy even if the entire email
+  channel is silently dead (the exact 2026-07-25..07-27 founding outage would
+  still pass a per-period check that only looks at digest math). The blunter
+  `check-email-volume.ts` floor is what catches "nothing sent anywhere,
+  regardless of why" - keep it running as the backstop, not just for its own
+  send types.
 
 - **`tests/digestDeliveryCheck.test.ts`** — proves `digestDeliveryCheck.ts`'s
   logic against fake injected dependencies (no live Firestore), same

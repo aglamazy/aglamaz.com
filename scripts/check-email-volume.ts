@@ -27,7 +27,7 @@ async function main() {
 
   const windowHours = process.env.RESEND_VOLUME_WINDOW_HOURS
     ? parseInt(process.env.RESEND_VOLUME_WINDOW_HOURS, 10)
-    : 96;
+    : 48;
 
   const result = await checkEmailVolume(apiKey, windowHours);
   console.log(JSON.stringify(result));
