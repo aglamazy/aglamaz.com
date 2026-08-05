@@ -14,7 +14,12 @@ const bumpPatch = version => {
   const now = new Date()
   const year = now.getFullYear() % 100 // 2026 -> 26
   const month = now.getMonth() + 1     // 1-12
-  if (parts[0] !== year || parts[1] !== month) {
+  // buddy_infra#1018 (2026-08-04): a version at-or-ahead of the current
+  // calendar month must just keep incrementing its patch, not reset — the
+  // old `!==` check regressed an already-published version (e.g. 26.9.1,
+  // bumped ahead by a parallel merge) back down to 26.<thisMonth>.0.
+  const isBehindCalendar = parts[0] < year || (parts[0] === year && parts[1] < month)
+  if (isBehindCalendar) {
     return `${year}.${month}.0`
   }
   parts[2] += 1

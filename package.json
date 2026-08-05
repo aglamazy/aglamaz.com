@@ -1,6 +1,6 @@
 {
   "name": "aglamaz-app",
-  "version": "26.8.16",
+  "version": "26.8.17",
   "private": true,
   "scripts": {
     "dev": "next dev -p 3000",
@@ -9,6 +9,7 @@
     "lint": "eslint . --max-warnings=0",
     "lint:fix": "eslint . --fix",
     "monitor:uptime": "tsx scripts/uptime-check.ts",
+    "monitor:email-volume": "tsx scripts/check-email-volume.ts",
     "test": "tsx tests/auth.test.ts && tsx tests/signupPolicy.test.ts",
     "test:digest": "tsx tests/digestTranslation.test.ts",
     "test:digest-template": "tsx tests/digestTemplate.test.ts",

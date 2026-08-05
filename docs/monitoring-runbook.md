@@ -26,6 +26,31 @@
   unreachable deployment (connection refused), and malformed response body.
   Part of `npm test`; run alone with `npx tsx tests/uptimeCheck.test.ts`.
 
+- **`scripts/check-email-volume.ts`** (famcircle#144) — a dead-man's-switch on
+  the email channel itself, not just app health: `/api/health` only proves
+  Firebase/Gmail/Translation are reachable, it says nothing about whether
+  crons/sends are actually firing. Built after a real 3-day (2026-07-25 to
+  07-27) total Resend outage - digests, blog-autogen, reminders, everything -
+  went undetected for 10 days, discovered by accident while investigating an
+  unrelated question. Queries Resend's own send history directly (ground
+  truth upstream of `emailTrackingEvents`, which only logs opens/clicks, never
+  sends) for at least one email in a trailing window (default 48h - tolerates
+  a normal quiet day while still catching a multi-day outage well within a
+  day of it starting, given the weekly digest+preview guarantee activity at
+  least twice a week):
+  ```
+  npm run monitor:email-volume
+  # or: RESEND_VOLUME_WINDOW_HOURS=72 npx tsx scripts/check-email-volume.ts
+  ```
+  Reads `RESEND_API_KEY` from the environment, no fallback. See
+  `scripts/lib/emailVolumeCheck.ts` for the exact floor/window reasoning -
+  the 48h default is a starting point, not a proven-optimal threshold; tune
+  it if it proves noisy or misses something.
+
+- **`tests/emailVolumeCheck.test.ts`** — same pattern as `uptimeCheck.test.ts`,
+  proves the detection logic against a real local HTTP server (healthy, stale
+  data outside the window, API error) without a live Resend call.
+
 This is the observability half: a real check against the real URL, and proof
 (not just documentation) that failures are actually detected.
 
@@ -43,8 +68,11 @@ loop needs, on the **buddy_infra** side:
 
 1. A scheduled runner (systemd timer/cron, matching the fleet's existing
    `db_dr_*` + healthchecks.io dead-man's-switch convention) that calls
-   `npm run monitor:uptime` against the real prod URL on a cadence, and pings
-   an HC check on success so a *silently stopped* monitor pages too.
+   `npm run monitor:uptime` AND `npm run monitor:email-volume` against the
+   real prod URL/API on a cadence, and pings an HC check on success so a
+   *silently stopped* monitor pages too. The email-volume check especially
+   needs this - it is useless run manually after the fact, which is exactly
+   how famcircle#144's 3-day outage was found: 10 days late, by accident.
 2. Routing a failing check to whichever lane/session owns FamCircle.
 3. Granting that lane the Medic permit, if it doesn't already hold it.
 
