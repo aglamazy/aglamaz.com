@@ -1,97 +1,81 @@
 import { NextRequest } from 'next/server';
-import { BlogRepository, isPublished } from '@/repositories/BlogRepository';
-import { FamilyRepository } from '@/repositories/FamilyRepository';
-import { SUPPORTED_LOCALES } from '@/constants/i18n';
-import { DEFAULT_LOCALE } from '@/i18n';
 import { resolveSiteId } from '@/utils/resolveSiteId';
+import { BlogRepository } from '@/repositories/BlogRepository';
+import { FamilyRepository } from '@/repositories/FamilyRepository';
+import { SUPPORTED_LOCALES } from '@/i18n';
 
 export const dynamic = 'force-dynamic';
 
-function xmlEscape(s: string) {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
+// Public, indexable pages that exist under every locale prefix. Kept in sync
+// by hand with src/app/[locale]/* — there's no route-group introspection at
+// this layer, so a new public [locale] page needs a line here too.
+const STATIC_PATHS = ['', 'blog', 'contact', 'terms', 'privacy'];
 
-function generateAlternateLinks(base: string, path: string) {
-  const normalized = path.replace(/^\/+/, '');
-  const entries = SUPPORTED_LOCALES.map((locale) =>
-    `    <xhtml:link rel="alternate" hreflang="${locale}" href="${xmlEscape(`${base}/${locale}${normalized ? `/${normalized}` : ''}`)}" />`
-  );
-  entries.push(`    <xhtml:link rel="alternate" hreflang="x-default" href="${xmlEscape(`${base}/${DEFAULT_LOCALE}${normalized ? `/${normalized}` : ''}`)}" />`);
-  return entries;
+function xmlEscape(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
 }
 
 export async function GET(req: NextRequest) {
-  try {
-    // Resolve the tenant from the request host (domain_mappings), consistent with
-    // how every page resolves its site. Using NEXT_SITE_ID here would list the
-    // baked default site's URLs/authors on every domain — so a per-tenant host
-    // (e.g. famcircle.org mapped to a specific site) would advertise blog authors
-    // that its own pages 404, producing soft-404s in the sitemap.
-    const siteId = (await resolveSiteId()) || '';
-    const url = new URL(req.url);
-    const base = (process.env.NEXT_PUBLIC_APP_URL || `${url.origin}`)?.replace(/\/+$/, '');
+  const url = new URL(req.url);
+  const base = (process.env.NEXT_PUBLIC_APP_URL || url.origin).replace(/\/+$/, '');
 
-    const fam = new FamilyRepository();
-    const blogAuthors = await fam.getMembersWithBlog(siteId);
-
-    const repo = new BlogRepository();
-
-    type RouteEntry = { path: string; lastmod?: string };
-    const routes: RouteEntry[] = [{ path: '' }, { path: 'blog' }, { path: 'contact' }, { path: 'terms' }, { path: 'privacy' }];
-
-    for (const m of blogAuthors as any[]) {
-      const handle = m.blogHandle;
-      const uid = m.uid || m.userId;
-      if (!handle || !uid) continue;
-      let lastmod: string | undefined;
-      try {
-        const posts = await repo.getByAuthor(uid);
-        const pub = posts.filter((p) => (p as any).siteId === siteId && p.isPublic && isPublished(p));
-        if (pub.length) {
-          const max = pub.reduce((acc, p) => {
-            const t = (p.createdAt as any)?.toMillis
-              ? (p.createdAt as any).toMillis()
-              : Date.parse(String(p.createdAt));
-            return Math.max(acc, Number.isNaN(t) ? 0 : t);
-          }, 0);
-          if (max > 0) lastmod = new Date(max).toISOString();
-        }
-      } catch {}
-      routes.push({ path: `blog/${encodeURIComponent(handle)}`, lastmod });
+  const paths = new Set<string>();
+  for (const locale of SUPPORTED_LOCALES) {
+    for (const staticPath of STATIC_PATHS) {
+      paths.add(staticPath ? `/${locale}/${staticPath}` : `/${locale}`);
     }
-
-    const body = [
-      '<?xml version="1.0" encoding="UTF-8"?>',
-      '<?xml-stylesheet type="text/xsl" href="/sitemap.xsl"?>',
-      '<urlset xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1" xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd http://www.google.com/schemas/sitemap-image/1.1 http://www.google.com/schemas/sitemap-image/1.1/sitemap-image.xsd" xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">',
-      ...routes.flatMap((route) =>
-        SUPPORTED_LOCALES.map((locale) => {
-          const normalized = route.path.replace(/^\/+/, '');
-          const localizedPath = normalized ? `/${locale}/${normalized}` : `/${locale}`;
-          const loc = `${base}${localizedPath}`;
-          const lines = [`  <url>`, `    <loc>${xmlEscape(loc)}</loc>`];
-          if (route.lastmod) {
-            lines.push(`    <lastmod>${route.lastmod}</lastmod>`);
-          }
-          lines.push(...generateAlternateLinks(base, route.path));
-          lines.push('  </url>');
-          return lines.join('\n');
-        })
-      ),
-      '</urlset>',
-    ].join('\n');
-
-    return new Response(body, {
-      headers: {
-        'Content-Type': 'application/xml; charset=utf-8',
-        'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400',
-      },
-    });
-  } catch (e) {
-    console.error('sitemap error', e);
-    return new Response('<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet type="text/xsl" href="/sitemap.xsl"?><urlset xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1" xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd http://www.google.com/schemas/sitemap-image/1.1 http://www.google.com/schemas/sitemap-image/1.1/sitemap-image.xsd" xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"></urlset>', {
-      headers: { 'Content-Type': 'application/xml; charset=utf-8' },
-      status: 200,
-    });
   }
+
+  // famcircle#145 GSC report: en/blog/yaakov-aglamaz, tr/blog/yaakov-aglamaz,
+  // ar/blog/yaakov-aglamaz were all "unknown to Google" / "crawled, not
+  // indexed" - these per-author blog pages were never discoverable except by
+  // following an internal link from the blog list, and this sitemap didn't
+  // exist at all. Enumerate one URL per locale per author who has at least
+  // one public post, matching the /{locale}/blog/{handle} route.
+  try {
+    const siteId = await resolveSiteId();
+    if (siteId) {
+      const posts = await new BlogRepository().getPublicBySite(siteId, 100);
+      if (posts.length) {
+        const fam = new FamilyRepository();
+        const authorIds = Array.from(new Set(posts.map((p) => p.authorId)));
+        const handles = new Set<string>();
+        for (const authorId of authorIds) {
+          const member = await fam.getMemberByUserId(authorId, siteId);
+          const handle = (member as any)?.blogHandle;
+          if (handle) handles.add(handle);
+        }
+        for (const locale of SUPPORTED_LOCALES) {
+          for (const handle of handles) {
+            paths.add(`/${locale}/blog/${handle}`);
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.error('[sitemap.xml] failed to enumerate blog author pages', error);
+  }
+
+  const urls = Array.from(paths)
+    .sort()
+    .map((path) => `  <url><loc>${xmlEscape(`${base}${path}`)}</loc></url>`)
+    .join('\n');
+
+  const body = [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<?xml-stylesheet type="text/xsl" href="/sitemap.xsl"?>',
+    '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+    urls,
+    '</urlset>',
+    '',
+  ].join('\n');
+
+  return new Response(body, {
+    headers: { 'Content-Type': 'application/xml; charset=utf-8' },
+  });
 }

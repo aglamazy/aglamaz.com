@@ -134,6 +134,22 @@ const MOBILE_UA_RE = /Android|iPhone|iPad|iPod|webOS|BlackBerry|Opera Mini|IEMob
 
 export async function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
+
+  // Canonicalize away the "www." subdomain (famcircle#145 GSC report: "/en —
+  // Duplicate, Google chose different canonical than user"). www.famcircle.org
+  // and famcircle.org both resolved to the same tenant with no redirect
+  // between them, so Google saw two live hosts serving identical content and
+  // picked www over our self-declared non-www canonical (utils/seo.ts derives
+  // the canonical from the request host, so a self-referencing canonical on
+  // each host doesn't resolve a cross-host duplicate on its own). Collapsing
+  // www up front, for every tenant, means only one host is ever actually live.
+  const host = request.headers.get('host') || '';
+  if (host.toLowerCase().startsWith('www.')) {
+    const redirectUrl = new URL(pathname + search, request.url);
+    redirectUrl.host = host.slice(4);
+    return NextResponse.redirect(redirectUrl, 308);
+  }
+
   const { locale: localeFromPath, path: normalizedPath } = stripLocale(pathname);
 
   // Device-sensitive redirect: /app/slideshow → mobile /app, desktop /app/photos?slideshow=1
