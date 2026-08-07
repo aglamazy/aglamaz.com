@@ -103,7 +103,9 @@ Current state: profile data is site-scoped via member documents (shared fields l
 - [ ] Set up scheduled exports to Cloud Storage
 - [ ] Define retention policy (daily 30d, monthly 1y, yearly forever)
 - [ ] Automate export schedule via Cloud Scheduler or Cloud Functions
-- [ ] Document restore procedure
+- [x] Add repo-side export/import wrapper: `scripts/firestore-backup.ts`
+- [x] Document restore procedure: `docs/firestore-backup-restore.md`
+- [ ] Verify one real export and one real scratch import
 
 ---
 
