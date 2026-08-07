@@ -67,6 +67,17 @@ export class DigestSendRepository {
       .doc(this.docId(siteId, memberId, cadence, periodKey))
       .set({ siteId, memberId, cadence, periodKey, sentAt: Timestamp.now() });
   }
+
+  /** How many members actually received a given digest period - the SSOT "sends" count for the usage-data page. */
+  async countSent(siteId: string, cadence: DigestCadence, periodKey: string): Promise<number> {
+    const snap = await this.getDb()
+      .collection(COLLECTION)
+      .where('siteId', '==', siteId)
+      .where('cadence', '==', cadence)
+      .where('periodKey', '==', periodKey)
+      .get();
+    return snap.size;
+  }
 }
 
 export const digestSendRepository = new DigestSendRepository();
