@@ -66,6 +66,18 @@ export class EmailTrackingRepository {
     const snap = await this.getDb().collection(COLLECTION).orderBy('timestamp', 'desc').limit(limit).get();
     return snap.docs.map((doc) => ({ id: doc.id, ...doc.data() } as EmailTrackingEventRecord));
   }
+
+  /**
+   * Every open/click event for a site, most recent first - the raw feed the usage-data admin
+   * page groups per send. Sorted in memory (not via Firestore orderBy) so this doesn't need a
+   * new siteId+timestamp composite index, same tradeoff getEventsForSend already makes.
+   */
+  async getEventsForSite(siteId: string): Promise<EmailTrackingEventRecord[]> {
+    const snap = await this.getDb().collection(COLLECTION).where('siteId', '==', siteId).get();
+    return snap.docs
+      .map((doc) => ({ id: doc.id, ...doc.data() } as EmailTrackingEventRecord))
+      .sort((a, b) => b.timestamp.toMillis() - a.timestamp.toMillis());
+  }
 }
 
 export const emailTrackingRepository = new EmailTrackingRepository();
