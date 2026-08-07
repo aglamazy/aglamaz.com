@@ -4,6 +4,18 @@ import { AnniversaryRepository } from '@/repositories/AnniversaryRepository';
 
 export const dynamic = 'force-dynamic';
 
+// Test-only injection hooks, mirroring the __setMock* convention used by
+// blessing-pages/[blessingPageId]/blessings/public/route.ts.
+let blessingPageRepoOverride: BlessingPageRepository | null = null;
+let anniversaryRepoOverride: AnniversaryRepository | null = null;
+
+export function __setMockBlessingPageRepository(repo: BlessingPageRepository | null) {
+  blessingPageRepoOverride = repo;
+}
+export function __setMockAnniversaryRepository(repo: AnniversaryRepository | null) {
+  anniversaryRepoOverride = repo;
+}
+
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ siteId: string; slug: string }> | { siteId: string; slug: string } }
@@ -21,15 +33,19 @@ export async function GET(
     }
 
     // Get blessing page by slug
-    const blessingPageRepo = new BlessingPageRepository();
+    const blessingPageRepo = blessingPageRepoOverride ?? new BlessingPageRepository();
     const blessingPage = await blessingPageRepo.getBySlug(slug);
 
-    if (!blessingPage || blessingPage.siteId !== siteId) {
+    // This route is unauthenticated (no member guard) - it must only ever
+    // surface pages the owner explicitly marked public, and must respond
+    // identically to "not found" and "found but private" so a slug's
+    // existence/privacy can't be probed from the response shape.
+    if (!blessingPage || blessingPage.siteId !== siteId || !blessingPage.isPublic) {
       return Response.json({ error: 'Blessing page not found' }, { status: 404 });
     }
 
     // Get the associated event
-    const anniversaryRepo = new AnniversaryRepository();
+    const anniversaryRepo = anniversaryRepoOverride ?? new AnniversaryRepository();
     const event = await anniversaryRepo.getById(blessingPage.eventId);
 
     if (!event || event.siteId !== siteId) {
