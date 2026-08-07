@@ -109,6 +109,26 @@
 This is the observability half: a real check against the real URL/DB, and
 proof (not just documentation) that failures are actually detected.
 
+## Firestore export and restore
+
+FamCircle Firestore does not currently have a second-metal backup lane unless
+the export/import path below is wired up and exercised.
+
+- Canonical procedure: [Firestore Backup and Restore](./firestore-backup-restore.md)
+- Source-side helper: `scripts/firestore-backup.ts`
+- npm entry points:
+  - `npm run firestore:export -- --project ... --database ... --storage-project ... --export-uri ...`
+  - `npm run firestore:import -- --project ... --database ... --storage-project ... --import-uri ...`
+
+Operational requirements:
+
+- The backup bucket must be owned by a GCP project other than the Firebase
+  project.
+- The bucket should apply GCS lifecycle rules for daily, monthly, and yearly
+  export retention.
+- The restore path must be validated in a scratch project before anyone treats
+  it as proven.
+
 ## JWT_PRIVATE_KEY / EMAIL_TRACKING_TTL_SECONDS — do not "fix" this TTL
 
 `src/services/EmailTrackingService.ts` signs the per-copy open/click tracking
