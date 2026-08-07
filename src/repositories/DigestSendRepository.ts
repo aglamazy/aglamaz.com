@@ -3,6 +3,14 @@ import { initAdmin } from '@/firebase/admin';
 
 export type DigestCadence = 'weekly' | 'monthly';
 
+/** One (cadence, period) group's send count - what the usage-data page reconciles against real digestSends docs. */
+export interface DigestSendPeriodSummary {
+  cadence: DigestCadence;
+  periodKey: string;
+  sent: number;
+  lastSentAt: Timestamp;
+}
+
 const COLLECTION = 'digestSends';
 
 /** ISO week key (e.g. "2026-W30") - stable across same-week reruns, rolls over correctly at week boundaries. */
@@ -66,6 +74,35 @@ export class DigestSendRepository {
       .collection(COLLECTION)
       .doc(this.docId(siteId, memberId, cadence, periodKey))
       .set({ siteId, memberId, cadence, periodKey, sentAt: Timestamp.now() });
+  }
+
+  /**
+   * Recent (cadence, period) send groups for a site, most-recently-sent first - the "how many
+   * sends" half of the usage-data page's reconciliation (famcircle#148). Deliberately a single
+   * equality filter with no orderBy (siteId only) so it doesn't need a composite index - grouping
+   * and sorting happen in memory, which is fine at this collection's per-site volume.
+   */
+  async listRecentPeriods(siteId: string, limit = 12): Promise<DigestSendPeriodSummary[]> {
+    const snapshot = await this.getDb().collection(COLLECTION).where('siteId', '==', siteId).get();
+
+    const groups = new Map<string, DigestSendPeriodSummary>();
+    for (const doc of snapshot.docs) {
+      const data = doc.data() as { cadence: DigestCadence; periodKey: string; sentAt: Timestamp };
+      const key = `${data.cadence}:${data.periodKey}`;
+      const existing = groups.get(key);
+      if (existing) {
+        existing.sent += 1;
+        if (data.sentAt.toMillis() > existing.lastSentAt.toMillis()) {
+          existing.lastSentAt = data.sentAt;
+        }
+      } else {
+        groups.set(key, { cadence: data.cadence, periodKey: data.periodKey, sent: 1, lastSentAt: data.sentAt });
+      }
+    }
+
+    return Array.from(groups.values())
+      .sort((a, b) => b.lastSentAt.toMillis() - a.lastSentAt.toMillis())
+      .slice(0, limit);
   }
 }
 

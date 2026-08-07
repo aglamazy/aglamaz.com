@@ -127,8 +127,8 @@ export default function AdminDashboard() {
     },
     {
       icon: ShieldCheck,
-      title: t('loginAudit') || 'Login Audit',
-      description: t('viewLoginAudit') || 'See who signed in, and when',
+      title: t('usageData') || 'Usage Data',
+      description: t('usageDataDescription') || 'See who signed in, and who opened the emails',
       href: '/admin/login-audit',
       gradient: 'from-slate-500 to-slate-600',
     },
