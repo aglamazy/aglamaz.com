@@ -99,6 +99,17 @@ Traps that have actually broken builds/data in this repo — read before baking 
   through `.update()`, never `.set(..., {merge:true})`. The shared `LocalizationService`
   (`saveLocalizedContent`/`buildLocalizedUpdate`) already gets this right - prefer
   reusing it over hand-rolling another dotted-key writer.
+- **Any `create()`-adjacent repository method must default closed/private, never
+  published/public, when the caller omits the option** — don't rely on a downstream
+  back-compat helper (like `isPublished()`'s "missing status = published") to cover for
+  an omission at write time; that back-compat rule exists for legacy data, not as a
+  license to skip setting the field going forward. Origin: `BlogRepository.create()`
+  never set `status` at all, so a freshly-created AI-drafted post (general#10, the
+  Shofar blog-candidate pipeline) was readable as published the instant it was created —
+  before `requestReview()` ever ran — because `isPublished()` treated the missing field
+  as published. Fixed by adding an explicit `status` param; any new create()-shaped
+  method (posts, or anything else with a draft/review gate) needs the same explicit
+  default, not an implicit one.
 - **Never `fetch()` a Firebase Storage download URL from the browser** - the bucket
   has no CORS configuration (no `cors.json` ever applied via `gsutil`), so a
   programmatic cross-origin `fetch()`/`XHR` to `firebasestorage.googleapis.com` is
