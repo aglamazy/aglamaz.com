@@ -523,6 +523,55 @@ function testFooterManageLinkCarriesReadOnlyTokenAndNeverPointsAtProfile() {
   console.log('footer manage-preferences link carries the read-only token and never points at /app/profile: PASSED');
 }
 
+function testCalendarLinkStaysUnwrappedWithoutClickTrackingToken() {
+  // Backward-compat: a caller that doesn't pass emailTrackingClickToken (e.g. the dev/admin
+  // preview renderer, which isn't a real send) must get the exact same rt-only link as before.
+  const { html } = DigestTemplateService.buildMonthlyDigestEmail(FIXTURE, {
+    locale: 'en',
+    siteName: 'The Aglamaz Family',
+    recipientName: 'Test Recipient',
+    calendarUrl: CALENDAR_URL,
+    galleryUrl: GALLERY_URL,
+    manageUrl: MANAGE_URL,
+    readOnlyToken: TEST_READ_TOKEN,
+  });
+  assert.ok(html.includes(`<a href="${CALENDAR_URL}?rt=${TEST_READ_TOKEN}"`), 'without a click token, calendar links must stay rt-only, unwrapped');
+  assert.ok(!html.includes('/api/track/click/'), 'without a click token, no click-tracking redirect should appear at all');
+  console.log('calendar link stays unwrapped when no click-tracking token is supplied: PASSED');
+}
+
+function testCalendarLinkIsClickTrackedAndStillCarriesReadOnlyTokenAfterRedirect() {
+  // The real live bug (Agla, 2026-08-08): clicking a digest link into the calendar was never
+  // recorded, because no digest link was ever wrapped through the click-tracking redirect.
+  // This proves both halves of the fix: (1) the link now goes through /api/track/click/, and
+  // (2) critically, the DESTINATION it redirects to (the `u` param) still carries `?rt=` - the
+  // read-only-token and click-tracking wraps must nest in the right order or opening the
+  // magazine from the email would silently lose read-only access again (famcircle#127/#138).
+  const TEST_CLICK_TOKEN = 'test-click-token';
+  const { html } = DigestTemplateService.buildMonthlyDigestEmail(FIXTURE, {
+    locale: 'en',
+    siteName: 'The Aglamaz Family',
+    recipientName: 'Test Recipient',
+    calendarUrl: CALENDAR_URL,
+    galleryUrl: GALLERY_URL,
+    manageUrl: MANAGE_URL,
+    readOnlyToken: TEST_READ_TOKEN,
+    emailTrackingClickToken: TEST_CLICK_TOKEN,
+  });
+
+  const hrefMatch = html.match(/<a href="([^"]*\/api\/track\/click\/[^"]*)"/);
+  assert.ok(hrefMatch, 'a calendar-link <a> must point through /api/track/click/ when a click-tracking token is supplied');
+
+  const wrappedUrl = new URL(hrefMatch![1].replace(/&amp;/g, '&'));
+  assert.equal(wrappedUrl.pathname, `/api/track/click/${TEST_CLICK_TOKEN}`, 'click-tracking path must carry this recipient copy-specific token');
+
+  const destination = wrappedUrl.searchParams.get('u');
+  assert.ok(destination, 'the click-tracking link must carry a u= destination param');
+  assert.equal(destination, `${CALENDAR_URL}?rt=${TEST_READ_TOKEN}`, 'the destination behind the click redirect must still carry the read-only token, or opening the magazine from the email breaks the no-login-prompt flow');
+
+  console.log('calendar link is click-tracked and its redirect destination still carries the read-only token: PASSED');
+}
+
 function run() {
   testEventRowsHaveRealImgTagsWhenImageUrlPresent();
   testMissingImageUrlFallsBackGracefully();
@@ -547,6 +596,8 @@ function run() {
   testPastDeathEventWithPublicBlessingPageLinksToMemorial();
   testPastDeathEventWithoutPublicBlessingPageFallsBackToCalendar();
   testFooterManageLinkCarriesReadOnlyTokenAndNeverPointsAtProfile();
+  testCalendarLinkStaysUnwrappedWithoutClickTrackingToken();
+  testCalendarLinkIsClickTrackedAndStillCarriesReadOnlyTokenAfterRedirect();
 }
 
 run();
