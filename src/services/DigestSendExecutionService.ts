@@ -10,6 +10,7 @@ import type { DigestRecipientPlan } from '@/services/DigestSendPlanService';
 import { DigestCompilerService } from '@/services/DigestCompilerService';
 import { DigestTemplateService, resolveDigestSiteName } from '@/services/DigestTemplateService';
 import { generateReadToken } from '@/services/ReadTokenService';
+import { signEmailTrackingToken } from '@/services/EmailTrackingService';
 import { ResendService } from '@/services/ResendService';
 import { TranslationService } from '@/services/TranslationService';
 import { AppRoute } from '@/utils/urls';
@@ -114,6 +115,15 @@ export async function executeDigestSend(
       // Firebase Auth uid, not the Firestore doc id (member.id); those are two distinct
       // fields on IMember and can differ.
       const readOnlyToken = generateReadToken({ memberId: member.uid, siteId });
+      // Same identity the open pixel below is signed with - reused here (not re-derived) so
+      // a click and an open on the same copy are provably the same (siteId, recipientMemberId,
+      // sendType, sendId) tuple, one token per concern rather than one shared token doing both.
+      const emailTrackingClickToken = signEmailTrackingToken({
+        siteId,
+        recipientMemberId: member.id,
+        sendType: 'digest',
+        sendId: `${cadence}:${period}`,
+      });
       const template =
         cadence === 'weekly'
           ? DigestTemplateService.buildWeeklyDigestEmail(digest, {
@@ -124,6 +134,7 @@ export async function executeDigestSend(
               galleryUrl,
               manageUrl,
               readOnlyToken,
+              emailTrackingClickToken,
             })
           : DigestTemplateService.buildMonthlyDigestEmail(digest, {
               locale: SOURCE_LOCALE,
@@ -133,6 +144,7 @@ export async function executeDigestSend(
               galleryUrl,
               manageUrl,
               readOnlyToken,
+              emailTrackingClickToken,
             });
 
       const localized = await maybeTranslateDigest({
