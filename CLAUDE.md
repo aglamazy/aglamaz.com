@@ -49,6 +49,20 @@ const password = process.env.TEST_ADMIN_PASSWORD;
 
 See `docs/architecture.md` for detailed examples and patterns.
 
+## Landmines
+
+- **Any `create()`-adjacent repository method must default closed/private, never
+  published/public, when the caller omits the option** — don't rely on a downstream
+  back-compat helper (like `isPublished()`'s "missing status = published") to cover for
+  an omission at write time; that back-compat rule exists for legacy data, not as a
+  license to skip setting the field going forward. Origin: `BlogRepository.create()`
+  never set `status` at all, so a freshly-created AI-drafted post (general#10, the
+  Shofar blog-candidate pipeline) was readable as published the instant it was created —
+  before `requestReview()` ever ran — because `isPublished()` treated the missing field
+  as published. Fixed by adding an explicit `status` param; any new create()-shaped
+  method (posts, or anything else with a draft/review gate) needs the same explicit
+  default, not an implicit one.
+
 ## TypeScript Interfaces Reference
 
 **IMPORTANT**: Before working with data structures, always refer to the comprehensive interfaces index:
