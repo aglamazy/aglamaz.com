@@ -36,7 +36,7 @@ const SEND_TYPES: readonly EmailTrackingSendType[] = [
   'blog-autogen-admin',
 ];
 
-function isEmailTrackingSendType(value: unknown): value is EmailTrackingSendType {
+export function isEmailTrackingSendType(value: unknown): value is EmailTrackingSendType {
   return typeof value === 'string' && (SEND_TYPES as readonly string[]).includes(value);
 }
 

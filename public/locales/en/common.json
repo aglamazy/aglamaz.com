@@ -88,6 +88,8 @@
   "emailTrackingClicked": "Clicked",
   "emailTrackingLastEvent": "Last event",
   "emailTrackingSentUnknown": "Not tracked",
+  "emailTrackingRecipient": "Recipient",
+  "emailTrackingNoRecipientDetail": "No individual engagement recorded yet.",
   "noEmailTrackingEntries": "No email opens or clicks recorded yet.",
   "sendTypeTagNotification": "Tag notification",
   "sendTypeBlessingInvite": "Blessing invite",

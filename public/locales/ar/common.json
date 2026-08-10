@@ -91,6 +91,8 @@
   "emailTrackingClicked": "تم النقر",
   "emailTrackingLastEvent": "آخر حدث",
   "emailTrackingSentUnknown": "غير متتبَّع",
+  "emailTrackingRecipient": "المستلم",
+  "emailTrackingNoRecipientDetail": "لم يتم تسجيل أي تفاعل فردي بعد.",
   "noEmailTrackingEntries": "لم يتم تسجيل أي فتح أو نقر لرسائل البريد الإلكتروني بعد.",
   "title": "العنوان",
   "enterTitle": "أدخل العنوان",

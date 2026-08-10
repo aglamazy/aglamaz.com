@@ -88,6 +88,8 @@
   "emailTrackingClicked": "נלחצו",
   "emailTrackingLastEvent": "אירוע אחרון",
   "emailTrackingSentUnknown": "לא נמדד",
+  "emailTrackingRecipient": "נמען",
+  "emailTrackingNoRecipientDetail": "עדיין לא נרשמה מעורבות אישית.",
   "noEmailTrackingEntries": "עדיין לא נרשמו פתיחות או קליקים במיילים.",
   "sendTypeTagNotification": "התראת תיוג",
   "sendTypeBlessingInvite": "הזמנה לברכה",

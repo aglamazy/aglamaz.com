@@ -52,6 +52,8 @@
   "emailTrackingClicked": "Tıklandı",
   "emailTrackingLastEvent": "Son etkinlik",
   "emailTrackingSentUnknown": "İzlenmiyor",
+  "emailTrackingRecipient": "Alıcı",
+  "emailTrackingNoRecipientDetail": "Henüz bireysel etkileşim kaydedilmedi.",
   "noEmailTrackingEntries": "Henüz e-posta açılması veya tıklaması kaydedilmedi.",
   "sendTypeTagNotification": "Etiket bildirimi",
   "sendTypeBlessingInvite": "Kutlama daveti",

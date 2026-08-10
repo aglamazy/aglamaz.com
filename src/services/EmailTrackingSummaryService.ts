@@ -1,5 +1,6 @@
-import { emailTrackingRepository } from '@/repositories/EmailTrackingRepository';
+import { emailTrackingRepository, EmailTrackingRepository } from '@/repositories/EmailTrackingRepository';
 import { digestSendRepository, type DigestCadence } from '@/repositories/DigestSendRepository';
+import { MemberRepository } from '@/repositories/MemberRepository';
 import type { EmailTrackingSendType } from '@/services/EmailTrackingService';
 
 export interface EmailTrackingSendSummary {
@@ -73,5 +74,76 @@ export class EmailTrackingSummaryService {
     return summaries.sort((a, b) => (a.lastEventAt < b.lastEventAt ? 1 : -1));
   }
 }
+
+export interface EmailTrackingRecipientDetail {
+  memberId: string;
+  /** Best-effort display label - falls back to the raw memberId if the member record is gone, never throws. */
+  displayLabel: string;
+  email: string | null;
+  opened: boolean;
+  clicked: boolean;
+  firstOpenAt: string | null;
+  lastEventAt: string;
+}
+
+/**
+ * Per-recipient drill-down for one logical send (Agla, 2026-08-08: "who opened the
+ * magazine" - the aggregate counts on the summary row weren't enough). One row per
+ * recipient who opened OR clicked at least once - the parent summary row already carries
+ * sentCount, so this view is deliberately "who engaged", not a full roster padded with
+ * everyone who didn't.
+ */
+export class EmailTrackingDetailService {
+  constructor(
+    private readonly trackingRepository: EmailTrackingRepository = emailTrackingRepository,
+    private readonly memberRepository: MemberRepository = new MemberRepository(),
+  ) {}
+
+  async getRecipientDetailForSend(
+    siteId: string,
+    sendType: EmailTrackingSendType,
+    sendId: string,
+  ): Promise<EmailTrackingRecipientDetail[]> {
+    const events = await this.trackingRepository.getEventsForSend(siteId, sendType, sendId);
+
+    const byRecipient = new Map<string, { opened: boolean; clicked: boolean; firstOpenMillis: number | null; lastEventMillis: number }>();
+    for (const event of events) {
+      let row = byRecipient.get(event.recipientMemberId);
+      if (!row) {
+        row = { opened: false, clicked: false, firstOpenMillis: null, lastEventMillis: 0 };
+        byRecipient.set(event.recipientMemberId, row);
+      }
+      const millis = event.timestamp.toMillis();
+      if (event.eventType === 'open') {
+        row.opened = true;
+        row.firstOpenMillis = row.firstOpenMillis === null ? millis : Math.min(row.firstOpenMillis, millis);
+      }
+      if (event.eventType === 'click') row.clicked = true;
+      row.lastEventMillis = Math.max(row.lastEventMillis, millis);
+    }
+
+    const recipientIds = Array.from(byRecipient.keys());
+    const members = await Promise.all(recipientIds.map((id) => this.memberRepository.getById(id).catch(() => null)));
+
+    return recipientIds
+      .map((memberId, i) => {
+        const row = byRecipient.get(memberId)!;
+        const member = members[i];
+        const displayLabel = member ? member.displayNameLocalized || member.displayName || member.firstNameLocalized || member.firstName || member.email : memberId;
+        return {
+          memberId,
+          displayLabel: displayLabel || memberId,
+          email: member?.email ?? null,
+          opened: row.opened,
+          clicked: row.clicked,
+          firstOpenAt: row.firstOpenMillis === null ? null : new Date(row.firstOpenMillis).toISOString(),
+          lastEventAt: new Date(row.lastEventMillis).toISOString(),
+        };
+      })
+      .sort((a, b) => (a.lastEventAt < b.lastEventAt ? 1 : -1));
+  }
+}
+
+export const emailTrackingDetailService = new EmailTrackingDetailService();
 
 export const emailTrackingSummaryService = new EmailTrackingSummaryService();

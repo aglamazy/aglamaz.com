@@ -28,7 +28,10 @@ export interface EmailTrackingEventRecord extends EmailTrackingEvent {
  * by construction).
  */
 export class EmailTrackingRepository {
+  constructor(private readonly db?: FirebaseFirestore.Firestore) {}
+
   private getDb() {
+    if (this.db) return this.db;
     initAdmin();
     return getFirestore();
   }
