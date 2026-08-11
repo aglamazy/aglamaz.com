@@ -189,6 +189,12 @@ export class BlogRepository {
     localeContent: BlogPostLocaleUpsertPayload;
     translationMeta?: IBlogPost['translationMeta'];
     taggedMemberIds?: string[];
+    // Optional so every existing caller keeps its current behavior (status omitted,
+    // isPublished() back-compat treats it as published). Callers that must NOT go live
+    // immediately (e.g. an unreviewed AI-drafted post) pass status:'draft' explicitly -
+    // see BlogCandidateSubmissionService, which calls requestReview() right after create()
+    // and needs the post to never be readable as published in between.
+    status?: IBlogPost['status'];
   }): Promise<IBlogPost> {
     const db = this.getDb();
     const ref = db.collection(this.collection).doc();
@@ -202,6 +208,7 @@ export class BlogRepository {
       locales: Record<string, BlogPostLocale>;
       translationMeta?: IBlogPost['translationMeta'];
       isPublic: boolean;
+      status?: IBlogPost['status'];
       likeCount: number;
       shareCount: number;
       taggedMemberIds: string[];
@@ -221,6 +228,9 @@ export class BlogRepository {
       createdAt: now,
       updatedAt: now,
     };
+    if (post.status !== undefined) {
+      data.status = post.status;
+    }
     if (post.translationMeta !== undefined) {
       data.translationMeta = post.translationMeta;
     }

@@ -17,6 +17,7 @@ import { resolveDigestSiteName } from '@/services/DigestTemplateService';
 import { ResendService } from '@/services/ResendService';
 import { renderEmailHtml } from '@/services/emailTemplates';
 import { adminAuth } from '@/firebase/admin';
+import { DEFAULT_LOCALE } from '@/i18n';
 
 export interface BlogCandidateInput {
   title: string;
@@ -68,27 +69,30 @@ export class BlogCandidateSubmissionService {
     if (!site) {
       throw new Error(`Site ${siteId} (resolved from domain ${domain}) not found`);
     }
-    if (!site.defaultLocale) {
-      throw new Error(`Site ${siteId} has no defaultLocale configured - cannot draft a post for it`);
-    }
     if (!site.ownerUid) {
       throw new Error(`Site ${siteId} has no ownerUid - cannot attribute authorship or notify anyone`);
     }
+    // main's ISite has no single defaultLocale field (that's a dev-only addition tied to
+    // the not-yet-merged autogen/digest work) - derive it from the site's locales map,
+    // falling back to the app's DEFAULT_LOCALE, same as BlogRepository's own fallback chain.
+    const siteLocale = Object.keys(site.locales || {})[0] || DEFAULT_LOCALE;
 
-    const siteName = resolveDigestSiteName(site, site.defaultLocale, siteId);
+    const siteName = resolveDigestSiteName(site, siteLocale, siteId);
 
     const post = await this.blogRepository.create({
       authorId: site.ownerUid,
       siteId,
-      primaryLocale: site.defaultLocale,
+      primaryLocale: siteLocale,
       isPublic: true,
       localeContent: {
         title: candidate.title,
         content: candidate.content,
         engine: 'gpt',
-        sourceLocale: site.defaultLocale,
+        sourceLocale: siteLocale,
       },
-      contentFormat: 'md',
+      // Note: main's BlogRepository.create() has no contentFormat param yet (also tied to
+      // the unmerged dev work) - posts default to 'html' per BlogPost's back-compat rule.
+      // If candidate.content is markdown, it will render as literal text until that lands.
       // Hard rule: never 'published' here - requestReview() below moves it to 'in_review'.
       status: 'draft',
     });

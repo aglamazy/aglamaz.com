@@ -19,7 +19,9 @@ async function testSubmitsCandidateAndRequestsReview() {
     get: async (siteId: string) => ({
       id: siteId,
       name: 'Aglamaz',
-      defaultLocale: 'en',
+      // main's ISite has no defaultLocale field - locale is derived from the locales map
+      // (see BlogCandidateSubmissionService.submitCandidateForDomain).
+      locales: { en: { name: 'Aglamaz' } },
       ownerUid: 'uid-owner-1',
     }),
   };
@@ -69,7 +71,8 @@ async function testSubmitsCandidateAndRequestsReview() {
     assert.equal(createdPost.authorId, 'uid-owner-1');
     assert.equal(createdPost.siteId, 'aglamaz-com-site');
     assert.equal(createdPost.primaryLocale, 'en');
-    assert.equal(createdPost.contentFormat, 'md');
+    // Note: main's BlogRepository.create() has no contentFormat param yet (dev-only,
+    // unmerged) - posts default to 'html' per BlogPost's back-compat rule until it lands.
     assert.equal(createdPost.localeContent.title, 'A candidate from Shofar');
     assert.equal(createdPost.localeContent.content, 'Body of the candidate post.');
 
