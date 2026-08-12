@@ -7,6 +7,7 @@ import {
   type MemberQueryOptions,
   type MemberRecord,
   type LocalizedMemberRecord,
+  type WriteActor,
 } from './MemberRepository';
 import { SiteRepository } from './SiteRepository';
 import type { ISite } from '@/entities/Site';
@@ -168,18 +169,18 @@ export class FamilyRepository {
     }
   }
 
-  async createMember(memberData: Partial<IMember>): Promise<MemberRecord> {
+  async createMember(memberData: Partial<IMember>, actor: WriteActor): Promise<MemberRecord> {
     try {
-      return await this.members.create(memberData as Partial<MemberRecord>);
+      return await this.members.create(memberData as Partial<MemberRecord>, actor);
     } catch (error) {
       console.error('Error creating member:', error);
       throw new Error('Failed to create member');
     }
   }
 
-  async updateMember(memberId: string, updates: Partial<FamilyMember>): Promise<void> {
+  async updateMember(memberId: string, updates: Partial<FamilyMember>, actor: WriteActor): Promise<void> {
     try {
-      await this.members.update(memberId, updates as Partial<MemberRecord>);
+      await this.members.update(memberId, updates as Partial<MemberRecord>, actor);
     } catch (error) {
       console.error('Error updating member:', error);
       throw new Error('Failed to update member');
@@ -336,7 +337,7 @@ export class FamilyRepository {
           if (!current.firstName && displayCandidate) updates.firstName = displayCandidate;
           if (current.role === 'pending') updates.role = 'member';
 
-          this.members.txUpdate(tx, existingMember.id, updates, { updatedAt: now });
+          this.members.txUpdate(tx, existingMember.id, updates, { kind: 'human', id: user.uid }, { updatedAt: now });
           tx.update(inviteRef, {
             lastUsedAt: now,
             lastUsedBy: user.uid,
@@ -366,7 +367,7 @@ export class FamilyRepository {
           email: user.email,
         };
 
-        const created = this.members.txCreate(tx, memberDoc, { timestamp: now });
+        const created = this.members.txCreate(tx, memberDoc, { kind: 'human', id: user.uid }, { timestamp: now });
 
         tx.update(inviteRef, {
           lastUsedAt: now,
@@ -571,7 +572,7 @@ export class FamilyRepository {
             approvedBy,
           };
 
-          this.members.txCreate(tx, memberDoc, { timestamp: now });
+          this.members.txCreate(tx, memberDoc, { kind: 'human', id: approvedBy }, { timestamp: now });
         } else {
           tx.update(requestRef, {
             status: 'rejected',

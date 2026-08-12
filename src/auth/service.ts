@@ -4,12 +4,16 @@ import {
   AppClaims,
   TokenClaims,
   buildAccessClaims,
+  buildAgentAccessClaims,
   buildRefreshClaims,
 } from './tokens';
 import { refreshStore } from './refresh-store';
 
 /** Default access-token lifetime in minutes. */
 export const ACCESS_TOKEN_MINUTES = 60;
+
+/** Agent tokens default shorter than human sessions — a fleet lane re-mints per task, not per browser session. */
+export const AGENT_ACCESS_TOKEN_MINUTES = 15;
 
 /** Default refresh-token lifetime in days. */
 export const REFRESH_TOKEN_DAYS = 30;
@@ -23,6 +27,25 @@ export function hashToken(token: string): string {
 export function signAccessToken(app: AppClaims, minutes = ACCESS_TOKEN_MINUTES): string {
   const ttl = minutes * 60;
   const claims = buildAccessClaims(app, ttl);
+  return signJwt(claims, { expiresInSec: ttl });
+}
+
+/**
+ * Sign an AGENT access token — dasi#1 v2's distinct mint path. Deliberately
+ * bypasses everything human-login-shaped: no Google/Firebase OAuth
+ * round-trip, no refresh token, no `refreshStore` entry (agent tokens are
+ * short-lived and re-minted, never silently kept alive by a refresh chain).
+ * Reuses the SAME `signJwt` primitive as human tokens (that layer is
+ * genuinely provider-agnostic already) — only the claims-building and the
+ * absence of any OAuth/refresh machinery make this "distinct."
+ */
+export function signAgentAccessToken(
+  app: AppClaims,
+  actorId: string,
+  minutes = AGENT_ACCESS_TOKEN_MINUTES,
+): string {
+  const ttl = minutes * 60;
+  const claims = buildAgentAccessClaims(app, actorId, ttl);
   return signJwt(claims, { expiresInSec: ttl });
 }
 

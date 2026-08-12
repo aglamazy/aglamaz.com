@@ -3,6 +3,7 @@ import { FamilyRepository } from '@/repositories/FamilyRepository';
 import type { IMember } from '@/entities/Member';
 import { userNotificationService } from '@/services/UserNotificationService';
 import { GuardContext } from '@/app/api/types';
+import { actorFromClaims } from '@/auth/tokens';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,7 +33,7 @@ const handler = async (request: Request, context: GuardContext & { params: { sit
       email: signupRequest.email,
     };
     // Save the member
-    const created = await familyRepository.createMember(newMember);
+    const created = await familyRepository.createMember(newMember, actorFromClaims(context.user!));
     // Mark the signup request as approved
     await familyRepository.markSignupRequestApproved(signupRequestId);
     // Send welcome email to the new member

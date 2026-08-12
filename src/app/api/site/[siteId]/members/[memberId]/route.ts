@@ -1,6 +1,7 @@
 import { withAdminGuard } from '@/lib/withAdminGuard';
 import { GuardContext } from '@/app/api/types';
 import { FamilyRepository } from '@/repositories/FamilyRepository';
+import { actorFromClaims } from '@/auth/tokens';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,7 +21,7 @@ const putHandler = async (request: Request, context: GuardContext & { params: { 
     if (typeof body.blogHandle === 'string') allowed.blogHandle = body.blogHandle;
     if (typeof body.displayName === 'string') allowed.displayName = body.displayName;
 
-    await repo.updateMember(memberId, allowed);
+    await repo.updateMember(memberId, allowed, actorFromClaims(context.user!));
     const updated = await repo.getMemberById(memberId);
     return Response.json({ member: updated });
   } catch (error) {

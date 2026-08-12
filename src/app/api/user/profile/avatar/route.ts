@@ -1,6 +1,7 @@
 import { withUserGuard } from '@/lib/withUserGuard';
 import { GuardContext } from '@/app/api/types';
 import { FamilyRepository } from '@/repositories/FamilyRepository';
+import { actorFromClaims } from '@/auth/tokens';
 export const dynamic = 'force-dynamic';
 
 async function resolveMember(siteId: string, userId: string) {
@@ -44,7 +45,7 @@ const postHandler = async (request: Request, context: GuardContext) => {
     await resolved.repo.updateMember(resolved.member.id, {
       avatarUrl,
       avatarStoragePath,
-    });
+    }, actorFromClaims(context.user!));
 
     const updated = await resolved.repo.getMemberById(resolved.member.id);
     return Response.json({ member: updated });
@@ -74,7 +75,7 @@ const deleteHandler = async (request: Request, context: GuardContext) => {
     await resolved.repo.updateMember(resolved.member.id, {
       avatarUrl: null,
       avatarStoragePath: null,
-    });
+    }, actorFromClaims(context.user!));
 
     const updated = await resolved.repo.getMemberById(resolved.member.id);
     return Response.json({ member: updated });

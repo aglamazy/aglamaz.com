@@ -96,7 +96,7 @@ async function main() {
     firstName: ownerName,
     email: ownerEmail,
     defaultLocale,
-  });
+  }, { kind: 'agent', id: 'create-site-script' });
   console.log(`[create-site] member created: ${member.id}`);
 
   console.log(`[create-site] creating invite...`);
