@@ -184,7 +184,7 @@ const postHandler = async (request: Request, context: GuardContext & { params: P
     const repo = new BlogRepository();
     const user = context.user!;
     const body = await request.json();
-    const { title, content, isPublic, lang, contentFormat, taggedMemberIds } = body;
+    const { title, content, isPublic, lang, contentFormat, taggedMemberIds, status } = body;
     if (!title || !content) {
       return Response.json({ error: 'Missing fields' }, { status: 400 });
     }
@@ -193,6 +193,11 @@ const postHandler = async (request: Request, context: GuardContext & { params: P
     const primaryLocale = (parseLocaleInput(lang) || headerLang || DEFAULT_LANG).toLowerCase();
     // Default 'html' if client omits the field — keeps the legacy posting flow working unchanged.
     const normalizedFormat: 'md' | 'html' = contentFormat === 'md' ? 'md' : 'html';
+    // A client may only ever ask to be downgraded to 'draft' - repo.create()'s own
+    // default ('published') stays the floor a client can never elevate past, so this
+    // can't be used to force-publish. Added for Shofar's blog-submit CLI (Agla 2026-08-12):
+    // periodic headless submissions must land as drafts, never live.
+    const requestedStatus: IBlogPost['status'] | undefined = status === 'draft' ? 'draft' : undefined;
     const validTaggedMemberIds = await TagNotificationService.filterSiteMemberIds(taggedMemberIds, siteId);
     const post = await repo.create({
       authorId: user.userId,
@@ -207,6 +212,7 @@ const postHandler = async (request: Request, context: GuardContext & { params: P
       isPublic: Boolean(isPublic),
       contentFormat: normalizedFormat,
       taggedMemberIds: validTaggedMemberIds,
+      status: requestedStatus,
     });
 
     if (validTaggedMemberIds.length) {

@@ -94,6 +94,7 @@
   "sendTypeTagNotification": "התראת תיוג",
   "sendTypeBlessingInvite": "הזמנה לברכה",
   "sendTypeBlogReviewDecision": "אישור/דחייה של פוסט בלוג",
+  "sendTypeBlogReviewRequest": "פוסט בלוג ממתין לבדיקה",
   "title": "כותרת",
   "enterTitle": "הזן כותרת",
   "content": "תוכן",

@@ -36,6 +36,7 @@ const SEND_TYPE_LABEL_KEYS: Record<EmailTrackingSendType, string> = {
   'blessing-invite': 'sendTypeBlessingInvite',
   'blog-review-decision': 'sendTypeBlogReviewDecision',
   'blog-autogen-admin': 'sendTypeBlogAutogen',
+  'blog-review-request': 'sendTypeBlogReviewRequest',
 };
 
 function formatSendPeriod(sendId: string): string {

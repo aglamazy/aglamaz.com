@@ -13,7 +13,8 @@ export type EmailTrackingSendType =
   | 'tag-notification'
   | 'blessing-invite'
   | 'blog-review-decision'
-  | 'blog-autogen-admin';
+  | 'blog-autogen-admin'
+  | 'blog-review-request';
 
 export interface EmailTrackingTokenClaims extends TokenClaims {
   recipientMemberId: string;
@@ -34,6 +35,7 @@ const SEND_TYPES: readonly EmailTrackingSendType[] = [
   'blessing-invite',
   'blog-review-decision',
   'blog-autogen-admin',
+  'blog-review-request',
 ];
 
 export function isEmailTrackingSendType(value: unknown): value is EmailTrackingSendType {

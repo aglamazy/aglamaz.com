@@ -58,6 +58,7 @@
   "sendTypeTagNotification": "Etiket bildirimi",
   "sendTypeBlessingInvite": "Kutlama daveti",
   "sendTypeBlogReviewDecision": "Blog yazısı onay/red",
+  "sendTypeBlogReviewRequest": "İncelemeye hazır blog yazısı",
   "title": "Başlık",
   "enterTitle": "Başlık girin",
   "content": "İçerik",

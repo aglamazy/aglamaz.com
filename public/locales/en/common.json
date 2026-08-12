@@ -94,6 +94,7 @@
   "sendTypeTagNotification": "Tag notification",
   "sendTypeBlessingInvite": "Blessing invite",
   "sendTypeBlogReviewDecision": "Blog post approve/reject",
+  "sendTypeBlogReviewRequest": "Blog post ready for review",
   "title": "Title",
   "enterTitle": "Enter title",
   "content": "Content",

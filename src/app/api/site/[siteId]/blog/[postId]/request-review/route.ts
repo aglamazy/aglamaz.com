@@ -1,5 +1,6 @@
 import { withMemberGuard } from '@/lib/withMemberGuard';
 import { blogRepository } from '@/repositories/BlogRepository';
+import { notifyAdminsOfPendingBlogReview } from '@/services/BlogReviewNotificationService';
 import type { GuardContext } from '@/app/api/types';
 
 export const dynamic = 'force-dynamic';
@@ -29,8 +30,19 @@ const postHandler = async (
       return Response.json({ error: 'Forbidden' }, { status: 403 });
     }
     const token = await blogRepository.requestReview(postId);
-    const appUrl = (process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/+$/, '');
-    return Response.json({ token, reviewUrl: `${appUrl}/review/${token}` });
+    const postTitle = post.locales?.[post.primaryLocale]?.title || '(untitled)';
+
+    // notifyAdminsOfPendingBlogReview swallows per-recipient send failures internally
+    // and always resolves reviewUrl - the in-app "submit for review" button redirects
+    // the browser there regardless of whether the notification email went out.
+    const { reviewUrl } = await notifyAdminsOfPendingBlogReview({
+      siteId,
+      postId,
+      postTitle,
+      reviewToken: token,
+    });
+
+    return Response.json({ token, reviewUrl });
   } catch (error) {
     console.error('[request-review] error', error);
     return Response.json({ error: 'Failed to request review' }, { status: 500 });
