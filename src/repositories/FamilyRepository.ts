@@ -7,6 +7,7 @@ import {
   type MemberQueryOptions,
   type MemberRecord,
   type LocalizedMemberRecord,
+  type MemberWriteActor,
 } from './MemberRepository';
 import { SiteRepository } from './SiteRepository';
 import type { ISite } from '@/entities/Site';
@@ -168,18 +169,22 @@ export class FamilyRepository {
     }
   }
 
-  async createMember(memberData: Partial<IMember>): Promise<MemberRecord> {
+  async createMember(memberData: Partial<IMember>, actor?: MemberWriteActor): Promise<MemberRecord> {
     try {
-      return await this.members.create(memberData as Partial<MemberRecord>);
+      return await this.members.create(memberData as Partial<MemberRecord>, actor);
     } catch (error) {
       console.error('Error creating member:', error);
       throw new Error('Failed to create member');
     }
   }
 
-  async updateMember(memberId: string, updates: Partial<FamilyMember>): Promise<void> {
+  async updateMember(
+    memberId: string,
+    updates: Partial<FamilyMember>,
+    actor?: MemberWriteActor,
+  ): Promise<void> {
     try {
-      await this.members.update(memberId, updates as Partial<MemberRecord>);
+      await this.members.update(memberId, updates as Partial<MemberRecord>, undefined, actor);
     } catch (error) {
       console.error('Error updating member:', error);
       throw new Error('Failed to update member');

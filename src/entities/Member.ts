@@ -16,4 +16,6 @@ export interface IMember {
   avatarStoragePath?: string | null;
   createdAt: any;
   updatedAt: any;
+  actorKind?: 'human' | 'agent';
+  actorId?: string | null;
 }

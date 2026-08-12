@@ -93,6 +93,15 @@ export function verifyJwt(token: string, opts: VerifyOptions = {}): TokenClaims 
 
     const payload: TokenClaims = JSON.parse(b64urlDecode(p).toString());
 
+    if (
+      payload.actor !== undefined &&
+      (!payload.actor ||
+        (payload.actor.kind !== 'human' && payload.actor.kind !== 'agent') ||
+        (payload.actor.id !== undefined && typeof payload.actor.id !== 'string'))
+    ) {
+      return null;
+    }
+
     const now = nowSeconds();
     const skew = opts.clockSkewSec ?? 5;
     if (payload.exp && payload.exp < now - skew) return null;

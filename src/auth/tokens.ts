@@ -21,7 +21,22 @@ export interface AppClaims {
   needsCredentialSetup?: boolean;
 }
 
-export type TokenClaims = JwtRegisteredClaims & AppClaims;
+export type ActorKind = 'human' | 'agent';
+
+export interface TokenActor {
+  kind: ActorKind;
+  id?: string;
+}
+
+/**
+ * The authenticated principal remains in `sub` (and AppClaims.userId).
+ * `actor` identifies who or what performed the action for that principal.
+ * It is optional on the wire so tokens minted before actor attribution was
+ * introduced remain verifiable.
+ */
+export type TokenClaims = JwtRegisteredClaims & AppClaims & {
+  actor?: TokenActor;
+};
 
 export const nowSeconds = () => Math.floor(Date.now() / 1000);
 export const inSeconds = (sec: number) => nowSeconds() + sec;
@@ -34,6 +49,7 @@ export function buildAccessClaims(app: AppClaims, ttlSec: number): TokenClaims {
     iat: nowSeconds(),
     exp: inSeconds(ttlSec),
     ...app,
+    actor: { kind: 'human', id: app.userId },
   };
 }
 
@@ -47,5 +63,6 @@ export function buildRefreshClaims(app: AppClaims, days = 30, jti: string): Toke
     exp: inSeconds(days * 24 * 60 * 60),
     jti,
     ...app,
+    actor: { kind: 'human', id: app.userId },
   };
 }

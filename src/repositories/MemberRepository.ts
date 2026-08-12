@@ -4,6 +4,12 @@ import type { IMember } from '@/entities/Member';
 import { normalizeSlug } from '@/utils/slug';
 
 export type MemberRole = IMember['role'] | 'rejected';
+export type MemberActorKind = 'human' | 'agent';
+
+export interface MemberWriteActor {
+  actorKind: MemberActorKind;
+  actorId?: string;
+}
 
 export interface MemberLocaleProfile {
   displayName?: string | null;
@@ -24,6 +30,8 @@ export interface MemberRecord extends Omit<IMember, 'role'> {
   avatarUrl?: string | null;
   avatarStoragePath?: string | null;
   translations?: Record<string, MemberLocaleProfile> | null;
+  actorKind?: MemberActorKind;
+  actorId?: string | null;
   [key: string]: unknown;
 }
 
@@ -208,11 +216,12 @@ export class MemberRepository {
     return this.getByBlogHandle(siteId, handle, opts);
   }
 
-  async create(data: Partial<MemberRecord>): Promise<MemberRecord> {
+  async create(data: Partial<MemberRecord>, actor?: MemberWriteActor): Promise<MemberRecord> {
     try {
       const now = this.getTimestamp();
       const payload: Record<string, unknown> = {
         ...data,
+        ...this.buildActorPayload(actor),
         createdAt: (data as any)?.createdAt ?? now,
         updatedAt: (data as any)?.updatedAt ?? now,
       };
@@ -225,9 +234,17 @@ export class MemberRepository {
     }
   }
 
-  async update(memberId: string, updates: Partial<MemberRecord>, updatedAt?: Timestamp): Promise<void> {
+  async update(
+    memberId: string,
+    updates: Partial<MemberRecord>,
+    updatedAt?: Timestamp,
+    actor?: MemberWriteActor,
+  ): Promise<void> {
     try {
-      const payload = this.prepareUpdatePayload(updates, updatedAt);
+      const payload = this.prepareUpdatePayload(
+        { ...updates, ...this.buildActorPayload(actor) },
+        updatedAt,
+      );
       await this.membersCollection().doc(memberId).update(payload);
     } catch (error) {
       console.error('[member][repo] failed to update member', { memberId }, error);
@@ -380,16 +397,19 @@ export class MemberRepository {
     tx: Transaction,
     memberId: string,
     updates: Partial<MemberRecord>,
-    options?: { updatedAt?: Timestamp },
+    options?: { updatedAt?: Timestamp; actor?: MemberWriteActor },
   ): void {
-    const payload = this.prepareUpdatePayload(updates, options?.updatedAt);
+    const payload = this.prepareUpdatePayload(
+      { ...updates, ...this.buildActorPayload(options?.actor) },
+      options?.updatedAt,
+    );
     tx.update(this.membersCollection().doc(memberId), payload);
   }
 
   txCreate(
     tx: Transaction,
     data: Partial<MemberRecord>,
-    options?: { id?: string; timestamp?: Timestamp },
+    options?: { id?: string; timestamp?: Timestamp; actor?: MemberWriteActor },
   ): MemberTransactionSnapshot {
     const timestamp = options?.timestamp ?? this.getTimestamp();
     const docRef = options?.id
@@ -397,6 +417,7 @@ export class MemberRepository {
       : this.membersCollection().doc();
     const payload: Record<string, unknown> = {
       ...data,
+      ...this.buildActorPayload(options?.actor),
       createdAt: (data as any)?.createdAt ?? timestamp,
       updatedAt: (data as any)?.updatedAt ?? timestamp,
     };
@@ -467,6 +488,15 @@ export class MemberRepository {
       }
     }
     return payload as FirebaseFirestore.UpdateData<FirebaseFirestore.DocumentData>;
+  }
+
+  private buildActorPayload(actor?: MemberWriteActor): Partial<MemberRecord> {
+    if (!actor) {
+      return {};
+    }
+    return actor.actorId === undefined
+      ? { actorKind: actor.actorKind }
+      : { actorKind: actor.actorKind, actorId: actor.actorId };
   }
 
   private async generateUniqueBlogHandle(base: string, siteId: string): Promise<string> {
