@@ -4,6 +4,7 @@ import { blogRepository } from '@/repositories/BlogRepository';
 import { resolveLocalizedFields } from '@/utils/blogLocales';
 import { DEFAULT_LOCALE } from '@/i18n';
 import ReviewDecisionForm from './ReviewDecisionForm';
+import BlogPostBody from '@/components/blog/BlogPostBody';
 import blogStyles from '@/components/blog/PublicPost.module.css';
 
 export const dynamic = 'force-dynamic';
@@ -41,7 +42,7 @@ export default async function ReviewPage({
       </div>
       <article className={`prose max-w-none ${blogStyles.content}`}>
         <h1 className="mb-4 text-2xl font-semibold">{localized.title}</h1>
-        <div dangerouslySetInnerHTML={{ __html: localized.content }} />
+        <BlogPostBody content={localized.content} format={localized.contentFormat} />
       </article>
       <hr className="my-8 border-gray-200" />
       <ReviewDecisionForm token={token} />
