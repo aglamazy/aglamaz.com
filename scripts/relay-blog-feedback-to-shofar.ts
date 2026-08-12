@@ -73,11 +73,17 @@ async function main() {
     ].join('\n');
 
     try {
-      execFileSync('python3', [
-        `${process.env.HOME}/develop/Buddy/scripts/inbox.py`,
+      // Was hardcoded at ~/develop/Buddy/scripts/inbox.py - retired (ant_executor#1112,
+      // 2026-07-28) in favor of the canonical oct_message CLI on PATH, which resolves the
+      // real inbox.py location via $HOME internally rather than a path any caller has to
+      // track. Found broken 2026-08-12 (same bug FamCircle found in its own copy of this
+      // script - Shofar never got a real relay from either site since the retirement, no
+      // error surfaced because nothing was running this on a schedule to notice). Also
+      // fixed --sender, which was copy-pasted as 'FamCircle' even in this repo's copy.
+      execFileSync('oct_message', [
         'push',
         '--to-session', 'Shofar',
-        '--sender', 'FamCircle',
+        '--sender', 'aglamaz-com',
         body,
       ], { stdio: 'pipe' });
       await db.collection('blogPosts').doc(post.id).update({ shofarNotifiedAt: new Date() });
