@@ -23,6 +23,7 @@ import { DigestCompilerService, type DigestEventWithPhotos } from '@/services/Di
 import { resolveDigestSiteName } from '@/services/DigestTemplateService';
 import { ResendService } from '@/services/ResendService';
 import { renderEmailHtml } from '@/services/emailTemplates';
+import { getBaseUrlForSite } from '@/utils/serverUrls';
 
 export type BlogAutogenOutcome =
   | 'created'
@@ -52,6 +53,7 @@ export class BlogAutogenService {
     private readonly blogRepository: BlogRepository = new BlogRepository(),
     private readonly digestCompilerService: DigestCompilerService = new DigestCompilerService(),
     private readonly blogAutogenRepository: BlogAutogenRepository = defaultBlogAutogenRepository,
+    private readonly getBaseUrlForSiteFn: (siteId: string) => Promise<string> = getBaseUrlForSite,
   ) {}
 
   static isEnabled(): boolean {
@@ -153,7 +155,7 @@ export class BlogAutogenService {
     postId: string,
     postTitle: string,
   ): Promise<void> {
-    const appUrl = (process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/+$/, '');
+    const appUrl = await this.getBaseUrlForSiteFn(siteId);
     const reviewUrl = `${appUrl}/review/${reviewToken}`;
     const subject = `New auto-drafted blog post for ${siteName}`;
 
@@ -174,9 +176,7 @@ export class BlogAutogenService {
           to: admin.email,
           subject,
           html,
-          tracking: appUrl
-            ? { origin: appUrl, siteId, recipientMemberId: admin.id, sendType: 'blog-autogen-admin', sendId: postId }
-            : undefined,
+          tracking: { origin: appUrl, siteId, recipientMemberId: admin.id, sendType: 'blog-autogen-admin', sendId: postId },
         });
       }),
     );

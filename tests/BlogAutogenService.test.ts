@@ -85,6 +85,9 @@ async function testGeneratesDraftAndRequestsReview() {
     blogRepository,
     digestCompilerService,
     blogAutogenRepository,
+    // Fake, so this test never touches real Firestore/domainMappings just to build the
+    // (unused - RESEND_API_KEY isn't set here) admin-notification link.
+    async () => 'https://example.famcircle.org',
   );
 
   const originalFetch = global.fetch;
@@ -145,6 +148,133 @@ async function testGeneratesDraftAndRequestsReview() {
     console.log('BlogAutogenService generates draft + requests review test passed');
   } finally {
     global.fetch = originalFetch;
+  }
+}
+
+async function testReviewLinkUsesSitesRealDomainNotStaticEnvVar() {
+  // famcircle#153: notifyAdminsOfPendingReview must resolve the review link from the
+  // site's real domain mapping (getBaseUrlForSite), not the static NEXT_PUBLIC_APP_URL env
+  // var - which is unset in production, so the old code silently sent a bare `/review/...`
+  // relative path with no host. NEXT_PUBLIC_APP_URL is set to a DIFFERENT domain above
+  // deliberately, so this test fails if the old static-env-var path is ever reintroduced.
+  const { BlogAutogenService } = await import('../src/services/BlogAutogenService');
+  const { DigestCompilerService } = await import('../src/services/DigestCompilerService');
+
+  const originalResendKey = process.env.RESEND_API_KEY;
+  process.env.RESEND_API_KEY = 'test-resend-key';
+
+  const mockEvent = {
+    id: 'e1',
+    siteId: 'site1',
+    ownerId: 'owner1',
+    name: 'Family reunion',
+    description: 'Everyone came together',
+    type: 'other',
+    date: new Date('2026-06-15'),
+    month: 5,
+    day: 15,
+    year: 2026,
+    isAnnual: false,
+  } as any;
+
+  const siteRepository: any = {
+    get: async (siteId: string) => ({
+      id: siteId,
+      name: 'The Cohen Family',
+      defaultLocale: 'en',
+      blogAutogenEnabled: true,
+    }),
+  };
+
+  const admin: any = {
+    id: 'member1',
+    uid: 'uid-admin-1',
+    email: 'admin@example.com',
+    firstName: 'Dana',
+    displayName: 'Dana Cohen',
+    role: 'admin',
+  };
+  const memberRepository: any = {
+    listBySite: async () => [admin],
+  };
+
+  const blogRepository: any = {
+    create: async (post: any) => ({ id: 'post-1', ...post, createdAt: new Date(), updatedAt: new Date() }),
+    requestReview: async () => 'review-token-123',
+  };
+
+  const digestCompilerService = new DigestCompilerService(
+    { getEventsForMonth: async () => [mockEvent] } as any,
+    { listBySite: async () => [], listByAnniversary: async () => [] } as any,
+    { listByEvent: async () => [] } as any,
+    { create: async () => ({ slug: 'family-reunion', isPublic: false }) } as any,
+  );
+
+  const blogAutogenRepository: any = {
+    alreadyGenerated: async () => false,
+    markGenerated: async () => {},
+  };
+
+  // The site's real, per-site domain - deliberately different from the
+  // NEXT_PUBLIC_APP_URL env var set at the top of this file, proving the review link is
+  // resolved per-site rather than from that static var.
+  const siteRealDomain = 'https://the-cohens.example-family.org';
+  let getBaseUrlForSiteCalledWith: string | undefined;
+  const fakeGetBaseUrlForSite = async (siteId: string) => {
+    getBaseUrlForSiteCalledWith = siteId;
+    return siteRealDomain;
+  };
+
+  const service = new BlogAutogenService(
+    siteRepository,
+    memberRepository,
+    blogRepository,
+    digestCompilerService,
+    blogAutogenRepository,
+    fakeGetBaseUrlForSite,
+  );
+
+  const originalFetch = global.fetch;
+  let capturedResendBody: any;
+  global.fetch = (async (url: string, init?: RequestInit) => {
+    if (String(url).includes('api.openai.com')) {
+      return {
+        ok: true,
+        json: async () => ({
+          choices: [{ message: { content: JSON.stringify({ title: 'Family Reunion', content: 'It was great.' }) } }],
+        }),
+      } as Response;
+    }
+    if (String(url).includes('api.resend.com')) {
+      capturedResendBody = JSON.parse(init!.body as string);
+      return { ok: true, json: async () => ({ id: 'email-1' }) } as Response;
+    }
+    throw new Error(`Unexpected fetch to ${url}`);
+  }) as typeof fetch;
+
+  try {
+    const result = await service.generateForSite('site1', new Date('2026-07-10'));
+    assert.equal(result.outcome, 'created');
+
+    assert.equal(getBaseUrlForSiteCalledWith, 'site1');
+    assert.ok(capturedResendBody, 'expected an email to have been sent via Resend');
+    assert.ok(
+      capturedResendBody.html.includes(`${siteRealDomain}/review/review-token-123`),
+      `expected review link to use the site's real domain (${siteRealDomain}), got: ${capturedResendBody.html}`,
+    );
+    assert.ok(
+      !capturedResendBody.html.includes(process.env.NEXT_PUBLIC_APP_URL as string),
+      'review link must not fall back to the static NEXT_PUBLIC_APP_URL env var',
+    );
+
+    console.log('BlogAutogenService review link uses site real domain test passed');
+  } finally {
+    global.fetch = originalFetch;
+    if (originalResendKey === undefined) {
+      delete process.env.RESEND_API_KEY;
+    } else {
+      process.env.RESEND_API_KEY = originalResendKey;
+    }
   }
 }
 
@@ -262,6 +392,7 @@ async function testSkipsWhenSendSettingsTableTurnsBlogAutogenOff() {
 
 async function run() {
   await testGeneratesDraftAndRequestsReview();
+  await testReviewLinkUsesSitesRealDomainNotStaticEnvVar();
   await testSkipsWhenAlreadyGeneratedThisPeriod();
   await testSkipsWhenNoActivity();
   await testSkipsWhenNotOptedIn();
