@@ -3,6 +3,7 @@
 // Auth: Vercel Cron sends Authorization: Bearer {CRON_SECRET}; same secret used for manual curl tests.
 
 import { NextRequest, NextResponse } from 'next/server';
+import { withServiceCall } from 'agents-observe/next';
 import { AnniversaryRepository } from '@/repositories/AnniversaryRepository';
 import { SiteRepository } from '@/repositories/SiteRepository';
 import { WhatsAppYahrzeitSendRepository } from '@/repositories/WhatsAppYahrzeitSendRepository';
@@ -41,7 +42,7 @@ function resolveTargetLocale(site: ISite): string | null {
   return null;
 }
 
-export async function GET(request: NextRequest) {
+async function getHandler(request: NextRequest) {
   if (!process.env.CRON_SECRET) {
     console.error('[cron/yahrzeit-whatsapp] CRON_SECRET environment variable is not set');
     return NextResponse.json({ error: 'Server misconfiguration: CRON_SECRET not set' }, { status: 500 });
@@ -176,3 +177,10 @@ export async function GET(request: NextRequest) {
   );
   return NextResponse.json({ ok: true, sites: siteIds.length, sent, skipped, failed });
 }
+
+// famcircle#160 (2026-08-16): report any non-2xx response (default: only 5xx) - a cron
+// route rejecting its own scheduler's call (e.g. a 401 from a stale CRON_SECRET, the
+// famcircle#156 incident) is never a normal "expected client error", unlike most 4xx
+// traffic elsewhere in the app. Requires AGENTS_OBSERVE_INGEST_URL/TOKEN/PROJECT_ID to
+// actually deliver - no-ops safely if unset (see docs/monitoring-runbook.md).
+export const GET = withServiceCall(getHandler, { report4xx: true });

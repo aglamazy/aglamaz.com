@@ -26,8 +26,77 @@
   unreachable deployment (connection refused), and malformed response body.
   Part of `npm test`; run alone with `npx tsx tests/uptimeCheck.test.ts`.
 
-This is the observability half: a real check against the real URL, and proof
-(not just documentation) that failures are actually detected.
+- **`scripts/check-digest-delivery.ts`** (famcircle#144 follow-up, written
+  2026-08-05, only brought to `main` 2026-08-16 alongside famcircle#159/#160 -
+  this check and its dependencies had lived on `dev` since 08-05 without
+  anyone noticing they'd never shipped, meaning `/api/health` + `uptime-check`
+  were the ONLY monitoring actually live in prod for 11 days). Schedule-aware:
+  asks "did the digest period that was DUE actually reach its eligible
+  recipients" rather than a blunt staleness window, built after Buddy
+  rejected widening a staleness window further: *"the fix is not to widen the
+  window until it stops complaining - that just moves the blind spot. Size it
+  to the actual send calendar."* The weekly cadence is **not** per-site -
+  `DigestScheduleService`'s `nextWeeklyFireDate` is a single global
+  Friday-06:00-UTC burst window - so "did Friday's digest go out" is a
+  well-defined, checkable question.
+
+  For each cadence (weekly/monthly) whose last scheduled fire has cleared a
+  grace window (default 2h, covers the cron's own up-to-1h retry burst), and
+  for every site with the `digest` send-type enabled
+  (`SiteRepository.resolveSendSettings`), it calls the exact same
+  `resolveDigestRecipients` function the real cron
+  (`src/app/api/cron/digest/route.ts`) and the admin preview endpoint use - no
+  parallel reimplementation of "who's eligible" to drift out of sync. A site
+  with zero eligible members for that cadence/period is skipped (normal - the
+  real cron does the same "nobody eligible" skip). A site WITH eligible
+  members where every one of them is still unsent for an already-fired period
+  is flagged as a genuine miss:
+  ```
+  npm run monitor:digest-delivery
+  # or: DIGEST_DELIVERY_GRACE_HOURS=4 npx tsx scripts/check-digest-delivery.ts
+  ```
+  Reads Firebase Admin credentials the same way the app does (no separate API
+  key). See `scripts/lib/digestDeliveryCheck.ts` for the pure
+  dependency-injected check logic and `tests/digestDeliveryCheck.test.ts` for
+  the 5 scenarios it proves (grace window not yet elapsed, all-unsent miss,
+  partial-sent healthy, zero-eligible skip, per-site error isolation) without
+  touching a live Firestore project. A sibling check covering the OTHER send
+  types (in-day reminders, yahrzeit WhatsApp, blog-autogen),
+  `scripts/check-email-volume.ts`, still only exists on `dev` - not
+  backported in this pass, out of scope for famcircle#159/#160.
+
+- **`tests/digestDeliveryCheck.test.ts`** — proves `digestDeliveryCheck.ts`'s
+  logic against fake injected dependencies (no live Firestore), same
+  dependency-injection pattern as the HTTP-mock tests above.
+
+- **`scripts/check-cron-auth.ts`** (famcircle#160, 2026-08-16) — the check
+  that would have caught famcircle#156 same-day: on 2026-08-11, `CRON_SECRET`
+  was rotated in Vercel's dashboard, but the already-deployed function kept
+  the pre-rotation value and every one of the 5 cron routes silently 401'd for
+  4 days. No app code can detect this from the inside - a deployed function
+  has no way to know its own baked env value is stale relative to the
+  dashboard. This can only be caught from OUTSIDE: pull the CURRENT secret
+  and make a real request with it, watching for a 401:
+  ```
+  CRON_SECRET=<current prod value, e.g. from `vercel env pull`> \
+    npx tsx scripts/check-cron-auth.ts --url https://aglamaz.com
+  ```
+  Uses the `digest` route as the canary with `memberId=<nonexistent>` (a safe
+  no-op - see the route's `memberIdFilter` handling) since all 5 cron routes
+  share the identical `CRON_SECRET` check and the same deployment, so one
+  route's auth result generalizes to all of them. See
+  `scripts/lib/cronAuthCheck.ts` for the pure check logic and
+  `tests/cronAuthCheck.test.ts` for the 3 scenarios it proves (matching
+  secret, the exact famcircle#156 401-mismatch shape, unreachable deployment)
+  against a real local HTTP server, no live Vercel/Firestore needed. Unlike
+  the other checks here, this one needs the CURRENT secret handed to it
+  explicitly each run - there's no way to bake a "correct" value in, since
+  the whole point is comparing against whatever Vercel's dashboard says RIGHT
+  NOW, which is exactly the thing a deployed function can never know about
+  itself.
+
+This is the observability half: a real check against the real URL/DB, and
+proof (not just documentation) that failures are actually detected.
 
 ## What this wires into (fleet side — NOT part of this repo)
 
@@ -57,8 +126,18 @@ fleet-harness permission change owned by Buddy/Ant and gated on Agla directly.
 ## Task split (per famcircle#98's own framing)
 
 - **FamCircle side (done here):** `/api/health` (pre-existing) +
-  `scripts/uptime-check.ts` + `tests/uptimeCheck.test.ts` + this runbook.
-- **buddy_infra side (separate task, different repo):** scheduled runner,
-  healthchecks.io wiring, and the Medic permission-grant for the FamCircle-owning
-  lane — needs Agla's authorization and should be filed as its own
-  `buddy_infra` task rather than attempted here.
+  `scripts/uptime-check.ts` + `scripts/check-digest-delivery.ts` +
+  `scripts/check-cron-auth.ts` + their tests + this runbook. Three independent
+  checks, each with its own exit-code contract (`0`=healthy, `1`=unhealthy/
+  unreachable, one JSON line per run) so they compose with the same
+  scheduling/alerting mechanism uniformly.
+- **buddy_infra side (separate task, different repo, not yet built for any of
+  the three):** a scheduled runner per check (systemd timer/cron, matching the
+  fleet's existing `db_dr_*` + healthchecks.io dead-man's-switch convention),
+  routing a failing check to whichever lane/session owns FamCircle, and the
+  Medic permission-grant for that lane if it doesn't already hold it — needs
+  Agla's authorization and should be filed as its own `buddy_infra` task
+  rather than attempted here. `check-cron-auth.ts` additionally needs its
+  runner to have a way to fetch the CURRENT `CRON_SECRET` each run (e.g. via
+  the Vercel API/CLI with an appropriately-scoped token) - it cannot use a
+  cached/baked value without defeating its own purpose.
