@@ -20,6 +20,7 @@ import { renderEmailHtml } from '@/services/emailTemplates';
 import { nextWeeklyFireDate, nextMonthlyFireDate } from '@/services/DigestScheduleService';
 import { buildDigestPreviewSection, SiteDefaultLocaleMissingError } from '@/services/DigestPreviewRenderer';
 import type { DigestCadence } from '@/repositories/DigestSendRepository';
+import { reportCronAuthFailure } from '@/lib/reportCronAuthFailure';
 
 export const dynamic = 'force-dynamic';
 
@@ -45,6 +46,7 @@ export async function GET(request: NextRequest) {
   }
   const authHeader = request.headers.get('authorization');
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    reportCronAuthFailure('/api/cron/digest-preview');
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

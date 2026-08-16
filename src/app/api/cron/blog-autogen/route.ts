@@ -17,6 +17,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { SiteRepository } from '@/repositories/SiteRepository';
 import { BlogAutogenService } from '@/services/BlogAutogenService';
+import { reportCronAuthFailure } from '@/lib/reportCronAuthFailure';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,6 +29,7 @@ export async function GET(request: NextRequest) {
 
   const authHeader = request.headers.get('authorization');
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    reportCronAuthFailure('/api/cron/blog-autogen');
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

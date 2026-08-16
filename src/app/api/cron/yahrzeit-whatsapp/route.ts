@@ -11,6 +11,7 @@ import { getBaseUrlForSite } from '@/utils/serverUrls';
 import { getMostRecentFieldVersion, normalizeLang } from '@/services/LocalizationService';
 import type { ISite } from '@/entities/Site';
 import { resolveDigestSiteName } from '@/services/DigestTemplateService';
+import { reportCronAuthFailure } from '@/lib/reportCronAuthFailure';
 
 export const dynamic = 'force-dynamic';
 
@@ -49,6 +50,7 @@ export async function GET(request: NextRequest) {
 
   const authHeader = request.headers.get('authorization');
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    reportCronAuthFailure('/api/cron/yahrzeit-whatsapp');
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
