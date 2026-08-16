@@ -53,6 +53,14 @@ async function getHandler(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  // famcircle#161 (AI-12 test:deploy): a safe way to verify auth succeeds without
+  // triggering the real side effect (an AI draft, a WhatsApp send, a preview email) -
+  // short-circuits AFTER the auth check (so it still proves the secret is live) but
+  // BEFORE any business logic runs.
+  if (request.nextUrl.searchParams.get('dryRun') === 'true') {
+    return NextResponse.json({ ok: true, dryRun: true });
+  }
+
   try {
     WhatsAppService.validateConfiguration();
   } catch (error) {

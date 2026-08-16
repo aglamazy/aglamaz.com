@@ -1,6 +1,6 @@
 {
   "name": "aglamaz-app",
-  "version": "26.8.20",
+  "version": "26.8.21",
   "private": true,
   "scripts": {
     "dev": "next dev -p 3000",
@@ -11,6 +11,7 @@
     "monitor:uptime": "tsx scripts/uptime-check.ts",
     "monitor:digest-delivery": "tsx scripts/check-digest-delivery.ts",
     "monitor:cron-auth": "tsx scripts/check-cron-auth.ts",
+    "test:deploy": "tsx scripts/test-deploy.ts",
     "test": "tsx tests/auth.test.ts && tsx tests/signupPolicy.test.ts",
     "test:digest": "tsx tests/digestTranslation.test.ts",
     "test:digest-template": "tsx tests/digestTemplate.test.ts",

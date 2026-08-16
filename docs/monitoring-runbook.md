@@ -86,14 +86,59 @@
   share the identical `CRON_SECRET` check and the same deployment, so one
   route's auth result generalizes to all of them. See
   `scripts/lib/cronAuthCheck.ts` for the pure check logic and
-  `tests/cronAuthCheck.test.ts` for the 3 scenarios it proves (matching
-  secret, the exact famcircle#156 401-mismatch shape, unreachable deployment)
+  `tests/cronAuthCheck.test.ts` for the 5 scenarios it proves (matching
+  secret, the exact famcircle#156 401-mismatch shape, unreachable deployment,
+  a route-SPECIFIC failure isolated from its healthy siblings, all-5-healthy)
   against a real local HTTP server, no live Vercel/Firestore needed. Unlike
   the other checks here, this one needs the CURRENT secret handed to it
   explicitly each run - there's no way to bake a "correct" value in, since
   the whole point is comparing against whatever Vercel's dashboard says RIGHT
   NOW, which is exactly the thing a deployed function can never know about
-  itself.
+  itself. `checkAllCronAuth` (used by `npm run test:deploy`, below) probes
+  all 5 routes individually - `blog-autogen`/`digest-preview`/
+  `yahrzeit-whatsapp` don't have a `memberId` no-op like `digest`/
+  `in-day-reminders` do, so each gained a `?dryRun=true` short-circuit
+  (famcircle#161) placed AFTER the auth check but BEFORE any real side
+  effect (an AI draft, an email, a WhatsApp send) - proves the secret is
+  live without the cost/risk of the real action.
+
+## `npm run test:deploy` — the AI-12 weekly health suite (famcircle#161)
+
+Per `~/develop/Buddy/docs/spec-periodic-tests.md`: **does-it-actually-work**
+checks against the LIVE deployment, run weekly, reported to the fleet's COO
+function - not "did it build". `scripts/test-deploy.ts` composes the checks
+above plus two new ones into one report:
+
+1. **CRON_SECRET live** - `checkAllCronAuth`, all 5 routes (see above).
+2. **Connections up** - `/api/health` via `checkHealth` (already existed).
+3. **Disk space** - **N/A**, documented not silently skipped: this app is
+   Vercel serverless, no persistent disk it manages.
+4. **Deployed-code freshness** - `scripts/lib/deployFreshnessCheck.ts`
+   compares the live production deployment's git commit SHA (Vercel API,
+   `meta.githubCommitSha`) against local `git rev-parse HEAD` - catches
+   "migrations current while the app served a 4-day-old build". Short-vs-
+   full SHA comparison handled (`tests/deployFreshnessCheck.test.ts`).
+5. **Env completeness** - `scripts/lib/envCompletenessCheck.ts`, a CURATED
+   list (`EXPECTED_PROD_ENV_VARS`) of vars whose absence is a genuine bug -
+   not a blind scan of every `process.env.X` reference, since several real
+   vars are legitimately optional by design (see the file's own comment for
+   which, and why - includes a real 2026-08-16 false-positive caught and
+   fixed: `JWT_ISSUER`/`JWT_KID` looked missing but are genuinely optional
+   in the actual code, unlike `JWT_PRIVATE_KEY`/`JWT_PUBLIC_KEY`).
+6. **No-naked-500** - covered by `/api/health`'s own status-code contract.
+
+```
+npm run test:deploy -- --url https://aglamaz.com
+```
+
+Needs Vercel CLI auth (the same token `vercel login` already sets up) for
+items 1, 4, 5 - this is the spec's **option C** ("a central cron on ub02 runs
+each project's script locally against the live URLs"), not a check running
+inside the deployment's own runtime. Verified for real against production
+2026-08-16: correctly reported `disk-space`/`connections-up` healthy,
+correctly caught the still-live famcircle#156 outage (all 5 routes 401),
+correctly flagged `deployed-code-freshness` (this fix isn't deployed yet)
+and the real `AGENTS_OBSERVE_*` gap.
 
 This is the observability half: a real check against the real URL/DB, and
 proof (not just documentation) that failures are actually detected.
@@ -127,17 +172,19 @@ fleet-harness permission change owned by Buddy/Ant and gated on Agla directly.
 
 - **FamCircle side (done here):** `/api/health` (pre-existing) +
   `scripts/uptime-check.ts` + `scripts/check-digest-delivery.ts` +
-  `scripts/check-cron-auth.ts` + their tests + this runbook. Three independent
-  checks, each with its own exit-code contract (`0`=healthy, `1`=unhealthy/
-  unreachable, one JSON line per run) so they compose with the same
-  scheduling/alerting mechanism uniformly.
+  `scripts/check-cron-auth.ts` + `scripts/test-deploy.ts` (AI-12, composes
+  the others plus deployed-code-freshness and env-completeness) + their
+  tests + this runbook.
 - **buddy_infra side (separate task, different repo, not yet built for any of
-  the three):** a scheduled runner per check (systemd timer/cron, matching the
-  fleet's existing `db_dr_*` + healthchecks.io dead-man's-switch convention),
-  routing a failing check to whichever lane/session owns FamCircle, and the
-  Medic permission-grant for that lane if it doesn't already hold it — needs
-  Agla's authorization and should be filed as its own `buddy_infra` task
-  rather than attempted here. `check-cron-auth.ts` additionally needs its
-  runner to have a way to fetch the CURRENT `CRON_SECRET` each run (e.g. via
-  the Vercel API/CLI with an appropriately-scoped token) - it cannot use a
-  cached/baked value without defeating its own purpose.
+  the standalone monitor: checks):** a scheduled runner per check (systemd
+  timer/cron, matching the fleet's existing `db_dr_*` + healthchecks.io
+  dead-man's-switch convention), routing a failing check to whichever
+  lane/session owns FamCircle, and the Medic permission-grant for that lane
+  if it doesn't already hold it — needs Agla's authorization and should be
+  filed as its own `buddy_infra` task rather than attempted here.
+  `check-cron-auth.ts`/`test-deploy.ts` additionally need their runner to
+  have Vercel API/CLI access to fetch the CURRENT `CRON_SECRET` and env-var
+  list each run - they cannot use a cached/baked value without defeating
+  their own purpose. `npm run test:deploy` specifically is spec'd (AI-12) to
+  run WEEKLY, reported to the fleet's COO function - a separate cadence and
+  destination from the other per-incident-class monitors above.

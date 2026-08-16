@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import http from 'node:http';
-import { checkCronAuth } from '../scripts/lib/cronAuthCheck';
+import { checkCronAuth, checkAllCronAuth, CRON_PROBES } from '../scripts/lib/cronAuthCheck';
 
 function startServer(handler: http.RequestListener): Promise<{ url: string; close: () => Promise<void> }> {
   return new Promise((resolve) => {
@@ -70,10 +70,57 @@ async function testDetectsUnreachableDeployment() {
   console.log('cron-auth-check detects an unreachable deployment test passed');
 }
 
+// famcircle#161's test:deploy needs a route-SPECIFIC failure caught, not just the
+// shared secret - e.g. a typo'd comparison on one route that the others don't have.
+async function testDetectsARouteSpecificFailure() {
+  const { url, close } = await startServer((req, res) => {
+    if (req.url?.includes('/api/cron/blog-autogen')) {
+      res.writeHead(401, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Unauthorized' }));
+      return;
+    }
+    res.writeHead(200, { 'content-type': 'application/json' });
+    res.end(JSON.stringify({ ok: true }));
+  });
+
+  try {
+    const results = await checkAllCronAuth(url, 'the-current-secret');
+    assert.equal(results.length, CRON_PROBES.length);
+    const blogAutogen = results.find((r) => r.route === '/api/cron/blog-autogen');
+    assert.ok(blogAutogen, 'blog-autogen must be one of the probed routes');
+    assert.equal(blogAutogen!.healthy, false, 'the one broken route must be flagged');
+    const others = results.filter((r) => r.route !== '/api/cron/blog-autogen');
+    assert.ok(others.every((r) => r.healthy), 'the other 4 routes must not be flagged just because a sibling route broke');
+  } finally {
+    await close();
+  }
+
+  console.log('cron-auth-check (all-routes) isolates a single route-specific failure test passed');
+}
+
+async function testAllRoutesHealthyWhenSecretMatches() {
+  const { url, close } = await startServer((req, res) => {
+    res.writeHead(200, { 'content-type': 'application/json' });
+    res.end(JSON.stringify({ ok: true }));
+  });
+
+  try {
+    const results = await checkAllCronAuth(url, 'the-current-secret');
+    assert.equal(results.length, 5, 'all 5 cron routes must be probed');
+    assert.ok(results.every((r) => r.healthy && r.statusCode === 200));
+  } finally {
+    await close();
+  }
+
+  console.log('cron-auth-check (all-routes) reports healthy across all 5 routes test passed');
+}
+
 async function run() {
   await testDetectsMatchingSecret();
   await testDetectsStaleSecretMismatch();
   await testDetectsUnreachableDeployment();
+  await testDetectsARouteSpecificFailure();
+  await testAllRoutesHealthyWhenSecretMatches();
 }
 
 run();
