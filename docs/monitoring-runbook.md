@@ -110,6 +110,20 @@ function - not "did it build". `scripts/test-deploy.ts` composes the checks
 above plus two new ones into one report:
 
 1. **CRON_SECRET live** - `checkAllCronAuth`, all 5 routes (see above).
+1b. **Cron registration** - `scripts/lib/cronRegistrationCheck.ts` - Vercel's OWN
+   scheduler state (`crons.definitions`), diffed against `vercel.json`'s
+   expected list. Proves the STATE (Vercel will actually call the route)
+   where item 1 only proves the ACTION (the route accepts a manual call) -
+   see `docs`'s own control-proof-principle reference above.
+1c. **Referenced scripts present** - `scripts/lib/referencedScriptsCheck.ts`
+   - every `scripts/*.ts` path this repo's own `docs/` mention actually
+   exists in the checkout being tested. Added 2026-08-18 after
+   `check-digest-delivery.ts` AND `check-email-volume.ts` were BOTH found
+   living only on `dev`, referenced by this very runbook, for days/weeks
+   each - "documented" was never the same fact as "shipped". Scoped
+   deliberately narrow: this only knows about references inside this
+   repo's own docs/config, not an external systemd unit on another host
+   (Bob's/buddy_infra's half, per the existing task split below).
 2. **Connections up** - `/api/health` via `checkHealth` (already existed).
 3. **Disk space** - **N/A**, documented not silently skipped: this app is
    Vercel serverless, no persistent disk it manages.

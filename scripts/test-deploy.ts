@@ -16,6 +16,11 @@
  *                              would keep reporting healthy forever if a cron entry got
  *                              silently dropped, since a manual call is indistinguishable
  *                              from the real scheduled trigger existing at all.
+ *   1c. Referenced scripts   - every scripts/*.ts path this repo's own docs/ mention
+ *                              actually exists in the checkout being tested - the class
+ *                              behind BOTH check-digest-delivery.ts and
+ *                              check-email-volume.ts having lived only on dev for
+ *                              days/weeks (2026-08-18).
  *   2. Connections up        - /api/health (Firebase, Gmail, Translation)
  *   3. Disk space             - N/A, this deployment is Vercel serverless (no persistent
  *                               disk this app manages) - documented skip, not silently omitted
@@ -42,6 +47,7 @@ import { checkAllCronAuth } from './lib/cronAuthCheck';
 import { checkDeployFreshness } from './lib/deployFreshnessCheck';
 import { checkEnvCompleteness, EXPECTED_PROD_ENV_VARS } from './lib/envCompletenessCheck';
 import { checkCronRegistration, type ExpectedCronEntry, type RegisteredCronEntry } from './lib/cronRegistrationCheck';
+import { checkReferencedScriptsExist, type ReferencedScriptGap } from './lib/referencedScriptsCheck';
 
 const PROJECT_ID = 'prj_CJlIZEFuh7xrLyJxhtSZV5E8VoLZ';
 const TEAM_ID = 'team_llVcU3OqbxiFo7DtRU1lunMK';
@@ -117,6 +123,27 @@ function currentCronSecret(): string {
 
 function localGitSha(): string {
   return execFileSync('git', ['rev-parse', 'HEAD'], { cwd: __dirname + '/..' }).toString().trim();
+}
+
+const REPO_ROOT = join(__dirname, '..');
+
+/** Every `scripts/*.ts` path this repo's own docs and vercel.json claim exists, paired with where. */
+async function findReferencedScriptPaths(): Promise<ReferencedScriptGap[]> {
+  const gaps: ReferencedScriptGap[] = [];
+  const seen = new Set<string>();
+
+  const docFiles = execFileSync('find', ['docs', '-name', '*.md'], { cwd: REPO_ROOT }).toString().trim().split('\n').filter(Boolean);
+  for (const doc of docFiles) {
+    const content = readFileSync(join(REPO_ROOT, doc), 'utf8');
+    const matches = content.match(/scripts\/[\w-]+(\/[\w-]+)*\.ts/g) || [];
+    for (const scriptPath of matches) {
+      const key = `${scriptPath}::${doc}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      gaps.push({ scriptPath, referencedIn: doc });
+    }
+  }
+  return gaps;
 }
 
 interface CheckSummary {
@@ -197,6 +224,21 @@ async function main() {
     name: 'deployed-code-freshness',
     healthy: freshness.healthy,
     detail: freshness.error ?? `live=${freshness.liveSha?.slice(0, 7)} expected=${freshness.expectedSha?.slice(0, 7)}`,
+  });
+
+  // 1c. Referenced-but-absent scripts (2026-08-18, Buddy's "class question" off
+  // check-digest-delivery.ts/check-email-volume.ts both having lived only on dev for
+  // days) - a script this repo's own docs claim exists must actually be in this checkout.
+  const referencedScripts = await checkReferencedScriptsExist({
+    findReferencedScriptPaths,
+    fileExists: (p) => existsSync(join(REPO_ROOT, p)),
+  });
+  summaries.push({
+    name: 'referenced-scripts-present',
+    healthy: referencedScripts.healthy,
+    detail: referencedScripts.healthy
+      ? 'every scripts/*.ts path mentioned in docs/ exists in this checkout'
+      : `missing: ${referencedScripts.missing.map((m) => `${m.scriptPath} (per ${m.referencedIn})`).join(', ')}`,
   });
 
   // 5. Env completeness.
