@@ -30,17 +30,20 @@
  *                               real status, not an uncaught crash
  *
  * Needs Vercel CLI auth (`vercel login` already done - reads the same token file the
- * CLI itself uses) for items 1, 4, 5 - this runs from ub02 (option C in the spec: "a
+ * CLI itself uses) for items 1b, 4, 5 - this runs from ub02 (option C in the spec: "a
  * central cron on ub02 runs each project's script locally against the live URLs"), not
- * from inside the deployment's own runtime.
+ * from inside the deployment's own runtime. Item 1 needs the CURRENT production
+ * CRON_SECRET passed explicitly via env var - obtained through Tzach/Custodian's
+ * sanctioned credential-read path, NEVER `vercel env pull` (a known SSOT-corrupter,
+ * forbidden fleet-wide as of 2026-08-18 - it overwrites plaintext local env files with
+ * `{v: v2}`-wrapped values; sync is SSOT-to-Vercel only, never back).
  *
  * Usage:
- *   npm run test:deploy -- --url https://aglamaz.com
- *   # or: TARGET_URL=https://aglamaz.com npm run test:deploy
+ *   CRON_SECRET=<current prod value, from Tzach> npm run test:deploy -- --url https://aglamaz.com
+ *   # or: TARGET_URL=https://aglamaz.com CRON_SECRET=... npm run test:deploy
  */
 import { execFileSync } from 'node:child_process';
-import { readFileSync, unlinkSync, existsSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { checkHealth } from './lib/uptimeCheck';
 import { checkAllCronAuth } from './lib/cronAuthCheck';
@@ -107,18 +110,25 @@ function expectedCronsFromVercelJson(): ExpectedCronEntry[] {
   return (raw.crons || []).map((c: any) => ({ path: c.path as string, schedule: c.schedule as string }));
 }
 
-/** Pulls the CURRENT production CRON_SECRET via the Vercel CLI - never printed, read once into memory, temp file deleted immediately. */
+/**
+ * The CURRENT production CRON_SECRET, supplied explicitly by the caller.
+ *
+ * CORRECTED 2026-08-18 (Buddy): this used to call `vercel env pull` itself - a known
+ * SSOT-corrupter (it writes `{v: v2}`-wrapped values over plaintext in a local env
+ * file; the sync direction is SSOT-to-Vercel only, never back). No script in this repo
+ * should shell out to it. Credential reads route through Tzach/Custodian's sanctioned
+ * path instead - whoever runs this script gets the current secret that way and passes
+ * it in via CRON_SECRET, same contract check-cron-auth.ts already used correctly.
+ */
 function currentCronSecret(): string {
-  const tmpPath = join(tmpdir(), `test-deploy-env-${process.pid}.txt`);
-  try {
-    execFileSync('vercel', ['env', 'pull', tmpPath, '--environment=production', '--yes'], { stdio: 'pipe' });
-    const content = readFileSync(tmpPath, 'utf8');
-    const match = content.match(/^CRON_SECRET=(.*)$/m);
-    if (!match) throw new Error('CRON_SECRET not present in pulled production env');
-    return match[1].replace(/^"|"$/g, '');
-  } finally {
-    if (existsSync(tmpPath)) unlinkSync(tmpPath);
+  const secret = process.env.CRON_SECRET;
+  if (!secret) {
+    throw new Error(
+      'CRON_SECRET env var not set. This must be the CURRENT production value, obtained via ' +
+      'Tzach/Custodian\'s sanctioned credential-read path - never `vercel env pull` (SSOT-corrupter, forbidden).'
+    );
   }
+  return secret;
 }
 
 function localGitSha(): string {
@@ -187,7 +197,7 @@ async function main() {
     summaries.push({
       name: 'cron-secret-live (all 5 routes)',
       healthy: false,
-      detail: `could not pull current CRON_SECRET: ${err instanceof Error ? err.message : String(err)}`,
+      detail: err instanceof Error ? err.message : String(err),
     });
     secret = '';
   }

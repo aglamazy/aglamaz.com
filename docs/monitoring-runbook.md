@@ -75,10 +75,11 @@
   the pre-rotation value and every one of the 5 cron routes silently 401'd for
   4 days. No app code can detect this from the inside - a deployed function
   has no way to know its own baked env value is stale relative to the
-  dashboard. This can only be caught from OUTSIDE: pull the CURRENT secret
+  dashboard. This can only be caught from OUTSIDE: get the CURRENT secret
   and make a real request with it, watching for a 401:
   ```
-  CRON_SECRET=<current prod value, e.g. from `vercel env pull`> \
+  CRON_SECRET=<current prod value, from Tzach - NEVER `vercel env pull`, a known
+    SSOT-corrupter as of 2026-08-18> \
     npx tsx scripts/check-cron-auth.ts --url https://aglamaz.com
   ```
   Uses the `digest` route as the canary with `memberId=<nonexistent>` (a safe
@@ -197,8 +198,13 @@ fleet-harness permission change owned by Buddy/Ant and gated on Agla directly.
   if it doesn't already hold it — needs Agla's authorization and should be
   filed as its own `buddy_infra` task rather than attempted here.
   `check-cron-auth.ts`/`test-deploy.ts` additionally need their runner to
-  have Vercel API/CLI access to fetch the CURRENT `CRON_SECRET` and env-var
-  list each run - they cannot use a cached/baked value without defeating
-  their own purpose. `npm run test:deploy` specifically is spec'd (AI-12) to
+  obtain the CURRENT `CRON_SECRET` each run through Tzach/Custodian's
+  sanctioned credential-read path (NEVER `vercel env pull` - a known
+  SSOT-corrupter as of 2026-08-18, forbidden fleet-wide) and pass it in via
+  the `CRON_SECRET` env var - they cannot use a cached/baked value without
+  defeating their own purpose. Vercel API/CLI access (read-only, metadata/
+  key-names only, no value decryption) is separately needed for the
+  env-var-presence list, deploy freshness, and cron-registration checks.
+  `npm run test:deploy` specifically is spec'd (AI-12) to
   run WEEKLY, reported to the fleet's COO function - a separate cadence and
   destination from the other per-incident-class monitors above.

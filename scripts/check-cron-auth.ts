@@ -13,12 +13,14 @@
  * switch convention (healthchecks.io ping on success).
  *
  * Usage:
- *   CRON_SECRET=<current prod value> npx tsx scripts/check-cron-auth.ts --url https://aglamaz.com
+ *   CRON_SECRET=<current prod value, from Tzach> npx tsx scripts/check-cron-auth.ts --url https://aglamaz.com
  *
- * The secret passed here MUST be the CURRENT value from Vercel (e.g. via
- * `vercel env pull`), not .env.local's own copy - the whole point of this check is
- * comparing the deployed function against the live dashboard value, not whatever a
- * dev machine happens to have cached.
+ * The secret passed here MUST be the CURRENT value, obtained through Tzach/Custodian's
+ * sanctioned credential-read path - NEVER `vercel env pull` (a known SSOT-corrupter as
+ * of 2026-08-18: it overwrites plaintext local env files with `{v: v2}`-wrapped values;
+ * sync is SSOT-to-Vercel only, never back). Not .env.local's own copy either - the
+ * whole point of this check is comparing the deployed function against the live
+ * dashboard value, not whatever a dev machine happens to have cached.
  */
 import { checkCronAuth } from './lib/cronAuthCheck';
 
@@ -44,8 +46,9 @@ async function main() {
   }
   if (!secret) {
     console.error(
-      'check-cron-auth: no CRON_SECRET provided. Pass the CURRENT production value ' +
-      '(e.g. `vercel env pull` and read it from there) - not a stale local .env.local copy.'
+      'check-cron-auth: no CRON_SECRET provided. Pass the CURRENT production value, ' +
+      'obtained via Tzach/Custodian\'s sanctioned credential-read path (never `vercel env ' +
+      'pull` - SSOT-corrupter, forbidden) - not a stale local .env.local copy.'
     );
     process.exitCode = 1;
     return;
