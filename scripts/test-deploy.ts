@@ -9,6 +9,13 @@
  *
  * Test list (spec's numbering):
  *   1. CRON_SECRET live      - each of the 5 cron routes, current secret -> 200 not 401
+ *   1b. Cron registration    - Vercel's OWN scheduler state (not a manual probe) has
+ *                              every entry from vercel.json actually registered - added
+ *                              2026-08-18 per the control-proof-principle ("a control
+ *                              must prove the STATE, not the ACTION"): item 1 alone
+ *                              would keep reporting healthy forever if a cron entry got
+ *                              silently dropped, since a manual call is indistinguishable
+ *                              from the real scheduled trigger existing at all.
  *   2. Connections up        - /api/health (Firebase, Gmail, Translation)
  *   3. Disk space             - N/A, this deployment is Vercel serverless (no persistent
  *                               disk this app manages) - documented skip, not silently omitted
@@ -34,6 +41,7 @@ import { checkHealth } from './lib/uptimeCheck';
 import { checkAllCronAuth } from './lib/cronAuthCheck';
 import { checkDeployFreshness } from './lib/deployFreshnessCheck';
 import { checkEnvCompleteness, EXPECTED_PROD_ENV_VARS } from './lib/envCompletenessCheck';
+import { checkCronRegistration, type ExpectedCronEntry, type RegisteredCronEntry } from './lib/cronRegistrationCheck';
 
 const PROJECT_ID = 'prj_CJlIZEFuh7xrLyJxhtSZV5E8VoLZ';
 const TEAM_ID = 'team_llVcU3OqbxiFo7DtRU1lunMK';
@@ -73,6 +81,24 @@ async function listSetProductionEnvKeys(): Promise<Set<string>> {
     .filter((e: any) => (e.target || []).includes('production'))
     .map((e: any) => e.key as string);
   return new Set(keys);
+}
+
+/** Vercel's OWN cron registration state, not a manual probe - see cronRegistrationCheck.ts's header. */
+async function fetchRegisteredCrons(): Promise<RegisteredCronEntry[]> {
+  const body = await vercelApi(`/v9/projects/${PROJECT_ID}`);
+  const definitions = body.crons?.definitions ?? [];
+  return definitions.map((d: any) => ({ path: d.path as string, schedule: d.schedule as string }));
+}
+
+/**
+ * vercel.json IS the intended cron list - reading it here instead of a second hardcoded
+ * copy avoids the two ever drifting apart. `path` (including any query string, e.g.
+ * "/api/cron/digest?cadence=weekly") is kept verbatim - Vercel's own registration API
+ * returns it in exactly this shape, not split into path+query.
+ */
+function expectedCronsFromVercelJson(): ExpectedCronEntry[] {
+  const raw = JSON.parse(readFileSync(join(__dirname, '..', 'vercel.json'), 'utf8'));
+  return (raw.crons || []).map((c: any) => ({ path: c.path as string, schedule: c.schedule as string }));
 }
 
 /** Pulls the CURRENT production CRON_SECRET via the Vercel CLI - never printed, read once into memory, temp file deleted immediately. */
@@ -147,6 +173,23 @@ async function main() {
       detail: cronResults.map((r) => `${r.route}=${r.statusCode ?? r.error}`).join(', '),
     });
   }
+
+  // 1b. Cron registration - the STATE, not the ACTION (2026-08-18, control-proof-
+  // principle). checkAllCronAuth above proves "the route accepts a manual call" - this
+  // proves "Vercel is actually configured to make that call at all."
+  const registration = await checkCronRegistration(expectedCronsFromVercelJson(), { fetchRegisteredCrons });
+  summaries.push({
+    name: 'cron-registration (Vercel scheduler state)',
+    healthy: registration.healthy,
+    detail: registration.healthy
+      ? 'every expected cron entry is registered'
+      : [
+          registration.missing.length ? `missing: ${registration.missing.map((e) => `${e.path} (${e.schedule})`).join(', ')}` : '',
+          registration.scheduleMismatches.length
+            ? `schedule mismatch: ${registration.scheduleMismatches.map((m) => `${m.path} expected=${m.expected} registered=${m.registered}`).join(', ')}`
+            : '',
+        ].filter(Boolean).join('; '),
+  });
 
   // 4. Deployed-code freshness.
   const freshness = await checkDeployFreshness(localGitSha(), { fetchLiveProductionSha });
