@@ -1,6 +1,7 @@
 import { withUserGuard } from '@/lib/withUserGuard';
 import { GuardContext } from '@/app/api/types';
 import { FamilyRepository } from '@/repositories/FamilyRepository';
+import { actorFromClaims } from '@/auth/tokens';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,7 +40,7 @@ const postHandler = async (request: Request, context: GuardContext & { params: P
     await repo.updateMember(member.id, {
       avatarUrl,
       avatarStoragePath,
-    });
+    }, actorFromClaims(context.user!));
 
     const updated = await repo.getMemberById(member.id);
     return Response.json({ member: updated });
@@ -70,7 +71,7 @@ const deleteHandler = async (request: Request, context: GuardContext & { params:
     await repo.updateMember(member.id, {
       avatarUrl: null,
       avatarStoragePath: null,
-    });
+    }, actorFromClaims(context.user!));
 
     const updated = await repo.getMemberById(member.id);
     return Response.json({ member: updated });

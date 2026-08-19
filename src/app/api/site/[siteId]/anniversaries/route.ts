@@ -4,6 +4,7 @@ import { AnniversaryRepository } from '@/repositories/AnniversaryRepository';
 import { AnniversaryOccurrenceRepository } from '@/repositories/AnniversaryOccurrenceRepository';
 import { sendHonoreeBlessingLink } from '@/services/HonoreeInviteService';
 import { GuardContext } from '@/app/api/types';
+import { isCalendarSystem, type CalendarSystem } from '@/utils/calendarSystems';
 
 export const dynamic = 'force-dynamic';
 
@@ -59,10 +60,18 @@ const postHandler = async (request: Request, context: GuardContext) => {
     const user = context.user!;
     const member = context.member!;
     const body = await request.json();
-    const { name, description, type, date, isAnnual, imageUrl, useHebrew, honoreeMemberId, honoreeEmail, sendInviteNow } = body;
+    const { name, description, type, date, isAnnual, imageUrl, useHebrew, calendarSystem, honoreeMemberId, honoreeEmail, sendInviteNow } = body;
     if (!name || !date || !type) {
       return Response.json({ error: 'Missing fields' }, { status: 400 });
     }
+
+    const resolvedCalendarSystem: CalendarSystem | undefined = isCalendarSystem(calendarSystem)
+      ? calendarSystem
+      : useHebrew === true
+        ? 'jewish'
+        : useHebrew === false
+          ? 'gregorian'
+          : undefined;
 
     // Get locale from header (injected by proxy from query param)
     const locale = request.headers.get('x-locale') || 'he';
@@ -78,7 +87,8 @@ const postHandler = async (request: Request, context: GuardContext) => {
       isAnnual: type !== 'other' && Boolean(isAnnual ?? true),
       createdBy: user.userId,
       imageUrl,
-      useHebrew: Boolean(useHebrew),
+      calendarSystem: resolvedCalendarSystem,
+      useHebrew: resolvedCalendarSystem === 'jewish' || (!isCalendarSystem(calendarSystem) && useHebrew === true),
       locale,
       honoreeMemberId: honoreeMemberId || undefined,
       honoreeEmail: honoreeMemberId ? undefined : honoreeEmail || undefined,

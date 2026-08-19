@@ -15,14 +15,13 @@
 // api.openai.com/v1/chat/completions, model from OPENAI_MODEL || 'gpt-4o-mini' - no SDK
 // dependency added.
 import { SiteRepository, resolveSendSettingsForSite } from '@/repositories/SiteRepository';
-import { MemberRepository, type LocalizedMemberRecord } from '@/repositories/MemberRepository';
+import { MemberRepository } from '@/repositories/MemberRepository';
 import { BlogRepository } from '@/repositories/BlogRepository';
 import { monthKey } from '@/repositories/DigestSendRepository';
 import { BlogAutogenRepository, blogAutogenRepository as defaultBlogAutogenRepository } from '@/repositories/BlogAutogenRepository';
 import { DigestCompilerService, type DigestEventWithPhotos } from '@/services/DigestCompilerService';
 import { resolveDigestSiteName } from '@/services/DigestTemplateService';
-import { ResendService } from '@/services/ResendService';
-import { renderEmailHtml } from '@/services/emailTemplates';
+import { notifyAdminsOfPendingBlogReview } from '@/services/BlogReviewNotificationService';
 
 export type BlogAutogenOutcome =
   | 'created'
@@ -138,48 +137,22 @@ export class BlogAutogenService {
     // Best-effort notification - a failed email must not undo the draft that was already
     // safely created (mirrors the author-notification try/catch in
     // src/app/api/review/[token]/route.ts).
-    await this.notifyAdminsOfPendingReview(siteId, admins, siteName, reviewToken, post.id, draft.title).catch((err) => {
+    await notifyAdminsOfPendingBlogReview({
+      siteId,
+      postId: post.id,
+      postTitle: draft.title,
+      reviewToken,
+      sendType: 'blog-autogen-admin',
+      subject: `New auto-drafted blog post for ${siteName}`,
+      paragraphs: [
+        `We drafted a new blog post for ${siteName} based on this month's family activity: "${draft.title}".`,
+        'Please review it before it goes public - nothing is published until you approve it.',
+      ],
+    }).catch((err) => {
       console.error(`[BlogAutogenService] admin notification failed for site ${siteId}:`, err);
     });
 
     return { siteId, periodKey, outcome: 'created', postId: post.id };
-  }
-
-  private async notifyAdminsOfPendingReview(
-    siteId: string,
-    admins: LocalizedMemberRecord[],
-    siteName: string,
-    reviewToken: string,
-    postId: string,
-    postTitle: string,
-  ): Promise<void> {
-    const appUrl = (process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/+$/, '');
-    const reviewUrl = `${appUrl}/review/${reviewToken}`;
-    const subject = `New auto-drafted blog post for ${siteName}`;
-
-    const recipients = admins.filter((admin): admin is LocalizedMemberRecord & { email: string } => !!admin.email);
-    await Promise.all(
-      recipients.map((admin) => {
-        const html = renderEmailHtml({
-          subject,
-          greeting: `Hi ${admin.firstName || admin.displayName || 'there'},`,
-          paragraphs: [
-            `We drafted a new blog post for ${siteName} based on this month's family activity: "${postTitle}".`,
-            'Please review it before it goes public - nothing is published until you approve it.',
-          ],
-          button: { label: 'Review draft', url: reviewUrl },
-          footerLines: ['FamCircle'],
-        });
-        return ResendService.sendTransactionalEmail({
-          to: admin.email,
-          subject,
-          html,
-          tracking: appUrl
-            ? { origin: appUrl, siteId, recipientMemberId: admin.id, sendType: 'blog-autogen-admin', sendId: postId }
-            : undefined,
-        });
-      }),
-    );
   }
 
   /**

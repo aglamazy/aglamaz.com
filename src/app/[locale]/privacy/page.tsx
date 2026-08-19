@@ -1,10 +1,12 @@
 import type { Metadata } from 'next';
 import PrivacyPage from './PrivacyPage';
 import { DEFAULT_LOCALE, SUPPORTED_LOCALES } from '@/i18n';
-import { buildPageMetadata } from '@/utils/seo';
+import { buildPageMetadata, resolveMetadataBaseUrl } from '@/utils/seo';
 import { getServerT } from '@/utils/serverTranslations';
 import { adminAuth, fetchSiteInfo, initAdmin } from '@/firebase/admin';
 import { resolveSiteId } from '@/utils/resolveSiteId';
+import { stripScriptTags, cleanJsonLd } from '@/utils/jsonld';
+import { createBreadcrumbSchema } from '@/utils/blogSchema';
 
 const LAST_UPDATED_ISO = '2026-07-17';
 
@@ -49,5 +51,18 @@ export default async function PrivacyRoute({ params }: { params: Promise<{ local
   const locale = SUPPORTED_LOCALES.includes(paramLocale) ? paramLocale : DEFAULT_LOCALE;
   const contactEmail = await resolveContactEmail(locale);
 
-  return <PrivacyPage contactEmail={contactEmail} lastUpdatedIso={LAST_UPDATED_ISO} />;
+  const t = await getServerT(locale);
+  const baseUrl = await resolveMetadataBaseUrl();
+  const breadcrumbSchema = createBreadcrumbSchema([
+    { name: t('home') as string, url: baseUrl ? `${baseUrl}/${locale}` : undefined },
+    { name: t('privacyPageTitle') as string, url: baseUrl ? `${baseUrl}/${locale}/privacy` : undefined },
+  ]);
+  const structuredData = stripScriptTags(JSON.stringify(cleanJsonLd(breadcrumbSchema)));
+
+  return (
+    <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: structuredData }} />
+      <PrivacyPage contactEmail={contactEmail} lastUpdatedIso={LAST_UPDATED_ISO} />
+    </>
+  );
 }

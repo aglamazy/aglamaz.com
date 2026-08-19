@@ -2,6 +2,7 @@ import { withUserGuard } from '@/lib/withUserGuard';
 import { GuardContext } from '@/app/api/types';
 import { FamilyRepository } from '@/repositories/FamilyRepository';
 import { SUPPORTED_LOCALES } from '@/i18n';
+import { actorFromClaims } from '@/auth/tokens';
 
 export const dynamic = 'force-dynamic';
 
@@ -77,7 +78,7 @@ const putHandler = async (request: Request, context: GuardContext) => {
       return Response.json({ error: 'No updates provided' }, { status: 400 });
     }
 
-    await resolved.repo.updateMember(resolved.member.id, updates);
+    await resolved.repo.updateMember(resolved.member.id, updates, actorFromClaims(context.user!));
     const updated = await resolved.repo.getMemberById(resolved.member.id);
     return Response.json({ member: updated });
   } catch (error) {

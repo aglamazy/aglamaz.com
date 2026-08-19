@@ -24,7 +24,27 @@ export interface MemberRecord extends Omit<IMember, 'role'> {
   avatarUrl?: string | null;
   avatarStoragePath?: string | null;
   translations?: Record<string, MemberLocaleProfile> | null;
+  /** Who performed the write that produced this row — see {@link WriteActor}. */
+  createdBy?: string | null;
+  createdByKind?: WriteActorKind | null;
+  updatedBy?: string | null;
+  updatedByKind?: WriteActorKind | null;
   [key: string]: unknown;
+}
+
+/**
+ * Who is actually performing a write (dasi#1 v2, agentic-access-actor-model-SPEC,
+ * aglamaz_libs#255) — mirrors {@link ActorClaims} from src/auth/tokens.ts but is
+ * a plain Firestore-writable shape (flat fields on the record, not a nested
+ * JWT claim). REQUIRED on every write method below, not an optional field a
+ * caller can forget to pass — the spec's own point is that attribution must be
+ * atomic with the write, not a follow-up a human or audit pass adds later.
+ */
+export type WriteActorKind = 'human' | 'agent';
+export interface WriteActor {
+  kind: WriteActorKind;
+  /** The member's userId for a human; the fleet lane name (e.g. "Shofar") for an agent. */
+  id: string;
 }
 
 export interface LocalizedMemberRecord extends MemberRecord {
@@ -208,13 +228,17 @@ export class MemberRepository {
     return this.getByBlogHandle(siteId, handle, opts);
   }
 
-  async create(data: Partial<MemberRecord>): Promise<MemberRecord> {
+  async create(data: Partial<MemberRecord>, actor: WriteActor): Promise<MemberRecord> {
     try {
       const now = this.getTimestamp();
       const payload: Record<string, unknown> = {
         ...data,
         createdAt: (data as any)?.createdAt ?? now,
         updatedAt: (data as any)?.updatedAt ?? now,
+        createdBy: actor.id,
+        createdByKind: actor.kind,
+        updatedBy: actor.id,
+        updatedByKind: actor.kind,
       };
       const ref = await this.membersCollection().add(payload);
       const snap = await ref.get();
@@ -225,9 +249,12 @@ export class MemberRepository {
     }
   }
 
-  async update(memberId: string, updates: Partial<MemberRecord>, updatedAt?: Timestamp): Promise<void> {
+  async update(memberId: string, updates: Partial<MemberRecord>, actor: WriteActor, updatedAt?: Timestamp): Promise<void> {
     try {
-      const payload = this.prepareUpdatePayload(updates, updatedAt);
+      const payload = this.prepareUpdatePayload(
+        { ...updates, updatedBy: actor.id, updatedByKind: actor.kind },
+        updatedAt,
+      );
       await this.membersCollection().doc(memberId).update(payload);
     } catch (error) {
       console.error('[member][repo] failed to update member', { memberId }, error);
@@ -245,11 +272,13 @@ export class MemberRepository {
   }
 
   async approve(memberId: string, approvedBy: string, timestamp = this.getTimestamp()): Promise<void> {
+    // approve/reject are always an admin MEMBER's own action — approvedBy/rejectedBy already
+    // identify that human, so the actor is derived here rather than added as a new param.
     await this.update(memberId, {
       role: 'member',
       approvedAt: timestamp,
       approvedBy,
-    }, timestamp);
+    }, { kind: 'human', id: approvedBy }, timestamp);
   }
 
   async reject(memberId: string, rejectedBy: string, reason?: string, timestamp = this.getTimestamp()): Promise<void> {
@@ -258,7 +287,7 @@ export class MemberRepository {
       rejectedAt: timestamp,
       rejectedBy,
       rejectionReason: reason ?? null,
-    }, timestamp);
+    }, { kind: 'human', id: rejectedBy }, timestamp);
   }
 
   async isUserMember(uid: string, siteId: string): Promise<boolean> {
@@ -291,7 +320,7 @@ export class MemberRepository {
       updates.blogHandle = await this.generateUniqueBlogHandle(base, siteId);
     }
 
-    await this.update(member.id, updates);
+    await this.update(member.id, updates, { kind: 'human', id: uid });
   }
 
   async registerBlog(
@@ -334,7 +363,7 @@ export class MemberRepository {
       this.txUpdate(tx, member.id, {
         blogEnabled: true,
         blogHandle: desiredHandle,
-      });
+      }, { kind: 'human', id: uid });
 
       return desiredHandle;
     });
@@ -380,15 +409,20 @@ export class MemberRepository {
     tx: Transaction,
     memberId: string,
     updates: Partial<MemberRecord>,
+    actor: WriteActor,
     options?: { updatedAt?: Timestamp },
   ): void {
-    const payload = this.prepareUpdatePayload(updates, options?.updatedAt);
+    const payload = this.prepareUpdatePayload(
+      { ...updates, updatedBy: actor.id, updatedByKind: actor.kind },
+      options?.updatedAt,
+    );
     tx.update(this.membersCollection().doc(memberId), payload);
   }
 
   txCreate(
     tx: Transaction,
     data: Partial<MemberRecord>,
+    actor: WriteActor,
     options?: { id?: string; timestamp?: Timestamp },
   ): MemberTransactionSnapshot {
     const timestamp = options?.timestamp ?? this.getTimestamp();
@@ -399,6 +433,10 @@ export class MemberRepository {
       ...data,
       createdAt: (data as any)?.createdAt ?? timestamp,
       updatedAt: (data as any)?.updatedAt ?? timestamp,
+      createdBy: actor.id,
+      createdByKind: actor.kind,
+      updatedBy: actor.id,
+      updatedByKind: actor.kind,
     };
     tx.set(docRef, payload);
     return {

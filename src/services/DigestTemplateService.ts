@@ -5,6 +5,7 @@ import type { CadenceDigestPayload, DigestEventWithPhotos } from './DigestCompil
 import { formatHebrewDisplay } from '@/utils/hebrew';
 import { getLocalizedFields } from './LocalizationService.client';
 import { renderEmailHtml, escapeHtml } from './emailTemplates';
+import { buildClickTrackingUrl } from './EmailTrackingService';
 
 export interface DigestEmailContent {
   subject: string;
@@ -31,6 +32,12 @@ export interface BuildDigestEmailOptions {
    * /app/* link in the email carries it as `?rt=`, so opening the magazine from an inbox
    * lands read-only with no login prompt (famcircle#127, the read-only-magazine-links ask). */
   readOnlyToken: string;
+  /** This recipient's signed email-tracking token (EmailTrackingService.signEmailTrackingToken,
+   * sendType 'digest') - when present, wraps calendarUrl through buildClickTrackingUrl so the
+   * event-title links (the digest's main navigation surface) are click-tracked, matching how
+   * the open pixel is already tracked centrally in ResendService. Optional so a caller that
+   * doesn't have a click-tracking identity yet (e.g. a preview render) still works unwrapped. */
+  emailTrackingClickToken?: string;
 }
 
 /**
@@ -324,7 +331,15 @@ function buildCadenceDigestEmail(
 
   // Every /app/* link in this email carries this recipient's read-only token, so opening
   // the magazine from an inbox works with no login prompt (famcircle#127).
-  const calendarUrl = withReadOnlyToken(options.calendarUrl, options.readOnlyToken);
+  const rtCalendarUrl = withReadOnlyToken(options.calendarUrl, options.readOnlyToken);
+  // Click-tracking wraps OUTSIDE the rt-token (not the other way round) - the redirect must
+  // 302 to a URL that still carries ?rt=, or opening the magazine from the email would hit
+  // the login wall again. Wrapping only calendarUrl (not gallery/manage) mirrors the ONE
+  // tracked link in-day-reminders already has - every event title uses this same URL, so
+  // it covers the digest's actual navigation surface without wrapping every link in the email.
+  const calendarUrl = options.emailTrackingClickToken
+    ? buildClickTrackingUrl(new URL(options.calendarUrl).origin, options.emailTrackingClickToken, rtCalendarUrl)
+    : rtCalendarUrl;
   const galleryUrl = withReadOnlyToken(options.galleryUrl, options.readOnlyToken);
   const manageUrl = withReadOnlyToken(options.manageUrl, options.readOnlyToken);
 

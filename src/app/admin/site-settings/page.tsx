@@ -8,6 +8,13 @@ import { apiFetch } from '@/utils/apiFetch';
 import { ApiRoute } from '@/entities/Routes';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
+import { CALENDAR_SYSTEMS, type CalendarSystem } from '@/utils/calendarSystems';
+
+const CALENDAR_SYSTEM_LABEL_KEYS: Record<CalendarSystem, string> = {
+  gregorian: 'gregorianCalendarSystem',
+  jewish: 'jewishCalendarSystem',
+  muslim: 'muslimCalendarSystem',
+};
 
 export default function SiteSettingsPage() {
   const { t } = useTranslation();
@@ -15,6 +22,8 @@ export default function SiteSettingsPage() {
   const [aboutFamily, setAboutFamily] = useState('');
   const [sourceLang, setSourceLang] = useState('he');
   const [defaultLocale, setDefaultLocale] = useState('he');
+  const [calendarSystems, setCalendarSystems] = useState<CalendarSystem[]>([]);
+  const [defaultCalendarSystem, setDefaultCalendarSystem] = useState<CalendarSystem | ''>('');
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -31,10 +40,14 @@ export default function SiteSettingsPage() {
           sourceLang: string;
           defaultLocale: string | null;
           aboutTranslations: Record<string, string>;
+          calendarSystems?: CalendarSystem[];
+          defaultCalendarSystem?: CalendarSystem;
         }>(ApiRoute.SITE_SETTINGS);
         setAboutFamily(data.aboutFamily || '');
         setSourceLang(data.sourceLang || 'he');
         setDefaultLocale(data.defaultLocale || 'he');
+        setCalendarSystems(Array.isArray(data.calendarSystems) ? data.calendarSystems : []);
+        setDefaultCalendarSystem(data.defaultCalendarSystem || '');
       } catch (err) {
         console.error('Failed to load site settings', err);
         setError(t('failedToLoadSettings'));
@@ -46,8 +59,31 @@ export default function SiteSettingsPage() {
     loadSettings();
   }, [site?.id, t]);
 
+  const toggleCalendarSystem = (system: CalendarSystem) => {
+    setCalendarSystems((current) => {
+      const next = current.includes(system)
+        ? current.filter((value) => value !== system)
+        : [...current, system];
+
+      if (defaultCalendarSystem && !next.includes(defaultCalendarSystem)) {
+        setDefaultCalendarSystem('');
+      }
+
+      return next;
+    });
+  };
+
   const handleSave = async () => {
     if (!site?.id) return;
+    if (calendarSystems.length === 0) {
+      setError(t('calendarSystemsRequired'));
+      return;
+    }
+    if (!defaultCalendarSystem || !calendarSystems.includes(defaultCalendarSystem)) {
+      setError(t('defaultCalendarSystemRequired'));
+      return;
+    }
+
     setSaving(true);
     setError('');
     setSuccessMessage('');
@@ -55,7 +91,7 @@ export default function SiteSettingsPage() {
     try {
       await apiFetch(ApiRoute.SITE_SETTINGS, {
         method: 'PUT',
-        body: { aboutFamily, sourceLang, defaultLocale },
+        body: { aboutFamily, sourceLang, defaultLocale, calendarSystems, defaultCalendarSystem },
       });
       setSuccessMessage(t('settingsSavedSuccessfully'));
       setTimeout(() => setSuccessMessage(''), 3000);
@@ -143,6 +179,52 @@ export default function SiteSettingsPage() {
               </select>
               <p className="text-xs text-sage-500 mt-1">
                 {t('defaultLocaleHint')}
+              </p>
+            </div>
+
+            <div className="mb-6">
+              <label className="block mb-2 text-sm font-medium text-sage-700">
+                {t('calendarSystems')}
+              </label>
+              <p className="text-xs text-sage-500 mb-3">
+                {t('calendarSystemsHint')}
+              </p>
+              <div className="grid gap-3 sm:grid-cols-3">
+                {CALENDAR_SYSTEMS.map((system) => (
+                  <label
+                    key={system}
+                    className="flex items-center gap-2 rounded-md border border-sage-200 bg-white px-3 py-2 text-sm text-sage-700"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={calendarSystems.includes(system)}
+                      onChange={() => toggleCalendarSystem(system)}
+                    />
+                    {t(CALENDAR_SYSTEM_LABEL_KEYS[system])}
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="mb-6">
+              <label className="block mb-2 text-sm font-medium text-sage-700">
+                {t('defaultCalendarSystem')}
+              </label>
+              <select
+                value={defaultCalendarSystem}
+                onChange={(e) => setDefaultCalendarSystem(e.target.value as CalendarSystem | '')}
+                disabled={calendarSystems.length === 0}
+                className="w-full sm:w-auto p-2 border border-sage-200 rounded-md focus:outline-none focus:ring-2 focus:ring-sage-500 focus:border-transparent disabled:bg-sage-100 disabled:text-sage-400"
+              >
+                <option value="">{t('chooseDefaultCalendarSystem')}</option>
+                {calendarSystems.map((system) => (
+                  <option key={system} value={system}>
+                    {t(CALENDAR_SYSTEM_LABEL_KEYS[system])}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-sage-500 mt-1">
+                {t('defaultCalendarSystemHint')}
               </p>
             </div>
 

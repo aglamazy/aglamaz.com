@@ -5,6 +5,13 @@ import { initAdmin } from '@/firebase/admin';
 import { TranslationService } from '@/services/TranslationService';
 import { saveLocalizedContent } from '@/services/LocalizationService';
 import { SEND_TYPES, type ISite, type SendType } from '@/entities/Site';
+import {
+  getDefaultCalendarSystem,
+  inferDefaultCalendarSystems,
+  isCalendarSystem,
+  normalizeCalendarSystems,
+  type CalendarSystem,
+} from '@/utils/calendarSystems';
 
 const SUPPORTED_LOCALES: string[] = Array.isArray(nextI18NextConfig?.i18n?.locales)
   ? nextI18NextConfig.i18n.locales
@@ -77,6 +84,19 @@ interface UpdateAboutParams {
   aboutFamily: string;
   sourceLang: string;
   supportedLocales: string[];
+  calendarSystems?: CalendarSystem[];
+  defaultCalendarSystem?: CalendarSystem;
+}
+
+interface CreateSiteParams {
+  ownerUid: string;
+  name: string;
+  locale: string;
+  aboutFamily?: string;
+  platformName?: string;
+  country?: string;
+  timezone?: string;
+  isDemo?: boolean;
 }
 
 export class SiteRepository {
@@ -87,6 +107,66 @@ export class SiteRepository {
 
   private siteDocRef(siteId: string) {
     return this.getDb().collection('sites').doc(siteId);
+  }
+
+  async create(params: CreateSiteParams): Promise<ISite> {
+    const { ownerUid, name, locale, aboutFamily = '', platformName = '', country, timezone, isDemo } = params;
+    // ownerUid may be legitimately empty at creation time (famcircle#97's admin-provisioned
+    // flow: the owner has no Firebase Auth account yet when the site is created, only an
+    // invite). The admin dashboard already has a "missing admin email" banner + the
+    // SITE_ADMIN_OWNER endpoint (src/app/api/site/[siteId]/admin/owner/route.ts) to backfill
+    // it by email once the owner signs up - this is an anticipated state, not a bug.
+    if (!name) {
+      throw new Error('name is required');
+    }
+    if (!locale) {
+      throw new Error('locale is required');
+    }
+
+    const db = this.getDb();
+    const now = Timestamp.now();
+    const calendarSystems = inferDefaultCalendarSystems({ country, name, timezone });
+    const defaultCalendarSystem = getDefaultCalendarSystem(calendarSystems);
+
+    if (!defaultCalendarSystem) {
+      throw new Error('Unable to determine default calendar system');
+    }
+
+    const docRef = db.collection('sites').doc();
+    const siteData = {
+      ownerUid,
+      name,
+      aboutFamily,
+      platformName,
+      calendarSystems,
+      defaultCalendarSystem,
+      isDemo: isDemo === true ? true : undefined,
+      locales: {
+        [locale]: {
+          name,
+          name$meta: {
+            source: 'manual',
+            updatedAt: now,
+          },
+          aboutFamily,
+          aboutFamily$meta: {
+            source: 'manual',
+            updatedAt: now,
+          },
+          platformName,
+          platformName$meta: {
+            source: 'manual',
+            updatedAt: now,
+          },
+        },
+      },
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    await docRef.set(siteData);
+    const doc = await docRef.get();
+    return this.deserializeSite(doc.id, doc.data() || {});
   }
 
   private domainMappingRef(domain: string) {
@@ -207,7 +287,7 @@ export class SiteRepository {
   }
 
   async updateAbout(params: UpdateAboutParams): Promise<{ aboutTranslations: Record<string, string> }> {
-    const { siteId, aboutFamily, sourceLang, supportedLocales } = params;
+    const { siteId, aboutFamily, sourceLang, supportedLocales, calendarSystems, defaultCalendarSystem } = params;
     const docRef = this.siteDocRef(siteId);
     const snap = await docRef.get();
     if (!snap.exists) {
@@ -217,6 +297,28 @@ export class SiteRepository {
     const site = this.deserializeSite(snap.id, snap.data() || {});
     const trimmed = aboutFamily.trim();
     const now = Timestamp.now();
+
+    if ((calendarSystems !== undefined || defaultCalendarSystem !== undefined) && (!calendarSystems || !defaultCalendarSystem)) {
+      throw new Error('calendarSystems and defaultCalendarSystem must be provided together');
+    }
+
+    if (calendarSystems !== undefined) {
+      const normalizedCalendarSystems = normalizeCalendarSystems(calendarSystems);
+      if (normalizedCalendarSystems.length === 0) {
+        throw new Error('calendarSystems must include at least one supported calendar');
+      }
+      if (!isCalendarSystem(defaultCalendarSystem)) {
+        throw new Error('defaultCalendarSystem must be one of the configured calendar systems');
+      }
+      if (!normalizedCalendarSystems.includes(defaultCalendarSystem)) {
+        throw new Error('defaultCalendarSystem must be included in calendarSystems');
+      }
+      await docRef.update({
+        calendarSystems: normalizedCalendarSystems,
+        defaultCalendarSystem,
+        updatedAt: now,
+      });
+    }
 
     // Save the aboutFamily in the sourceLang locale
     await saveLocalizedContent(
@@ -267,6 +369,8 @@ export class SiteRepository {
     sourceLang: string;
     defaultLocale: string | null;
     aboutTranslations: Record<string, string>;
+    calendarSystems?: CalendarSystem[];
+    defaultCalendarSystem?: CalendarSystem;
   }> {
     const site = await this.fetchSite(siteId);
     if (!site) {
@@ -303,6 +407,8 @@ export class SiteRepository {
       sourceLang,
       defaultLocale: site.defaultLocale || null,
       aboutTranslations,
+      calendarSystems: site.calendarSystems,
+      defaultCalendarSystem: site.defaultCalendarSystem,
     };
   }
 
@@ -334,6 +440,25 @@ export class SiteRepository {
     }
 
     return fetcher();
+  }
+
+  // famcircle#97: admin-provisioned site creation. Per docs/FAMILYCORE_SITE_CREATION.md's
+  // security notes - never let a caller pick a taken domain, since domainMappings is the
+  // ONLY thing standing between a new domain and NEXT_SITE_ID's fallback rendering the
+  // Aglamaz family's private site (see FamilyCore's docs/multi-site-concept.md landmine #1).
+  async createDomainMapping(domain: string, siteId: string, opts: { isPrimary?: boolean; createdBy?: string } = {}): Promise<void> {
+    const normalizedDomain = domain.toLowerCase().trim();
+    const ref = this.domainMappingRef(normalizedDomain);
+    const existing = await ref.get();
+    if (existing.exists) {
+      throw new Error(`Domain ${normalizedDomain} is already assigned to another site`);
+    }
+    await ref.set({
+      siteId,
+      isPrimary: opts.isPrimary ?? false,
+      createdAt: Timestamp.now(),
+      ...(opts.createdBy ? { createdBy: opts.createdBy } : {}),
+    });
   }
 
   async getDomainBySiteId(siteId: string, opts?: GetOptions): Promise<string | null> {
@@ -422,6 +547,12 @@ export class SiteRepository {
       // (rather than a fresh getSendSettings() call) would see it as always-unset.
       blogAutogenEnabled: plain.blogAutogenEnabled === true ? true : undefined,
       sendSettings: (plain.sendSettings as ISite['sendSettings']) || undefined,
+      calendarSystems: Array.isArray(plain.calendarSystems)
+        ? normalizeCalendarSystems(plain.calendarSystems)
+        : undefined,
+      defaultCalendarSystem: isCalendarSystem(plain.defaultCalendarSystem)
+        ? plain.defaultCalendarSystem
+        : undefined,
       locales: (plain.locales as ISite['locales']) || {},
     } as ISite;
   }
