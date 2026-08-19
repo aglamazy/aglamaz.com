@@ -11,18 +11,19 @@ async function testHealthyWhenEverythingIsSet() {
   console.log('env-completeness healthy when everything is set test passed');
 }
 
-// The exact motivating case from spec-periodic-tests.md - AGENTS_OBSERVE_* confirmed
-// unset 2026-08-16, a real gap that doesn't crash anything (the lib no-ops silently)
-// but should still be caught.
-async function testDetectsTheAgentsObserveGap() {
-  const setKeys = new Set(EXPECTED_PROD_ENV_VARS.map((v) => v.name).filter((n) => !n.startsWith('AGENTS_OBSERVE_')));
+// Multiple vars missing at once (the original motivating case, AGENTS_OBSERVE_*, was
+// removed from EXPECTED_PROD_ENV_VARS 2026-08-19 when its consuming code was reverted -
+// see envCompletenessCheck.ts's doc comment) - a real gap that doesn't crash anything
+// (the lib no-ops silently) but should still be caught.
+async function testDetectsMultipleMissingVars() {
+  const setKeys = new Set(EXPECTED_PROD_ENV_VARS.map((v) => v.name).filter((n) => !n.startsWith('GMAIL_')));
   const result = await checkEnvCompleteness(EXPECTED_PROD_ENV_VARS, {
     listSetProductionEnvKeys: async () => setKeys,
   });
   assert.equal(result.healthy, false);
   assert.equal(result.missing.length, 3);
-  assert.ok(result.missing.every((v) => v.name.startsWith('AGENTS_OBSERVE_')));
-  console.log('env-completeness detects the real AGENTS_OBSERVE_* gap test passed');
+  assert.ok(result.missing.every((v) => v.name.startsWith('GMAIL_')));
+  console.log('env-completeness detects multiple missing vars test passed');
 }
 
 async function testDetectsASingleMissingVar() {
@@ -38,7 +39,7 @@ async function testDetectsASingleMissingVar() {
 
 async function run() {
   await testHealthyWhenEverythingIsSet();
-  await testDetectsTheAgentsObserveGap();
+  await testDetectsMultipleMissingVars();
   await testDetectsASingleMissingVar();
 }
 
