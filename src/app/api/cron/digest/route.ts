@@ -13,7 +13,6 @@
 // Auth: Vercel Cron sends Authorization: Bearer {CRON_SECRET}; same secret used for manual curl tests.
 
 import { NextRequest, NextResponse } from 'next/server';
-import { withServiceCall } from 'agents-observe/next';
 import { SiteRepository } from '@/repositories/SiteRepository';
 import { periodKeyFor } from '@/repositories/DigestSendRepository';
 import { resolveDigestRecipients } from '@/services/DigestSendPlanService';
@@ -33,7 +32,7 @@ function resolveMemberIdFilter(request: NextRequest): string | null {
   return request.nextUrl.searchParams.get('memberId');
 }
 
-async function getHandler(request: NextRequest) {
+export async function GET(request: NextRequest) {
   if (!process.env.CRON_SECRET) {
     console.error('[cron/digest] CRON_SECRET environment variable is not set');
     return NextResponse.json({ error: 'Server misconfiguration: CRON_SECRET not set' }, { status: 500 });
@@ -118,4 +117,3 @@ async function getHandler(request: NextRequest) {
 // famcircle#156 incident) is never a normal "expected client error", unlike most 4xx
 // traffic elsewhere in the app. Requires AGENTS_OBSERVE_INGEST_URL/TOKEN/PROJECT_ID to
 // actually deliver - no-ops safely if unset (see docs/monitoring-runbook.md).
-export const GET = withServiceCall(getHandler, { report4xx: true });
