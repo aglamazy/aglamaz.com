@@ -180,6 +180,20 @@ above plus two new ones into one report:
 6. **No-naked-500** - covered by `/api/health`'s own status-code contract.
 
 ```
+npm run test:deploy
+```
+
+With no `--url`/`TARGET_URL`, defaults to `package.json`'s `deployDomains` list -
+both `aglamaz.com` and `famcircle.org` (two tenants of this one deployment, see
+`docs/architecture.md`). `connections-up` runs once per domain (each domain's own
+DNS/Vercel-alias routing is a separate fact from "the deployment is healthy" - one
+domain can be live while another is silently broken at the alias layer); the
+deployment-level checks (cron auth/registration, freshness, env-completeness) are
+project-wide facts, not per-domain, so they run once against `deployDomains[0]`.
+Pass `--url <https://...>` to check a single domain only (e.g. for a one-off manual
+smoke test):
+
+```
 npm run test:deploy -- --url https://aglamaz.com
 ```
 

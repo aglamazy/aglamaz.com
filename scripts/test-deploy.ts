@@ -41,6 +41,12 @@
  * Usage:
  *   CRON_SECRET=<current prod value, from Tzach> npm run test:deploy -- --url https://aglamaz.com
  *   # or: TARGET_URL=https://aglamaz.com CRON_SECRET=... npm run test:deploy
+ *   # or, with no --url/TARGET_URL at all: defaults to checking EVERY domain in
+ *   # package.json's "deployDomains" (both aglamaz.com and famcircle.org - two tenants
+ *   # of this one deployment, see docs/architecture.md). "connections-up" runs once per
+ *   # domain (proves each domain's own DNS/alias routing is actually live); the
+ *   # deployment-level checks (cron auth/registration, freshness, env) are project-wide
+ *   # facts, not per-domain, so they run once against deployDomains[0].
  */
 import { execFileSync } from 'node:child_process';
 import { readFileSync, existsSync } from 'node:fs';
@@ -54,6 +60,12 @@ import { checkReferencedScriptsExist, type ReferencedScriptGap } from './lib/ref
 
 const PROJECT_ID = 'prj_CJlIZEFuh7xrLyJxhtSZV5E8VoLZ';
 const TEAM_ID = 'team_llVcU3OqbxiFo7DtRU1lunMK';
+
+/** The "deployDomains" list in package.json - every live domain this one deployment serves. */
+function deployDomainsFromPackageJson(): string[] {
+  const raw = JSON.parse(readFileSync(join(__dirname, '..', 'package.json'), 'utf8'));
+  return Array.isArray(raw.deployDomains) ? raw.deployDomains : [];
+}
 
 function parseUrlArg(): string | undefined {
   const argv = process.argv.slice(2);
@@ -163,12 +175,19 @@ interface CheckSummary {
 }
 
 async function main() {
-  const url = parseUrlArg() ?? process.env.TARGET_URL;
-  if (!url) {
-    console.error('test-deploy: no target URL. Pass --url <https://...> or set TARGET_URL.');
+  const explicitUrl = parseUrlArg() ?? process.env.TARGET_URL;
+  const domains = explicitUrl ? [explicitUrl] : deployDomainsFromPackageJson();
+  if (domains.length === 0) {
+    console.error(
+      'test-deploy: no target URL. Pass --url <https://...> or set TARGET_URL, ' +
+      'or add a "deployDomains" array to package.json.'
+    );
     process.exitCode = 1;
     return;
   }
+  // Deployment-level checks (cron auth/registration, freshness, env-completeness) are
+  // project-wide facts, not per-domain - they only need one live domain to ask against.
+  const url = domains[0];
 
   const summaries: CheckSummary[] = [];
 
@@ -181,13 +200,18 @@ async function main() {
 
   // 2 + 6 (health half). /api/health already covers Firebase/Gmail/Translation and
   // returns real 200/503/500 - one call serves both "connections up" and part of
-  // "no-naked-500".
-  const health = await checkHealth(url);
-  summaries.push({
-    name: 'connections-up (/api/health)',
-    healthy: health.healthy,
-    detail: health.reachable ? `HTTP ${health.statusCode}` : `unreachable: ${health.error}`,
-  });
+  // "no-naked-500". Run once PER configured domain (not just the primary) - each
+  // domain's own DNS/Vercel-alias routing to this deployment is a separate fact from
+  // "the deployment itself is healthy", and one domain can be live while another is
+  // silently broken at the alias/DNS layer.
+  for (const domain of domains) {
+    const health = await checkHealth(domain);
+    summaries.push({
+      name: `connections-up (${domain})`,
+      healthy: health.healthy,
+      detail: health.reachable ? `HTTP ${health.statusCode}` : `unreachable: ${health.error}`,
+    });
+  }
 
   // 1. CRON_SECRET live, per route.
   let secret: string;

@@ -1,7 +1,11 @@
 {
   "name": "aglamaz-app",
-  "version": "26.8.34",
+  "version": "26.8.35",
   "private": true,
+  "deployDomains": [
+    "https://aglamaz.com",
+    "https://famcircle.org"
+  ],
   "scripts": {
     "dev": "next dev -p 3000",
     "build": "next build",
