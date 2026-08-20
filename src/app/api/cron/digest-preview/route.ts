@@ -15,10 +15,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { SiteRepository } from '@/repositories/SiteRepository';
 import { MemberRepository } from '@/repositories/MemberRepository';
-import { ResendService } from '@/services/ResendService';
 import { renderEmailHtml } from '@/services/emailTemplates';
 import { nextWeeklyFireDate, nextMonthlyFireDate } from '@/services/DigestScheduleService';
-import { buildDigestPreviewSection, SiteDefaultLocaleMissingError } from '@/services/DigestPreviewRenderer';
+import { buildDigestPreviewSection, sendDigestPreviewEmails, SiteDefaultLocaleMissingError } from '@/services/DigestPreviewRenderer';
 import type { DigestCadence } from '@/repositories/DigestSendRepository';
 
 export const dynamic = 'force-dynamic';
@@ -97,17 +96,15 @@ export async function GET(request: NextRequest) {
           footerLines: ['This is a preview only - no one else was emailed, and nothing was marked as sent.'],
         });
 
-        const results = await Promise.allSettled(
-          adminEmails.map((to) =>
-            ResendService.sendTransactionalEmail({ to, subject: `🔍 Tomorrow's ${cadence} magazine - preview`, html, lang: 'en' }),
-          ),
+        const result = await sendDigestPreviewEmails(
+          adminEmails,
+          `🔍 Tomorrow's ${cadence} magazine - preview`,
+          html,
         );
-        for (const r of results) {
-          if (r.status === 'fulfilled') sent++;
-          else {
-            failed++;
-            console.error(`[cron/digest-preview] send failed site=${siteId} cadence=${cadence}:`, r.reason);
-          }
+        sent += result.sent;
+        failed += result.failed;
+        for (const e of result.errors) {
+          console.error(`[cron/digest-preview] send failed site=${siteId} cadence=${cadence} to=${e.to}:`, e.error);
         }
       } catch (err) {
         if (err instanceof SiteDefaultLocaleMissingError) {
@@ -121,7 +118,17 @@ export async function GET(request: NextRequest) {
   }
 
   console.log(`[cron/digest-preview] complete: due=${due.map((d) => d.cadence).join(',')} sites=${siteIds.length} sent=${sent} failed=${failed}`);
-  return NextResponse.json({ ok: true, due: due.map((d) => d.cadence), sent, failed });
+  // Honest status (Agla 2026-08-20): "preview receiving = cron will be received" - this
+  // now runs the exact same sendDigestPreviewEmails() as digest-preview-send/route.ts
+  // (the admin button), which fails loud with a real 500 on a Resend error. A total
+  // failure here (every attempted send failed, nothing to show for the request) gets
+  // the same honest 500 instead of the {ok:true} 200 that hid mail.famcircle.org's
+  // domain-verification outage from every status-code-based check.
+  const allFailed = failed > 0 && sent === 0;
+  return NextResponse.json(
+    { ok: failed === 0, due: due.map((d) => d.cadence), sent, failed },
+    { status: allFailed ? 500 : 200 },
+  );
 }
 
 // famcircle#160 (2026-08-16): report any non-2xx response (default: only 5xx) - a cron

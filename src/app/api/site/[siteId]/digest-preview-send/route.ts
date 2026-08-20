@@ -6,8 +6,7 @@
 import { withAdminGuard } from '@/lib/withAdminGuard';
 import { GuardContext } from '@/app/api/types';
 import { nextCadenceToFire } from '@/services/DigestScheduleService';
-import { buildDigestPreviewSection, SiteDefaultLocaleMissingError } from '@/services/DigestPreviewRenderer';
-import { ResendService } from '@/services/ResendService';
+import { buildDigestPreviewSection, sendDigestPreviewEmails, SiteDefaultLocaleMissingError } from '@/services/DigestPreviewRenderer';
 import { renderEmailHtml } from '@/services/emailTemplates';
 
 export const dynamic = 'force-dynamic';
@@ -62,12 +61,11 @@ const postHandler = async (request: Request, context: GuardContext) => {
     footerLines: ['This is a preview only - no one else was emailed, and nothing was marked as sent.'],
   });
 
-  await ResendService.sendTransactionalEmail({
-    to: adminEmail,
-    subject,
-    html,
-    lang: 'en',
-  });
+  const { failed, errors } = await sendDigestPreviewEmails([adminEmail], subject, html);
+  if (failed > 0) {
+    console.error('[digest-preview-send] send failed', errors[0]?.error);
+    return Response.json({ error: 'Failed to send preview' }, { status: 500 });
+  }
 
   return Response.json({ ok: true, sentTo: adminEmail });
 };

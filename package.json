@@ -1,6 +1,6 @@
 {
   "name": "aglamaz-app",
-  "version": "26.8.35",
+  "version": "26.8.36",
   "private": true,
   "deployDomains": [
     "https://aglamaz.com",

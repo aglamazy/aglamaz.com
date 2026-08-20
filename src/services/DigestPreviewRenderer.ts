@@ -10,6 +10,7 @@ import { DigestTemplateService, resolveDigestSiteName } from '@/services/DigestT
 import { escapeHtml } from '@/services/emailTemplates';
 import { AppRoute } from '@/utils/urls';
 import { getUrl } from '@/utils/serverUrls';
+import { ResendService } from '@/services/ResendService';
 
 export { SiteDefaultLocaleMissingError };
 
@@ -79,4 +80,38 @@ export async function buildDigestPreviewSection(
     `;
 
   return { section, recipientCount: recipients.length };
+}
+
+export interface SendDigestPreviewResult {
+  sent: number;
+  failed: number;
+  errors: Array<{ to: string; error: unknown }>;
+}
+
+/**
+ * Shared "actually send the preview email(s)" logic (Agla 2026-08-20, same day as
+ * mail.famcircle.org's Resend domain verification lapsing went undetected): before this,
+ * the admin route (digest-preview-send) sent to its single recipient with an uncaught
+ * `await`, so a Resend error propagated out to a real HTTP 500 - while the cron route
+ * (cron/digest-preview) wrapped each send in Promise.allSettled and always returned
+ * `{ ok: true }` regardless of the tally, so the identical failure was silently a 200
+ * there. Same root cause, two different outcomes, because the SEND step (unlike the
+ * preview-content step above) was never shared. This is now the one place either route
+ * decides what a failed send means - "preview receiving = cron will be received."
+ */
+export async function sendDigestPreviewEmails(
+  to: string[],
+  subject: string,
+  html: string,
+): Promise<SendDigestPreviewResult> {
+  const results = await Promise.allSettled(
+    to.map((addr) => ResendService.sendTransactionalEmail({ to: addr, subject, html, lang: 'en' })),
+  );
+  const errors: Array<{ to: string; error: unknown }> = [];
+  let sent = 0;
+  results.forEach((r, i) => {
+    if (r.status === 'fulfilled') sent++;
+    else errors.push({ to: to[i], error: r.reason });
+  });
+  return { sent, failed: errors.length, errors };
 }

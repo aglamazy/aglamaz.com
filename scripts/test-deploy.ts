@@ -123,24 +123,37 @@ function expectedCronsFromVercelJson(): ExpectedCronEntry[] {
 }
 
 /**
- * The CURRENT production CRON_SECRET, supplied explicitly by the caller.
+ * The CURRENT production CRON_SECRET.
  *
  * CORRECTED 2026-08-18 (Buddy): this used to call `vercel env pull` itself - a known
  * SSOT-corrupter (it writes `{v: v2}`-wrapped values over plaintext in a local env
  * file; the sync direction is SSOT-to-Vercel only, never back). No script in this repo
- * should shell out to it. Credential reads route through Tzach/Custodian's sanctioned
- * path instead - whoever runs this script gets the current secret that way and passes
- * it in via CRON_SECRET, same contract check-cron-auth.ts already used correctly.
+ * should shell out to it.
+ *
+ * CORRECTED 2026-08-20 (Agla - "Haim or me should know to set vars before running
+ * test:deploy" is fragile, requiring a human to remember a manual step invites the
+ * exact silent-failure-by-forgetting class of bug this tool exists to catch): an
+ * explicit CRON_SECRET env var still wins if given (lets check-cron-auth.ts/CI/a
+ * different machine pass a value in), but when running unattended on ub02 this now
+ * reads Tzach/Custodian's sanctioned custody file directly - still never `vercel env
+ * pull`, still never printed, just no longer a step a human has to remember each run.
  */
 function currentCronSecret(): string {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) {
-    throw new Error(
-      'CRON_SECRET env var not set. This must be the CURRENT production value, obtained via ' +
-      'Tzach/Custodian\'s sanctioned credential-read path - never `vercel env pull` (SSOT-corrupter, forbidden).'
-    );
+  if (process.env.CRON_SECRET) return process.env.CRON_SECRET;
+
+  const custodyPath = join(process.env.HOME || '', 'develop/Buddy/secrets/env/aglamaz-com.production.env');
+  if (existsSync(custodyPath)) {
+    const line = readFileSync(custodyPath, 'utf8')
+      .split('\n')
+      .find((l) => l.startsWith('CRON_SECRET='));
+    if (line) return line.slice('CRON_SECRET='.length).trim();
   }
-  return secret;
+
+  throw new Error(
+    `CRON_SECRET not found. Set it explicitly, or ensure ${custodyPath} exists with a ` +
+    'CRON_SECRET= line - obtained via Tzach/Custodian\'s sanctioned credential-read path, ' +
+    'never `vercel env pull` (SSOT-corrupter, forbidden).'
+  );
 }
 
 function localGitSha(): string {
