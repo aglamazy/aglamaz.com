@@ -1,13 +1,16 @@
 {
   "name": "aglamaz-app",
-  "version": "26.8.36",
+  "version": "26.8.37",
   "private": true,
   "deployDomains": [
     "https://aglamaz.com",
     "https://famcircle.org"
   ],
   "scripts": {
+    "predev": "npm run stamp-version",
     "dev": "next dev -p 3000",
+    "stamp-version": "tsx scripts/stamp-version.ts",
+    "prebuild": "npm run stamp-version",
     "build": "next build",
     "start": "next start",
     "lint": "eslint . --max-warnings=0",

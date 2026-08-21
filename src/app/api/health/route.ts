@@ -4,6 +4,7 @@ import { GmailService } from '@/services/GmailService';
 import { TranslationService } from '@/services/TranslationService';
 import { FirebaseService } from '@/services/FirebaseService';
 import { getVersion } from '@/utils/version';
+import { APP_VERSION, APP_COMMIT } from '@/generated/version';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,6 +25,11 @@ export async function GET() {
 
     const response = {
       version: getVersion(),
+      // famcircle#165/dasi#3: build-stamped, never hand-maintained - see
+      // scripts/stamp-version.ts. `version` above (package.json's semver) is
+      // release-notes-only per the standard; this is the actual freshness signal.
+      appVersion: APP_VERSION,
+      appCommit: APP_COMMIT,
       firebase: {
         healthy: firebase.healthy,
         status: firebase.status,

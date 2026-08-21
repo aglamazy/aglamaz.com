@@ -1,5 +1,6 @@
 .next
 node_modules
+src/generated
 .env.local
 .env.local.backup
 .env.preview.local
