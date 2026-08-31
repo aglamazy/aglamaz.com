@@ -8,6 +8,7 @@ import NotMemberContent from '@/components/NotMemberContent';
 import EditUserDetails from '@/components/EditUserDetails';
 import NotificationPreferences from '@/components/NotificationPreferences';
 import BottomTabBar from '@/components/mobile/BottomTabBar';
+import { ShellKindProvider } from '@/hooks/useAddAction';
 import styles from './ClientLayoutShell.module.css';
 import type { TFunction } from 'i18next';
 
@@ -47,7 +48,7 @@ export default function ClientMobileShell({
   return (
     <div className={containerClassName}>
       <main className={styles.mobileMain}>
-        {children}
+        <ShellKindProvider value="mobile">{children}</ShellKindProvider>
       </main>
       <BottomTabBar />
       <Modal isOpen={isLoginOpen} onClose={closeLogin}>

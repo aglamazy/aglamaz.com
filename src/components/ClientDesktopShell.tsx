@@ -10,6 +10,7 @@ import NotMemberContent from '@/components/NotMemberContent';
 import EditUserDetails from '@/components/EditUserDetails';
 import NotificationPreferences from '@/components/NotificationPreferences';
 import styles from './ClientLayoutShell.module.css';
+import { ShellKindProvider } from '@/hooks/useAddAction';
 import type { IUser } from '@/entities/User';
 import type { IMember } from '@/entities/Member';
 import type { ISite } from '@/entities/Site';
@@ -61,7 +62,9 @@ export default function ClientDesktopShell({
       {headerReady && !presentationModeActive ? (
         <Header user={user ?? undefined} member={member ?? undefined} onLogout={handleLogout} siteInfo={siteInfo!} />
       ) : null}
-      <main className={mainClassName}>{children}</main>
+      <main className={mainClassName}>
+        <ShellKindProvider value="desktop">{children}</ShellKindProvider>
+      </main>
       {headerReady && !presentationModeActive ? <Footer siteInfo={siteInfo!} /> : null}
       <Modal isOpen={isLoginOpen} onClose={closeLogin}>
         <LoginPage/>
