@@ -393,7 +393,7 @@ export default function AnniversariesPage() {
   };
 
   const handleCopyBlessingPageLink = (slug: string) => {
-    const link = `${window.location.origin}/app/blessing/${slug}`;
+    const link = `${window.location.origin}/public/memorial/${slug}`;
     navigator.clipboard.writeText(link);
   };
 
