@@ -10,6 +10,7 @@ import { useMemberStore } from '@/store/MemberStore';
 import { useSiteStore } from '@/store/SiteStore';
 import EditorRich from '@/components/ui/EditorRich';
 import AddFab from '@/components/ui/AddFab';
+import { useAddAction } from '@/hooks/useAddAction';
 
 interface Blessing {
   id: string;
@@ -41,6 +42,16 @@ export default function BlessingPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [togglingPublic, setTogglingPublic] = useState(false);
   const isAdmin = member && member.role === 'admin';
+
+  // Mobile's BottomTabBar "+" calls whatever action is registered here - without this,
+  // the desktop-only AddFab below (hidden md:flex) left mobile's "+" doing nothing.
+  useAddAction(() => {
+    if (!blessingPage) return;
+    setEditingBlessing(null);
+    setBlessingContent('');
+    setBlessingVisibleToPublic(false);
+    setModalOpen(true);
+  });
 
   const fetchBlessings = async (blessingPageId: string) => {
     if (!siteId) return;

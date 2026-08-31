@@ -10,6 +10,7 @@ import { useReadOnlyStore } from '@/store/ReadOnlyStore';
 import { initFirebase, ensureFirebaseSignedIn, auth } from '@/firebase/client';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import AddFab from '@/components/ui/AddFab';
+import { useAddAction } from '@/hooks/useAddAction';
 import { Button } from '@/components/ui/button';
 import Modal from '@/components/ui/Modal';
 import styles from './page.module.css';
@@ -52,6 +53,13 @@ export default function OccurrenceDetailsPage({ params: paramsPromise }: { param
   const [likes, setLikes] = useState<Array<{ index: number; count: number; likedByMe: boolean }>>([]);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDropboxImport, setShowDropboxImport] = useState(false);
+
+  // Mobile's BottomTabBar "+" calls whatever action is registered here - without this,
+  // the desktop-only AddFab below (hidden md:flex) left mobile's "+" doing nothing.
+  useAddAction(() => {
+    if (!event) return;
+    setShowAdd(true);
+  });
 
   useEffect(() => {
     let mounted = true;
