@@ -864,10 +864,12 @@ export default function AnniversariesPage() {
                   ? blessingPages[0]
                   : blessingPages.find((bp: any) => bp.year === currentYear);
 
+                const isMemorial = selectedEvent.type === 'death';
+
                 if (blessingPage) {
                   return (
                     <div className="flex items-center gap-2 px-3 py-1 bg-secondary/10 rounded">
-                      <span className="text-sm">{t('blessingPage')}:</span>
+                      <span className="text-sm">{t(isMemorial ? 'memorialPage' : 'blessingPage')}:</span>
                       <button
                         onClick={() => handleCopyBlessingPageLink(blessingPage.slug)}
                         className="px-2 py-0.5 bg-primary text-white text-xs rounded hover:opacity-90"
@@ -891,7 +893,7 @@ export default function AnniversariesPage() {
                       disabled={creatingBlessingPage}
                       className="px-3 py-1 bg-primary text-white rounded disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      {creatingBlessingPage ? t('creating') : t('createBlessingPage')}
+                      {creatingBlessingPage ? t('creating') : t(isMemorial ? 'createMemorialPage' : 'createBlessingPage')}
                     </button>
                   );
                 }
