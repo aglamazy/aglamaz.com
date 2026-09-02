@@ -67,9 +67,10 @@ async function testNonPublicBlessingPageRespondsSameAsNonexistentSlug() {
 
 async function run() {
   const mod = await import('../src/app/api/site/[siteId]/blessing/[slug]/route');
+  const overrides = await import('../src/app/api/site/[siteId]/blessing/[slug]/testOverrides');
   GET = mod.GET;
-  __setMockBlessingPageRepository = mod.__setMockBlessingPageRepository;
-  __setMockAnniversaryRepository = mod.__setMockAnniversaryRepository;
+  __setMockBlessingPageRepository = overrides.__setMockBlessingPageRepository;
+  __setMockAnniversaryRepository = overrides.__setMockAnniversaryRepository;
 
   await testPublicBlessingPageReturns200WithData();
   await testNonPublicBlessingPageRespondsSameAsNonexistentSlug();

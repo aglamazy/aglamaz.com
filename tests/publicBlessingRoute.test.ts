@@ -156,10 +156,11 @@ async function testRateLimitRejectsNPlus1thSubmissionFromSameSource() {
 
 async function run() {
   const mod = await import('../src/app/api/site/[siteId]/blessing-pages/[blessingPageId]/blessings/public/route');
+  const overrides = await import('../src/app/api/site/[siteId]/blessing-pages/[blessingPageId]/blessings/public/testOverrides');
   POST = mod.POST;
-  __setMockBlessingPageRepository = mod.__setMockBlessingPageRepository;
-  __setMockBlessingRepository = mod.__setMockBlessingRepository;
-  __setMockNotify = mod.__setMockNotify;
+  __setMockBlessingPageRepository = overrides.__setMockBlessingPageRepository;
+  __setMockBlessingRepository = overrides.__setMockBlessingRepository;
+  __setMockNotify = overrides.__setMockNotify;
 
   await testNonMemberCanPostToPublicPage();
   await testNonMemberCannotPostToPrivatePage();

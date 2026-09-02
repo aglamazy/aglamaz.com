@@ -1,7 +1,8 @@
 import { BlessingPageRepository } from '@/repositories/BlessingPageRepository';
 import { BlessingRepository } from '@/repositories/BlessingRepository';
-import { adminNotificationService, NotificationEventType } from '@/services/AdminNotificationService';
+import { adminNotificationService } from '@/services/AdminNotificationService';
 import { checkRateLimit } from '@/lib/rateLimit';
+import { getBlessingPageRepoOverride, getBlessingRepoOverride, getNotifyOverride } from './testOverrides';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,22 +22,6 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const RATE_LIMIT_PER_PAGE = { limit: 3, windowMs: 10 * 60 * 1000 }; // 3 posts per page per IP / 10 min
 const RATE_LIMIT_PER_IP = { limit: 10, windowMs: 10 * 60 * 1000 }; // 10 posts total per IP / 10 min
-
-// Test-only injection hooks, mirroring the __setMock* convention used by
-// withMemberGuard.ts — lets tests avoid touching real Firestore/Gmail.
-let blessingPageRepoOverride: BlessingPageRepository | null = null;
-let blessingRepoOverride: BlessingRepository | null = null;
-let notifyOverride: ((eventType: NotificationEventType, payload: any, siteUrl?: string) => Promise<any>) | null = null;
-
-export function __setMockBlessingPageRepository(repo: BlessingPageRepository | null) {
-  blessingPageRepoOverride = repo;
-}
-export function __setMockBlessingRepository(repo: BlessingRepository | null) {
-  blessingRepoOverride = repo;
-}
-export function __setMockNotify(fn: typeof notifyOverride) {
-  notifyOverride = fn;
-}
 
 function getClientIp(request: Request): string {
   const forwarded = request.headers.get('x-forwarded-for');
@@ -70,7 +55,7 @@ export const POST = async (
 
     // Public-ness check FIRST and independent of body validation, so a
     // private page's write endpoint never leaks anything beyond "not found".
-    const bpRepo = blessingPageRepoOverride ?? new BlessingPageRepository();
+    const bpRepo = getBlessingPageRepoOverride() ?? new BlessingPageRepository();
     const blessingPage = await bpRepo.getById(blessingPageId);
     if (!blessingPage || blessingPage.siteId !== siteId || !blessingPage.isPublic) {
       return Response.json({ error: 'Blessing page not found' }, { status: 404 });
@@ -139,7 +124,7 @@ export const POST = async (
 
     const locale = request.headers.get('x-locale') || 'he';
 
-    const blessingRepo = blessingRepoOverride ?? new BlessingRepository();
+    const blessingRepo = getBlessingRepoOverride() ?? new BlessingRepository();
     const blessing = await blessingRepo.create({
       blessingPageId,
       siteId,
@@ -154,7 +139,7 @@ export const POST = async (
     });
 
     const origin = new URL(request.url).origin;
-    const notify = notifyOverride ?? adminNotificationService.notify.bind(adminNotificationService);
+    const notify = getNotifyOverride() ?? adminNotificationService.notify.bind(adminNotificationService);
     await notify(
       'guest_blessing',
       {
