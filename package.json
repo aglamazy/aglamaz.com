@@ -1,6 +1,6 @@
 {
   "name": "aglamaz-app",
-  "version": "26.9.1",
+  "version": "26.9.2",
   "private": true,
   "deployDomains": [
     "https://aglamaz.com",
@@ -96,5 +96,8 @@
   },
   "lint-staged": {
     "*.{ts,tsx}": "eslint --fix"
+  },
+  "overrides": {
+    "jsdom": "27.3.0"
   }
 }
