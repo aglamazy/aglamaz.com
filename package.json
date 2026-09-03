@@ -1,6 +1,6 @@
 {
   "name": "aglamaz-app",
-  "version": "26.9.6",
+  "version": "26.9.7",
   "private": true,
   "deployDomains": [
     "https://aglamaz.com",
@@ -56,7 +56,6 @@
     "i18next": "^25.6.0",
     "i18next-browser-languagedetector": "^8.2.0",
     "i18next-http-backend": "^3.0.2",
-    "isomorphic-dompurify": "^3.19.0",
     "jwt-decode": "^4.0.0",
     "lucide-react": "^0.552.0",
     "marked": "^15.0.12",
@@ -68,6 +67,7 @@
     "react-dom": "^19.2.0",
     "react-i18next": "^16.2.3",
     "react-icons": "^5.5.0",
+    "sanitize-html": "^2.17.7",
     "sharp": "^0.34.5",
     "tinymce": "^8.2.0",
     "zustand": "^5.0.8"
@@ -80,6 +80,7 @@
     "@types/dompurify": "^3.0.5",
     "@types/react": "^19.2.2",
     "@types/react-datepicker": "^6.2.0",
+    "@types/sanitize-html": "^2.16.1",
     "@typescript-eslint/eslint-plugin": "^8.46.4",
     "@typescript-eslint/parser": "^8.46.4",
     "autoprefixer": "^10.4.21",
@@ -96,9 +97,5 @@
   },
   "lint-staged": {
     "*.{ts,tsx}": "eslint --fix"
-  },
-  "overrides": {
-    "jsdom": "27.3.0",
-    "cssstyle": "4.1.0"
   }
 }

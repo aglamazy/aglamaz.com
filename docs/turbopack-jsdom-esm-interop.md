@@ -1,65 +1,61 @@
-# Turbopack's SSR external-loader doesn't replicate Node's require(esm) interop
+# jsdom's ESM-only parse5 breaks under Vercel's Node runtime (not a Turbopack bug)
 
-**Found:** 2026-09-02/03, famcircle#170 (live PROD 500 on `/blog`, all locales, 2+ days).
-**Scope:** Next.js 16.0.10 building with Turbopack (the current default for `next
-build` with no flag). Confirmed via repeated live reproduction against Vercel's
-actual runtime — not a local-only artifact.
+**Found:** 2026-09-02, famcircle#170 (live PROD 500 on `/blog`, all locales, 2+ days).
+**CORRECTED:** 2026-09-03. The original version of this doc attributed the failure to
+Turbopack's SSR bundler specifically. That attribution was wrong: after switching the
+production build from Turbopack to webpack, the identical `ERR_REQUIRE_ESM` error still
+occurred, with a stack trace pointing into Vercel's own serverless runtime layer
+(`/opt/rust/nodejs.js`), not any bundler-generated file. **The real constraint is
+Vercel's production Node.js execution environment, independent of bundler choice.**
 
-## The mechanism, in one sentence
+## The mechanism, corrected
 
-When a CommonJS package's own internal code does `require()` of one of its own
-ESM-only sub-dependencies (the pattern Node 20.19+/22.12+ natively supports via
-`require(esm)`), Turbopack's SSR bundler — even when that top-level package is marked
-`serverExternalPackages` — routes the *inner* require through its own
-`externalRequire`/`externalImport` wrapper functions
-(`.next/server/chunks/ssr/[turbopack]_runtime.js`), and that wrapper does not
-correctly replicate Node's native interop. The result is
-`Error [ERR_REQUIRE_ESM]: require() of ES Module ... not supported`, thrown at
-request time, in production, regardless of what the top-level package name is.
+`isomorphic-dompurify` shims a DOM on the server via `jsdom` so the same sanitizer code
+works both in the browser and during SSR. jsdom's own core HTML parser dependency,
+`parse5`, has been ESM-only since at least `parse5@7.0.0` — confirmed present in every
+jsdom major back to at least jsdom 20.x, with no CJS-only version to pin to. Node
+20.19+/22.12+ support `require(esm)` natively on modern local Node, and this worked
+fine in local testing — but **Vercel's production Node runtime does not support the
+same interop for this dependency shape**, regardless of whether the surrounding code was
+bundled by Turbopack or webpack. `serverExternalPackages` correctly marked the packages
+external in both cases (the error always named the right package) — the failure is one
+level deeper than anything a bundler config can route around.
 
-**`serverExternalPackages` does mark the named package external — that part works**
-(confirmed: the error text always correctly names the package Next thinks it
-externalized). The bug is one level down: Turbopack's own loader for content *inside*
-an externalized package doesn't hand off to Node's real `require`.
-
-## Why this surfaced as three separate-looking bugs in one night
-
-jsdom (pulled in transitively by `isomorphic-dompurify`, used for server-side blog
-HTML sanitization) has been progressively modernizing its own dependency tree to
-ESM-only sub-packages, at multiple points in the tree:
-
-1. `html-encoding-sniffer@^6` → `@exodus/bytes` (ESM-only)
-2. `cssstyle@^4.2.0+` → `@asamuzakjp/css-color` → `@csstools/css-calc` (ESM-only)
-3. jsdom's own core HTML parser dependency, `parse5` — ESM-only since at least
-   `parse5@7.0.0`, confirmed present in every jsdom major back to at least jsdom 20.
-
-Pinning around (1) and (2) via `package.json`'s `overrides` (forcing older,
-pre-ESM-adoption versions of `html-encoding-sniffer`/`cssstyle`) is a real, valid
-workaround **for those two specific dependencies** — see the commits on
-famcircle main (`5399b23`, `27be061`, `7564819`). It does not work for (3): parse5 is
-core, unavoidable jsdom functionality with no CJS-only version in recent history to
-pin to. **There is no version-pinning escape route past parse5** — confirmed by
-checking jsdom major versions back to 20.x, all of which already depend on ESM-only
-parse5.
+Two earlier workaround attempts (pinning `jsdom`/`cssstyle` versions via `overrides`,
+externalizing `jsdom`/`isomorphic-dompurify` in `next.config.js`, switching the build to
+webpack) each fixed a real, distinct symptom along the way but never reached the actual
+floor: jsdom's own core parser, which has no version escape hatch.
 
 ## The actual fix
 
-Build with webpack instead of Turbopack (`next build --webpack`). Confirmed: webpack
-compiles this exact dependency tree with zero ESM-interop errors — Node's native
-`require(esm)` support works correctly under webpack's own external-module handling.
-See `docs/webpack-switch-regression-list.md` for the switch's own regression list —
-not done same-night as this finding because switching production bundlers is a
-whole-app-blast-radius change that itself surfaced two *unrelated* pre-existing bugs
-Turbopack was silently letting through (see that doc), and neither should be shipped
-as a rushed midnight deploy with nobody watching.
+**Remove jsdom from the server dependency graph entirely** — replace
+`isomorphic-dompurify` with [`sanitize-html`](https://www.npmjs.com/package/sanitize-html)
+in `src/components/blog/BlogPostBody.tsx` (the one call site that renders on the server).
+`sanitize-html` uses `htmlparser2` (pure JS, no DOM shim, no ESM sub-dependencies), so
+there is no `require(esm)` pattern for Vercel's runtime to reject. Confirmed: local
+`next build` (webpack) compiles clean, `npm test` passes, and a sample markdown → HTML →
+sanitize round-trip preserves headings/links/images/code blocks/tables while stripping
+`<script>`.
+
+This also let two prior workarounds be reverted as no-longer-needed:
+`package.json`'s `jsdom`/`cssstyle` `overrides`, and `next.config.js`'s
+`serverExternalPackages: ['jsdom', 'isomorphic-dompurify']`.
 
 ## Why this will bite another repo
 
-Any Next.js 16 project using Turbopack (the new default) that depends — even
-transitively — on a CommonJS package whose own dependency tree includes an ESM-only
-module will hit this. jsdom is one example; it is very likely not the only widely-used
-package with this shape, given the broader ecosystem's ongoing ESM migration. The
-diagnostic signature to watch for: `ERR_REQUIRE_ESM` thrown from inside
-`.next/server/chunks/ssr/[turbopack]_runtime.js`'s `externalRequire`/`externalImport`,
-naming a file path under a package that *was* correctly listed in
-`serverExternalPackages` — that combination means this bug, not a config mistake.
+Any package that shims a DOM via jsdom for isomorphic/SSR use (not just
+`isomorphic-dompurify` — anything built the same way) carries this exact risk on Vercel,
+independent of bundler choice. The diagnostic signature to watch for: `ERR_REQUIRE_ESM`
+thrown at request time in production, naming `parse5` (or another jsdom-internal
+dependency) from inside a path under `/opt/rust/` or similar Vercel-runtime-internal
+location rather than an app-generated bundle file. If a package's own SSR path pulls in
+jsdom, treat it as a Vercel-prod risk before it ships, not after.
+
+## Prior (superseded) diagnosis
+
+The original version of this doc claimed Turbopack's `externalRequire`/`externalImport`
+wrapper functions didn't replicate Node's native `require(esm)` interop correctly. That
+build-tool-specific mechanism was never actually confirmed once webpack reproduced the
+identical failure — the true root cause was always one layer further down, in Vercel's
+runtime. Left here so anyone who finds an old reference to "Turbopack's SSR loader bug"
+for this incident knows it was corrected, not that a second bug exists.

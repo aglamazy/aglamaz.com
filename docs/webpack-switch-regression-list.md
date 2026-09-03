@@ -1,8 +1,17 @@
 # Turbopack → webpack build switch — regression checklist (famcircle#170)
 
-**Context.** `next build` (no flag) currently uses Turbopack, which cannot correctly
-run jsdom's dependency tree (see `docs/turbopack-jsdom-esm-interop.md` for the
-mechanism) — this is what's kept `/blog` on a live 500 since 2026-08-31. Building with
+**Amendment, 2026-09-03:** the webpack switch below fixed two real, unrelated
+route-export bugs (see below) and was worth keeping, but it did NOT fix the actual
+`/blog` 500 — the same `ERR_REQUIRE_ESM` failure occurred identically under webpack,
+tracing to Vercel's own runtime rather than either bundler. The real fix was removing
+`jsdom` from the dependency graph entirely (swap `isomorphic-dompurify` →
+`sanitize-html`). See `docs/turbopack-jsdom-esm-interop.md` for the corrected writeup.
+This checklist is kept for its regression-verification value on the bundler switch
+itself, which remains in effect.
+
+**Original context.** `next build` (no flag) currently uses Turbopack, which cannot
+correctly run jsdom's dependency tree (see `docs/turbopack-jsdom-esm-interop.md` for
+the mechanism) — this is what's kept `/blog` on a live 500 since 2026-08-31. Building with
 `next build --webpack` compiles clean (confirmed 2026-09-02/03, all 55 pages
 generated) and is the intended fix. This list exists so that switch is a **20-minute
 verification against a known list**, not a hopeful deploy — per Buddy's hold decision
