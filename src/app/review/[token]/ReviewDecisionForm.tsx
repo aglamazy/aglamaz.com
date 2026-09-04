@@ -16,8 +16,11 @@ export default function ReviewDecisionForm({ token }: Props) {
 
   const handleSubmit = async () => {
     if (!decision) return;
-    if ((decision === 'changes_requested' || decision === 'denied') && !feedback.trim()) {
-      setError(decision === 'denied' ? 'Please say why - it helps improve future drafts.' : 'Please provide feedback when requesting changes.');
+    // Fix requires feedback (it's a targeted correction - Shofar needs to know what
+    // to fix). Deny's feedback is optional (Agla, 2026-09-04) - a structural "this
+    // angle isn't working" signal is meaningful on its own, feedback is a bonus.
+    if (decision === 'changes_requested' && !feedback.trim()) {
+      setError('Please provide feedback when requesting changes.');
       return;
     }
     setSubmitting(true);
@@ -100,7 +103,7 @@ export default function ReviewDecisionForm({ token }: Props) {
       {decision === 'denied' && (
         <textarea
           className="h-32 w-full rounded-md border border-gray-200 px-3 py-2 text-sm"
-          placeholder="Why this angle/topic didn't work..."
+          placeholder="Why this angle/topic didn't work (optional)..."
           value={feedback}
           onChange={(e) => setFeedback(e.target.value)}
           disabled={submitting}

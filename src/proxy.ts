@@ -73,6 +73,15 @@ const PUBLIC_PATHS = [
   '/privacy',
   '/og',
   '/public',
+  // Token-gated review link (famcircle#170/#172, found 2026-09-04): the review page
+  // is meant to be reachable from an emailed link with no session at all (the
+  // reviewToken IS the auth, see api/review/[token]/route.ts and the route's own
+  // comment) - but it was never added here, so anyone without an already-active
+  // login session was silently rewritten to /auth/gate instead of ever seeing the
+  // page. Confirmed via a live query: zero blog posts have EVER had a review
+  // decision recorded - this gap is the likely reason the whole feature has never
+  // actually been used, not just a UI-design question.
+  '/review',
 ];
 
 const PUBLIC_REDIRECT_PATHS = ['/auth/login'];

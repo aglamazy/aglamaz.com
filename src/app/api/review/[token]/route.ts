@@ -35,8 +35,11 @@ export async function POST(
   if (decision !== 'approved' && decision !== 'changes_requested' && decision !== 'denied') {
     return Response.json({ error: 'decision must be "approved", "changes_requested", or "denied"' }, { status: 400 });
   }
-  if ((decision === 'changes_requested' || decision === 'denied') && !feedback?.trim()) {
-    return Response.json({ error: 'feedback is required when requesting changes or denying' }, { status: 400 });
+  // Fix requires feedback (a targeted correction needs to say what to fix). Deny's
+  // feedback is optional (Agla, 2026-09-04) - a structural "not publishing this one"
+  // signal is meaningful on its own.
+  if (decision === 'changes_requested' && !feedback?.trim()) {
+    return Response.json({ error: 'feedback is required when requesting changes' }, { status: 400 });
   }
 
   // Read post before deciding so we have siteId / authorId for the notification email
@@ -73,8 +76,8 @@ export async function POST(
           ? ['Your blog post has been reviewed and approved — it is now published.']
           : decision === 'denied'
             ? [
-                `Your reviewer decided not to publish this one - the whole angle didn't land, not just a detail:`,
-                `<em>${feedback}</em>`,
+                `Your reviewer decided not to publish this one - the whole angle didn't land, not just a detail.`,
+                ...(feedback?.trim() ? [`<em>${feedback}</em>`] : []),
                 `<a href="${editLink}">Click here to edit your post</a>`,
               ]
             : [
@@ -105,8 +108,10 @@ export async function POST(
     // Don't fail the request — the decision was already committed
   }
 
-  // TODO: Notify Shofar of review decision once their webhook route is live.
-  // Intended payload: { decision, post_id: prePost.id, feedback }
+  // Shofar notification is NOT synchronous with this request - scripts/
+  // relay-blog-feedback-to-shofar.ts relays changes_requested/denied decisions to
+  // Shofar's inbox on its own periodic tick (Vercel serverless can't shell out to
+  // the fleet's coordination DB directly - see that script's header for why).
 
   return Response.json({ success: true, post: updated });
 }
