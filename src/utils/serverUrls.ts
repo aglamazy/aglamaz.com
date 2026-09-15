@@ -19,6 +19,16 @@ export { AppRoute };
  * @throws Error if domain mapping not found for siteId
  */
 export async function getBaseUrlForSite(siteId: string): Promise<string> {
+  // Local dev only (never set on Vercel, which always sets VERCEL=1 on every
+  // environment including preview): skip the shared domainMappings lookup
+  // entirely and use an explicit local domain, so local runs never depend on
+  // - or risk picking - a leftover .local mapping meant for a different
+  // purpose. Vercel always resolves through the real per-site lookup below,
+  // which is what actually needs to get the domain right (Agla, 2026-09-15).
+  if (!process.env.VERCEL && process.env.LOCAL_SITE_DOMAIN) {
+    return `http://${process.env.LOCAL_SITE_DOMAIN}`;
+  }
+
   const { SiteRepository } = await import('@/repositories/SiteRepository');
   const repo = new SiteRepository();
 
