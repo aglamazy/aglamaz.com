@@ -17,14 +17,13 @@ const SUPPORTED_LOCALES: string[] = Array.isArray(nextI18NextConfig?.i18n?.local
   ? nextI18NextConfig.i18n.locales
   : ['en'];
 
-// F7-A (famcircle#119) defaults: digest/inDayReminders/yahrzeitWhatsapp had no site-level
-// switch before this table existed (member prefs / event matching decided everything), so
-// "not yet configured" preserves that always-on behavior. blogAutogen's existing consent
-// gate defaulted off - preserved here too (see resolveSendSettings's legacy fallback).
+// F7-A (famcircle#119) defaults: digest/inDayReminders had no site-level switch before
+// this table existed (member prefs / event matching decided everything), so "not yet
+// configured" preserves that always-on behavior. blogAutogen's existing consent gate
+// defaulted off - preserved here too (see resolveSendSettings's legacy fallback).
 const DEFAULT_SEND_ENABLED: Record<SendType, boolean> = {
   digest: true,
   inDayReminders: true,
-  yahrzeitWhatsapp: true,
   blogAutogen: false,
 };
 
@@ -466,13 +465,25 @@ export class SiteRepository {
       const snapshot = await this.getDb()
         .collection('domainMappings')
         .where('siteId', '==', siteId)
-        .limit(1)
         .get();
 
       if (snapshot.empty) return null;
+      if (snapshot.docs.length === 1) return snapshot.docs[0].id;
 
-      // Return the document ID, which is the domain
-      return snapshot.docs[0].id;
+      // Multiple domains map to this siteId (e.g. a leftover local-dev entry
+      // alongside the real production domain) - an unordered query has no
+      // guaranteed pick here, so prefer the doc explicitly marked isPrimary,
+      // then fall back to excluding obviously-non-production hosts, rather
+      // than letting Firestore's arbitrary order decide what goes into a
+      // real user-facing email link (famcircle: 2026-09-15, Agla-reported).
+      const isNonProdHost = (domain: string) =>
+        domain.endsWith('.local') || domain === 'localhost' || domain.startsWith('localhost:');
+
+      const primary = snapshot.docs.find((d) => d.data().isPrimary === true);
+      if (primary) return primary.id;
+
+      const prodCandidates = snapshot.docs.filter((d) => !isNonProdHost(d.id));
+      return (prodCandidates[0] ?? snapshot.docs[0]).id;
     };
 
     if (opts?.cached) {
