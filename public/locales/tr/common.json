@@ -103,6 +103,7 @@
   "gregorianCalendarSystem": "Gregoryen",
   "jewishCalendarSystem": "Yahudi",
   "muslimCalendarSystem": "Müslüman",
+  "alwaysOn": "(her zaman açık)",
   "failedToSaveSettings": "Ayarlar kaydedilemedi.",
   "failedToLoadSettings": "Ayarlar yüklenemedi.",
   "saveAndTranslate": "Kaydet ve Otomatik Çevir",

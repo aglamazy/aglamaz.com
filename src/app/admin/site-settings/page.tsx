@@ -46,7 +46,13 @@ export default function SiteSettingsPage() {
         setAboutFamily(data.aboutFamily || '');
         setSourceLang(data.sourceLang || 'he');
         setDefaultLocale(data.defaultLocale || 'he');
-        setCalendarSystems(Array.isArray(data.calendarSystems) ? data.calendarSystems : []);
+        // Gregorian is mandatory for every site (Agla, 2026-09-17) - force it into
+        // the loaded set so a legacy site with none configured yet shows it
+        // correctly checked instead of unchecked-but-disabled.
+        const loadedCalendarSystems = Array.isArray(data.calendarSystems) ? data.calendarSystems : [];
+        setCalendarSystems(
+          loadedCalendarSystems.includes('gregorian') ? loadedCalendarSystems : ['gregorian', ...loadedCalendarSystems]
+        );
         setDefaultCalendarSystem(data.defaultCalendarSystem || '');
       } catch (err) {
         console.error('Failed to load site settings', err);
@@ -60,6 +66,7 @@ export default function SiteSettingsPage() {
   }, [site?.id, t]);
 
   const toggleCalendarSystem = (system: CalendarSystem) => {
+    if (system === 'gregorian') return; // mandatory - never togglable
     setCalendarSystems((current) => {
       const next = current.includes(system)
         ? current.filter((value) => value !== system)
@@ -198,9 +205,13 @@ export default function SiteSettingsPage() {
                     <input
                       type="checkbox"
                       checked={calendarSystems.includes(system)}
+                      disabled={system === 'gregorian'}
                       onChange={() => toggleCalendarSystem(system)}
                     />
                     {t(CALENDAR_SYSTEM_LABEL_KEYS[system])}
+                    {system === 'gregorian' && (
+                      <span className="text-xs text-sage-400">{t('alwaysOn')}</span>
+                    )}
                   </label>
                 ))}
               </div>

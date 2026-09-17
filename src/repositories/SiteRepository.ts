@@ -302,7 +302,13 @@ export class SiteRepository {
     }
 
     if (calendarSystems !== undefined) {
-      const normalizedCalendarSystems = normalizeCalendarSystems(calendarSystems);
+      // Gregorian is mandatory for every site (Agla, 2026-09-17) - the admin only
+      // chooses which ADDITIONAL systems are enabled, so it's forced into the set
+      // here rather than trusted from the request. Without this, unchecking it in
+      // site-settings (or a future caller that omits it) could leave a site with
+      // zero calendar systems, which is exactly the create-event dead end fixed
+      // the same day (famcircle: EventFormContent.tsx's client-side floor).
+      const normalizedCalendarSystems = normalizeCalendarSystems([...calendarSystems, 'gregorian']);
       if (normalizedCalendarSystems.length === 0) {
         throw new Error('calendarSystems must include at least one supported calendar');
       }

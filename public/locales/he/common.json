@@ -139,6 +139,7 @@
   "gregorianCalendarSystem": "גרגוריאני",
   "jewishCalendarSystem": "עברי",
   "muslimCalendarSystem": "מוסלמי",
+  "alwaysOn": "(תמיד פעיל)",
   "failedToSaveSettings": "שמירת ההגדרות נכשלה.",
   "failedToLoadSettings": "טעינת ההגדרות נכשלה.",
   "saveAndTranslate": "שמור ותרגם אוטומטית",

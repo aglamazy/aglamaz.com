@@ -139,6 +139,7 @@
   "gregorianCalendarSystem": "Gregorian",
   "jewishCalendarSystem": "Jewish",
   "muslimCalendarSystem": "Muslim",
+  "alwaysOn": "(always on)",
   "failedToSaveSettings": "Failed to save settings.",
   "failedToLoadSettings": "Failed to load settings.",
   "saveAndTranslate": "Save & Auto-translate",
