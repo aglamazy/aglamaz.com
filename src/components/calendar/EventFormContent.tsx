@@ -325,9 +325,14 @@ export default function EventFormContent({ editEvent, onSuccess, onViewSimilarEv
     { value: 'other', label: `⭐ ${t('other', { defaultValue: 'Other' })}` },
   ];
 
+  // Sites that predate the calendar-system feature have no configuredCalendarSystems
+  // at all - without this floor the dropdown ends up with zero options, gets
+  // disabled, and the form permanently refuses to submit (famcircle, Agla-reported
+  // 2026-09-17: create-event was a dead end on the original Aglamaz family site).
+  // 'gregorian' is always a safe minimum; it never overrides a real site config.
   const calendarSystemOptions = Array.from(
     new Set([
-      ...configuredCalendarSystems,
+      ...(configuredCalendarSystems.length > 0 ? configuredCalendarSystems : ['gregorian' as CalendarSystem]),
       ...(form.calendarSystem ? [form.calendarSystem] : []),
     ]),
   ) as CalendarSystem[];
