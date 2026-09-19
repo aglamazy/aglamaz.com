@@ -24,6 +24,18 @@ import { useAddAction } from '@/hooks/useAddAction';
 import EventFormContent from '@/components/calendar/EventFormContent';
 import EventSearchBox from '@/components/calendar/EventSearchBox';
 
+// The popup shows the event's own date. Hebrew-tracked events come back from the month
+// query with day/month/year overwritten to the occurrence being browsed, so prefer the
+// original* fields when present (see the Hebrew-events landmine in CLAUDE.md).
+function formatEventDate(event: AnniversaryEvent): string {
+  const source = event as any;
+  const day = source.originalDay ?? event.day;
+  const month = source.originalMonth ?? event.month;
+  const year = source.originalYear ?? event.year;
+  const dayMonth = `${day}/${month + 1}`;
+  return typeof year === 'number' ? `${dayMonth}/${year}` : dayMonth;
+}
+
 export default function AnniversariesPage() {
   const [events, setEvents] = useState<AnniversaryEvent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -831,7 +843,7 @@ export default function AnniversariesPage() {
               />
             )}
             <div>
-              {t('date')}: {selectedEvent.day}/{selectedEvent.month + 1}
+              {t('date')}: {formatEventDate(selectedEvent)}
             </div>
             {selectedEvent.hebrewDate && (
               <div>
