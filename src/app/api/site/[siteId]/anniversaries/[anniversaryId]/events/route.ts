@@ -37,7 +37,9 @@ const getHandler = async (_request: Request, context: GuardContext & { params: P
     // Anniversaries created before occurrence 0 existed (auto-creation landed 2026-02-18)
     // have none, so the calendar popup showed no way into the original event. Same lazy
     // backfill the anniversary-by-id GET already does; this route is what the popup calls.
-    await occRepo.ensureOriginalOccurrence(event, event.ownerId);
+    // Records from before ownerId was stored carry createdBy instead (1 of 41 today: the
+    // original wedding) - same person, and create() rejects an undefined creator.
+    await occRepo.ensureOriginalOccurrence(event, event.ownerId ?? (event as any).createdBy);
     const items = await occRepo.listByEvent(anniversaryId);
     return Response.json({ events: items });
   } catch (error) {
