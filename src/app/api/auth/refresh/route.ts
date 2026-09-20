@@ -5,17 +5,34 @@ import { refreshRateLimit } from '@/auth/refresh-store';
 
 export const dynamic = 'force-dynamic';
 
+// Classifies an ALREADY-rejected token so a failed refresh says why (famcircle#179: Android
+// Chrome reopen forces a new login and nothing recorded which failure it was). It only
+// reads the unverified payload's exp; it never accepts a token.
+function classifyRejectedToken(token: string): 'expired' | 'invalid' {
+  try {
+    const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString());
+    return typeof payload.exp === 'number' && payload.exp < Math.floor(Date.now() / 1000) ? 'expired' : 'invalid';
+  } catch {
+    return 'invalid';
+  }
+}
+
+function failure(req: NextRequest, error: string, reason: 'missing_cookie' | 'expired' | 'invalid') {
+  console.error(
+    `[refresh] FAIL reason=${reason} cookies=${req.cookies.getAll().length} ua=${req.headers.get('user-agent') ?? 'none'}`
+  );
+  return NextResponse.json({ error, reason }, { status: 401 });
+}
+
 export async function POST(req: NextRequest) {
   const token = req.cookies.get(REFRESH_TOKEN)?.value;
   if (!token) {
-    console.error('[refresh] Missing refresh token');
-    return NextResponse.json({ error: 'Unauthorized (refresh, nt)' }, { status: 401 });
+    return failure(req, 'Unauthorized (refresh, nt)', 'missing_cookie');
   }
 
   const payload = verifyRefreshToken(token);
   if (!payload) {
-    console.error('[refresh] Refresh token invalid or reuse detected');
-    return NextResponse.json({ error: 'Unauthorized (refresh)' }, { status: 401 });
+    return failure(req, 'Unauthorized (refresh)', classifyRejectedToken(token));
   }
 
   const now = Date.now();
