@@ -299,13 +299,15 @@ export class ResendService {
   /**
    * Send a transactional email via the Resend REST API.
    * No-ops silently when RESEND_API_KEY is absent — safe for local dev.
+   * Resolves true only when Resend answered 2xx (the email was accepted), false when it was
+   * skipped for the missing key, so a send flow can tell "delivered" from "nothing happened".
    * From address: RESEND_FROM_EMAIL env var, defaulting to reminders@mail.famcircle.org
    * (the verified sending domain provisioned for this project).
    */
-  static async sendTransactionalEmail(params: TransactionalEmailParams): Promise<void> {
+  static async sendTransactionalEmail(params: TransactionalEmailParams): Promise<boolean> {
     if (!ResendService.isEnabled()) {
       console.log('[ResendService] RESEND_API_KEY not configured — skipping email to', params.to);
-      return;
+      return false;
     }
 
     const apiKey = process.env.RESEND_API_KEY!;
@@ -337,6 +339,7 @@ export class ResendService {
       const errorText = await response.text();
       throw new Error(`[ResendService] Resend API error ${response.status}: ${errorText}`);
     }
+    return true;
   }
 }
 

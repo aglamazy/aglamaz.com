@@ -17,6 +17,7 @@ import { SiteRepository } from '@/repositories/SiteRepository';
 import { periodKeyFor } from '@/repositories/DigestSendRepository';
 import { resolveDigestRecipients } from '@/services/DigestSendPlanService';
 import { executeDigestSend } from '@/services/DigestSendExecutionService';
+import { pingSendFlow } from '@/services/DeadmanPing';
 import type { UnifiedMagazineCadence } from '@/repositories/NotificationPreferencesRepository';
 
 export const dynamic = 'force-dynamic';
@@ -59,6 +60,7 @@ export async function GET(request: NextRequest) {
   const period = periodKeyFor(cadence, now);
 
   let sent = 0;
+  let skipped = 0;
   let failed = 0;
 
   for (const siteId of siteIds) {
@@ -94,6 +96,7 @@ export async function GET(request: NextRequest) {
 
       const result = await executeDigestSend(siteId, cadence, period, now, site, recipients);
       sent += result.sent;
+      skipped += result.skipped;
       failed += result.failed;
       for (const { memberId, error } of result.errors) {
         console.error(`[cron/digest] error sending to member=${memberId} site=${siteId}:`, error);
@@ -108,8 +111,16 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  console.log(`[cron/digest] complete: cadence=${cadence} sites=${siteIds.length} sent=${sent} failed=${failed}`);
-  return NextResponse.json({ ok: true, cadence, sites: siteIds.length, sent, failed });
+  console.log(
+    `[cron/digest] complete: cadence=${cadence} sites=${siteIds.length} sent=${sent} skipped=${skipped} failed=${failed}`,
+  );
+  // famcircle#182: the dead-man ping means "every send this run was accepted by Resend". A failure or a
+  // skipped send (no key) withholds it, so the check goes late. A run with nothing left to send is healthy.
+  // A single-member manual run (memberId filter) says nothing about the whole flow, so it never pings.
+  if (failed === 0 && skipped === 0 && !memberIdFilter) {
+    await pingSendFlow(cadence === 'weekly' ? 'digest-weekly' : 'digest-monthly');
+  }
+  return NextResponse.json({ ok: true, cadence, sites: siteIds.length, sent, skipped, failed });
 }
 
 // famcircle#160 (2026-08-16): report any non-2xx response (default: only 5xx) - a cron

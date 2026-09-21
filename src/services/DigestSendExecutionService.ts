@@ -67,6 +67,8 @@ async function maybeTranslateDigest(params: {
 
 export interface DigestSendExecutionResult {
   sent: number;
+  /** Sends Resend never received (no RESEND_API_KEY) - not counted as sent (famcircle#182). */
+  skipped: number;
   failed: number;
   errors: Array<{ memberId: string; error: unknown }>;
 }
@@ -86,7 +88,7 @@ export async function executeDigestSend(
   recipients: DigestRecipientPlan[],
 ): Promise<DigestSendExecutionResult> {
   if (recipients.length === 0) {
-    return { sent: 0, failed: 0, errors: [] };
+    return { sent: 0, skipped: 0, failed: 0, errors: [] };
   }
 
   const digestCompiler = new DigestCompilerService();
@@ -155,7 +157,7 @@ export async function executeDigestSend(
         to: recipientLocale,
       });
 
-      await ResendService.sendTransactionalEmail({
+      const delivered = await ResendService.sendTransactionalEmail({
         to: member.email,
         subject: localized.subject,
         html: localized.html,
@@ -169,21 +171,24 @@ export async function executeDigestSend(
         },
       });
       await digestSendRepository.markSent(siteId, member.id, cadence, period);
+      return delivered;
     }),
   );
 
   let sent = 0;
+  let skipped = 0;
   let failed = 0;
   const errors: Array<{ memberId: string; error: unknown }> = [];
   for (let i = 0; i < results.length; i++) {
     const result = results[i];
     if (result.status === 'fulfilled') {
-      sent++;
+      if (result.value) sent++;
+      else skipped++;
     } else {
       failed++;
       errors.push({ memberId: recipients[i].member.id, error: result.reason });
     }
   }
 
-  return { sent, failed, errors };
+  return { sent, skipped, failed, errors };
 }

@@ -1,4 +1,5 @@
 {
+  "installCommand": "bash scripts/vercel-install.sh",
   "crons": [
     {
       "path": "/api/cron/yahrzeit-whatsapp",

@@ -13,6 +13,7 @@ import { SiteRepository } from '@/repositories/SiteRepository';
 import { BlessingPageRepository } from '@/repositories/BlessingPageRepository';
 import { notificationPreferencesRepository } from '@/repositories/NotificationPreferencesRepository';
 import { ResendService } from '@/services/ResendService';
+import { pingSendFlow } from '@/services/DeadmanPing';
 import { planInDaySends, filterTodaysOccurrences } from '@/services/InDayReminderService';
 import {
   buildReminderPreferenceLink,
@@ -56,6 +57,8 @@ export async function GET(request: NextRequest) {
   const memberIdFilter = request.nextUrl.searchParams.get('memberId');
 
   let totalSent = 0;
+  let totalSkipped = 0;
+  let totalFailed = 0;
   let sites: ISite[] = [];
 
   try {
@@ -149,7 +152,7 @@ export async function GET(request: NextRequest) {
           console.log(
             `[cron/in-day-reminders] sending: site=${siteId} member=${plan.memberId} to=${plan.to}`,
           );
-          await ResendService.sendTransactionalEmail({
+          const delivered = await ResendService.sendTransactionalEmail({
             to: plan.to,
             subject: plan.subject,
             html: plan.html,
@@ -162,8 +165,10 @@ export async function GET(request: NextRequest) {
               sendId,
             },
           });
-          totalSent++;
+          if (delivered) totalSent++;
+          else totalSkipped++;
         } catch (memberErr) {
+          totalFailed++;
           console.error(
             `[cron/in-day-reminders] error sending to member=${plan.memberId}:`,
             memberErr,
@@ -171,12 +176,27 @@ export async function GET(request: NextRequest) {
         }
       }
     } catch (err) {
+      totalFailed++;
       console.error(`[cron/in-day-reminders] error processing site ${siteId}:`, err);
     }
   }
 
-  console.log(`[cron/in-day-reminders] complete: sites=${sites.length} sent=${totalSent}`);
-  return NextResponse.json({ ok: true, sites: sites.length, sent: totalSent });
+  console.log(
+    `[cron/in-day-reminders] complete: sites=${sites.length} sent=${totalSent} skipped=${totalSkipped} failed=${totalFailed}`,
+  );
+  // famcircle#182: the dead-man ping means "every send this run was accepted by Resend". A failure or a
+  // skipped send (no key) withholds it, so the check goes late. A day with nothing to send is a healthy run.
+  // A single-member manual run (memberId filter) says nothing about the whole flow, so it never pings.
+  if (totalFailed === 0 && totalSkipped === 0 && !memberIdFilter) {
+    await pingSendFlow('in-day-reminders');
+  }
+  return NextResponse.json({
+    ok: true,
+    sites: sites.length,
+    sent: totalSent,
+    skipped: totalSkipped,
+    failed: totalFailed,
+  });
 }
 
 // famcircle#160 (2026-08-16): report any non-2xx response (default: only 5xx) - a cron
