@@ -17,13 +17,14 @@ const SUPPORTED_LOCALES: string[] = Array.isArray(nextI18NextConfig?.i18n?.local
   ? nextI18NextConfig.i18n.locales
   : ['en'];
 
-// F7-A (famcircle#119) defaults: digest/inDayReminders had no site-level switch before
-// this table existed (member prefs / event matching decided everything), so "not yet
-// configured" preserves that always-on behavior. blogAutogen's existing consent gate
-// defaulted off - preserved here too (see resolveSendSettings's legacy fallback).
+// F7-A (famcircle#119) defaults: digest/inDayReminders/yahrzeitWhatsapp had no site-level
+// switch before this table existed (member prefs / event matching decided everything), so
+// "not yet configured" preserves that always-on behavior. blogAutogen's existing consent
+// gate defaulted off - preserved here too (see resolveSendSettings's legacy fallback).
 const DEFAULT_SEND_ENABLED: Record<SendType, boolean> = {
   digest: true,
   inDayReminders: true,
+  yahrzeitWhatsapp: true,
   blogAutogen: false,
 };
 
