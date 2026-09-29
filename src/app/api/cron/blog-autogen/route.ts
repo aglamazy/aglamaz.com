@@ -16,6 +16,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { withServiceCall } from 'agents-observe/next';
+import { reportCronSchedulerRejected } from '@/services/CronAuthReport';
 import { SiteRepository } from '@/repositories/SiteRepository';
 import { BlogAutogenService } from '@/services/BlogAutogenService';
 
@@ -29,6 +30,7 @@ async function getHandler(request: NextRequest) {
 
   const authHeader = request.headers.get('authorization');
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    reportCronSchedulerRejected('/api/cron/blog-autogen');
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -83,4 +85,4 @@ async function getHandler(request: NextRequest) {
 // traffic elsewhere in the app. Requires AGENTS_OBSERVE_INGEST_URL/TOKEN/PROJECT_ID to
 // actually deliver - no-ops safely if unset (see docs/monitoring-runbook.md).
 
-export const GET = withServiceCall(getHandler, { report4xx: true });
+export const GET = withServiceCall(getHandler);

@@ -15,6 +15,7 @@ import { BlessingPageRepository } from '@/repositories/BlessingPageRepository';
 import { notificationPreferencesRepository } from '@/repositories/NotificationPreferencesRepository';
 import { ResendService } from '@/services/ResendService';
 import { pingSendFlow } from '@/services/DeadmanPing';
+import { reportCronSchedulerRejected } from '@/services/CronAuthReport';
 import { planInDaySends, filterTodaysOccurrences } from '@/services/InDayReminderService';
 import {
   buildReminderPreferenceLink,
@@ -44,6 +45,7 @@ async function getHandler(request: NextRequest) {
 
   const authHeader = request.headers.get('authorization');
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    reportCronSchedulerRejected('/api/cron/in-day-reminders');
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -206,4 +208,4 @@ async function getHandler(request: NextRequest) {
 // traffic elsewhere in the app. Requires AGENTS_OBSERVE_INGEST_URL/TOKEN/PROJECT_ID to
 // actually deliver - no-ops safely if unset (see docs/monitoring-runbook.md).
 
-export const GET = withServiceCall(getHandler, { report4xx: true });
+export const GET = withServiceCall(getHandler);

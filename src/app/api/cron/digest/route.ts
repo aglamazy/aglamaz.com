@@ -19,6 +19,7 @@ import { periodKeyFor } from '@/repositories/DigestSendRepository';
 import { resolveDigestRecipients } from '@/services/DigestSendPlanService';
 import { executeDigestSend } from '@/services/DigestSendExecutionService';
 import { pingSendFlow } from '@/services/DeadmanPing';
+import { reportCronSchedulerRejected } from '@/services/CronAuthReport';
 import type { UnifiedMagazineCadence } from '@/repositories/NotificationPreferencesRepository';
 
 export const dynamic = 'force-dynamic';
@@ -42,6 +43,7 @@ async function getHandler(request: NextRequest) {
 
   const authHeader = request.headers.get('authorization');
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    reportCronSchedulerRejected('/api/cron/digest');
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -130,4 +132,4 @@ async function getHandler(request: NextRequest) {
 // traffic elsewhere in the app. Requires AGENTS_OBSERVE_INGEST_URL/TOKEN/PROJECT_ID to
 // actually deliver - no-ops safely if unset (see docs/monitoring-runbook.md).
 
-export const GET = withServiceCall(getHandler, { report4xx: true });
+export const GET = withServiceCall(getHandler);
