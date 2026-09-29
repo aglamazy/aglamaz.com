@@ -7,12 +7,15 @@
 // src/app/api/cron/reminders/route.ts (which §5 of the spec retires).
 
 import { NextRequest, NextResponse } from 'next/server';
+import { withServiceCall } from 'agents-observe/next';
 import { AnniversaryRepository } from '@/repositories/AnniversaryRepository';
 import { MemberRepository } from '@/repositories/MemberRepository';
 import { SiteRepository } from '@/repositories/SiteRepository';
 import { BlessingPageRepository } from '@/repositories/BlessingPageRepository';
 import { notificationPreferencesRepository } from '@/repositories/NotificationPreferencesRepository';
 import { ResendService } from '@/services/ResendService';
+import { pingSendFlow } from '@/services/DeadmanPing';
+import { reportCronSchedulerRejected } from '@/services/CronAuthReport';
 import { planInDaySends, filterTodaysOccurrences } from '@/services/InDayReminderService';
 import {
   buildReminderPreferenceLink,
@@ -34,7 +37,7 @@ function getSiteName(site: ISite): string {
   return '';
 }
 
-export async function GET(request: NextRequest) {
+async function getHandler(request: NextRequest) {
   if (!process.env.CRON_SECRET) {
     console.error('[cron/in-day-reminders] CRON_SECRET environment variable is not set');
     return NextResponse.json({ error: 'Server misconfiguration: CRON_SECRET not set' }, { status: 500 });
@@ -42,6 +45,7 @@ export async function GET(request: NextRequest) {
 
   const authHeader = request.headers.get('authorization');
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    reportCronSchedulerRejected('/api/cron/in-day-reminders');
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -56,6 +60,8 @@ export async function GET(request: NextRequest) {
   const memberIdFilter = request.nextUrl.searchParams.get('memberId');
 
   let totalSent = 0;
+  let totalSkipped = 0;
+  let totalFailed = 0;
   let sites: ISite[] = [];
 
   try {
@@ -149,7 +155,7 @@ export async function GET(request: NextRequest) {
           console.log(
             `[cron/in-day-reminders] sending: site=${siteId} member=${plan.memberId} to=${plan.to}`,
           );
-          await ResendService.sendTransactionalEmail({
+          const delivered = await ResendService.sendTransactionalEmail({
             to: plan.to,
             subject: plan.subject,
             html: plan.html,
@@ -162,8 +168,10 @@ export async function GET(request: NextRequest) {
               sendId,
             },
           });
-          totalSent++;
+          if (delivered) totalSent++;
+          else totalSkipped++;
         } catch (memberErr) {
+          totalFailed++;
           console.error(
             `[cron/in-day-reminders] error sending to member=${plan.memberId}:`,
             memberErr,
@@ -171,12 +179,27 @@ export async function GET(request: NextRequest) {
         }
       }
     } catch (err) {
+      totalFailed++;
       console.error(`[cron/in-day-reminders] error processing site ${siteId}:`, err);
     }
   }
 
-  console.log(`[cron/in-day-reminders] complete: sites=${sites.length} sent=${totalSent}`);
-  return NextResponse.json({ ok: true, sites: sites.length, sent: totalSent });
+  console.log(
+    `[cron/in-day-reminders] complete: sites=${sites.length} sent=${totalSent} skipped=${totalSkipped} failed=${totalFailed}`,
+  );
+  // famcircle#182: the dead-man ping means "every send this run was accepted by Resend". A failure or a
+  // skipped send (no key) withholds it, so the check goes late. A day with nothing to send is a healthy run.
+  // A single-member manual run (memberId filter) says nothing about the whole flow, so it never pings.
+  if (totalFailed === 0 && totalSkipped === 0 && !memberIdFilter) {
+    await pingSendFlow('in-day-reminders');
+  }
+  return NextResponse.json({
+    ok: true,
+    sites: sites.length,
+    sent: totalSent,
+    skipped: totalSkipped,
+    failed: totalFailed,
+  });
 }
 
 // famcircle#160 (2026-08-16): report any non-2xx response (default: only 5xx) - a cron
@@ -184,3 +207,5 @@ export async function GET(request: NextRequest) {
 // famcircle#156 incident) is never a normal "expected client error", unlike most 4xx
 // traffic elsewhere in the app. Requires AGENTS_OBSERVE_INGEST_URL/TOKEN/PROJECT_ID to
 // actually deliver - no-ops safely if unset (see docs/monitoring-runbook.md).
+
+export const GET = withServiceCall(getHandler);

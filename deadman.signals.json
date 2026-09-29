@@ -1,0 +1,9 @@
+{
+  "_note": "Dead-man signals this app declares (famcircle#182). Logical names, cadence and grace only - NEVER a slug. The slug of each is the Production-only sensitive Vercel env var DEADMAN_SLUG_<name with - as _> (custody: Zach). scripts/register-deadman.mjs registers them at production build; each send cron pings its own after a successful run.",
+  "owning_lane": "famcircle",
+  "signals": [
+    { "name": "digest-weekly", "period_seconds": 604800, "grace_seconds": 21600, "cron": "/api/cron/digest?cadence=weekly (Fri 07:00 UTC, retried every 10 min from 06:00)" },
+    { "name": "digest-monthly", "period_seconds": 2678400, "grace_seconds": 86400, "cron": "/api/cron/digest (1st of the month 01:00 UTC, retried every 10 min from 00:00)" },
+    { "name": "in-day-reminders", "period_seconds": 86400, "grace_seconds": 21600, "cron": "/api/cron/in-day-reminders (daily 06:10 UTC)" }
+  ]
+}

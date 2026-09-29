@@ -13,6 +13,8 @@
 // Auth: Vercel Cron sends Authorization: Bearer {CRON_SECRET}; same secret used for manual
 // curl tests, same pattern as every other cron in this app.
 import { NextRequest, NextResponse } from 'next/server';
+import { withServiceCall } from 'agents-observe/next';
+import { reportCronSchedulerRejected } from '@/services/CronAuthReport';
 import { SiteRepository } from '@/repositories/SiteRepository';
 import { MemberRepository } from '@/repositories/MemberRepository';
 import { renderEmailHtml } from '@/services/emailTemplates';
@@ -37,13 +39,14 @@ function dueCadencesForTomorrow(now: Date): Array<{ cadence: DigestCadence; fire
   return due;
 }
 
-export async function GET(request: NextRequest) {
+async function getHandler(request: NextRequest) {
   if (!process.env.CRON_SECRET) {
     console.error('[cron/digest-preview] CRON_SECRET environment variable is not set');
     return NextResponse.json({ error: 'Server misconfiguration: CRON_SECRET not set' }, { status: 500 });
   }
   const authHeader = request.headers.get('authorization');
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    reportCronSchedulerRejected('/api/cron/digest-preview');
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -136,3 +139,5 @@ export async function GET(request: NextRequest) {
 // famcircle#156 incident) is never a normal "expected client error", unlike most 4xx
 // traffic elsewhere in the app. Requires AGENTS_OBSERVE_INGEST_URL/TOKEN/PROJECT_ID to
 // actually deliver - no-ops safely if unset (see docs/monitoring-runbook.md).
+
+export const GET = withServiceCall(getHandler);
