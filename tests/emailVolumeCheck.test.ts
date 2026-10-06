@@ -36,6 +36,7 @@ async function testHealthyWhenRecentEmailsExist() {
   try {
     const result = await checkEmailVolume('fake-key', 48);
     assert.equal(result.healthy, true);
+    assert.equal(result.state, 'healthy');
     assert.equal(result.count, 1);
   } finally {
     global.fetch = realFetch;
@@ -55,6 +56,7 @@ async function testUnhealthyWhenNoEmailsInWindow() {
   try {
     const result = await checkEmailVolume('fake-key', 48);
     assert.equal(result.healthy, false, 'an email older than the window must not count');
+    assert.equal(result.state, 'dark', 'a successful read with nothing in the window is DARK');
     assert.equal(result.count, 0);
   } finally {
     global.fetch = realFetch;
@@ -73,6 +75,8 @@ async function testUnhealthyOnApiError() {
   try {
     const result = await checkEmailVolume('fake-key', 48);
     assert.equal(result.healthy, false);
+    assert.equal(result.state, 'inoperative', 'a 401 is the CHECK failing, never a dark channel');
+    assert.equal(result.count, null, 'count must not claim 0 when the list was never read');
     assert.ok(result.error);
   } finally {
     global.fetch = realFetch;
@@ -81,10 +85,57 @@ async function testUnhealthyOnApiError() {
   console.log('unhealthy and surfaces the error on a Resend API failure passed');
 }
 
+// The founding case for the three-state split (famcircle#175): a send-only key answers
+// 401 restricted_api_key, and for three weeks that was reported as an email outage.
+async function testSendOnlyKeyIsInoperativeNotDark() {
+  const { url, close } = await startServer((req, res) => {
+    res.writeHead(401, { 'content-type': 'application/json' });
+    res.end(JSON.stringify({
+      statusCode: 401,
+      name: 'restricted_api_key',
+      message: 'This API key is restricted to only send emails',
+    }));
+  });
+  mockFetchTo(url);
+
+  try {
+    const result = await checkEmailVolume('send-only-key', 48);
+    assert.equal(result.state, 'inoperative');
+    assert.equal(result.count, null);
+    assert.match(String(result.error), /restricted to only send emails/);
+  } finally {
+    global.fetch = realFetch;
+    await close();
+  }
+  console.log('a send-only key reads INOPERATIVE, not a dark channel, passed');
+}
+
+// A 200 of the wrong shape used to read `body.data ?? []` and report a confident count 0 -
+// indistinguishable from a genuinely dark channel.
+async function testMalformedBodyIsInoperativeNotDark() {
+  const { url, close } = await startServer((req, res) => {
+    res.writeHead(200, { 'content-type': 'text/html' });
+    res.end('<html><body>upstream proxy error</body></html>');
+  });
+  mockFetchTo(url);
+
+  try {
+    const result = await checkEmailVolume('fake-key', 48);
+    assert.equal(result.state, 'inoperative', 'a 200 with no data array cannot prove a dark channel');
+    assert.equal(result.count, null);
+  } finally {
+    global.fetch = realFetch;
+    await close();
+  }
+  console.log('a 200 with an unexpected body reads INOPERATIVE passed');
+}
+
 async function run() {
   await testHealthyWhenRecentEmailsExist();
   await testUnhealthyWhenNoEmailsInWindow();
   await testUnhealthyOnApiError();
+  await testSendOnlyKeyIsInoperativeNotDark();
+  await testMalformedBodyIsInoperativeNotDark();
 }
 
 run();
