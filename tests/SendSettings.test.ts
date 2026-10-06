@@ -7,15 +7,14 @@ import { resolveSendSettingsForSite } from '../src/repositories/SiteRepository';
 import type { ISite } from '../src/entities/Site';
 
 function testDefaultsWhenNothingConfigured() {
-  // The real-world default for every existing site before this table existed: digest,
-  // in-day reminders and yahrzeit WhatsApp had no site-level switch at all (member prefs /
-  // event matching decided everything) so they must stay on; blogAutogen's existing
-  // consent gate defaulted off.
+  // The real-world default for every existing site before this table existed: digest and
+  // in-day reminders had no site-level switch at all (member prefs / event matching
+  // decided everything) so they must stay on; blogAutogen's existing consent gate
+  // defaulted off.
   const site = { id: 'site1' } as ISite;
   assert.deepEqual(resolveSendSettingsForSite(site), {
     digest: true,
     inDayReminders: true,
-    yahrzeitWhatsapp: true,
     blogAutogen: false,
   });
   console.log('defaults-when-nothing-configured test passed');

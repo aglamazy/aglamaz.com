@@ -10,7 +10,7 @@ export interface FieldMeta {
 // reserved for later per Agla 2026-07-30, not built yet). No shadow config: the admin
 // read/write API and every cron below resolve through SiteRepository.resolveSendSettings,
 // never a separate flag.
-export const SEND_TYPES = ['digest', 'inDayReminders', 'yahrzeitWhatsapp', 'blogAutogen'] as const;
+export const SEND_TYPES = ['digest', 'inDayReminders', 'blogAutogen'] as const;
 export type SendType = typeof SEND_TYPES[number];
 
 export interface SendTypeSetting {

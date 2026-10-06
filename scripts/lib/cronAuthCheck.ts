@@ -22,15 +22,14 @@ export interface CronAuthCheckResult {
  * One probe per cron route, each with a scoping param that proves auth succeeded
  * without triggering the route's real side effect:
  *  - digest / in-day-reminders: memberId=<nonexistent> (route-native no-op filter)
- *  - blog-autogen / digest-preview / yahrzeit-whatsapp: dryRun=true (famcircle#161 -
- *    short-circuits AFTER the auth check, BEFORE any AI draft / email / WhatsApp send)
+ *  - blog-autogen / digest-preview: dryRun=true (famcircle#161 - short-circuits AFTER
+ *    the auth check, BEFORE any AI draft / email send)
  */
 export const CRON_PROBES: ReadonlyArray<{ route: string; query: string }> = [
   { route: '/api/cron/digest', query: 'cadence=weekly&memberId=__cron-auth-check-canary__' },
   { route: '/api/cron/in-day-reminders', query: 'memberId=__cron-auth-check-canary__' },
   { route: '/api/cron/blog-autogen', query: 'dryRun=true' },
   { route: '/api/cron/digest-preview', query: 'dryRun=true' },
-  { route: '/api/cron/yahrzeit-whatsapp', query: 'dryRun=true' },
 ];
 
 async function probeOne(baseUrl: string, route: string, query: string, secret: string, timeoutMs: number): Promise<CronAuthCheckResult> {

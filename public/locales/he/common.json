@@ -70,8 +70,6 @@
   "sendTypeDigestRecipients": "חברים שבחרו תדירות שבועית או חודשית בהעדפות ההתראות שלהם",
   "sendTypeInDayReminders": "תזכורות יום הולדת / יארצייט / יום נישואין",
   "sendTypeInDayRemindersRecipients": "חברים עם תזכורות יום השנה מופעלות",
-  "sendTypeYahrzeitWhatsapp": "הודעת וואטסאפ ליארצייט",
-  "sendTypeYahrzeitWhatsappRecipients": "רשימת התפוצה בוואטסאפ של האתר",
   "sendTypeBlogAutogen": "טיוטת בלוג בבינה מלאכותית",
   "sendTypeBlogAutogenRecipients": "למנהלים בלבד לבדיקה - לא נשלח ישירות לחברים",
   "loginAudit": "נתוני שימוש",

@@ -70,8 +70,6 @@
   "sendTypeDigestRecipients": "الأعضاء الذين اختاروا أسبوعياً أو شهرياً في تفضيلات الإشعارات",
   "sendTypeInDayReminders": "تذكيرات عيد الميلاد / اليارتسايت / الذكرى السنوية",
   "sendTypeInDayRemindersRecipients": "الأعضاء الذين فعّلوا تذكيرات نفس اليوم",
-  "sendTypeYahrzeitWhatsapp": "بث واتساب لليارتسايت",
-  "sendTypeYahrzeitWhatsappRecipients": "قائمة بث واتساب الخاصة بالموقع",
   "sendTypeBlogAutogen": "مسودة مدونة بالذكاء الاصطناعي",
   "sendTypeBlogAutogenRecipients": "للمسؤولين فقط للمراجعة - لا تُرسل مباشرة للأعضاء",
   "sendTypeTagNotification": "إشعار وسم",

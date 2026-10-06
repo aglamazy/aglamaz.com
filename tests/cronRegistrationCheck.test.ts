@@ -4,7 +4,7 @@ import { checkCronRegistration, type ExpectedCronEntry } from '../scripts/lib/cr
 const EXPECTED: ExpectedCronEntry[] = [
   { path: '/api/cron/digest', schedule: '0,10,20,30,40,50 6 * * 5' },
   { path: '/api/cron/digest', schedule: '0 7 * * 5' },
-  { path: '/api/cron/yahrzeit-whatsapp', schedule: '5 6 * * *' },
+  { path: '/api/cron/blog-autogen', schedule: '0 4 2 * *' },
 ];
 
 async function testHealthyWhenEveryEntryIsRegistered() {
@@ -21,13 +21,13 @@ async function testHealthyWhenEveryEntryIsRegistered() {
 // responds correctly to a manual call (checkAllCronAuth would say healthy) but Vercel
 // has genuinely stopped triggering it at all - a silently-dropped registration.
 async function testDetectsAFullyMissingCronEntry() {
-  const registered = EXPECTED.filter((e) => e.path !== '/api/cron/yahrzeit-whatsapp');
+  const registered = EXPECTED.filter((e) => e.path !== '/api/cron/blog-autogen');
   const result = await checkCronRegistration(EXPECTED, {
     fetchRegisteredCrons: async () => registered,
   });
   assert.equal(result.healthy, false, 'a silently-removed cron entry must be caught - this is the control-proof-principle gap');
   assert.equal(result.missing.length, 1);
-  assert.equal(result.missing[0].path, '/api/cron/yahrzeit-whatsapp');
+  assert.equal(result.missing[0].path, '/api/cron/blog-autogen');
   console.log('cron-registration detects a fully missing cron entry test passed');
 }
 
@@ -36,15 +36,15 @@ async function testDetectsAFullyMissingCronEntry() {
 // worth distinguishing in the report.
 async function testDetectsAScheduleMismatch() {
   const registered = EXPECTED.map((e) =>
-    e.path === '/api/cron/yahrzeit-whatsapp' ? { ...e, schedule: '5 8 * * *' } : e,
+    e.path === '/api/cron/blog-autogen' ? { ...e, schedule: '0 5 2 * *' } : e,
   );
   const result = await checkCronRegistration(EXPECTED, {
     fetchRegisteredCrons: async () => registered,
   });
   assert.equal(result.healthy, false);
   assert.equal(result.scheduleMismatches.length, 1);
-  assert.equal(result.scheduleMismatches[0].expected, '5 6 * * *');
-  assert.equal(result.scheduleMismatches[0].registered, '5 8 * * *');
+  assert.equal(result.scheduleMismatches[0].expected, '0 4 2 * *');
+  assert.equal(result.scheduleMismatches[0].registered, '0 5 2 * *');
   console.log('cron-registration detects a schedule drift (registered but wrong time) test passed');
 }
 

@@ -34,8 +34,6 @@
   "sendTypeDigestRecipients": "Bildirim tercihlerinde haftalık veya aylık seçen üyeler",
   "sendTypeInDayReminders": "Doğum günü / Yahrzeit / Yıldönümü hatırlatmaları",
   "sendTypeInDayRemindersRecipients": "Aynı gün hatırlatmaları açık olan üyeler",
-  "sendTypeYahrzeitWhatsapp": "Yahrzeit WhatsApp yayını",
-  "sendTypeYahrzeitWhatsappRecipients": "Sitenin WhatsApp yayın listesi",
   "sendTypeBlogAutogen": "Yapay zeka blog taslağı",
   "sendTypeBlogAutogenRecipients": "Yalnızca yöneticilere inceleme için - üyelere doğrudan gönderilmez",
   "loginAudit": "Kullanım Verileri",

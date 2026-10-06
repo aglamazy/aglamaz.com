@@ -1,8 +1,8 @@
 "use client";
 
 // F7-A (famcircle#119): the one admin page every site admin uses to see + control every
-// send type the system fires (digest, in-day reminders, yahrzeit WhatsApp, AI blog draft).
-// The on/off column here is read literally by the 4 cron routes via
+// send type the system fires (digest, in-day reminders, AI blog draft).
+// The on/off column here is read literally by the cron routes via
 // SiteRepository.resolveSendSettings - no shadow config, what you toggle is what fires.
 // Locale column is a reserved placeholder only (Agla, 2026-07-30: locale handled after
 // these sends land - do not build the behavior yet).
@@ -24,14 +24,12 @@ interface SendTypeRow {
 const ROW_LABEL_KEY: Record<SendType, string> = {
   digest: 'sendTypeDigest',
   inDayReminders: 'sendTypeInDayReminders',
-  yahrzeitWhatsapp: 'sendTypeYahrzeitWhatsapp',
   blogAutogen: 'sendTypeBlogAutogen',
 };
 
 const ROW_RECIPIENTS_KEY: Record<SendType, string> = {
   digest: 'sendTypeDigestRecipients',
   inDayReminders: 'sendTypeInDayRemindersRecipients',
-  yahrzeitWhatsapp: 'sendTypeYahrzeitWhatsappRecipients',
   blogAutogen: 'sendTypeBlogAutogenRecipients',
 };
 

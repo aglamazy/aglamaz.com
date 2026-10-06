@@ -70,8 +70,6 @@
   "sendTypeDigestRecipients": "Members who chose weekly or monthly in their notification preferences",
   "sendTypeInDayReminders": "Birthday / Yahrzeit / Anniversary reminders",
   "sendTypeInDayRemindersRecipients": "Members with same-day reminders enabled",
-  "sendTypeYahrzeitWhatsapp": "Yahrzeit WhatsApp broadcast",
-  "sendTypeYahrzeitWhatsappRecipients": "Site's WhatsApp broadcast list",
   "sendTypeBlogAutogen": "AI blog draft",
   "sendTypeBlogAutogenRecipients": "Admins only, as a draft for review - never sent directly to members",
   "loginAudit": "Usage Data",
