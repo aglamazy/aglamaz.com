@@ -227,7 +227,7 @@ export async function browseDropboxFolder(
 // ── Folder expansion ────────────────────────────────────────────────
 
 /**
- * The most images one import call will expand to (famcircle#194).
+ * The most images ONE import call will accept (famcircle#194).
  *
  * This is a MEASURED bound, not a round number. The import route runs 4 downloads
  * at a time and its maxDuration is 300s; measured against Agla's real folder on
@@ -235,13 +235,23 @@ export async function browseDropboxFolder(
  * (8 images, 41 MB, 10.8s) before the Firebase upload is counted at all - so about
  * 220 images is the ceiling, and 150 leaves room for the upload and a slower link.
  *
- * It fails LOUD when exceeded rather than importing a subset, because the route
- * records the occurrence only after every file completes: a function killed at 300s
- * has uploaded images to Storage and saved none of them, so a run that cannot
- * finish must not start. Lifting this needs incremental saving or a background job
- * (raised to Agla with the numbers on famcircle#194); it is not a number to nudge.
+ * This is now a PER-CALL limit, not a limit on what the user may select: the client
+ * splits a big selection into chunks and calls this route once per chunk, holding the
+ * running count itself (Agla, 2026-10-17: "Break the load to chunks. Front holds load
+ * with the counter goes up"). Each chunk is saved when it finishes, so a selection of
+ * any size makes progress and a failure costs one chunk instead of everything.
  */
 export const MAX_IMPORT_IMAGES = 150;
+
+/** How many images the client puts in one chunk - comfortably inside the per-call cap. */
+export const IMPORT_CHUNK_SIZE = 100;
+
+/**
+ * Safety ceiling for planning a whole job. Not a product limit: it exists so a
+ * mis-click on a huge tree cannot spin the server listing forever. Agla's full link is
+ * 1041 images, so this leaves real room above the largest selection anyone has made.
+ */
+export const MAX_EXPAND_IMAGES = 5000;
 
 /** Guard against a pathological tree; each level costs at least one API call. */
 const MAX_FOLDER_DEPTH = 4;
@@ -257,6 +267,7 @@ const MAX_FOLDER_DEPTH = 4;
 export async function expandFoldersToImagePaths(
   folderPaths: string[],
   sharedUrl?: string,
+  limit: number = MAX_EXPAND_IMAGES,
 ): Promise<string[]> {
   const found: string[] = [];
   const seen = new Set<string>();
@@ -279,10 +290,10 @@ export async function expandFoldersToImagePaths(
             next.push(entry.path);
           } else {
             found.push(entry.path);
-            if (found.length > MAX_IMPORT_IMAGES) {
+            if (found.length > limit) {
               throw new Error(
-                `This selection holds more than ${MAX_IMPORT_IMAGES} images, which is more than one import can finish ` +
-                `before the server gives up (300s). Select fewer folders and import them in batches.`
+                `This selection holds more than ${limit} images, which is more than one import can read in a single pass. ` +
+                `Select fewer folders.`
               );
             }
           }

@@ -591,7 +591,7 @@
   "loadMore": "טען עוד",
   "importSelected": "ייבוא נבחרים ({{count}})",
   "uploadingProgress": "מעלה {{completed}}/{{total}}",
-  "importMayTakeMinutes": "זה עלול לקחת כמה דקות...",
+  "importMayTakeMinutes": "זה עשוי לקחת כמה דקות...",
   "importedWithFailures": "יובאו {{imported}}, נכשלו {{failed}}",
   "sharedFolder": "תיקייה משותפת",
   "failedToBrowseFolder": "עיון בתיקייה נכשל",

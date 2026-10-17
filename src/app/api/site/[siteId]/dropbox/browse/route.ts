@@ -1,6 +1,6 @@
 import { withMemberGuard } from '@/lib/withMemberGuard';
 import { GuardContext } from '@/app/api/types';
-import { browseDropboxFolder, getDropboxThumbnails } from '@/services/DropboxService';
+import { browseDropboxFolder, getDropboxThumbnails, expandFoldersToImagePaths } from '@/services/DropboxService';
 
 export const dynamic = 'force-dynamic';
 
@@ -46,7 +46,7 @@ const postHandler = async (request: Request, context: GuardContext & { params: P
     }
 
     const body = await request.json();
-    const { url, path, cursor, thumbnailPaths } = body;
+    const { url, path, cursor, thumbnailPaths, expandFolders } = body;
 
     let parsedInput: { browsePath: string; sharedUrl: string | undefined };
     try {
@@ -55,6 +55,22 @@ const postHandler = async (request: Request, context: GuardContext & { params: P
       return Response.json({ error: (e as Error).message }, { status: 400 });
     }
     const { browsePath, sharedUrl } = parsedInput;
+
+    // ── Folder-expansion mode (chunk planning) ──────────────────────
+    //
+    // The client needs the whole file list before it can split a big selection into
+    // chunks and hold the running counter itself (Agla, 2026-10-17: "Break the load to
+    // chunks. Front holds load with the counter goes up"). One function call cannot do
+    // the whole job - maxDuration is 300s - so the job is planned here and executed as
+    // several import calls.
+    //
+    // These paths come back ABSOLUTE, unlike the browse entries below, and the import
+    // route accepts either form: downloadDropboxFile resolves a path against the shared
+    // link's root before using it.
+    if (Array.isArray(expandFolders) && expandFolders.length > 0) {
+      const imagePaths = await expandFoldersToImagePaths(expandFolders, sharedUrl);
+      return Response.json({ paths: imagePaths, total: imagePaths.length });
+    }
 
     // ── Thumbnail-only mode ─────────────────────────────────────────
     if (Array.isArray(thumbnailPaths) && thumbnailPaths.length > 0) {

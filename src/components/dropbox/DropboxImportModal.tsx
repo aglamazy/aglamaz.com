@@ -18,6 +18,12 @@ interface DropboxImportModalProps {
   previousLinks?: ImportSourceLink[];
 }
 
+/**
+ * Images per import request. The route accepts up to MAX_IMPORT_IMAGES (150) in one
+ * call; 100 keeps each chunk well inside that and inside the 300s the function gets.
+ */
+const IMPORT_CHUNK_SIZE = 100;
+
 interface BrowseEntry {
   name: string;
   path: string;
@@ -333,58 +339,110 @@ export default function DropboxImportModal({ isOpen, onClose, onImported, target
       const siteId = useSiteStore.getState().siteInfo?.id;
       if (!siteId) throw new Error('No site selected');
 
-      const url = getApiPath(ApiRoute.SITE_DROPBOX_IMPORT, siteId);
-      // eslint-disable-next-line no-restricted-globals -- streaming NDJSON response requires raw fetch
-      const res = await fetch(url, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          dropboxUrl: dropboxUrl || undefined,
-          paths,
-          folderPaths: selectedFolderPaths,
-          target: {
-            anniversaryId: target.anniversaryId,
-            occurrenceId: target.occurrenceId,
+      // ── 1. PLAN ──────────────────────────────────────────────────
+      // Expand the chosen folders first, so the counter has a real total to count
+      // towards rather than growing as it goes.
+      let allPaths = paths;
+      if (selectedFolderPaths.length > 0) {
+        const plan = await apiFetch<{ paths: string[] }>(ApiRoute.SITE_DROPBOX_BROWSE, {
+          method: 'POST',
+          body: {
+            url: dropboxUrl || undefined,
+            expandFolders: selectedFolderPaths,
           },
-        }),
-      });
-
-      if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
-      if (!res.body) throw new Error('No response body');
-
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-      let finalData: { imported: number; failed: number; images: ImageWithDimension[]; errors?: string[] } | null = null;
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
-
-        for (const line of lines) {
-          if (!line.trim()) continue;
-          const msg = JSON.parse(line);
-          if (msg.done) {
-            finalData = msg;
-          } else if (msg.completed != null) {
-            setImportProgress(t('uploadingProgress', { completed: msg.completed, total: msg.total }));
-          }
-        }
+        });
+        allPaths = Array.from(new Set([...paths, ...(plan.paths || [])]));
       }
 
-      if (!finalData) throw new Error('Stream ended without final result');
+      if (allPaths.length === 0) throw new Error(t('noImagesOrFolders'));
 
-      if (finalData.failed > 0) {
-        setImportProgress(t('importedWithFailures', { imported: finalData.imported, failed: finalData.failed }));
+      const grandTotal = allPaths.length;
+      setImportProgress(t('uploadingProgress', { completed: 0, total: grandTotal }));
+
+      // ── 2. RUN IN CHUNKS ─────────────────────────────────────────
+      // One request cannot carry the whole job: the route's maxDuration is 300s and a
+      // function killed mid-flight records nothing. So the load is broken into chunks
+      // (Agla, 2026-10-17), each one saved by the server when it finishes, and this
+      // component holds the running count across all of them.
+      const url = getApiPath(ApiRoute.SITE_DROPBOX_IMPORT, siteId);
+      const collected: ImageWithDimension[] = [];
+      const failedPaths: string[] = [];
+      let completedSoFar = 0;
+
+      for (let offset = 0; offset < allPaths.length; offset += IMPORT_CHUNK_SIZE) {
+        const chunk = allPaths.slice(offset, offset + IMPORT_CHUNK_SIZE);
+
+        // eslint-disable-next-line no-restricted-globals -- streaming NDJSON response requires raw fetch
+        const res = await fetch(url, {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            dropboxUrl: dropboxUrl || undefined,
+            paths: chunk,
+            target: {
+              anniversaryId: target.anniversaryId,
+              occurrenceId: target.occurrenceId,
+            },
+          }),
+        });
+
+        if (!res.ok) {
+          // Surface the server's own words (a cap or a Dropbox refusal), not just a code.
+          let detail = `HTTP ${res.status} ${res.statusText}`;
+          try {
+            const body = await res.json();
+            if (body?.error) detail = body.error;
+          } catch { /* keep the status line */ }
+          throw new Error(detail);
+        }
+        if (!res.body) throw new Error('No response body');
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let finalData: { imported: number; failed: number; images: ImageWithDimension[]; errors?: string[] } | null = null;
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+
+          for (const line of lines) {
+            if (!line.trim()) continue;
+            const msg = JSON.parse(line);
+            if (msg.done) {
+              finalData = msg;
+            } else if (msg.completed != null) {
+              // The chunk counts from zero; the user is shown the whole job.
+              setImportProgress(t('uploadingProgress', {
+                completed: completedSoFar + msg.completed,
+                total: grandTotal,
+              }));
+            }
+          }
+        }
+
+        if (!finalData) throw new Error('Stream ended without final result');
+
+        collected.push(...finalData.images);
+        if (finalData.errors?.length) failedPaths.push(...finalData.errors);
+        completedSoFar += chunk.length;
+        setImportProgress(t('uploadingProgress', { completed: completedSoFar, total: grandTotal }));
+      }
+
+      if (failedPaths.length > 0) {
+        setImportProgress(t('importedWithFailures', {
+          imported: collected.length,
+          failed: failedPaths.length,
+        }));
       }
 
       setState('done');
-      onImported(finalData.images);
+      onImported(collected);
       handleClose();
     } catch (err) {
       console.error('[DropboxImport] import failed:', err);
