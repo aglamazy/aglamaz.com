@@ -102,6 +102,8 @@ export default function DropboxImportModal({ isOpen, onClose, onImported, target
   const [error, setError] = useState('');
   const [importProgress, setImportProgress] = useState('');
   const [resolvedLabels, setResolvedLabels] = useState<Record<string, string>>({});
+  // Anchor for shift-click range selection, in orderedEntries index space (famcircle#194).
+  const lastClickedIndex = useRef<number | null>(null);
   const thumbnailRequestId = useRef(0);
 
   // Resolve display names for shared links from Dropbox
@@ -247,6 +249,14 @@ export default function DropboxImportModal({ isOpen, onClose, onImported, target
     browse(prev);
   }
 
+  // Folders render before files, so range selection counts over that same order
+  // (famcircle#194) - a shift-click spanning the two groups has to mean what it looks
+  // like on screen.
+  const orderedEntries = [
+    ...entries.filter((e) => e.isFolder),
+    ...entries.filter((e) => !e.isFolder),
+  ];
+
   function toggleSelect(path: string) {
     setSelected((prev) => {
       const next = new Set(prev);
@@ -259,24 +269,63 @@ export default function DropboxImportModal({ isOpen, onClose, onImported, target
     });
   }
 
+  /**
+   * Select one row, or - with shift held - every row between the last one clicked and
+   * this one. The anchor is remembered even for a plain click, so shift-click after it
+   * extends from where the user actually was.
+   */
+  function selectAt(index: number, shiftKey: boolean) {
+    const entry = orderedEntries[index];
+    if (!entry) return;
+
+    const anchor = lastClickedIndex.current;
+    if (shiftKey && anchor !== null && anchor !== index) {
+      const [from, to] = anchor < index ? [anchor, index] : [index, anchor];
+      // A range always SELECTS; shift-clicking is how you add a block, never a toggle
+      // that clears half of it by accident.
+      setSelected((prev) => {
+        const next = new Set(prev);
+        for (let i = from; i <= to; i++) {
+          const e = orderedEntries[i];
+          if (e) next.add(e.path);
+        }
+        return next;
+      });
+    } else {
+      toggleSelect(entry.path);
+    }
+
+    lastClickedIndex.current = index;
+  }
+
   function toggleSelectAll() {
-    const imagePaths = entries.filter((e) => !e.isFolder).map((e) => e.path);
-    const allSelected = imagePaths.every((p) => selected.has(p));
+    // Folders count too, so "select all" on a folder-only view is not a no-op - which
+    // is exactly the screen Agla hit (famcircle#194).
+    const allPaths = orderedEntries.map((e) => e.path);
+    const allSelected = allPaths.length > 0 && allPaths.every((p) => selected.has(p));
     if (allSelected) {
       setSelected(new Set());
     } else {
-      setSelected(new Set(imagePaths));
+      setSelected(new Set(allPaths));
     }
+    lastClickedIndex.current = null;
   }
 
   async function handleImport() {
     const paths = entries
       .filter((e) => !e.isFolder && selected.has(e.path))
       .map((e) => e.path);
+    // Selected folders go as folders: the server expands them, so the browser is not
+    // made to walk a tree over N round trips (famcircle#194).
+    const selectedFolderPaths = entries
+      .filter((e) => e.isFolder && selected.has(e.path))
+      .map((e) => e.path);
 
-    if (paths.length === 0) return;
+    if (paths.length === 0 && selectedFolderPaths.length === 0) return;
 
     setState('importing');
+    // The real total is only known once the server has expanded the folders; its first
+    // progress line carries it, and this is what shows until then.
     setImportProgress(t('uploadingProgress', { completed: 0, total: paths.length }));
     setError('');
 
@@ -293,6 +342,7 @@ export default function DropboxImportModal({ isOpen, onClose, onImported, target
         body: JSON.stringify({
           dropboxUrl: dropboxUrl || undefined,
           paths,
+          folderPaths: selectedFolderPaths,
           target: {
             anniversaryId: target.anniversaryId,
             occurrenceId: target.occurrenceId,
@@ -344,6 +394,8 @@ export default function DropboxImportModal({ isOpen, onClose, onImported, target
   }
 
   const imageCount = entries.filter((e) => !e.isFolder).length;
+  const folderCount = entries.filter((e) => e.isFolder).length;
+  const selectableCount = imageCount + folderCount;
   const selectedCount = selected.size;
 
   return (
@@ -435,12 +487,12 @@ export default function DropboxImportModal({ isOpen, onClose, onImported, target
             {loading && entries.length === 0 && <Spinner />}
 
             {/* Select controls */}
-            {!loading && imageCount > 0 && (
+            {!loading && selectableCount > 0 && (
               <div className="flex items-center justify-between text-sm">
                 <button onClick={toggleSelectAll} className="text-blue-600 hover:underline">
-                  {selectedCount === imageCount ? t('deselectAll') : t('selectAll')}
+                  {selectedCount === selectableCount ? t('deselectAll') : t('selectAll')}
                 </button>
-                <span className="text-gray-500">{t('selectedOfTotal', { selected: selectedCount, total: imageCount })}</span>
+                <span className="text-gray-500">{t('selectedOfTotal', { selected: selectedCount, total: selectableCount })}</span>
               </div>
             )}
 
@@ -452,21 +504,40 @@ export default function DropboxImportModal({ isOpen, onClose, onImported, target
                 )}
 
                 {/* Folders first */}
-                {entries.filter((e) => e.isFolder).map((entry) => (
-                  <button
-                    key={entry.path}
-                    onClick={() => navigateToFolder(entry)}
-                    className="w-full flex items-center gap-2 p-2 hover:bg-gray-50 rounded text-start"
-                    disabled={loading}
-                  >
-                    <span className="text-2xl">&#128193;</span>
-                    <span className="text-sm truncate">{entry.name}</span>
-                  </button>
-                ))}
+                {entries.filter((e) => e.isFolder).map((entry) => {
+                  const index = orderedEntries.findIndex((e) => e.path === entry.path);
+                  return (
+                    <div
+                      key={entry.path}
+                      className={`w-full flex items-center gap-2 p-2 rounded border-2 transition-colors ${
+                        selected.has(entry.path) ? 'border-blue-500 bg-blue-50' : 'border-transparent hover:bg-gray-50'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selected.has(entry.path)}
+                        onChange={(e) => selectAt(index, (e.nativeEvent as MouseEvent).shiftKey)}
+                        className="shrink-0"
+                        aria-label={entry.name}
+                        disabled={loading}
+                      />
+                      <button
+                        onClick={() => navigateToFolder(entry)}
+                        className="flex items-center gap-2 flex-1 min-w-0 text-start"
+                        disabled={loading}
+                      >
+                        <span className="text-2xl">&#128193;</span>
+                        <span className="text-sm truncate">{entry.name}</span>
+                      </button>
+                    </div>
+                  );
+                })}
 
                 {/* Image grid */}
                 <div className="grid grid-cols-4 gap-2 mt-2">
-                  {entries.filter((e) => !e.isFolder).map((entry) => (
+                  {entries.filter((e) => !e.isFolder).map((entry) => {
+                    const index = orderedEntries.findIndex((e) => e.path === entry.path);
+                    return (
                     <label
                       key={entry.path}
                       className={`relative cursor-pointer rounded-lg overflow-hidden border-2 transition-colors ${
@@ -476,7 +547,7 @@ export default function DropboxImportModal({ isOpen, onClose, onImported, target
                       <input
                         type="checkbox"
                         checked={selected.has(entry.path)}
-                        onChange={() => toggleSelect(entry.path)}
+                        onChange={(e) => selectAt(index, (e.nativeEvent as MouseEvent).shiftKey)}
                         className="absolute top-1 start-1 z-10"
                       />
                       <ThumbnailCell
@@ -484,7 +555,8 @@ export default function DropboxImportModal({ isOpen, onClose, onImported, target
                         alt={entry.name}
                       />
                     </label>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 {/* Load more */}

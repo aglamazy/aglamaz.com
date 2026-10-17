@@ -224,6 +224,80 @@ export async function browseDropboxFolder(
   };
 }
 
+// ── Folder expansion ────────────────────────────────────────────────
+
+/**
+ * The most images one import call will expand to (famcircle#194).
+ *
+ * This is a MEASURED bound, not a round number. The import route runs 4 downloads
+ * at a time and its maxDuration is 300s; measured against Agla's real folder on
+ * 2026-10-17, download + sharp resize costs 1.35s per image at that concurrency
+ * (8 images, 41 MB, 10.8s) before the Firebase upload is counted at all - so about
+ * 220 images is the ceiling, and 150 leaves room for the upload and a slower link.
+ *
+ * It fails LOUD when exceeded rather than importing a subset, because the route
+ * records the occurrence only after every file completes: a function killed at 300s
+ * has uploaded images to Storage and saved none of them, so a run that cannot
+ * finish must not start. Lifting this needs incremental saving or a background job
+ * (raised to Agla with the numbers on famcircle#194); it is not a number to nudge.
+ */
+export const MAX_IMPORT_IMAGES = 150;
+
+/** Guard against a pathological tree; each level costs at least one API call. */
+const MAX_FOLDER_DEPTH = 4;
+
+/**
+ * Expand selected folders into the image paths inside them, breadth-first.
+ *
+ * Returns ABSOLUTE paths, the same form list_folder reports and downloadDropboxFile
+ * expects. files/list_folder with recursive:true is REFUSED for shared links
+ * ("Recursive list folder is not supported for shared link", measured 2026-10-17),
+ * so each level is walked with its own paginated call.
+ */
+export async function expandFoldersToImagePaths(
+  folderPaths: string[],
+  sharedUrl?: string,
+): Promise<string[]> {
+  const found: string[] = [];
+  const seen = new Set<string>();
+  let queue = folderPaths.filter((p) => typeof p === 'string' && p.length > 0);
+
+  for (let depth = 0; depth < MAX_FOLDER_DEPTH && queue.length > 0; depth++) {
+    const next: string[] = [];
+
+    for (const folderPath of queue) {
+      let cursor: string | undefined;
+
+      do {
+        const page = await browseDropboxFolder(folderPath, cursor, sharedUrl);
+
+        for (const entry of page.entries) {
+          if (seen.has(entry.path)) continue;
+          seen.add(entry.path);
+
+          if (entry.isFolder) {
+            next.push(entry.path);
+          } else {
+            found.push(entry.path);
+            if (found.length > MAX_IMPORT_IMAGES) {
+              throw new Error(
+                `This selection holds more than ${MAX_IMPORT_IMAGES} images, which is more than one import can finish ` +
+                `before the server gives up (300s). Select fewer folders and import them in batches.`
+              );
+            }
+          }
+        }
+
+        cursor = page.cursor;
+      } while (cursor);
+    }
+
+    queue = next;
+  }
+
+  return found;
+}
+
 // ── Thumbnails ──────────────────────────────────────────────────────
 
 /**

@@ -1,6 +1,6 @@
 import { withMemberGuard } from '@/lib/withMemberGuard';
 import { GuardContext } from '@/app/api/types';
-import { downloadDropboxFile } from '@/services/DropboxService';
+import { downloadDropboxFile, expandFoldersToImagePaths, MAX_IMPORT_IMAGES } from '@/services/DropboxService';
 import { processAndUploadImage } from '@/services/ServerImageProcessor';
 import { AnniversaryOccurrenceRepository } from '@/repositories/AnniversaryOccurrenceRepository';
 import type { ImageWithDimension } from '@/entities/ImageWithDimension';
@@ -22,7 +22,7 @@ const postHandler = async (request: Request, context: GuardContext & { params: P
     }
 
     const body = await request.json();
-    const { dropboxUrl, paths, target } = body;
+    const { dropboxUrl, paths, folderPaths, target } = body;
 
     // Determine if dropboxUrl is a shared link or a /home/ URL
     let sharedUrl: string | undefined;
@@ -35,9 +35,38 @@ const postHandler = async (request: Request, context: GuardContext & { params: P
       }
     }
 
-    // Validate request
-    if (!Array.isArray(paths) || paths.length === 0) {
+    // Validate request. Either files, folders, or both (famcircle#194).
+    const filePaths: string[] = Array.isArray(paths) ? paths.filter((p) => typeof p === 'string' && p) : [];
+    const selectedFolders: string[] = Array.isArray(folderPaths)
+      ? folderPaths.filter((p) => typeof p === 'string' && p)
+      : [];
+
+    if (filePaths.length === 0 && selectedFolders.length === 0) {
       return Response.json({ error: 'No paths provided' }, { status: 400 });
+    }
+
+    // Expand selected folders into the images inside them, and refuse a run that
+    // cannot finish inside maxDuration rather than losing it at 300s.
+    let expandedPaths: string[];
+    try {
+      const fromFolders = selectedFolders.length > 0
+        ? await expandFoldersToImagePaths(selectedFolders, sharedUrl)
+        : [];
+      expandedPaths = Array.from(new Set([...filePaths, ...fromFolders]));
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to read the selected folders';
+      return Response.json({ error: message }, { status: 400 });
+    }
+
+    if (expandedPaths.length === 0) {
+      return Response.json({ error: 'The selected folders hold no images' }, { status: 400 });
+    }
+
+    if (expandedPaths.length > MAX_IMPORT_IMAGES) {
+      return Response.json({
+        error: `This selection holds ${expandedPaths.length} images, more than one import can finish before the `
+          + `server gives up (limit ${MAX_IMPORT_IMAGES}). Select fewer folders and import them in batches.`,
+      }, { status: 400 });
     }
 
     if (!target?.anniversaryId || !target?.occurrenceId) {
@@ -57,7 +86,7 @@ const postHandler = async (request: Request, context: GuardContext & { params: P
 
     const userId = context.user!.sub || context.user!.userId;
     const timestamp = Date.now();
-    const total = paths.length;
+    const total = expandedPaths.length;
     const encoder = new TextEncoder();
 
     const stream = new ReadableStream({
@@ -78,7 +107,7 @@ const postHandler = async (request: Request, context: GuardContext & { params: P
         async function processOne() {
           while (nextIndex < total) {
             const i = nextIndex++;
-            const filePath = paths[i];
+            const filePath = expandedPaths[i];
             try {
               const buffer = await downloadDropboxFile(filePath, sharedUrl);
               const storagePath = `anniversaries/${userId}/events/${target.anniversaryId}/${target.occurrenceId}/dropbox_${timestamp}_${i}.webp`;
