@@ -53,7 +53,7 @@ export default function OccurrenceDetailsPage({ params: paramsPromise }: { param
   const [likes, setLikes] = useState<Array<{ index: number; count: number; likedByMe: boolean }>>([]);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDropboxImport, setShowDropboxImport] = useState(false);
-  // Collect mode (famcircle#196, Agla: "click to enter collect mode; add image to
+  // Collect mode (famcircle#195, Agla: "click to enter collect mode; add image to
   // collection with one click on the image"). Collection is held as URLs, because that
   // is what the API removes by.
   const [collectMode, setCollectMode] = useState(false);
@@ -356,7 +356,7 @@ export default function OccurrenceDetailsPage({ params: paramsPromise }: { param
             <div className="mb-3 whitespace-pre-wrap text-gray-800">{(occ as any).description}</div>
           )}
           {/* Undo bar - a removal acts at once and is taken back here, instead of
-              asking "are you sure" on every photo (famcircle#196). */}
+              asking "are you sure" on every photo (famcircle#195). */}
           {undoImages && !collectMode && (
             <div className="mb-3 flex items-center justify-between gap-3 rounded bg-gray-100 px-3 py-2 text-sm">
               <span>{t('photosRemoved', { count: undoCount })}</span>

@@ -78,7 +78,7 @@ const putHandler = async (request: Request, context: GuardContext & { params: Pr
       nextImageUrls = [...baseUrls.filter((u) => !del.has(u)), ...add];
     }
 
-    // Dimensions are only measured for URLs we do not already know (famcircle#196).
+    // Dimensions are only measured for URLs we do not already know (famcircle#195).
     //
     // extractImageDimensions fetches every URL it is given, one after another. Measuring
     // the whole list on every edit made REMOVAL unusable as soon as galleries got big:
