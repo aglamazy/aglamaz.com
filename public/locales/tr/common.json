@@ -554,6 +554,8 @@
   "clearCollection": "Temizle",
   "photosRemoved": "{{count}} fotoğraf kaldırıldı",
   "undoRemove": "Geri al",
+  "confirmRemoveCollected": "{{count}} fotoğraf kaldırılsın mı? Bu işlem geri alınamaz.",
+  "cannotRemoveThisPhoto": "Bu fotoğraf burada kaldırılamaz",
   "importMayTakeMinutes": "Bu birkaç dakika sürebilir...",
   "importedWithFailures": "{{imported}} içe aktarıldı, {{failed}} başarısız",
   "sharedFolder": "Paylaşılan klasör",

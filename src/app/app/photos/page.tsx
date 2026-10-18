@@ -61,6 +61,11 @@ export default function PhotosPage() {
   const [authors, setAuthors] = useState<Record<string, AuthorInfo>>({});
   const [editTarget, setEditTarget] = useState<{ annId: string; occId: string } | null>(null);
   const [galleryEditTarget, setGalleryEditTarget] = useState<string | null>(null);
+  // Collect mode (famcircle#195, Agla 2026-10-18: same gesture as the event page -
+  // "click to enter collect mode; add image to collection with one click on the image").
+  const [collectMode, setCollectMode] = useState(false);
+  const [collected, setCollected] = useState<Set<string>>(new Set());
+  const [removingCollected, setRemovingCollected] = useState(false);
   const mountedRef = useRef(true);
   const currentUserId = user?.user_id ?? '';
   const isAdmin = memberRole === 'admin';
@@ -401,6 +406,87 @@ export default function PhotosPage() {
   // post, same date. For cases like a WhatsApp-day import where two unrelated
   // moments got bundled together just because they were shared the same day —
   // "delete" would lose the photo; this keeps it, just un-bundled.
+  // Only gallery-type items whose post this member may edit can be removed at all -
+  // the same two conditions handleDeleteItem enforces one photo at a time. Anything
+  // else is shown but not collectable, rather than collected and then silently skipped.
+  const isCollectable = useCallback((item: GridItem): boolean => {
+    const m = item.meta as { canEdit?: boolean; type?: 'occurrence' | 'gallery' };
+    return !!m.canEdit && m.type === 'gallery';
+  }, []);
+
+  const toggleCollected = useCallback((key: string) => {
+    setCollected((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  }, []);
+
+  const exitCollectMode = useCallback(() => {
+    setCollectMode(false);
+    setCollected(new Set());
+  }, []);
+
+  /**
+   * Remove every collected photo. The grid is flat but the data is not: photos belong to
+   * posts, so the collection is grouped by post and each affected post is written once
+   * with the photos that remain. A post left with nothing is removed by the server, which
+   * is also why there is no Undo here (unlike the event page, where one list is restored):
+   * a post that no longer exists cannot be put back, so this asks first instead.
+   */
+  const removeCollected = useCallback(async () => {
+    if (collected.size === 0) return;
+
+    const byPost = new Map<string, number[]>();
+    for (const key of collected) {
+      const item = gridItems.find((g) => g.key === key);
+      if (!item) continue;
+      const m = item.meta as { occId: string; idx: number };
+      const list = byPost.get(m.occId) || [];
+      list.push(m.idx);
+      byPost.set(m.occId, list);
+    }
+    if (byPost.size === 0) return;
+
+    if (!window.confirm(t('confirmRemoveCollected', { count: collected.size }))) return;
+
+    setRemovingCollected(true);
+    try {
+      for (const [occId, indices] of byPost) {
+        const occ = items.find((o) => o.id === occId);
+        if (!occ) continue;
+        const images = occ.imagesResized || [];
+        const videosList = occ.videos || [];
+        const drop = new Set(indices);
+
+        const remainingImages = images.filter((_, i) => !drop.has(i));
+        const remainingVideos = videosList.filter((_, vi) => !drop.has(images.length + vi));
+
+        const res = await apiFetch<{ success: boolean; deleted?: boolean }>(ApiRoute.SITE_PHOTO_BY_ID, {
+          method: 'PUT',
+          pathParams: { photoId: occId },
+          body: {
+            locale: i18n.language,
+            imagesWithDimensions: remainingImages.map((img) => ({ url: img.original, width: img.width, height: img.height })),
+            videos: remainingVideos,
+          },
+        });
+
+        if (res.deleted || (remainingImages.length === 0 && remainingVideos.length === 0)) {
+          setItems((prev) => prev.filter((o) => o.id !== occId));
+        } else {
+          setItems((prev) => prev.map((o) => (o.id === occId ? { ...o, imagesResized: remainingImages, videos: remainingVideos } : o)));
+        }
+      }
+      setCollected(new Set());
+      setCollectMode(false);
+    } catch (e) {
+      console.error('[photos] remove collected failed', e);
+    } finally {
+      setRemovingCollected(false);
+    }
+  }, [collected, gridItems, items, i18n.language, t]);
+
   const handleDetachItem = useCallback(async (item: GridItem) => {
     const m = item.meta as { occId: string; idx: number; canEdit?: boolean; type?: 'occurrence' | 'gallery'; groupSize?: number };
     if (!m.canEdit) return;
@@ -599,17 +685,98 @@ export default function PhotosPage() {
     <>
       {jumpControl}
       <div className="p-4 max-w-6xl mx-auto">
-        <ImageGrid
-          items={gridItems}
-          getMeta={getGridMeta}
-          onToggle={handleGridToggle}
-          onTitleClick={handleTitleClick}
-          onDeleteItem={handleDeleteItem}
-          onDetachItem={handleDetachItem}
-          getLightboxLink={getLightboxLink}
-          autoSlideshow={autoSlideshow}
-          useJsMasonry
-        />
+        <div className="mb-3 flex items-center justify-between gap-2 text-sm">
+          <button
+            onClick={() => (collectMode ? exitCollectMode() : setCollectMode(true))}
+            className="rounded border px-3 py-1 hover:bg-gray-50"
+          >
+            {collectMode ? t('doneCollecting') : t('collectPhotos')}
+          </button>
+
+          {collectMode && (
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setCollected(new Set(gridItems.filter(isCollectable).map((g) => g.key)))}
+                className="text-blue-600 hover:underline"
+              >
+                {t('selectAll')}
+              </button>
+              <button
+                onClick={() => setCollected(new Set())}
+                disabled={collected.size === 0}
+                className="text-blue-600 hover:underline disabled:opacity-50"
+              >
+                {t('clearCollection')}
+              </button>
+              <span className="text-gray-500">{t('collectedCount', { count: collected.size })}</span>
+              <button
+                onClick={removeCollected}
+                disabled={collected.size === 0 || removingCollected}
+                className="rounded bg-red-600 px-3 py-1 text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                {removingCollected ? t('loading') : t('removeCollected', { count: collected.size })}
+              </button>
+            </div>
+          )}
+        </div>
+
+        {collectMode ? (
+          <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6">
+            {gridItems.map((item) => {
+              const canCollect = isCollectable(item);
+              const isCollected = collected.has(item.key);
+              return (
+                <button
+                  key={item.key}
+                  type="button"
+                  onClick={() => canCollect && toggleCollected(item.key)}
+                  disabled={!canCollect}
+                  aria-pressed={isCollected}
+                  title={canCollect ? undefined : t('cannotRemoveThisPhoto')}
+                  className={`relative aspect-square overflow-hidden rounded-lg border-2 transition-colors ${
+                    isCollected ? 'border-blue-500' : 'border-transparent hover:border-gray-300'
+                  } ${canCollect ? '' : 'cursor-not-allowed opacity-40'}`}
+                >
+                  {/* A video item's src IS the video URL, not a poster, so an <img>
+                      would render a broken tile. The first frame is enough to pick by. */}
+                  {item.mediaType === 'video' ? (
+                    <>
+                      <video
+                        src={item.src}
+                        muted
+                        playsInline
+                        preload="metadata"
+                        className="h-full w-full object-cover"
+                      />
+                      <span className="absolute bottom-1 end-1 rounded bg-black/60 px-1 text-xs text-white">
+                        &#9654;
+                      </span>
+                    </>
+                  ) : (
+                    <img src={item.src} alt="" className="h-full w-full object-cover" loading="lazy" />
+                  )}
+                  {isCollected && (
+                    <span className="absolute top-1 start-1 flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-xs text-white">
+                      &#10003;
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <ImageGrid
+            items={gridItems}
+            getMeta={getGridMeta}
+            onToggle={handleGridToggle}
+            onTitleClick={handleTitleClick}
+            onDeleteItem={handleDeleteItem}
+            onDetachItem={handleDetachItem}
+            getLightboxLink={getLightboxLink}
+            autoSlideshow={autoSlideshow}
+            useJsMasonry
+          />
+        )}
         {loadingMore && (
           <div className="p-4 text-center text-gray-500">
             {t('loading')}...

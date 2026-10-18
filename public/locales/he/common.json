@@ -598,6 +598,8 @@
   "clearCollection": "נקה",
   "photosRemoved": "{{count}} תמונות הוסרו",
   "undoRemove": "בטל",
+  "confirmRemoveCollected": "להסיר {{count}} תמונות? לא ניתן לבטל פעולה זו.",
+  "cannotRemoveThisPhoto": "לא ניתן להסיר את התמונה הזו כאן",
   "importMayTakeMinutes": "זה עשוי לקחת כמה דקות...",
   "importedWithFailures": "יובאו {{imported}}, נכשלו {{failed}}",
   "sharedFolder": "תיקייה משותפת",

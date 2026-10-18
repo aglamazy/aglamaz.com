@@ -607,6 +607,8 @@
   "clearCollection": "Clear",
   "photosRemoved": "{{count}} photos removed",
   "undoRemove": "Undo",
+  "confirmRemoveCollected": "Remove {{count}} photos? This cannot be undone.",
+  "cannotRemoveThisPhoto": "This photo cannot be removed here",
   "importMayTakeMinutes": "This may take a few minutes...",
   "importedWithFailures": "Imported {{imported}}, failed {{failed}}",
   "sharedFolder": "Shared folder",
