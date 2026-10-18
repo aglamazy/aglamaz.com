@@ -40,6 +40,15 @@ type Occurrence = {
 type AuthorInfo = { displayName: string; email: string };
 
 const ITEMS_PER_PAGE = 10;
+/**
+ * How many tiles are mounted at a time (famcircle#197).
+ *
+ * ITEMS_PER_PAGE counts POSTS, not photos, and the grid is flat: one post holding a
+ * folder import of 1041 photos put 1041 tiles into a single page, which is what made
+ * the feed crawl. Nothing is hidden - the rest mount as the viewer scrolls, before the
+ * next page of posts is fetched.
+ */
+const TILES_PER_STEP = 60;
 
 export default function PhotosPage() {
   const { t, i18n } = useTranslation();
@@ -66,6 +75,9 @@ export default function PhotosPage() {
   const [collectMode, setCollectMode] = useState(false);
   const [collected, setCollected] = useState<Set<string>>(new Set());
   const [removingCollected, setRemovingCollected] = useState(false);
+  const [visibleTiles, setVisibleTiles] = useState(TILES_PER_STEP);
+  // gridItems is computed further down, so the scroll handler reads its length here.
+  const gridItemsLengthRef = useRef(0);
   const mountedRef = useRef(true);
   const currentUserId = user?.user_id ?? '';
   const isAdmin = memberRole === 'admin';
@@ -118,6 +130,7 @@ export default function PhotosPage() {
     if (isInitialLoad) {
       setLoading(true);
       cursorRef.current = jumpCursor;
+      setVisibleTiles(TILES_PER_STEP);
     } else {
       setLoadingMore(true);
     }
@@ -264,13 +277,19 @@ export default function PhotosPage() {
       const clientHeight = document.documentElement.clientHeight;
 
       if (scrollHeight - scrollTop - clientHeight < 500) {
+        // Mount more of what is already loaded first; only fetch the next page of
+        // posts once the current ones are all on screen (famcircle#197).
+        if (visibleTiles < gridItemsLengthRef.current) {
+          setVisibleTiles((n) => n + TILES_PER_STEP);
+          return;
+        }
         void loadMore();
       }
     };
 
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
-  }, [loadMore, loadingMore, hasMore]);
+  }, [loadMore, loadingMore, hasMore, visibleTiles]);
 
   const gridItems = useMemo((): GridItem[] => {
     const flat: GridItem[] = [];
@@ -328,6 +347,15 @@ export default function PhotosPage() {
     const arr = likes[occId] || [];
     return arr.find((l) => l.index === idx) || { index: idx, count: 0, likedByMe: false, likers: [] };
   }
+
+  gridItemsLengthRef.current = gridItems.length;
+
+  // What is actually mounted. Collect mode shows everything, because Select all has to
+  // mean all of it, and its tiles are plain <img> rather than the masonry's machinery.
+  const visibleGridItems = useMemo(
+    () => (collectMode ? gridItems : gridItems.slice(0, visibleTiles)),
+    [gridItems, visibleTiles, collectMode],
+  );
 
   const getGridMeta = useCallback((item: GridItem): LikeMeta => {
     const m = item.meta as { occId: string; idx: number };
@@ -410,8 +438,13 @@ export default function PhotosPage() {
   // the same two conditions handleDeleteItem enforces one photo at a time. Anything
   // else is shown but not collectable, rather than collected and then silently skipped.
   const isCollectable = useCallback((item: GridItem): boolean => {
-    const m = item.meta as { canEdit?: boolean; type?: 'occurrence' | 'gallery' };
-    return !!m.canEdit && m.type === 'gallery';
+    const m = item.meta as { canEdit?: boolean; type?: 'occurrence' | 'gallery'; annId?: string };
+    if (!m.canEdit) return false;
+    // Anniversary-event photos count too (famcircle#197). They are removed through the
+    // event endpoint rather than the photo one, and leaving them out meant every photo
+    // of a Dropbox folder import showed dimmed - which is the whole wedding.
+    if (m.type === 'gallery') return true;
+    return !!m.annId;
   }, []);
 
   const toggleCollected = useCallback((key: string) => {
@@ -462,21 +495,41 @@ export default function PhotosPage() {
         const remainingImages = images.filter((_, i) => !drop.has(i));
         const remainingVideos = videosList.filter((_, vi) => !drop.has(images.length + vi));
 
-        const res = await apiFetch<{ success: boolean; deleted?: boolean }>(ApiRoute.SITE_PHOTO_BY_ID, {
-          method: 'PUT',
-          pathParams: { photoId: occId },
-          body: {
-            locale: i18n.language,
-            imagesWithDimensions: remainingImages.map((img) => ({ url: img.original, width: img.width, height: img.height })),
-            videos: remainingVideos,
-          },
-        });
-
-        if (res.deleted || (remainingImages.length === 0 && remainingVideos.length === 0)) {
-          setItems((prev) => prev.filter((o) => o.id !== occId));
+        if ((occ.type ?? 'occurrence') === 'gallery') {
+          const res = await apiFetch<{ success: boolean; deleted?: boolean }>(ApiRoute.SITE_PHOTO_BY_ID, {
+            method: 'PUT',
+            pathParams: { photoId: occId },
+            body: {
+              locale: i18n.language,
+              imagesWithDimensions: remainingImages.map((img) => ({ url: img.original, width: img.width, height: img.height })),
+              videos: remainingVideos,
+            },
+          });
+          if (res.deleted || (remainingImages.length === 0 && remainingVideos.length === 0)) {
+            setItems((prev) => prev.filter((o) => o.id !== occId));
+            continue;
+          }
         } else {
-          setItems((prev) => prev.map((o) => (o.id === occId ? { ...o, imagesResized: remainingImages, videos: remainingVideos } : o)));
+          // An anniversary occurrence removes BY URL through the event endpoint, and the
+          // URL it stores is the original - not the 400x400 the tile is drawn from.
+          const annId = occ.eventId || occ.anniversaryId || '';
+          if (!annId) {
+            console.error('[photos] cannot remove from occurrence without an anniversary id', occId);
+            continue;
+          }
+          const removeImages = indices
+            .filter((i) => i < images.length)
+            .map((i) => images[i].original);
+          if (removeImages.length === 0) continue;
+
+          await apiFetch(ApiRoute.SITE_ANNIVERSARY_EVENT_BY_ID, {
+            method: 'PUT',
+            pathParams: { anniversaryId: annId, eventId: occId },
+            body: { removeImages },
+          });
         }
+
+        setItems((prev) => prev.map((o) => (o.id === occId ? { ...o, imagesResized: remainingImages, videos: remainingVideos } : o)));
       }
       setCollected(new Set());
       setCollectMode(false);
@@ -766,7 +819,7 @@ export default function PhotosPage() {
           </div>
         ) : (
           <ImageGrid
-            items={gridItems}
+            items={visibleGridItems}
             getMeta={getGridMeta}
             onToggle={handleGridToggle}
             onTitleClick={handleTitleClick}
