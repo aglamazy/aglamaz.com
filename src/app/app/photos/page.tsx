@@ -42,7 +42,7 @@ type AuthorInfo = { displayName: string; email: string };
 
 const ITEMS_PER_PAGE = 10;
 /**
- * How many tiles are mounted at a time (famcircle#197).
+ * How many tiles are mounted at a time (famcircle#196).
  *
  * ITEMS_PER_PAGE counts POSTS, not photos, and the grid is flat: one post holding a
  * folder import of 1041 photos put 1041 tiles into a single page, which is what made
@@ -299,7 +299,7 @@ export default function PhotosPage() {
 
       if (scrollHeight - scrollTop - clientHeight < 500) {
         // Mount more of what is already loaded first; only fetch the next page of
-        // posts once the current ones are all on screen (famcircle#197).
+        // posts once the current ones are all on screen (famcircle#196).
         if (visibleTiles < gridItemsLengthRef.current) {
           setVisibleTiles((n) => n + TILES_PER_STEP);
           return;
@@ -461,7 +461,7 @@ export default function PhotosPage() {
   const isCollectable = useCallback((item: GridItem): boolean => {
     const m = item.meta as { canEdit?: boolean; type?: 'occurrence' | 'gallery'; annId?: string };
     if (!m.canEdit) return false;
-    // Anniversary-event photos count too (famcircle#197). They are removed through the
+    // Anniversary-event photos count too (famcircle#196). They are removed through the
     // event endpoint rather than the photo one, and leaving them out meant every photo
     // of a Dropbox folder import showed dimmed - which is the whole wedding.
     if (m.type === 'gallery') return true;
