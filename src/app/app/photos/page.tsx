@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import I18nText from '@/components/I18nText';
 import { useTranslation } from 'react-i18next';
 import ImageGrid, { type GridItem, type LikeMeta } from '@/components/media/ImageGrid';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import OccurrenceEditModal, { OccurrenceForEdit } from '@/components/anniversaries/OccurrenceEditModal';
 import GalleryPhotoEditModal, { GalleryPhotoForEdit } from '@/components/photos/GalleryPhotoEditModal';
 import { apiFetch } from '@/utils/apiFetch';
@@ -78,6 +79,12 @@ export default function PhotosPage() {
   const [visibleTiles, setVisibleTiles] = useState(TILES_PER_STEP);
   // gridItems is computed further down, so the scroll handler reads its length here.
   const gridItemsLengthRef = useRef(0);
+  // Asking is a Modal, never the browser's own dialog (Agla, 2026-10-18: "don't native
+  // component. We should have Modal YesNo primitive"). ConfirmDialog already IS that
+  // primitive - used by the calendar, site-members and the gallery edit modal - so this
+  // wraps it in a promise and reads exactly like the window.confirm it replaces.
+  const [confirmState, setConfirmState] = useState<{ title: string; destructive?: boolean } | null>(null);
+  const confirmResolveRef = useRef<((ok: boolean) => void) | null>(null);
   const mountedRef = useRef(true);
   const currentUserId = user?.user_id ?? '';
   const isAdmin = memberRole === 'admin';
@@ -241,6 +248,20 @@ export default function PhotosPage() {
     }
   }, [loadFeed, autoSlideshow]);
 
+  const askConfirm = useCallback((opts: { title: string; destructive?: boolean }) => (
+    new Promise<boolean>((resolve) => {
+      confirmResolveRef.current = resolve;
+      setConfirmState(opts);
+    })
+  ), []);
+
+  const settleConfirm = useCallback((ok: boolean) => {
+    const resolve = confirmResolveRef.current;
+    confirmResolveRef.current = null;
+    setConfirmState(null);
+    resolve?.(ok);
+  }, []);
+
   const loadMore = useCallback(async () => {
     if (loadingMore || !hasMore) return;
     const nextPage = page + 1;
@@ -395,7 +416,7 @@ export default function PhotosPage() {
       console.error('[PhotosPage] per-item delete is only supported for gallery posts, got', m.type);
       return;
     }
-    if (!window.confirm(t('confirmDeletePhoto') || 'Are you sure you want to delete this photo?')) return;
+    if (!(await askConfirm({ title: t('confirmDeletePhoto'), destructive: true }))) return;
 
     const occ = items.find((o) => o.id === m.occId);
     if (!occ) return;
@@ -428,7 +449,7 @@ export default function PhotosPage() {
     } catch (e) {
       console.error('[photos] delete item failed', e);
     }
-  }, [items, i18n.language, t]);
+  }, [items, i18n.language, t, askConfirm]);
 
   // Splits one image/video out of a multi-item gallery post into its own new
   // post, same date. For cases like a WhatsApp-day import where two unrelated
@@ -481,7 +502,7 @@ export default function PhotosPage() {
     }
     if (byPost.size === 0) return;
 
-    if (!window.confirm(t('confirmRemoveCollected', { count: collected.size }))) return;
+    if (!(await askConfirm({ title: t('confirmRemoveCollected', { count: collected.size }), destructive: true }))) return;
 
     setRemovingCollected(true);
     try {
@@ -538,7 +559,7 @@ export default function PhotosPage() {
     } finally {
       setRemovingCollected(false);
     }
-  }, [collected, gridItems, items, i18n.language, t]);
+  }, [collected, gridItems, items, i18n.language, t, askConfirm]);
 
   const handleDetachItem = useCallback(async (item: GridItem) => {
     const m = item.meta as { occId: string; idx: number; canEdit?: boolean; type?: 'occurrence' | 'gallery'; groupSize?: number };
@@ -548,7 +569,7 @@ export default function PhotosPage() {
       return;
     }
     if (!m.groupSize || m.groupSize <= 1) return;
-    if (!window.confirm(t('confirmDetachPhoto') || 'Move this photo into its own separate post?')) return;
+    if (!(await askConfirm({ title: t('confirmDetachPhoto') }))) return;
 
     const occ = items.find((o) => o.id === m.occId);
     if (!occ) return;
@@ -836,6 +857,14 @@ export default function PhotosPage() {
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        isOpen={!!confirmState}
+        title={confirmState?.title ?? ''}
+        destructive={confirmState?.destructive}
+        onConfirm={() => settleConfirm(true)}
+        onCancel={() => settleConfirm(false)}
+      />
 
       <AddFab onClick={() => router.push('/app/photo/new')} ariaLabel={t('uploadPhoto')} />
 

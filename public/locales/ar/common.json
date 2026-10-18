@@ -169,6 +169,7 @@
   "delete": "حذف",
   "deletePhoto": "حذف الصورة",
   "confirmDeletePhoto": "هل أنت متأكد أنك تريد حذف هذه الصورة؟",
+  "confirmDetachPhoto": "نقل هذه الصورة إلى منشور خاص بها؟",
   "home": "الرئيسية",
   "family": "العائلة",
   "activities": "الأنشطة",
