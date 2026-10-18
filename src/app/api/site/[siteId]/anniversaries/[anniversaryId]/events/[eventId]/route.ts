@@ -78,21 +78,38 @@ const putHandler = async (request: Request, context: GuardContext & { params: Pr
       nextImageUrls = [...baseUrls.filter((u) => !del.has(u)), ...add];
     }
 
-    // Extract dimensions if we have new images
+    // Dimensions are only measured for URLs we do not already know (famcircle#196).
+    //
+    // extractImageDimensions fetches every URL it is given, one after another. Measuring
+    // the whole list on every edit made REMOVAL unusable as soon as galleries got big:
+    // dropping one photo from a 1041-image event (which the Dropbox folder import now
+    // creates in one go) meant ~1040 sequential Storage fetches, and a single failure
+    // threw the entire removal away on the line below. The dimensions of images already
+    // on the event are stored beside their URLs, so a removal needs to measure NOTHING.
     let nextImagesWithDimensions: ImageWithDimension[] | undefined = undefined;
-    if (nextImageUrls && nextImageUrls.length > 0) {
-      console.log('[anniversaries/events/update] Extracting dimensions for', nextImageUrls.length, 'images');
-      const dimensions = await extractImageDimensions(nextImageUrls);
-      nextImagesWithDimensions = nextImageUrls.map((url, index) => {
-        const dim = dimensions[index];
+    if (nextImageUrls) {
+      const known = new Map(
+        (occ.imagesWithDimensions || []).map((img) => [img.url, img])
+      );
+      const unknownUrls = nextImageUrls.filter((url) => !known.has(url));
+
+      if (unknownUrls.length > 0) {
+        console.log('[anniversaries/events/update] Extracting dimensions for', unknownUrls.length, 'new image(s)');
+      }
+      const measured = unknownUrls.length > 0 ? await extractImageDimensions(unknownUrls) : [];
+      const measuredByUrl = new Map(
+        unknownUrls.map((url, i) => [url, measured[i]])
+      );
+
+      nextImagesWithDimensions = nextImageUrls.map((url) => {
+        const existing = known.get(url);
+        if (existing) return existing;
+
+        const dim = measuredByUrl.get(url);
         if (!dim) {
-          throw new Error(`Failed to extract dimensions for image at index ${index}`);
+          throw new Error(`Failed to extract dimensions for image ${url}`);
         }
-        return {
-          url,
-          width: dim.width,
-          height: dim.height
-        };
+        return { url, width: dim.width, height: dim.height };
       });
     }
 
