@@ -3,8 +3,9 @@
  * Digest-delivery dead-man's-switch (famcircle#144 follow-up).
  *
  * Schedule-aware: asks "did the digest period that already fired actually reach its
- * eligible recipients" rather than check-email-volume.ts's blunter "has anything gone
- * out recently" staleness window. Built after Buddy rejected widening that window as
+ * eligible recipients" rather than the blunter "has anything gone out recently"
+ * staleness window of check-email-volume.ts (retired 2026-10-21, famcircle#175 - the
+ * email channel is now watched by each send flow's dead-man ping). Built after Buddy rejected widening that window as
  * "moves the blind spot rather than fixing the design flaw" - a real gap approaching a
  * weekly/monthly boundary is normal, a fired period with eligible recipients and zero
  * sends is not, and the two are indistinguishable from a flat count alone.

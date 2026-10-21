@@ -53,6 +53,16 @@ export default function OccurrenceDetailsPage({ params: paramsPromise }: { param
   const [likes, setLikes] = useState<Array<{ index: number; count: number; likedByMe: boolean }>>([]);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDropboxImport, setShowDropboxImport] = useState(false);
+  // Collect mode (famcircle#195, Agla: "click to enter collect mode; add image to
+  // collection with one click on the image"). Collection is held as URLs, because that
+  // is what the API removes by.
+  const [collectMode, setCollectMode] = useState(false);
+  const [collected, setCollected] = useState<Set<string>>(new Set());
+  const [removing, setRemoving] = useState(false);
+  // The image list as it was before the last removal, for Undo. Full-list replacement
+  // restores the original ORDER too, which re-adding would not.
+  const [undoImages, setUndoImages] = useState<string[] | null>(null);
+  const [undoCount, setUndoCount] = useState(0);
 
   // Mobile's BottomTabBar "+" calls whatever action is registered here - without this,
   // the desktop-only AddFab below (hidden md:flex) left mobile's "+" doing nothing.
@@ -178,6 +188,74 @@ export default function OccurrenceDetailsPage({ params: paramsPromise }: { param
     setPreviews(files.map((f) => URL.createObjectURL(f)));
   }
 
+  function toggleCollected(url: string) {
+    setCollected((prev) => {
+      const next = new Set(prev);
+      if (next.has(url)) next.delete(url); else next.add(url);
+      return next;
+    });
+  }
+
+  function exitCollectMode() {
+    setCollectMode(false);
+    setCollected(new Set());
+  }
+
+  async function refreshOccurrence() {
+    const refreshed = await apiFetch<{ event: OccurrenceDoc }>(
+      ApiRoute.SITE_ANNIVERSARY_EVENT_BY_ID,
+      { pathParams: { anniversaryId: params.id, eventId: params.eventId } }
+    );
+    setOcc(refreshed.event as any);
+  }
+
+  async function removeCollected() {
+    if (!occ || collected.size === 0) return;
+    setRemoving(true);
+    setUploadError('');
+    const toRemove = Array.from(collected);
+    // Snapshot BEFORE the write, so Undo restores exactly what was there.
+    const before = occurrenceImages;
+    try {
+      await apiFetch(ApiRoute.SITE_ANNIVERSARY_EVENT_BY_ID, {
+        method: 'PUT',
+        pathParams: { anniversaryId: params.id, eventId: occ.id },
+        body: { removeImages: toRemove },
+      });
+      await refreshOccurrence();
+      setUndoImages(before);
+      setUndoCount(toRemove.length);
+      setCollected(new Set());
+      setCollectMode(false);
+    } catch (e) {
+      console.error('[collect] remove failed:', e);
+      setUploadError('remove');
+    } finally {
+      setRemoving(false);
+    }
+  }
+
+  async function undoRemove() {
+    if (!occ || !undoImages) return;
+    setRemoving(true);
+    try {
+      // Full replacement, not re-add: this puts the photos back in their old positions.
+      await apiFetch(ApiRoute.SITE_ANNIVERSARY_EVENT_BY_ID, {
+        method: 'PUT',
+        pathParams: { anniversaryId: params.id, eventId: occ.id },
+        body: { images: undoImages },
+      });
+      await refreshOccurrence();
+      setUndoImages(null);
+      setUndoCount(0);
+    } catch (e) {
+      console.error('[collect] undo failed:', e);
+      setUploadError('remove');
+    } finally {
+      setRemoving(false);
+    }
+  }
+
   async function onUploadSelected() {
     if (!occ || selectedFiles.length === 0) return;
     setUploading(true);
@@ -277,7 +355,81 @@ export default function OccurrenceDetailsPage({ params: paramsPromise }: { param
           {(occ as any)?.description && (
             <div className="mb-3 whitespace-pre-wrap text-gray-800">{(occ as any).description}</div>
           )}
-          {visibleImages.length > 0 && (
+          {/* Undo bar - a removal acts at once and is taken back here, instead of
+              asking "are you sure" on every photo (famcircle#195). */}
+          {undoImages && !collectMode && (
+            <div className="mb-3 flex items-center justify-between gap-3 rounded bg-gray-100 px-3 py-2 text-sm">
+              <span>{t('photosRemoved', { count: undoCount })}</span>
+              <button
+                onClick={undoRemove}
+                disabled={removing}
+                className="font-medium text-blue-600 hover:underline disabled:opacity-50"
+              >
+                {t('undoRemove')}
+              </button>
+            </div>
+          )}
+
+          {/* COLLECT MODE: one click on a photo collects it. A plain grid on purpose -
+              the lightbox, slideshow and masonry of ImageGrid all fight with a click
+              that means "collect", so collecting gets its own simple surface. */}
+          {collectMode && visibleImages.length > 0 && (
+            <div className="mb-3">
+              <div className="mb-2 flex items-center justify-between gap-2 text-sm">
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setCollected(new Set(visibleImages))}
+                    className="text-blue-600 hover:underline"
+                  >
+                    {t('selectAll')}
+                  </button>
+                  <button
+                    onClick={() => setCollected(new Set())}
+                    className="text-blue-600 hover:underline disabled:opacity-50"
+                    disabled={collected.size === 0}
+                  >
+                    {t('clearCollection')}
+                  </button>
+                  <span className="text-gray-500">
+                    {t('collectedCount', { count: collected.size })}
+                  </span>
+                </div>
+                <Button
+                  onClick={removeCollected}
+                  disabled={collected.size === 0 || removing}
+                  className="bg-red-600 hover:bg-red-700"
+                >
+                  {removing ? t('saving') : t('removeCollected', { count: collected.size })}
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6">
+                {visibleImages.map((src) => {
+                  const isCollected = collected.has(src);
+                  return (
+                    <button
+                      key={src}
+                      type="button"
+                      onClick={() => toggleCollected(src)}
+                      aria-pressed={isCollected}
+                      className={`relative aspect-square overflow-hidden rounded-lg border-2 transition-colors ${
+                        isCollected ? 'border-blue-500' : 'border-transparent hover:border-gray-300'
+                      }`}
+                    >
+                      <img src={src} alt="" className="h-full w-full object-cover" loading="lazy" />
+                      {isCollected && (
+                        <span className="absolute top-1 start-1 flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-xs text-white">
+                          &#10003;
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {!collectMode && visibleImages.length > 0 && (
             <div className="mb-3">
               <ImageGrid
                 items={visibleImages.map((src, i) => ({ key: `${occ.id}:${i}`, src }))}
@@ -302,6 +454,14 @@ export default function OccurrenceDetailsPage({ params: paramsPromise }: { param
             <div className="mb-3 flex gap-2">
               <Button onClick={() => setShowEditModal(true)}>{t('edit')}</Button>
               <Button variant="outline" onClick={() => setShowDropboxImport(true)}>Import from Dropbox</Button>
+              {visibleImages.length > 0 && (
+                <Button
+                  variant="outline"
+                  onClick={() => (collectMode ? exitCollectMode() : setCollectMode(true))}
+                >
+                  {collectMode ? t('doneCollecting') : t('collectPhotos')}
+                </Button>
+              )}
             </div>
           )}
           <div>

@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import I18nText from '@/components/I18nText';
 import { useTranslation } from 'react-i18next';
 import ImageGrid, { type GridItem, type LikeMeta } from '@/components/media/ImageGrid';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import OccurrenceEditModal, { OccurrenceForEdit } from '@/components/anniversaries/OccurrenceEditModal';
 import GalleryPhotoEditModal, { GalleryPhotoForEdit } from '@/components/photos/GalleryPhotoEditModal';
 import { apiFetch } from '@/utils/apiFetch';
@@ -40,6 +41,15 @@ type Occurrence = {
 type AuthorInfo = { displayName: string; email: string };
 
 const ITEMS_PER_PAGE = 10;
+/**
+ * How many tiles are mounted at a time (famcircle#196).
+ *
+ * ITEMS_PER_PAGE counts POSTS, not photos, and the grid is flat: one post holding a
+ * folder import of 1041 photos put 1041 tiles into a single page, which is what made
+ * the feed crawl. Nothing is hidden - the rest mount as the viewer scrolls, before the
+ * next page of posts is fetched.
+ */
+const TILES_PER_STEP = 60;
 
 export default function PhotosPage() {
   const { t, i18n } = useTranslation();
@@ -61,6 +71,20 @@ export default function PhotosPage() {
   const [authors, setAuthors] = useState<Record<string, AuthorInfo>>({});
   const [editTarget, setEditTarget] = useState<{ annId: string; occId: string } | null>(null);
   const [galleryEditTarget, setGalleryEditTarget] = useState<string | null>(null);
+  // Collect mode (famcircle#195, Agla 2026-10-18: same gesture as the event page -
+  // "click to enter collect mode; add image to collection with one click on the image").
+  const [collectMode, setCollectMode] = useState(false);
+  const [collected, setCollected] = useState<Set<string>>(new Set());
+  const [removingCollected, setRemovingCollected] = useState(false);
+  const [visibleTiles, setVisibleTiles] = useState(TILES_PER_STEP);
+  // gridItems is computed further down, so the scroll handler reads its length here.
+  const gridItemsLengthRef = useRef(0);
+  // Asking is a Modal, never the browser's own dialog (Agla, 2026-10-18: "don't native
+  // component. We should have Modal YesNo primitive"). ConfirmDialog already IS that
+  // primitive - used by the calendar, site-members and the gallery edit modal - so this
+  // wraps it in a promise and reads exactly like the window.confirm it replaces.
+  const [confirmState, setConfirmState] = useState<{ title: string; destructive?: boolean } | null>(null);
+  const confirmResolveRef = useRef<((ok: boolean) => void) | null>(null);
   const mountedRef = useRef(true);
   const currentUserId = user?.user_id ?? '';
   const isAdmin = memberRole === 'admin';
@@ -113,6 +137,7 @@ export default function PhotosPage() {
     if (isInitialLoad) {
       setLoading(true);
       cursorRef.current = jumpCursor;
+      setVisibleTiles(TILES_PER_STEP);
     } else {
       setLoadingMore(true);
     }
@@ -223,6 +248,20 @@ export default function PhotosPage() {
     }
   }, [loadFeed, autoSlideshow]);
 
+  const askConfirm = useCallback((opts: { title: string; destructive?: boolean }) => (
+    new Promise<boolean>((resolve) => {
+      confirmResolveRef.current = resolve;
+      setConfirmState(opts);
+    })
+  ), []);
+
+  const settleConfirm = useCallback((ok: boolean) => {
+    const resolve = confirmResolveRef.current;
+    confirmResolveRef.current = null;
+    setConfirmState(null);
+    resolve?.(ok);
+  }, []);
+
   const loadMore = useCallback(async () => {
     if (loadingMore || !hasMore) return;
     const nextPage = page + 1;
@@ -259,13 +298,19 @@ export default function PhotosPage() {
       const clientHeight = document.documentElement.clientHeight;
 
       if (scrollHeight - scrollTop - clientHeight < 500) {
+        // Mount more of what is already loaded first; only fetch the next page of
+        // posts once the current ones are all on screen (famcircle#196).
+        if (visibleTiles < gridItemsLengthRef.current) {
+          setVisibleTiles((n) => n + TILES_PER_STEP);
+          return;
+        }
         void loadMore();
       }
     };
 
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
-  }, [loadMore, loadingMore, hasMore]);
+  }, [loadMore, loadingMore, hasMore, visibleTiles]);
 
   const gridItems = useMemo((): GridItem[] => {
     const flat: GridItem[] = [];
@@ -324,6 +369,15 @@ export default function PhotosPage() {
     return arr.find((l) => l.index === idx) || { index: idx, count: 0, likedByMe: false, likers: [] };
   }
 
+  gridItemsLengthRef.current = gridItems.length;
+
+  // What is actually mounted. Collect mode shows everything, because Select all has to
+  // mean all of it, and its tiles are plain <img> rather than the masonry's machinery.
+  const visibleGridItems = useMemo(
+    () => (collectMode ? gridItems : gridItems.slice(0, visibleTiles)),
+    [gridItems, visibleTiles, collectMode],
+  );
+
   const getGridMeta = useCallback((item: GridItem): LikeMeta => {
     const m = item.meta as { occId: string; idx: number };
     const meta = getLikeMeta(m.occId, m.idx);
@@ -362,7 +416,7 @@ export default function PhotosPage() {
       console.error('[PhotosPage] per-item delete is only supported for gallery posts, got', m.type);
       return;
     }
-    if (!window.confirm(t('confirmDeletePhoto') || 'Are you sure you want to delete this photo?')) return;
+    if (!(await askConfirm({ title: t('confirmDeletePhoto'), destructive: true }))) return;
 
     const occ = items.find((o) => o.id === m.occId);
     if (!occ) return;
@@ -395,12 +449,118 @@ export default function PhotosPage() {
     } catch (e) {
       console.error('[photos] delete item failed', e);
     }
-  }, [items, i18n.language, t]);
+  }, [items, i18n.language, t, askConfirm]);
 
   // Splits one image/video out of a multi-item gallery post into its own new
   // post, same date. For cases like a WhatsApp-day import where two unrelated
   // moments got bundled together just because they were shared the same day —
   // "delete" would lose the photo; this keeps it, just un-bundled.
+  // Only gallery-type items whose post this member may edit can be removed at all -
+  // the same two conditions handleDeleteItem enforces one photo at a time. Anything
+  // else is shown but not collectable, rather than collected and then silently skipped.
+  const isCollectable = useCallback((item: GridItem): boolean => {
+    const m = item.meta as { canEdit?: boolean; type?: 'occurrence' | 'gallery'; annId?: string };
+    if (!m.canEdit) return false;
+    // Anniversary-event photos count too (famcircle#196). They are removed through the
+    // event endpoint rather than the photo one, and leaving them out meant every photo
+    // of a Dropbox folder import showed dimmed - which is the whole wedding.
+    if (m.type === 'gallery') return true;
+    return !!m.annId;
+  }, []);
+
+  const toggleCollected = useCallback((key: string) => {
+    setCollected((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  }, []);
+
+  const exitCollectMode = useCallback(() => {
+    setCollectMode(false);
+    setCollected(new Set());
+  }, []);
+
+  /**
+   * Remove every collected photo. The grid is flat but the data is not: photos belong to
+   * posts, so the collection is grouped by post and each affected post is written once
+   * with the photos that remain. A post left with nothing is removed by the server, which
+   * is also why there is no Undo here (unlike the event page, where one list is restored):
+   * a post that no longer exists cannot be put back, so this asks first instead.
+   */
+  const removeCollected = useCallback(async () => {
+    if (collected.size === 0) return;
+
+    const byPost = new Map<string, number[]>();
+    for (const key of collected) {
+      const item = gridItems.find((g) => g.key === key);
+      if (!item) continue;
+      const m = item.meta as { occId: string; idx: number };
+      const list = byPost.get(m.occId) || [];
+      list.push(m.idx);
+      byPost.set(m.occId, list);
+    }
+    if (byPost.size === 0) return;
+
+    if (!(await askConfirm({ title: t('confirmRemoveCollected', { count: collected.size }), destructive: true }))) return;
+
+    setRemovingCollected(true);
+    try {
+      for (const [occId, indices] of byPost) {
+        const occ = items.find((o) => o.id === occId);
+        if (!occ) continue;
+        const images = occ.imagesResized || [];
+        const videosList = occ.videos || [];
+        const drop = new Set(indices);
+
+        const remainingImages = images.filter((_, i) => !drop.has(i));
+        const remainingVideos = videosList.filter((_, vi) => !drop.has(images.length + vi));
+
+        if ((occ.type ?? 'occurrence') === 'gallery') {
+          const res = await apiFetch<{ success: boolean; deleted?: boolean }>(ApiRoute.SITE_PHOTO_BY_ID, {
+            method: 'PUT',
+            pathParams: { photoId: occId },
+            body: {
+              locale: i18n.language,
+              imagesWithDimensions: remainingImages.map((img) => ({ url: img.original, width: img.width, height: img.height })),
+              videos: remainingVideos,
+            },
+          });
+          if (res.deleted || (remainingImages.length === 0 && remainingVideos.length === 0)) {
+            setItems((prev) => prev.filter((o) => o.id !== occId));
+            continue;
+          }
+        } else {
+          // An anniversary occurrence removes BY URL through the event endpoint, and the
+          // URL it stores is the original - not the 400x400 the tile is drawn from.
+          const annId = occ.eventId || occ.anniversaryId || '';
+          if (!annId) {
+            console.error('[photos] cannot remove from occurrence without an anniversary id', occId);
+            continue;
+          }
+          const removeImages = indices
+            .filter((i) => i < images.length)
+            .map((i) => images[i].original);
+          if (removeImages.length === 0) continue;
+
+          await apiFetch(ApiRoute.SITE_ANNIVERSARY_EVENT_BY_ID, {
+            method: 'PUT',
+            pathParams: { anniversaryId: annId, eventId: occId },
+            body: { removeImages },
+          });
+        }
+
+        setItems((prev) => prev.map((o) => (o.id === occId ? { ...o, imagesResized: remainingImages, videos: remainingVideos } : o)));
+      }
+      setCollected(new Set());
+      setCollectMode(false);
+    } catch (e) {
+      console.error('[photos] remove collected failed', e);
+    } finally {
+      setRemovingCollected(false);
+    }
+  }, [collected, gridItems, items, i18n.language, t, askConfirm]);
+
   const handleDetachItem = useCallback(async (item: GridItem) => {
     const m = item.meta as { occId: string; idx: number; canEdit?: boolean; type?: 'occurrence' | 'gallery'; groupSize?: number };
     if (!m.canEdit) return;
@@ -409,7 +569,7 @@ export default function PhotosPage() {
       return;
     }
     if (!m.groupSize || m.groupSize <= 1) return;
-    if (!window.confirm(t('confirmDetachPhoto') || 'Move this photo into its own separate post?')) return;
+    if (!(await askConfirm({ title: t('confirmDetachPhoto') }))) return;
 
     const occ = items.find((o) => o.id === m.occId);
     if (!occ) return;
@@ -599,23 +759,112 @@ export default function PhotosPage() {
     <>
       {jumpControl}
       <div className="p-4 max-w-6xl mx-auto">
-        <ImageGrid
-          items={gridItems}
-          getMeta={getGridMeta}
-          onToggle={handleGridToggle}
-          onTitleClick={handleTitleClick}
-          onDeleteItem={handleDeleteItem}
-          onDetachItem={handleDetachItem}
-          getLightboxLink={getLightboxLink}
-          autoSlideshow={autoSlideshow}
-          useJsMasonry
-        />
+        <div className="mb-3 flex items-center justify-between gap-2 text-sm">
+          <button
+            onClick={() => (collectMode ? exitCollectMode() : setCollectMode(true))}
+            className="rounded border px-3 py-1 hover:bg-gray-50"
+          >
+            {collectMode ? t('doneCollecting') : t('collectPhotos')}
+          </button>
+
+          {collectMode && (
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setCollected(new Set(gridItems.filter(isCollectable).map((g) => g.key)))}
+                className="text-blue-600 hover:underline"
+              >
+                {t('selectAll')}
+              </button>
+              <button
+                onClick={() => setCollected(new Set())}
+                disabled={collected.size === 0}
+                className="text-blue-600 hover:underline disabled:opacity-50"
+              >
+                {t('clearCollection')}
+              </button>
+              <span className="text-gray-500">{t('collectedCount', { count: collected.size })}</span>
+              <button
+                onClick={removeCollected}
+                disabled={collected.size === 0 || removingCollected}
+                className="rounded bg-red-600 px-3 py-1 text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                {removingCollected ? t('loading') : t('removeCollected', { count: collected.size })}
+              </button>
+            </div>
+          )}
+        </div>
+
+        {collectMode ? (
+          <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6">
+            {gridItems.map((item) => {
+              const canCollect = isCollectable(item);
+              const isCollected = collected.has(item.key);
+              return (
+                <button
+                  key={item.key}
+                  type="button"
+                  onClick={() => canCollect && toggleCollected(item.key)}
+                  disabled={!canCollect}
+                  aria-pressed={isCollected}
+                  title={canCollect ? undefined : t('cannotRemoveThisPhoto')}
+                  className={`relative aspect-square overflow-hidden rounded-lg border-2 transition-colors ${
+                    isCollected ? 'border-blue-500' : 'border-transparent hover:border-gray-300'
+                  } ${canCollect ? '' : 'cursor-not-allowed opacity-40'}`}
+                >
+                  {/* A video item's src IS the video URL, not a poster, so an <img>
+                      would render a broken tile. The first frame is enough to pick by. */}
+                  {item.mediaType === 'video' ? (
+                    <>
+                      <video
+                        src={item.src}
+                        muted
+                        playsInline
+                        preload="metadata"
+                        className="h-full w-full object-cover"
+                      />
+                      <span className="absolute bottom-1 end-1 rounded bg-black/60 px-1 text-xs text-white">
+                        &#9654;
+                      </span>
+                    </>
+                  ) : (
+                    <img src={item.src} alt="" className="h-full w-full object-cover" loading="lazy" />
+                  )}
+                  {isCollected && (
+                    <span className="absolute top-1 start-1 flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-xs text-white">
+                      &#10003;
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <ImageGrid
+            items={visibleGridItems}
+            getMeta={getGridMeta}
+            onToggle={handleGridToggle}
+            onTitleClick={handleTitleClick}
+            onDeleteItem={handleDeleteItem}
+            onDetachItem={handleDetachItem}
+            getLightboxLink={getLightboxLink}
+            autoSlideshow={autoSlideshow}
+            useJsMasonry
+          />
+        )}
         {loadingMore && (
           <div className="p-4 text-center text-gray-500">
             {t('loading')}...
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        isOpen={!!confirmState}
+        title={confirmState?.title ?? ''}
+        destructive={confirmState?.destructive}
+        onConfirm={() => settleConfirm(true)}
+        onCancel={() => settleConfirm(false)}
+      />
 
       <AddFab onClick={() => router.push('/app/photo/new')} ariaLabel={t('uploadPhoto')} />
 

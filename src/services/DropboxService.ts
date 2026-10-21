@@ -82,6 +82,71 @@ const IMAGE_EXTENSIONS = new Set([
   '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tiff', '.tif', '.heic', '.heif',
 ]);
 
+// ── Shared-link paths ───────────────────────────────────────────────
+//
+// A path means two different things depending on whether the call carries a
+// shared_link, and Dropbox answers 409 path/restricted_content when the wrong one
+// is used (Agla, 2026-10-17, famcircle#193: browsing into any subfolder of a
+// shared folder failed, and so did every download):
+//
+//   WITH    shared_link  -> the path must be RELATIVE to the link's own root
+//   WITHOUT shared_link  -> the path is absolute in the account's namespace
+//
+// list_folder returns ABSOLUTE paths even when it was given a shared_link, and
+// get_thumbnail_batch has no shared_link parameter at all, so it needs those
+// absolute paths. The absolute form therefore stays the one the client holds and
+// echoes back, and it is converted to the relative form here, at exactly the two
+// call sites that pass a shared_link.
+//
+// The prefix is stripped CASE-INSENSITIVELY on purpose: list_folder returns the
+// root segment proper-cased at the top level ("/Shaked & Omer - Picmoments
+// Weddings/...") but lower-cased inside a subfolder listing, so a case-sensitive
+// strip works on the first screen and silently fails one level down.
+
+const sharedRootCache = new Map<string, string>();
+
+/** The shared link's own root path, e.g. '/shaked & omer - picmoments weddings'. */
+async function getSharedLinkRoot(sharedUrl: string, accessToken: string): Promise<string> {
+  const cached = sharedRootCache.get(sharedUrl);
+  if (cached !== undefined) return cached;
+
+  const res = await fetch('https://api.dropboxapi.com/2/sharing/get_shared_link_metadata', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ url: sharedUrl }),
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    console.error('[DropboxService] get_shared_link_metadata failed:', res.status, text);
+    throw new Error(`Dropbox shared-link metadata failed (${res.status}): ${text}`);
+  }
+
+  const data = await res.json();
+  // No fallback: without the root we cannot build a correct relative path, and
+  // guessing would resurface as a 409 the caller cannot explain.
+  const root = typeof data.path_lower === 'string' ? data.path_lower : '';
+  if (!root) {
+    throw new Error('Dropbox shared-link metadata carried no path_lower; cannot resolve paths inside the shared folder');
+  }
+
+  sharedRootCache.set(sharedUrl, root);
+  return root;
+}
+
+/** Absolute namespace path -> path relative to the shared link's root. */
+function toShareRelative(absolutePath: string, root: string): string {
+  if (!absolutePath) return '';
+  if (absolutePath.toLowerCase().startsWith(root.toLowerCase())) {
+    return absolutePath.slice(root.length);
+  }
+  // Already relative (or from a different namespace) — pass through unchanged.
+  return absolutePath;
+}
+
 function isImageFile(name: string): boolean {
   const ext = name.substring(name.lastIndexOf('.')).toLowerCase();
   return IMAGE_EXTENSIONS.has(ext);
@@ -117,6 +182,10 @@ export async function browseDropboxFolder(
       limit: 100,
     };
     if (sharedUrl) {
+      // The client echoes back the absolute path list_folder gave it; inside a
+      // shared link it has to be relative to the link's root (famcircle#193).
+      const root = await getSharedLinkRoot(sharedUrl, accessToken);
+      body.path = toShareRelative(path || '', root);
       body.shared_link = { url: sharedUrl };
     }
 
@@ -153,6 +222,91 @@ export async function browseDropboxFolder(
     cursor: data.has_more ? data.cursor : undefined,
     hasMore: data.has_more || false,
   };
+}
+
+// ── Folder expansion ────────────────────────────────────────────────
+
+/**
+ * The most images ONE import call will accept (famcircle#194).
+ *
+ * This is a MEASURED bound, not a round number. The import route runs 4 downloads
+ * at a time and its maxDuration is 300s; measured against Agla's real folder on
+ * 2026-10-17, download + sharp resize costs 1.35s per image at that concurrency
+ * (8 images, 41 MB, 10.8s) before the Firebase upload is counted at all - so about
+ * 220 images is the ceiling, and 150 leaves room for the upload and a slower link.
+ *
+ * This is now a PER-CALL limit, not a limit on what the user may select: the client
+ * splits a big selection into chunks and calls this route once per chunk, holding the
+ * running count itself (Agla, 2026-10-17: "Break the load to chunks. Front holds load
+ * with the counter goes up"). Each chunk is saved when it finishes, so a selection of
+ * any size makes progress and a failure costs one chunk instead of everything.
+ */
+export const MAX_IMPORT_IMAGES = 150;
+
+/** How many images the client puts in one chunk - comfortably inside the per-call cap. */
+export const IMPORT_CHUNK_SIZE = 100;
+
+/**
+ * Safety ceiling for planning a whole job. Not a product limit: it exists so a
+ * mis-click on a huge tree cannot spin the server listing forever. Agla's full link is
+ * 1041 images, so this leaves real room above the largest selection anyone has made.
+ */
+export const MAX_EXPAND_IMAGES = 5000;
+
+/** Guard against a pathological tree; each level costs at least one API call. */
+const MAX_FOLDER_DEPTH = 4;
+
+/**
+ * Expand selected folders into the image paths inside them, breadth-first.
+ *
+ * Returns ABSOLUTE paths, the same form list_folder reports and downloadDropboxFile
+ * expects. files/list_folder with recursive:true is REFUSED for shared links
+ * ("Recursive list folder is not supported for shared link", measured 2026-10-17),
+ * so each level is walked with its own paginated call.
+ */
+export async function expandFoldersToImagePaths(
+  folderPaths: string[],
+  sharedUrl?: string,
+  limit: number = MAX_EXPAND_IMAGES,
+): Promise<string[]> {
+  const found: string[] = [];
+  const seen = new Set<string>();
+  let queue = folderPaths.filter((p) => typeof p === 'string' && p.length > 0);
+
+  for (let depth = 0; depth < MAX_FOLDER_DEPTH && queue.length > 0; depth++) {
+    const next: string[] = [];
+
+    for (const folderPath of queue) {
+      let cursor: string | undefined;
+
+      do {
+        const page = await browseDropboxFolder(folderPath, cursor, sharedUrl);
+
+        for (const entry of page.entries) {
+          if (seen.has(entry.path)) continue;
+          seen.add(entry.path);
+
+          if (entry.isFolder) {
+            next.push(entry.path);
+          } else {
+            found.push(entry.path);
+            if (found.length > limit) {
+              throw new Error(
+                `This selection holds more than ${limit} images, which is more than one import can read in a single pass. ` +
+                `Select fewer folders.`
+              );
+            }
+          }
+        }
+
+        cursor = page.cursor;
+      } while (cursor);
+    }
+
+    queue = next;
+  }
+
+  return found;
 }
 
 // ── Thumbnails ──────────────────────────────────────────────────────
@@ -238,9 +392,14 @@ export async function downloadDropboxFile(
     s.replace(/[\u0080-\uffff]/g, (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`);
 
   if (sharedUrl) {
-    // When using shared link, we need to use the sharing endpoint
-    const apiArg = toAsciiSafe(JSON.stringify({ url: sharedUrl, path }));
-    console.log('[DropboxService] download shared file, path:', path);
+    // When using shared link, we need to use the sharing endpoint. The path the
+    // caller holds is absolute (list_folder's own output); get_shared_link_file
+    // wants it relative to the link's root, or it answers 409
+    // path/restricted_content (famcircle#193).
+    const root = await getSharedLinkRoot(sharedUrl, accessToken);
+    const relativePath = toShareRelative(path, root);
+    const apiArg = toAsciiSafe(JSON.stringify({ url: sharedUrl, path: relativePath }));
+    console.log('[DropboxService] download shared file, path:', relativePath);
     const res = await fetch('https://content.dropboxapi.com/2/sharing/get_shared_link_file', {
       method: 'POST',
       headers: {
