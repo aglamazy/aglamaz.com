@@ -1,6 +1,6 @@
 {
   "name": "aglamaz-app",
-  "version": "26.10.9",
+  "version": "26.10.10",
   "private": true,
   "deployDomains": [
     "https://aglamaz.com",
@@ -16,7 +16,6 @@
     "lint": "eslint . --max-warnings=0",
     "lint:fix": "eslint . --fix",
     "monitor:uptime": "tsx scripts/uptime-check.ts",
-    "monitor:email-volume": "tsx scripts/check-email-volume.ts",
     "monitor:digest-delivery": "tsx scripts/check-digest-delivery.ts",
     "monitor:cron-auth": "tsx scripts/check-cron-auth.ts",
     "test:deploy": "tsx scripts/test-deploy.ts",

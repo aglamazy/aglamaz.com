@@ -2,7 +2,8 @@
  * Schedule-aware digest-delivery check (famcircle#144 follow-up).
  *
  * Replaces the naive "has anything gone out recently" staleness window
- * (emailVolumeCheck.ts) for the digest send specifically, per Buddy's review:
+ * (emailVolumeCheck.ts, retired 2026-10-21 under famcircle#175) for the digest send
+ * specifically, per Buddy's review:
  * "size it to the actual send calendar - ask 'did the digest that was DUE
  * actually go', not 'has anything gone recently'." A quiet stretch near a
  * weekly/monthly boundary is normal; a digest period that fired with eligible
@@ -13,8 +14,8 @@
  * path production uses - no parallel reimplementation to drift out of sync.
  *
  * Firestore access is injected (DigestDeliveryCheckDeps) so this stays testable
- * without a live Firestore project, matching the fake-fetch pattern already
- * used by emailVolumeCheck.test.ts.
+ * without a live Firestore project - the same fake-dependency pattern the rest of
+ * tests/ uses. (It was modelled on emailVolumeCheck.test.ts, retired 2026-10-21.)
  */
 import { lastWeeklyFireDate, lastMonthlyFireDate } from '@/services/DigestScheduleService';
 import type { DigestCadence } from '@/repositories/DigestSendRepository';
