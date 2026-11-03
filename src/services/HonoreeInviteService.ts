@@ -6,7 +6,7 @@ import { SiteRepository } from '@/repositories/SiteRepository';
 import { getBaseUrlForSite } from '@/utils/serverUrls';
 import { buildHonoreeInviteEmail } from './BlessingInviteTemplateService';
 import { resolveDigestSiteName } from './DigestTemplateService';
-import { ResendService } from './ResendService';
+import { emailService } from '@/services/EmailService';
 
 const SOURCE_LOCALE = 'he';
 
@@ -86,7 +86,10 @@ export async function sendHonoreeBlessingLink(params: {
     blessingLinkUrl,
   });
 
-  await ResendService.sendTransactionalEmail({
+  await emailService.send({
+    kind: 'blessing-invite',
+    carrier: 'resend',
+    siteId,
     to: targetEmail,
     subject,
     html,

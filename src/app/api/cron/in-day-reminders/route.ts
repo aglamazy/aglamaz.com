@@ -13,7 +13,7 @@ import { MemberRepository } from '@/repositories/MemberRepository';
 import { SiteRepository } from '@/repositories/SiteRepository';
 import { BlessingPageRepository } from '@/repositories/BlessingPageRepository';
 import { notificationPreferencesRepository } from '@/repositories/NotificationPreferencesRepository';
-import { ResendService } from '@/services/ResendService';
+import { emailService } from '@/services/EmailService';
 import { pingSendFlow } from '@/services/DeadmanPing';
 import { reportCronSchedulerRejected } from '@/services/CronAuthReport';
 import { planInDaySends, filterTodaysOccurrences } from '@/services/InDayReminderService';
@@ -155,7 +155,9 @@ async function getHandler(request: NextRequest) {
           console.log(
             `[cron/in-day-reminders] sending: site=${siteId} member=${plan.memberId} to=${plan.to}`,
           );
-          const delivered = await ResendService.sendTransactionalEmail({
+          const delivered = await emailService.send({
+            kind: 'in-day-reminder',
+            carrier: 'resend',
             to: plan.to,
             subject: plan.subject,
             html: plan.html,

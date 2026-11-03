@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import type { ActionCodeSettings } from 'firebase-admin/auth';
 import { initAdmin, adminAuth } from '@/firebase/admin';
 import { GmailService } from '@/services/GmailService';
+import { emailService } from '@/services/EmailService';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,13 +36,12 @@ export async function POST(request: NextRequest) {
       }
 
       const resetLink = await auth.generatePasswordResetLink(normalizedEmail, actionSettings);
-      const gmail = await GmailService.init();
-      await gmail.sendPasswordResetEmail({
-        to: normalizedEmail,
+      const message = GmailService.buildPasswordResetEmail({
         resetUrl: resetLink,
         firstName: userRecord.displayName || undefined,
         language: locale,
       });
+      await emailService.send({ kind: 'password-reset', carrier: 'gmail', to: normalizedEmail, lang: locale, ...message });
     } catch (error: any) {
       if (error?.code === 'auth/user-not-found') {
         console.warn('[auth][password-reset] email not found, returning success');

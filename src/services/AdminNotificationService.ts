@@ -1,4 +1,4 @@
-import { GmailService } from './GmailService';
+import { emailService } from '@/services/EmailService';
 import { notificationRepository, AdminNotification } from '../repositories/NotificationRepository';
 import { fetchSiteInfo, adminAuth } from '../firebase/admin';
 import { DEFAULT_LOCALE } from '@/i18n';
@@ -53,8 +53,7 @@ export class AdminNotificationService {
       console.error('Failed to render template:', error);
       html = `<p>A new ${notification.eventType.replace('_', ' ')} event occurred.</p><pre>${JSON.stringify(notification.payload, null, 2)}</pre>`;
     }
-    const gmail = await GmailService.init();
-    await gmail.sendEmail({ to: adminEmail, subject, html });
+    await emailService.send({ kind: 'admin-notification', carrier: 'gmail', siteId, to: adminEmail, subject, html });
   }
 
   private async renderTemplate(notification: AdminNotification) {

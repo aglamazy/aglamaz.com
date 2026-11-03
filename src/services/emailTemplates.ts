@@ -131,7 +131,7 @@ export function renderEmailHtml(options: EmailTemplateOptions): string {
 /**
  * Appends a 1x1, invisible tracking pixel `<img>` right before `</body>` - a post-processing
  * step over already-rendered HTML (rather than a renderEmailHtml option) so it applies
- * uniformly to every send type at the single send choke point (ResendService.sendTransactionalEmail),
+ * uniformly to every send type at the single send choke point (ResendService.deliver, reached only via EmailService.send),
  * including HTML that gets translated in between building and sending.
  */
 export function injectTrackingPixel(html: string, pixelUrl: string): string {

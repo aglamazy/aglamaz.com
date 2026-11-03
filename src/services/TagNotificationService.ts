@@ -3,6 +3,7 @@
 
 import { MemberRepository } from '@/repositories/MemberRepository';
 import { ResendService, TaggedContentType } from '@/services/ResendService';
+import { emailService } from '@/services/EmailService';
 
 function safeOriginOf(url: string): string | null {
   try {
@@ -72,7 +73,10 @@ export class TagNotificationService {
         );
 
         const origin = safeOriginOf(contentLink);
-        await ResendService.sendTransactionalEmail({
+        await emailService.send({
+          kind: 'tag-notification',
+          carrier: 'resend',
+          siteId,
           to: member.email,
           subject,
           html,

@@ -1,6 +1,6 @@
 // Public, unauthenticated-by-design (the signed token IS the auth - same pattern as
 // /api/review/[token]) open-tracking pixel: every outgoing email embeds an <img> pointing
-// here at a unique per-copy URL (src/services/ResendService.ts's sendTransactionalEmail
+// here at a unique per-copy URL (src/services/ResendService.ts's deliver
 // mints + injects it). A GET here means a mail client actually rendered/fetched this
 // specific copy - that's the "opened" signal.
 //

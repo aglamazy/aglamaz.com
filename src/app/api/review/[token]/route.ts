@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { blogRepository } from '@/repositories/BlogRepository';
 import { FamilyRepository } from '@/repositories/FamilyRepository';
-import { ResendService } from '@/services/ResendService';
+import { emailService } from '@/services/EmailService';
 import { renderEmailHtml } from '@/services/emailTemplates';
 
 export const dynamic = 'force-dynamic';
@@ -94,7 +94,10 @@ export async function POST(
       });
 
       const authorId = (author as any)?.id as string | undefined;
-      await ResendService.sendTransactionalEmail({
+      await emailService.send({
+        kind: 'blog-review-decision',
+        carrier: 'resend',
+        siteId: prePost.siteId,
         to: authorEmail,
         subject,
         html,

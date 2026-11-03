@@ -7,7 +7,7 @@
 import { SiteRepository } from '@/repositories/SiteRepository';
 import { MemberRepository, type LocalizedMemberRecord } from '@/repositories/MemberRepository';
 import { resolveDigestSiteName } from '@/services/DigestTemplateService';
-import { ResendService } from '@/services/ResendService';
+import { emailService } from '@/services/EmailService';
 import { renderEmailHtml } from '@/services/emailTemplates';
 import { getBaseUrlForSite } from '@/utils/serverUrls';
 import type { EmailTrackingSendType } from '@/services/EmailTrackingService';
@@ -56,7 +56,9 @@ export async function notifyAdminsOfPendingBlogReview(params: {
         footerLines: ['FamCircle'],
       });
       try {
-        await ResendService.sendTransactionalEmail({
+        await emailService.send({
+          kind: sendType,
+          carrier: 'resend',
           to: admin.email,
           subject,
           html,

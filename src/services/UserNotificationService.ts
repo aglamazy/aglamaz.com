@@ -1,4 +1,4 @@
-import { GmailService } from './GmailService';
+import { emailService } from '@/services/EmailService';
 import path from 'path';
 import pug from 'pug';
 import type { IMember } from '@/entities/Member';
@@ -38,8 +38,10 @@ export class UserNotificationService {
       firstName: member.firstName,
       siteName,
     }, member.siteId);
-    const gmail = await GmailService.init();
-    await gmail.sendEmail({
+    await emailService.send({
+      kind: 'welcome',
+      carrier: 'gmail',
+      siteId: member.siteId,
       to: member.email,
       subject: `Welcome to ${siteName}`,
       html,
