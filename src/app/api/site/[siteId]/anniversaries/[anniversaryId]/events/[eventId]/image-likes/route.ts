@@ -1,15 +1,18 @@
 import { withMemberGuard } from '@/lib/withMemberGuard';
 import { GuardContext } from '@/app/api/types';
 import { AnniversaryOccurrenceRepository } from '@/repositories/AnniversaryOccurrenceRepository';
-import { ImageLikeRepository, type MemberCache } from '@/repositories/ImageLikeRepository';
+import { ImageLikeRepository } from '@/repositories/ImageLikeRepository';
+import { fetchOccurrenceLikes } from '@/services/ImageLikesQuery';
 
 export const dynamic = 'force-dynamic';
 
 /**
  * GET /api/site/[siteId]/anniversaries/[anniversaryId]/events/[eventId]/image-likes
- * Get likes for all images in an anniversary occurrence (with first 3 likers for avatar stack)
+ * Likes (with first 3 likers for the avatar stack) for the images named in `?indexes=0,1,2`,
+ * returned as { byIndex: { [imageIndex]: likes } }. Without `indexes`: every image, as
+ * { items: [...] } in image order (famcircle#199 keeps that for un-updated callers).
  */
-const getHandler = async (_request: Request, context: GuardContext & { params: Promise<{ siteId: string; anniversaryId: string; eventId: string }> }) => {
+const getHandler = async (request: Request, context: GuardContext & { params: Promise<{ siteId: string; anniversaryId: string; eventId: string }> }) => {
   try {
     const params = await context.params;
     const siteId = params?.siteId;
@@ -34,24 +37,20 @@ const getHandler = async (_request: Request, context: GuardContext & { params: P
     }
     const imagesWithDimensions = occ.imagesWithDimensions || [];
 
-    // Fetch likes for all images in parallel (with first 3 likers for avatar stack)
-    const likeRepo = new ImageLikeRepository();
-    const memberCache: MemberCache = new Map();
-
-    const items = await Promise.all(
-      imagesWithDimensions.map((_, i) =>
-        likeRepo.getLikesForOccurrenceImage(
-          eventId,
-          i,
-          user.userId,
-          member.siteId,
-          3,
-          memberCache
-        )
-      )
+    // Only the images the caller names (famcircle#199): one Firestore read per index.
+    // No `indexes` param = every image, as before, for a caller not yet updated.
+    const outcome = await fetchOccurrenceLikes(
+      new ImageLikeRepository(),
+      eventId,
+      imagesWithDimensions.length,
+      new URL(request.url).searchParams.get('indexes'),
+      user.userId,
+      member.siteId,
     );
-
-    return Response.json({ items });
+    if ('error' in outcome) {
+      return Response.json({ error: outcome.error }, { status: 400 });
+    }
+    return Response.json(outcome.body);
   } catch (error) {
     console.error('[anniversaries/anniversaryId/events/eventId/image-likes] GET error:', error);
     return Response.json({ error: 'Failed to load likes' }, { status: 500 });

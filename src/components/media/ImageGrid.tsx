@@ -8,6 +8,7 @@ import { usePresentationModeStore } from '@/store/PresentationModeStore';
 import type { LikerInfo } from '@/types/likes';
 import LikersPopover from '@/components/photos/LikersPopover';
 import { AppRoute, getPath } from '@/utils/urls';
+import { useOnScreen } from '@/hooks/useOnScreen';
 
 export interface GridItem {
   key: string;
@@ -53,9 +54,13 @@ interface ImageGridProps {
   // square-tile fallback) — the digest email's masonry collage is a
   // separate, non-React, inlined-CSS render and is unaffected either way.
   useJsMasonry?: boolean;
+  // Called with the items that come on screen (tile, presentation row, or the lightbox's
+  // current photo), so a caller can ask likes for those only (famcircle#199). Omit it and
+  // nothing is observed.
+  onItemsOnScreen?: (items: GridItem[]) => void;
 }
 
-export default function ImageGrid({ items, getMeta, onToggle, onTitleClick, onDeleteItem, onDetachItem, getLightboxLink, autoSlideshow, useJsMasonry }: ImageGridProps) {
+export default function ImageGrid({ items, getMeta, onToggle, onTitleClick, onDeleteItem, onDetachItem, getLightboxLink, autoSlideshow, useJsMasonry, onItemsOnScreen }: ImageGridProps) {
   const { t, i18n } = useTranslation();
   const [isMobile, setIsMobile] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -75,6 +80,27 @@ export default function ImageGrid({ items, getMeta, onToggle, onTitleClick, onDe
   const gridContainerRef = useRef<HTMLDivElement | null>(null);
   const [gridColumnCount, setGridColumnCount] = useState(4);
   const [gridWidth, setGridWidth] = useState(0);
+
+  const itemsByKey = useMemo(() => new Map(items.map((it) => [it.key, it])), [items]);
+  const itemsByKeyRef = useRef(itemsByKey);
+  itemsByKeyRef.current = itemsByKey;
+  const onItemsOnScreenRef = useRef(onItemsOnScreen);
+  onItemsOnScreenRef.current = onItemsOnScreen;
+  const handleKeysShown = useCallback((keys: string[]) => {
+    const shown: GridItem[] = [];
+    for (const key of keys) {
+      const it = itemsByKeyRef.current.get(key);
+      if (it) shown.push(it);
+    }
+    if (shown.length > 0) onItemsOnScreenRef.current?.(shown);
+  }, []);
+  const observeItem = useOnScreen(onItemsOnScreen ? handleKeysShown : undefined);
+  // The lightbox and slideshow can step past what the grid has scrolled to.
+  useEffect(() => {
+    if (!lightboxOpen) return;
+    const it = items[lightboxIndex];
+    if (it) onItemsOnScreenRef.current?.([it]);
+  }, [lightboxOpen, lightboxIndex, items]);
 
   const enablePresentation = usePresentationModeStore((state) => state.enable);
   const disablePresentation = usePresentationModeStore((state) => state.disable);
@@ -485,6 +511,7 @@ export default function ImageGrid({ items, getMeta, onToggle, onTitleClick, onDe
                 return (
                   <div
                     key={item.key}
+                    ref={observeItem(item.key)}
                     className={styles.presentationItem}
                     data-presentation-index={index}
                   >
@@ -638,7 +665,7 @@ export default function ImageGrid({ items, getMeta, onToggle, onTitleClick, onDe
       ? { position: 'absolute' as const, top: pos.top, insetInlineStart: pos.left, width: pos.width, marginBottom: 0 }
       : undefined;
     return (
-      <div key={it.key} className={styles.thumbWrap} style={thumbWrapStyle}>
+      <div key={it.key} ref={observeItem(it.key)} className={styles.thumbWrap} style={thumbWrapStyle}>
         {it.mediaType === 'video' ? (
           <div
             style={{ position: 'relative', cursor: 'pointer' }}

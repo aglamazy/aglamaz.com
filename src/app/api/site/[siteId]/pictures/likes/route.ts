@@ -1,20 +1,16 @@
 import { withMemberGuard } from '@/lib/withMemberGuard';
-import { ImageLikeRepository, ImageLikesResult, type MemberCache } from '@/repositories/ImageLikeRepository';
+import { ImageLikeRepository } from '@/repositories/ImageLikeRepository';
+import { fetchPictureLikes } from '@/services/ImageLikesQuery';
 import { GuardContext } from '@/app/api/types';
 
 export const dynamic = 'force-dynamic';
 
-interface LikesRequestItem {
-  id: string;
-  type: 'gallery' | 'occurrence';
-  imageCount: number;
-}
-
 /**
  * POST /api/site/[siteId]/pictures/likes
- * Batch-fetch likes for multiple items in a single request.
- * Body: { items: [{ id, type, imageCount }] }
- * Returns: { likes: Record<string, ImageLikesResult[]> }
+ * Batch-fetch likes for the named images of several items in one request.
+ * Body: { items: [{ id, type, indexes: number[] }] } - one Firestore read per index named,
+ * nothing more (famcircle#199). `imageCount` is accepted for one release from cached clients.
+ * Returns: { byIndex: Record<itemId, Record<imageIndex, ImageLikesResult>>, likes: legacy arrays }
  */
 const postHandler = async (request: Request, context: GuardContext) => {
   try {
@@ -31,35 +27,12 @@ const postHandler = async (request: Request, context: GuardContext) => {
 
     const user = context.user!;
     const body = await request.json();
-    const requestItems: LikesRequestItem[] = body.items;
 
-    if (!Array.isArray(requestItems) || requestItems.length === 0) {
-      return Response.json({ error: 'items array is required' }, { status: 400 });
+    const outcome = await fetchPictureLikes(new ImageLikeRepository(), body?.items, user.userId, siteId);
+    if ('error' in outcome) {
+      return Response.json({ error: outcome.error }, { status: 400 });
     }
-
-    const likeRepo = new ImageLikeRepository();
-    const likes: Record<string, ImageLikesResult[]> = {};
-    const memberCache: MemberCache = new Map();
-
-    await Promise.all(
-      requestItems.map(async (item) => {
-        if (!item.id || !item.type || typeof item.imageCount !== 'number') return;
-        try {
-          const perImage = await Promise.all(
-            Array.from({ length: item.imageCount }, (_, idx) =>
-              item.type === 'gallery'
-                ? likeRepo.getLikesForImage(item.id, idx, user.userId, siteId, 3, memberCache)
-                : likeRepo.getLikesForOccurrenceImage(item.id, idx, user.userId, siteId, 3, memberCache)
-            )
-          );
-          likes[item.id] = perImage;
-        } catch (err) {
-          console.error(`[pictures/likes] fetch failed for ${item.id}:`, err);
-        }
-      })
-    );
-
-    return Response.json({ likes });
+    return Response.json(outcome.body);
   } catch (error) {
     console.error('[pictures/likes] POST error:', error);
     return Response.json({ error: 'Failed to fetch likes' }, { status: 500 });
