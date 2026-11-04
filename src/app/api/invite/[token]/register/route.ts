@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { initAdmin, adminAuth } from '@/firebase/admin';
 import { FamilyRepository } from '@/repositories/FamilyRepository';
 import { GmailService } from '@/services/GmailService';
+import { emailService } from '@/services/EmailService';
 import { randomUUID } from 'crypto';
 import { getUrl, AppRoute } from '@/utils/serverUrls';
 
@@ -94,8 +95,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
     );
 
     try {
-      const gmailService = await GmailService.init();
-      await gmailService.sendInviteVerificationEmail(normalizedEmail, firstName, verificationUrl, locale);
+      const message = GmailService.buildInviteVerificationEmail(firstName, verificationUrl, locale);
+      await emailService.send({ kind: 'invite-verification', carrier: 'gmail', siteId: invite.siteId, to: normalizedEmail, lang: locale, ...message });
     } catch (emailError) {
       console.error('[invite][register] failed to send invitation email', emailError);
       return NextResponse.json({ error: 'Failed to send verification email' }, { status: 500 });

@@ -11,7 +11,7 @@ import { DigestCompilerService } from '@/services/DigestCompilerService';
 import { DigestTemplateService, resolveDigestSiteName } from '@/services/DigestTemplateService';
 import { generateReadToken } from '@/services/ReadTokenService';
 import { signEmailTrackingToken } from '@/services/EmailTrackingService';
-import { ResendService } from '@/services/ResendService';
+import { emailService } from '@/services/EmailService';
 import { TranslationService } from '@/services/TranslationService';
 import { AppRoute } from '@/utils/urls';
 import { getUrl } from '@/utils/serverUrls';
@@ -157,7 +157,9 @@ export async function executeDigestSend(
         to: recipientLocale,
       });
 
-      const delivered = await ResendService.sendTransactionalEmail({
+      const delivered = await emailService.send({
+        kind: 'digest',
+        carrier: 'resend',
         to: member.email,
         subject: localized.subject,
         html: localized.html,

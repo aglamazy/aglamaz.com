@@ -11,6 +11,12 @@ export interface EmailData {
   text?: string;
 }
 
+export interface BuiltEmail {
+  subject: string;
+  html: string;
+  text: string;
+}
+
 export class GmailService {
   private gmail: any;
 
@@ -34,7 +40,12 @@ export class GmailService {
     return new GmailService(gmail);
   }
 
-  async sendEmail(emailData: EmailData): Promise<void> {
+  /**
+   * Carrier only: hand one email to the Gmail API. Call EmailService.send, never this -
+   * EmailService records every send (famcircle#201) and tests/emailSinglePath.test.ts fails
+   * when this is reached from anywhere else.
+   */
+  async deliver(emailData: EmailData): Promise<{ accepted: boolean; messageId?: string }> {
     try {
       const { to, subject, html, text } = emailData;
       const from = process.env.GMAIL_FROM_EMAIL;
@@ -91,7 +102,7 @@ export class GmailService {
         .replace(/=+$/, '');
 
       // Send the email
-      await this.gmail.users.messages.send({
+      const res = await this.gmail.users.messages.send({
         userId: 'me',
         requestBody: {
           raw: encodedMessage,
@@ -99,13 +110,17 @@ export class GmailService {
       });
 
       console.log(`Email sent successfully to ${to}`);
+      const id = res?.data?.id;
+      return { accepted: true, messageId: typeof id === 'string' ? id : undefined };
     } catch (error) {
       console.error('Error sending email:', error);
-      throw new Error('Failed to send email');
+      const reason = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to send email: ${reason}`);
     }
   }
 
-  async sendVerificationEmail(to: string, firstName: string, verificationUrl: string, siteInfo?: ISite | Record<string, any> | null): Promise<void> {
+  /** Builds the signup verification email; send it with EmailService.send (kind 'signup-verification', carrier 'gmail'). */
+  static buildVerificationEmail(firstName: string, verificationUrl: string, siteInfo?: ISite | Record<string, any> | null): BuiltEmail {
     const name = firstName?.trim().split(' ')[0];
     const year = new Date().getFullYear();
     const platformName = getPlatformName(siteInfo);
@@ -135,10 +150,11 @@ export class GmailService {
     };
     const html = renderEmailHtml(template);
     const text = renderPlainTextEmail(template);
-    await this.sendEmail({ to, subject: template.subject, html, text });
+    return { subject: template.subject, html, text };
   }
 
-  async sendInviteVerificationEmail(to: string, firstName: string, verificationUrl: string, language = 'he', siteInfo?: ISite | Record<string, any> | null): Promise<void> {
+  /** Builds the invite verification email; send it with EmailService.send (kind 'invite-verification', carrier 'gmail'). */
+  static buildInviteVerificationEmail(firstName: string, verificationUrl: string, language = 'he', siteInfo?: ISite | Record<string, any> | null): BuiltEmail {
     const langKey = (language || '').split('-')[0].toLowerCase();
     const name = (firstName || '').trim();
     const year = new Date().getFullYear();
@@ -221,11 +237,12 @@ export class GmailService {
     const template = buildTemplate({ name, url: verificationUrl });
     const html = renderEmailHtml(template);
     const text = renderPlainTextEmail(template);
-    await this.sendEmail({ to, subject: template.subject, html, text });
+    return { subject: template.subject, html, text };
   }
 
-  async sendPasswordResetEmail(params: { to: string; resetUrl: string; firstName?: string; language?: string; siteInfo?: ISite | Record<string, any> | null }): Promise<void> {
-    const { to, resetUrl, firstName, language, siteInfo } = params;
+  /** Builds the password reset email; send it with EmailService.send (kind 'password-reset', carrier 'gmail'). */
+  static buildPasswordResetEmail(params: { resetUrl: string; firstName?: string; language?: string; siteInfo?: ISite | Record<string, any> | null }): BuiltEmail {
+    const { resetUrl, firstName, language, siteInfo } = params;
     const langKey = (language || '').split('-')[0].toLowerCase();
     const name = firstName?.trim().split(' ')[0] || '';
     const year = new Date().getFullYear();
@@ -308,7 +325,7 @@ export class GmailService {
     const template = buildTemplate({ name, url: resetUrl, platformName });
     const html = renderEmailHtml(template);
     const text = renderPlainTextEmail(template);
-    await this.sendEmail({ to, subject: template.subject, html, text });
+    return { subject: template.subject, html, text };
   }
 
   async sendVerificationEmailWithFailure(to: string, firstName: string, verificationUrl: string): Promise<void> {

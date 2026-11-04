@@ -16,6 +16,7 @@ import { useReadOnlyStore } from '@/store/ReadOnlyStore';
 import { formatLocalizedDate } from '@/utils/dateFormat';
 import type { ImageLikeMeta } from '@/types/likes';
 import { useAddAction } from '@/hooks/useAddAction';
+import { usePictureLikes } from '@/hooks/usePictureLikes';
 import AddFab from '@/components/ui/AddFab';
 import { ApiRoute } from '@/utils/urls';
 
@@ -67,7 +68,7 @@ export default function PhotosPage() {
   const [hasMore, setHasMore] = useState(true);
   const [page, setPage] = useState(0);
   const [eventNames, setEventNames] = useState<Record<string, { name: string }>>({});
-  const [likes, setLikes] = useState<Record<string, ImageLikeMeta[]>>({});
+  const { requestLikes, resetRequested, getLikeMeta, setLikeMeta } = usePictureLikes('photos');
   const [authors, setAuthors] = useState<Record<string, AuthorInfo>>({});
   const [editTarget, setEditTarget] = useState<{ annId: string; occId: string } | null>(null);
   const [galleryEditTarget, setGalleryEditTarget] = useState<string | null>(null);
@@ -166,6 +167,8 @@ export default function PhotosPage() {
       setHasMore(list.length === limit);
 
       if (isInitialLoad) {
+        // A reloaded feed asks again for the likes it shows (famcircle#199).
+        resetRequested();
         setItems(list);
       } else {
         setItems(prev => [...prev, ...list]);
@@ -173,27 +176,8 @@ export default function PhotosPage() {
 
       setEventNames(prev => ({ ...prev, ...(data.events || {}) }));
 
-      // Fire likes fetch immediately — don't wait for author processing
-      const likesItems = list
-        .filter((occ) => (occ.imagesResized?.length ?? 0) + (occ.videos?.length ?? 0) > 0)
-        .map((occ) => ({
-          id: occ.id,
-          type: occ.type ?? 'occurrence',
-          imageCount: (occ.imagesResized?.length ?? 0) + (occ.videos?.length ?? 0),
-        }));
-      if (likesItems.length > 0) {
-        apiFetch<{ likes: Record<string, ImageLikeMeta[]> }>(ApiRoute.SITE_PICTURES_LIKES, {
-          method: 'POST',
-          body: { items: likesItems },
-        })
-          .then((resp) => {
-            if (!mountedRef.current) return;
-            if (resp.likes) {
-              setLikes((prev) => ({ ...prev, ...resp.likes }));
-            }
-          })
-          .catch((err) => console.error('[photos] batch likes fetch failed', err));
-      }
+      // Likes are asked for the mounted tiles only, by the effect on mountedLikeTargets
+      // below - not for every photo of every post on this page (famcircle#199).
 
       const rawAuthors = data.authors;
       if (!rawAuthors || typeof rawAuthors !== 'object') {
@@ -229,7 +213,7 @@ export default function PhotosPage() {
         }
       }
     }
-  }, [i18n.language]);
+  }, [i18n.language, resetRequested]);
 
   // Initial load: in slideshow mode fetch just 1 item to start fast
   const initialLoadDone = useRef(false);
@@ -364,11 +348,6 @@ export default function PhotosPage() {
     return flat;
   }, [items, eventNames, textDirection, canEditOccurrence, i18n.language]);
 
-  function getLikeMeta(occId: string, idx: number): ImageLikeMeta {
-    const arr = likes[occId] || [];
-    return arr.find((l) => l.index === idx) || { index: idx, count: 0, likedByMe: false, likers: [] };
-  }
-
   gridItemsLengthRef.current = gridItems.length;
 
   // What is actually mounted. Collect mode shows everything, because Select all has to
@@ -378,11 +357,24 @@ export default function PhotosPage() {
     [gridItems, visibleTiles, collectMode],
   );
 
+  // Likes for the mounted tiles only (famcircle#199, option a): the first screen asks for
+  // TILES_PER_STEP photos, each scroll step for the next ones, and nothing is asked twice -
+  // scrolling back up costs no reads. Collect mode mounts everything but shows no likes,
+  // so it asks for the same mounted window, not the whole feed.
+  useEffect(() => {
+    requestLikes(
+      gridItems.slice(0, visibleTiles).map((item) => {
+        const m = item.meta as { occId: string; idx: number; type?: 'occurrence' | 'gallery' };
+        return { id: m.occId, type: m.type ?? 'occurrence', index: m.idx };
+      }),
+    );
+  }, [gridItems, visibleTiles, requestLikes]);
+
   const getGridMeta = useCallback((item: GridItem): LikeMeta => {
     const m = item.meta as { occId: string; idx: number };
     const meta = getLikeMeta(m.occId, m.idx);
     return { count: meta.count, likedByMe: meta.likedByMe, likers: meta.likers };
-  }, [likes]);
+  }, [getLikeMeta]);
 
   const handleGridToggle = useCallback(async (item: GridItem) => {
     const m = item.meta as { occId: string; annId: string; idx: number; type?: 'occurrence' | 'gallery' };
@@ -661,7 +653,7 @@ export default function PhotosPage() {
   async function toggleLike(annId: string, occId: string, idx: number, type?: 'occurrence' | 'gallery') {
     const meta = getLikeMeta(occId, idx);
     const next: ImageLikeMeta = { ...meta, likedByMe: !meta.likedByMe, count: meta.count + (meta.likedByMe ? -1 : 1) };
-    setLikes((cur) => ({ ...cur, [occId]: [...(cur[occId] || []).filter((l) => l.index !== idx), next].sort((a, b) => a.index - b.index) }));
+    setLikeMeta(occId, idx, next);
     try {
       const data = type === 'gallery'
         ? await apiFetch<ImageLikeMeta>(ApiRoute.SITE_PHOTO_IMAGE_LIKES, {
@@ -675,10 +667,10 @@ export default function PhotosPage() {
             body: { imageIndex: idx, like: !meta.likedByMe },
           });
 
-      setLikes((cur) => ({ ...cur, [occId]: [...(cur[occId] || []).filter((l) => l.index !== idx), data].sort((a, b) => a.index - b.index) }));
+      setLikeMeta(occId, idx, data);
     } catch (e) {
       console.error('[photos] like toggle failed', e);
-      setLikes((cur) => ({ ...cur, [occId]: [...(cur[occId] || []).filter((l) => l.index !== idx), meta].sort((a, b) => a.index - b.index) }));
+      setLikeMeta(occId, idx, meta);
     }
   }
 

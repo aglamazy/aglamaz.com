@@ -22,6 +22,8 @@ import AvatarStack from '@/components/photos/AvatarStack';
 import LikersBottomSheet from '@/components/photos/LikersBottomSheet';
 import type { ImageLikeMeta } from '@/types/likes';
 import { useAddAction } from '@/hooks/useAddAction';
+import { usePictureLikes, type WantedLike } from '@/hooks/usePictureLikes';
+import { useOnScreen } from '@/hooks/useOnScreen';
 import { ApiRoute } from '@/utils/urls';
 
 type ImageSizes = {
@@ -68,7 +70,8 @@ export default function PicturesFeedPage() {
   const [hasMore, setHasMore] = useState(true);
   const [page, setPage] = useState(0);
   const [eventNames, setEventNames] = useState<Record<string, { name: string }>>({});
-  const [likes, setLikes] = useState<Record<string, ImageLikeMeta[]>>({}); // key: occId
+  // key: occId, then image index. Asked only for photos that come on screen (famcircle#199).
+  const { requestLikes, getLikeMeta, setLikeMeta } = usePictureLikes('feed');
   const [authors, setAuthors] = useState<Record<string, AuthorInfo>>({});
   const [editTarget, setEditTarget] = useState<{ annId: string; occId: string } | null>(null);
   const [galleryEditTarget, setGalleryEditTarget] = useState<string | null>(null);
@@ -225,28 +228,8 @@ export default function PicturesFeedPage() {
         });
       }
 
-      // Batch-fetch likes for all items in a single request
-      const likesItems = list
-        .filter((occ) => (occ.imagesResized?.length ?? 0) + (occ.videos?.length ?? 0) > 0)
-        .map((occ) => ({
-          id: occ.id,
-          type: occ.type ?? 'occurrence',
-          imageCount: (occ.imagesResized?.length ?? 0) + (occ.videos?.length ?? 0),
-        }));
-      if (likesItems.length > 0) {
-        try {
-          const resp = await apiFetch<{ likes: Record<string, ImageLikeMeta[]> }>(ApiRoute.SITE_PICTURES_LIKES, {
-            method: 'POST',
-            body: { items: likesItems },
-          });
-          if (!mountedRef.current) return true;
-          if (resp.likes) {
-            setLikes(prev => ({ ...prev, ...resp.likes }));
-          }
-        } catch (err) {
-          console.error('[feed] batch likes fetch failed', err);
-        }
-      }
+      // Likes are NOT fetched here for every photo of every post: each tile asks as it
+      // comes on screen (famcircle#199) - see onTileShown below.
       return true;
     } catch (e) {
       console.error('[feed] load error', e);
@@ -403,10 +386,21 @@ export default function PicturesFeedPage() {
     return flat;
   }, [items, eventNames, textDirection, canEditOccurrence]);
 
-  function getLikeMeta(occId: string, idx: number): ImageLikeMeta {
-    const arr = likes[occId] || [];
-    return arr.find((l) => l.index === idx) || { index: idx, count: 0, likedByMe: false, likers: [] };
-  }
+  // Tiles report when they come on screen; their likes are asked then, once each.
+  // The continuous list mounts every photo of a loaded post (a 1041-photo import is
+  // 1041 tiles), so mounting is not the signal - being on screen is.
+  const feedByKey = useMemo(() => new Map(feed.map((f) => [f.key, f])), [feed]);
+  const feedByKeyRef = useRef(feedByKey);
+  feedByKeyRef.current = feedByKey;
+  const onTileShown = useCallback((keys: string[]) => {
+    const wanted: WantedLike[] = [];
+    for (const key of keys) {
+      const f = feedByKeyRef.current.get(key);
+      if (f) wanted.push({ id: f.occId, type: f.type ?? 'occurrence', index: f.idx });
+    }
+    requestLikes(wanted);
+  }, [requestLikes]);
+  const observeTile = useOnScreen(onTileShown);
 
   const openOccurrenceModal = (annId: string, occId: string, creatorId?: string) => {
     if (!canEditOccurrence(creatorId)) return;
@@ -461,12 +455,12 @@ export default function PicturesFeedPage() {
   const currentLikersData = useMemo(() => {
     if (!likersSheet) return null;
     return getLikeMeta(likersSheet.occId, likersSheet.imageIndex);
-  }, [likersSheet, likes]);
+  }, [likersSheet, getLikeMeta]);
 
   async function toggleLike(annId: string, occId: string, idx: number, type?: 'occurrence' | 'gallery') {
     const meta = getLikeMeta(occId, idx);
     const next: ImageLikeMeta = { ...meta, likedByMe: !meta.likedByMe, count: meta.count + (meta.likedByMe ? -1 : 1) };
-    setLikes((cur) => ({ ...cur, [occId]: [...(cur[occId] || []).filter((l) => l.index !== idx), next].sort((a, b) => a.index - b.index) }));
+    setLikeMeta(occId, idx, next);
     try {
       // Use different endpoints for occurrence vs gallery photos
       const data = type === 'gallery'
@@ -482,11 +476,11 @@ export default function PicturesFeedPage() {
           });
 
       // Update with full response including refreshed likers array
-      setLikes((cur) => ({ ...cur, [occId]: [...(cur[occId] || []).filter((l) => l.index !== idx), data].sort((a, b) => a.index - b.index) }));
+      setLikeMeta(occId, idx, data);
     } catch (e) {
       console.error('[feed] like toggle failed', e);
       // revert
-      setLikes((cur) => ({ ...cur, [occId]: [...(cur[occId] || []).filter((l) => l.index !== idx), meta].sort((a, b) => a.index - b.index) }));
+      setLikeMeta(occId, idx, meta);
     }
   }
 
@@ -560,6 +554,7 @@ export default function PicturesFeedPage() {
                 item={{ ...item, src: item.srcMobile }}
                 title={headerText}
                 meta={meta}
+                onScreenRef={observeTile(item.key)}
                 author={author}
                 onToggle={() => toggleLike(item.annId, item.occId, item.idx, item.type)}
                 onShowLikers={() => setLikersSheet({ occId: item.occId, imageIndex: item.idx })}
@@ -616,6 +611,8 @@ interface MobileFeedItemProps {
   } & { occId: string; annId: string; idx: number };
   title?: string;
   meta: ImageLikeMeta;
+  /** Reports this tile coming on screen, so its likes are asked then (famcircle#199). */
+  onScreenRef?: React.RefCallback<HTMLElement>;
   author: AuthorInfo;
   onToggle: () => Promise<void> | void;
   onShowLikers: () => void;
@@ -630,7 +627,7 @@ interface MobileFeedItemProps {
   imageHeight?: number;
 }
 
-function MobileFeedItem({ item, title, meta, author, onToggle, onShowLikers, t, onTitleClick, canEdit, titleDir, onGalleryEdit, imageLoading = 'eager', imagePriority = 'auto', imageWidth, imageHeight }: MobileFeedItemProps) {
+function MobileFeedItem({ item, title, meta, onScreenRef, author, onToggle, onShowLikers, t, onTitleClick, canEdit, titleDir, onGalleryEdit, imageLoading = 'eager', imagePriority = 'auto', imageWidth, imageHeight }: MobileFeedItemProps) {
   const [loaded, setLoaded] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const wrapperClass = feedStyles.mobileContinuousImageWrap;
@@ -652,7 +649,7 @@ function MobileFeedItem({ item, title, meta, author, onToggle, onShowLikers, t, 
   }, [author.email]);
 
   return (
-    <article className={feedStyles.mobileContinuousItem}>
+    <article className={feedStyles.mobileContinuousItem} ref={onScreenRef}>
       {title ? (
         canEdit && onTitleClick ? (
           <button

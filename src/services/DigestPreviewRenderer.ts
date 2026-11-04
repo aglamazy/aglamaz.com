@@ -10,7 +10,7 @@ import { DigestTemplateService, resolveDigestSiteName } from '@/services/DigestT
 import { escapeHtml } from '@/services/emailTemplates';
 import { AppRoute } from '@/utils/urls';
 import { getUrl } from '@/utils/serverUrls';
-import { ResendService } from '@/services/ResendService';
+import { emailService } from '@/services/EmailService';
 
 export { SiteDefaultLocaleMissingError };
 
@@ -105,7 +105,9 @@ export async function sendDigestPreviewEmails(
   html: string,
 ): Promise<SendDigestPreviewResult> {
   const results = await Promise.allSettled(
-    to.map((addr) => ResendService.sendTransactionalEmail({ to: addr, subject, html, lang: 'en' })),
+    to.map((addr) =>
+      emailService.send({ kind: 'digest-preview', carrier: 'resend', to: addr, subject, html, lang: 'en' }),
+    ),
   );
   const errors: Array<{ to: string; error: unknown }> = [];
   let sent = 0;

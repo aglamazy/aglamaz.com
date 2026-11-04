@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { FamilyRepository } from '../../../../repositories/FamilyRepository';
 import { GmailService } from '../../../../services/GmailService';
+import { emailService } from '@/services/EmailService';
 import { getUrl, AppRoute } from '@/utils/serverUrls';
 import { shouldAutoApprove } from '@/utils/siteUtils';
 
@@ -54,8 +55,8 @@ export async function POST(request: NextRequest) {
     );
 
     try {
-      const gmailService = await GmailService.init();
-      await gmailService.sendVerificationEmail(email, firstName, verificationUrl, locale);
+      const message = GmailService.buildVerificationEmail(firstName, verificationUrl, locale);
+      await emailService.send({ kind: 'signup-verification', carrier: 'gmail', siteId, to: email, ...message });
 
       // Mark email_verified flag on the signup request doc
       const emailKey = email.toLowerCase().trim();

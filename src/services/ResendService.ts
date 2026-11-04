@@ -55,7 +55,7 @@ export interface TransactionalEmailParams {
   subject: string;
   html: string;
   lang?: string;
-  /** When set, a unique per-copy open-tracking pixel is minted and appended to `html` right before sending - the single choke point every send type funnels through, so translation (which runs before this call) never sees or mangles the pixel tag. */
+  /** When set, a unique per-copy open-tracking pixel is minted and appended to `html` right before sending - the single Resend choke point every Resend send funnels through, so translation (which runs before this call) never sees or mangles the pixel tag. */
   tracking?: TransactionalEmailTracking;
 }
 
@@ -297,17 +297,19 @@ export class ResendService {
   }
 
   /**
-   * Send a transactional email via the Resend REST API.
-   * No-ops silently when RESEND_API_KEY is absent — safe for local dev.
-   * Resolves true only when Resend answered 2xx (the email was accepted), false when it was
-   * skipped for the missing key, so a send flow can tell "delivered" from "nothing happened".
+   * Carrier only: hand one email to the Resend REST API. Call EmailService.send, never this -
+   * EmailService records every send (famcircle#201) and tests/emailSinglePath.test.ts fails
+   * when this is reached from anywhere else.
+   * No-ops when RESEND_API_KEY is absent — safe for local dev.
+   * accepted is true only when Resend answered 2xx, false when it was skipped for the missing
+   * key, so a send flow can tell "delivered" from "nothing happened".
    * From address: RESEND_FROM_EMAIL env var, defaulting to reminders@mail.famcircle.org
    * (the verified sending domain provisioned for this project).
    */
-  static async sendTransactionalEmail(params: TransactionalEmailParams): Promise<boolean> {
+  static async deliver(params: TransactionalEmailParams): Promise<{ accepted: boolean; messageId?: string }> {
     if (!ResendService.isEnabled()) {
       console.log('[ResendService] RESEND_API_KEY not configured — skipping email to', params.to);
-      return false;
+      return { accepted: false };
     }
 
     const apiKey = process.env.RESEND_API_KEY!;
@@ -339,7 +341,8 @@ export class ResendService {
       const errorText = await response.text();
       throw new Error(`[ResendService] Resend API error ${response.status}: ${errorText}`);
     }
-    return true;
+    const body = (await response.json().catch(() => null)) as { id?: unknown } | null;
+    return { accepted: true, messageId: typeof body?.id === 'string' ? body.id : undefined };
   }
 }
 

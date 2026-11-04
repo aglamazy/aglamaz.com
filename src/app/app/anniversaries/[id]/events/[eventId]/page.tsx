@@ -1,6 +1,8 @@
 "use client";
 
-import { use, useEffect, useState } from 'react';
+import { use, useCallback, useEffect, useRef, useState } from 'react';
+import { LikeRequestTracker } from '@/utils/likeRequestTracker';
+import { MAX_LIKE_INDEXES_PER_REQUEST } from '@/utils/imageIndexes';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import I18nText from '@/components/I18nText';
 import { apiFetch } from '@/utils/apiFetch';
@@ -36,6 +38,12 @@ interface EventDoc {
   imageUrl?: string;
 }
 
+interface ImageLikeCount {
+  index: number;
+  count: number;
+  likedByMe: boolean;
+}
+
 export default function OccurrenceDetailsPage({ params: paramsPromise }: { params: Promise<{ id: string; eventId: string }> }) {
   const params = use(paramsPromise);
   const { t } = useTranslation();
@@ -50,7 +58,12 @@ export default function OccurrenceDetailsPage({ params: paramsPromise }: { param
   const [showAdd, setShowAdd] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
-  const [likes, setLikes] = useState<Array<{ index: number; count: number; likedByMe: boolean }>>([]);
+  // Image index -> likes, asked only for the photos that come on screen (famcircle#199).
+  // Keyed by index, never by position: the indexes asked are sparse.
+  const [likes, setLikes] = useState<Record<number, ImageLikeCount>>({});
+  const likeTrackerRef = useRef(new LikeRequestTracker());
+  // Every index that has been on screen, so a refresh after an upload can ask them again.
+  const shownIndexesRef = useRef(new Set<number>());
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDropboxImport, setShowDropboxImport] = useState(false);
   // Collect mode (famcircle#195, Agla: "click to enter collect mode; add image to
@@ -107,20 +120,37 @@ export default function OccurrenceDetailsPage({ params: paramsPromise }: { param
     };
   }, [params.id, params.eventId, siteId]);
 
-  useEffect(() => {
-    (async () => {
-      if (!occ || !siteId) return;
-      try {
-        const data = await apiFetch<{ items: Array<{ index: number; count: number; likedByMe: boolean }> }>(
-          ApiRoute.SITE_ANNIVERSARY_EVENT_IMAGE_LIKES,
-          { pathParams: { anniversaryId: params.id, eventId: params.eventId } }
-        );
-        setLikes(data.items || []);
-      } catch (e) {
-        console.error('[likes] fetch failed', e);
-      }
-    })();
-  }, [occ?.id, params.eventId, params.id, siteId]);
+  // Only images with stored dimensions can be liked (the like route checks against them).
+  const likeableCount: number = Array.isArray((occ as any)?.imagesWithDimensions) ? (occ as any).imagesWithDimensions.length : 0;
+
+  const requestLikes = useCallback((indexes: number[]) => {
+    if (!siteId) return;
+    for (const idx of indexes) shownIndexesRef.current.add(idx);
+    const fresh = likeTrackerRef.current.take(params.eventId, indexes.filter((i) => i < likeableCount));
+    for (let start = 0; start < fresh.length; start += MAX_LIKE_INDEXES_PER_REQUEST) {
+      const chunk = fresh.slice(start, start + MAX_LIKE_INDEXES_PER_REQUEST);
+      apiFetch<{ byIndex: Record<number, ImageLikeCount> }>(ApiRoute.SITE_ANNIVERSARY_EVENT_IMAGE_LIKES, {
+        pathParams: { anniversaryId: params.id, eventId: params.eventId },
+        queryParams: { indexes: chunk.join(',') },
+      })
+        .then((data) => {
+          if (!data.byIndex || typeof data.byIndex !== 'object') {
+            throw new Error('[likes] response has no byIndex');
+          }
+          setLikes((cur) => ({ ...cur, ...data.byIndex }));
+        })
+        .catch((e) => {
+          likeTrackerRef.current.release(params.eventId, chunk);
+          console.error('[likes] fetch failed', e);
+        });
+    }
+  }, [siteId, params.id, params.eventId, likeableCount]);
+
+  /** After the images changed: ask again for what has been on screen. */
+  const refreshShownLikes = useCallback(() => {
+    likeTrackerRef.current.reset();
+    requestLikes(Array.from(shownIndexesRef.current));
+  }, [requestLikes]);
 
   // The event's own chosen cover picture (event.imageUrl) belongs in the grid too, not
   // just as a separate no-occurrence-images fallback - it's a real photo of this event
@@ -287,13 +317,7 @@ export default function OccurrenceDetailsPage({ params: paramsPromise }: { param
         { pathParams: { anniversaryId: params.id, eventId: occ.id } }
       );
       setOcc(refreshed.event as any);
-      try {
-        const data = await apiFetch<{ items: Array<{ index: number; count: number; likedByMe: boolean }> }>(
-          ApiRoute.SITE_ANNIVERSARY_EVENT_IMAGE_LIKES,
-          { pathParams: { anniversaryId: params.id, eventId: params.eventId } }
-        );
-        setLikes(data.items || []);
-      } catch {}
+      refreshShownLikes();
       setShowAdd(false);
       setSelectedFiles([]);
       setPreviews([]);
@@ -309,18 +333,15 @@ export default function OccurrenceDetailsPage({ params: paramsPromise }: { param
   
 
   function getLikeMeta(idx: number) {
-    return likes.find((l) => l.index === idx) || { index: idx, count: 0, likedByMe: false };
+    return likes[idx] ?? { index: idx, count: 0, likedByMe: false };
   }
 
   async function toggleLike(idx: number) {
     const meta = getLikeMeta(idx);
     const next = { ...meta, likedByMe: !meta.likedByMe, count: meta.count + (meta.likedByMe ? -1 : 1) };
-    setLikes((cur) => {
-      const other = cur.filter((l) => l.index !== idx);
-      return [...other, next].sort((a, b) => a.index - b.index);
-    });
+    setLikes((cur) => ({ ...cur, [idx]: next }));
     try {
-      const res = await apiFetch<{ index: number; count: number; likedByMe: boolean }>(
+      const res = await apiFetch<ImageLikeCount>(
         ApiRoute.SITE_ANNIVERSARY_EVENT_IMAGE_LIKES,
         {
           pathParams: { anniversaryId: params.id, eventId: params.eventId },
@@ -328,17 +349,11 @@ export default function OccurrenceDetailsPage({ params: paramsPromise }: { param
           body: { imageIndex: idx, like: !meta.likedByMe },
         }
       );
-      setLikes((cur) => {
-        const other = cur.filter((l) => l.index !== idx);
-        return [...other, res].sort((a, b) => a.index - b.index);
-      });
+      setLikes((cur) => ({ ...cur, [idx]: res }));
     } catch (e) {
       console.error('[likes] toggle failed', e);
       // revert
-      setLikes((cur) => {
-        const other = cur.filter((l) => l.index !== idx);
-        return [...other, meta].sort((a, b) => a.index - b.index);
-      });
+      setLikes((cur) => ({ ...cur, [idx]: meta }));
       throw e;
     }
   }
@@ -442,6 +457,7 @@ export default function OccurrenceDetailsPage({ params: paramsPromise }: { param
                   const idx = Number(item.key.split(':')[1]);
                   return toggleLike(idx);
                 }}
+                onItemsOnScreen={(shown) => requestLikes(shown.map((item) => Number(item.key.split(':')[1])))}
               />
             </div>
           )}
@@ -520,11 +536,7 @@ export default function OccurrenceDetailsPage({ params: paramsPromise }: { param
             { pathParams: { anniversaryId: params.id, eventId: params.eventId } }
           );
           setOcc(refreshed.event as any);
-          const likesData = await apiFetch<{ items: Array<{ index: number; count: number; likedByMe: boolean }> }>(
-            ApiRoute.SITE_ANNIVERSARY_EVENT_IMAGE_LIKES,
-            { pathParams: { anniversaryId: params.id, eventId: params.eventId } }
-          );
-          setLikes(likesData.items || []);
+          refreshShownLikes();
         } catch (e) {
           console.error('[dropbox] refresh failed', e);
         }

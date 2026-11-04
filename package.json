@@ -1,6 +1,6 @@
 {
   "name": "aglamaz-app",
-  "version": "26.10.10",
+  "version": "26.11.0",
   "private": true,
   "deployDomains": [
     "https://aglamaz.com",
@@ -22,7 +22,7 @@
     "pre-deploy": "node scripts/pre-deploy.mjs",
     "firestore:export": "tsx scripts/firestore-backup.ts export",
     "firestore:import": "tsx scripts/firestore-backup.ts import",
-    "test": "tsx tests/auth.test.ts && tsx tests/signupPolicy.test.ts && tsx tests/agentActor.test.ts && tsx tests/memberRepositoryActor.test.ts",
+    "test": "tsx tests/auth.test.ts && tsx tests/signupPolicy.test.ts && tsx tests/agentActor.test.ts && tsx tests/memberRepositoryActor.test.ts && tsx tests/emailService.test.ts && tsx tests/emailSinglePath.test.ts && tsx tests/imageLikesOnScreen.test.ts && tsx tests/debugAuthReport.test.ts",
     "test:digest": "tsx tests/digestTranslation.test.ts",
     "test:digest-template": "tsx tests/digestTemplate.test.ts",
     "test:digest-compiler": "tsx tests/DigestCompilerService.test.ts",
