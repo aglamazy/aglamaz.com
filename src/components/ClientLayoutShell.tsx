@@ -20,6 +20,7 @@ import { apiFetch } from '@/utils/apiFetch';
 import { ApiRoute } from '@/entities/Routes';
 import { ISite } from '@/entities/Site';
 import ReadOnlyBanner from '@/components/ReadOnlyBanner';
+import { sendDebugAuthReport } from '@/utils/debugAuthReportClient';
 
 interface ClientLayoutShellProps {
   children: React.ReactNode;
@@ -66,10 +67,16 @@ export default function ClientLayoutShell({ children }: ClientLayoutShellProps) 
         // legitimately already visible (Agla, 2026-08-02: modal appeared over a
         // working read-only calendar view and blocked it).
         if (useReadOnlyStore.getState().isReadOnly) return;
-        if (!useUserStore.getState().user) openLogin();
+        if (!useUserStore.getState().user) {
+          // TEMP famcircle#204: /app is a public path and never reaches /auth/gate, so the
+          // Android reopen login left no report. Report report-only, then the same openLogin.
+          sendDebugAuthReport('fail', 'app_path_no_user', window.location.pathname + window.location.search);
+          openLogin();
+        }
       })
       .catch((err) => {
         if (useReadOnlyStore.getState().isReadOnly) return;
+        sendDebugAuthReport('fail', 'app_path_check_error', window.location.pathname + window.location.search);
         openLogin();
         throw err;
       });

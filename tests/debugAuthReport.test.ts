@@ -37,7 +37,16 @@ function badShapesRefused() {
   }
 }
 
-for (const t of [ok, unknownFieldsDropped, tokenShapedRefused, oversizeRefused, badShapesRefused]) {
+// famcircle#204: the /app shell's reasons must pass the same whitelist, with a real /app path.
+function appPathReasonsAccepted() {
+  for (const why of ['app_path_no_user', 'app_path_check_error']) {
+    const r = parseDebugAuthReport(JSON.stringify({ ...base, why, path: '/app?login=1&why=missing_cookie' }));
+    assert.ok(r.ok, why);
+    assert.equal(r.report.why, why);
+  }
+}
+
+for (const t of [ok, unknownFieldsDropped, tokenShapedRefused, oversizeRefused, badShapesRefused, appPathReasonsAccepted]) {
   t();
   console.log(`✓ ${t.name}`);
 }
