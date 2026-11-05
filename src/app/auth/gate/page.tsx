@@ -5,34 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useSiteStore } from "@/store/SiteStore";
 import { useMemberStore } from "@/store/MemberStore";
 import { useUserStore } from "@/store/UserStore";
-
-// TEMP famcircle#179 (Agla 2026-11-04): every refresh attempt is reported to an open debug
-// endpoint so a real Android reopen shows its WHY without DB access. Fire-and-forget with
-// keepalive: it never blocks or delays the redirect. Remove with /api/debug/auth-report.
-function reportRefreshAttempt(outcome: 'ok' | 'fail', why: string, path: string, httpStatus?: number) {
-  try {
-    const body = JSON.stringify({
-      outcome,
-      why,
-      path,
-      httpStatus,
-      clientTs: new Date().toISOString(),
-      displayMode: window.matchMedia('(display-mode: standalone)').matches ? 'standalone' : 'browser',
-      visibility: document.visibilityState,
-      online: navigator.onLine,
-      msSinceNavStart: performance.now(),
-    });
-    // eslint-disable-next-line no-restricted-globals
-    void fetch('/api/debug/auth-report', {
-      method: 'POST',
-      keepalive: true,
-      headers: { 'Content-Type': 'application/json' },
-      body,
-    }).catch((err) => console.error('[auth gate] debug report failed:', err));
-  } catch (err) {
-    console.error('[auth gate] debug report failed:', err);
-  }
-}
+// TEMP famcircle#179: every refresh attempt is reported; remove with /api/debug/auth-report.
+import { sendDebugAuthReport as reportRefreshAttempt } from "@/utils/debugAuthReportClient";
 
 export default function AuthGate() {
   const router = useRouter();
